@@ -1,8 +1,27 @@
 const routes = [
   {
+    path: '/login',
+    component: () => import('src/layouts/AuthLayout.vue'),
+    meta: { public: true },
+    children: [
+      {
+        path: '',
+        component: () => import('src/pages/auth/LoginPage.vue'),
+      },
+    ],
+  },
+  {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
-    children: [{ path: '', component: () => import('pages/IndexPage.vue') }],
+    meta: { public: false },
+    children: [
+      {
+        path: '',
+        name: 'index',
+        meta: { requiresAuth: true },
+        component: () => import('pages/IndexPage.vue'),
+      },
+    ],
   },
 
   // Always leave this as last one,

@@ -2,9 +2,10 @@
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
 import { defineConfig } from '#q-app/wrappers'
-import { fileURLToPath } from 'node:url'
+import { config } from 'dotenv'
+const env = config().parsed
 
-export default defineConfig((ctx) => {
+export default defineConfig((/* ctx */) => {
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
     // preFetch: true,
@@ -12,7 +13,7 @@ export default defineConfig((ctx) => {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['i18n', 'axios'],
+    boot: ['axios', 'auth'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ['app.scss'],
@@ -21,7 +22,7 @@ export default defineConfig((ctx) => {
     extras: [
       // 'ionicons-v4',
       // 'mdi-v7',
-      // 'fontawesome-v6',
+      'fontawesome-v6',
       // 'eva-icons',
       // 'themify',
       // 'line-awesome',
@@ -34,7 +35,7 @@ export default defineConfig((ctx) => {
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
       target: {
-        browser: ['es2022', 'firefox115', 'chrome115', 'safari14'],
+        browser: ['es2019', 'edge88', 'firefox78', 'chrome87', 'safari13.1'],
         node: 'node20',
       },
 
@@ -47,7 +48,7 @@ export default defineConfig((ctx) => {
 
       // publicPath: '/',
       // analyze: true,
-      // env: {},
+      env: env.parsed,
       // rawDefine: {}
       // ignorePublicFolder: true,
       // minify: false,
@@ -59,23 +60,6 @@ export default defineConfig((ctx) => {
 
       vitePlugins: [
         [
-          '@intlify/unplugin-vue-i18n/vite',
-          {
-            // if you want to use Vue I18n Legacy API, you need to set `compositionOnly: false`
-            // compositionOnly: false,
-
-            // if you want to use named tokens in your Vue I18n messages, such as 'Hello {name}',
-            // you need to set `runtimeOnly: false`
-            // runtimeOnly: false,
-
-            ssr: ctx.modeName === 'ssr',
-
-            // you need to set i18n resource including paths !
-            include: [fileURLToPath(new URL('./src/i18n', import.meta.url))],
-          },
-        ],
-
-        [
           'vite-plugin-checker',
           {
             eslint: {
@@ -85,7 +69,28 @@ export default defineConfig((ctx) => {
           },
           { server: false },
         ],
+        [
+          'vite-plugin-optimize-deps',
+          {
+            exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
+          },
+        ],
       ],
+
+      viteOptions: {
+        optimizeDeps: {
+          exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
+        },
+        worker: {
+          format: 'es', // Ensure workers are treated as ES modules
+        },
+        server: {
+          fs: {
+            // Allow serving files from the project root
+            allow: ['..'],
+          },
+        },
+      },
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
@@ -109,7 +114,7 @@ export default defineConfig((ctx) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: [],
+      plugins: ['Loading', 'Notify', 'Dialog', 'Meta', 'Dark', 'Cookies'],
     },
 
     // animations: 'all', // --- includes all animations

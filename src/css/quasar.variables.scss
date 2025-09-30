@@ -12,14 +12,28 @@
 // to match your app's branding.
 // Tip: Use the "Theme Builder" on Quasar's documentation website.
 
-$primary: #1976d2;
-$secondary: #26a69a;
-$accent: #9c27b0;
+// quasar.variables.scss
+
+$primary: #26c6da; // Soft Teal
+$primary-hover: #00bcd4;
+$primary-focus: #00acc1;
+
+$secondary: #ffab91; // Soft Coral
+$secondary-hover: #ff8a65;
+$secondary-focus: #ff7043;
+
+$background: #fdfdfd;
+$card: #fafafa;
+$border: #e0e0e0;
+
+$text-color: #333333;
+$text-secondary: #757575;
+$placeholder: #bdbdbd;
+
+$positive: #66bb6a;
+$negative: #ef5350;
+$info: #4fc3f7;
+$warning: #ffca28;
 
 $dark: #1d1d1d;
 $dark-page: #121212;
-
-$positive: #21ba45;
-$negative: #c10015;
-$info: #31ccec;
-$warning: #f2c037;
