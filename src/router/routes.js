@@ -18,7 +18,7 @@ const routes = [
       {
         path: '',
         name: 'index',
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: false },
         component: () => import('pages/IndexPage.vue'),
       },
     ],

@@ -1,1 +1,263 @@
 // app global css in SCSS form
+.min-h-screen {
+  min-height: 100vh;
+}
+
+.grid {
+  display: grid;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-3 {
+  gap: 0.75rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.gap-8 {
+  gap: 2rem;
+}
+
+.space-y-3 > * + * {
+  margin-top: 0.75rem;
+}
+
+.space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+.space-y-8 > * + * {
+  margin-top: 2rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.mb-8 {
+  margin-bottom: 2rem;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
+.ml-8 {
+  margin-left: 2rem;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.w-12 {
+  width: 3rem;
+}
+
+.h-12 {
+  height: 3rem;
+}
+
+.w-2 {
+  width: 0.5rem;
+}
+
+.h-2 {
+  height: 0.5rem;
+}
+
+.w-24 {
+  width: 6rem;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+.rounded-2xl {
+  border-radius: 1rem;
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.border-2 {
+  border: 2px solid #000;
+}
+
+.bg-white {
+  background-color: #fff;
+}
+
+.bg-grey-2 {
+  background-color: #f5f5f5;
+}
+
+.bg-grey-4 {
+  background-color: #bdbdbd;
+}
+
+.bg-black {
+  background-color: #000;
+}
+
+.text-2xl {
+  font-size: 2rem;
+  line-height: 2rem;
+}
+
+.text-xl {
+  font-size: 2rem;
+  line-height: 1.75rem;
+}
+
+.text-4xl {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.text-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+.font-light {
+  font-weight: 300;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-serif {
+  font-family: serif;
+}
+
+.tracking-wider {
+  letter-spacing: 0.05em;
+}
+
+.shadow-lg {
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.p-6 {
+  padding: 1.5rem;
+}
+
+.p-8 {
+  padding: 2rem;
+}
+
+.px-12 {
+  padding-left: 3rem;
+  padding-right: 3rem;
+}
+
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.max-w-6xl {
+  max-width: 72rem;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.col-span-2 {
+  grid-column: span 2 / span 2;
+}
+
+.text-grey-6 {
+  color: #757575;
+}
+
+.text-grey-7 {
+  color: #616161;
+}
+
+// Custom component overrides
+:deep(.custom-input .q-field__control) {
+  border-radius: 0.5rem;
+  border-color: #d1d5db;
+}
+
+:deep(.custom-input .q-field__control:hover) {
+  border-color: #9ca3af;
+}
+
+:deep(.custom-input .q-field__control:focus-within) {
+  border-color: #a855f7;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+}
+
+:deep(.custom-radio .q-radio__inner) {
+  color: #a855f7;
+}
+
+:deep(.custom-checkbox .q-checkbox__inner) {
+  color: #a855f7;
+  border-radius: 0.25rem;
+}
+
+:deep(.custom-toggle .q-toggle__track) {
+  height: 24px;
+  width: 48px;
+  border-radius: 12px;
+}
+
+:deep(.custom-toggle .q-toggle__thumb) {
+  width: 20px;
+  height: 20px;
+}
+
+:deep(.custom-slider .q-slider__track) {
+  height: 8px;
+  border-radius: 4px;
+}
+
+:deep(.custom-slider .q-slider__thumb) {
+  width: 20px;
+  height: 20px;
+}
