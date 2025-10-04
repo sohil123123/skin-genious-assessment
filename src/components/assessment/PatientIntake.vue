@@ -21,7 +21,7 @@
 
       <div v-if="!startFaceScan && !uploadImagesStep" class="row q-col-gutter-lg">
         <!-- Left Column -->
-        <div class="col-md-6">
+        <div class="col-md-6 col-sm-6 col-xs-12">
           <!-- Patient Basics -->
           <section>
             <h2 class="text-sm font-semibold tracking-wider mb-4">PATIENT BASICS</h2>
@@ -114,7 +114,7 @@
         </div>
 
         <!-- Right Column -->
-        <div class="col-md-6">
+        <div class="col-md-6 col-sm-6 col-xs-12">
           <!-- Medical History -->
           <section>
             <h2 class="text-sm font-semibold tracking-wider mb-4">MEDICAL HISTORY</h2>
@@ -174,47 +174,65 @@
               flat
               bordered
               no-thumbnails
-              style="max-width: 500px; width: 100%"
-              class="custom-uploader"
+              class="custom-uploader full-width"
+              style="width: 100%; height: 100vh"
             >
-              <template v-slot:header> </template>
+              <template v-slot:header></template>
+
               <template v-slot:list="scope">
                 <div
                   v-if="scope.files && scope.files.length > 0"
-                  class="column flex flex-center file-upload"
+                  class="q-pa-md row q-col-gutter-md justify-start items-start"
+                  style="flex-wrap: wrap"
                 >
-                  <q-list separator class="q-gutter-sm">
-                    <q-item
-                      v-for="file in scope.files"
-                      :key="file.__key"
-                      style="border: 1px solid #ccc"
-                    >
-                      <q-item-section avatar>
-                        <q-icon name="image" color="deep-orange" size="36px" />
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label class="full-width ellipsis">
-                          {{ file.name.length > 30 ? file.name.slice(0, 27) + '...' : file.name }}
-                        </q-item-label>
-                        <q-item-label caption>
-                          {{ file.__sizeLabel }}
-                        </q-item-label>
-                      </q-item-section>
-                      <q-item-section top side>
-                        <q-btn
-                          class="gt-xs"
-                          size="12px"
-                          flat
-                          dense
-                          round
-                          icon="delete"
-                          @click="scope.removeFile(file)"
-                        />
-                      </q-item-section>
-                    </q-item>
-                  </q-list>
+                  <!-- Image card -->
+                  <div
+                    v-for="file in scope.files"
+                    :key="file.__key"
+                    class="column items-center q-pa-sm"
+                    style="width: 150px"
+                  >
+                    <!-- Image thumbnail -->
+                    <img
+                      v-if="commonStore.isImage(file)"
+                      :src="commonStore.getPreviewUrl(file)"
+                      :alt="file.name"
+                      style="
+                        width: 140px;
+                        height: 140px;
+                        object-fit: cover;
+                        border-radius: 8px;
+                        border: 1px solid #ccc;
+                      "
+                    />
+                    <q-icon
+                      v-else
+                      name="image"
+                      color="grey"
+                      size="100px"
+                      style="
+                        border: 1px solid #ccc;
+                        width: 140px;
+                        height: 140px;
+                        border-radius: 8px;
+                      "
+                    />
+
+                    <!-- Delete button below -->
+                    <q-btn
+                      size="sm"
+                      color="negative"
+                      label="Remove"
+                      outline
+                      rounded
+                      class="q-mt-sm"
+                      @click="scope.removeFile(file)"
+                    />
+                  </div>
                 </div>
-                <div class="q-pa-md row flex-center column full-width">
+
+                <!-- Empty state -->
+                <div class="q-pa-md column items-center justify-center full-width full-height">
                   <div class="text-subtitle1 q-mb-sm text-black text-center">
                     Drag & drop face images here
                   </div>
@@ -293,6 +311,9 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import _ from 'lodash'
+import { useCommonStore } from 'src/stores/commonStore'
+
+const commonStore = useCommonStore()
 
 // Form data
 const formData = reactive({
