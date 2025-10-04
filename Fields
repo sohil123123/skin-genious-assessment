@@ -1,0 +1,13 @@
+Step1:
+   age
+   daily_sun_exposure_hours (no of hours)
+   planing_to_travel (yes/no)
+   diabitic (yes/no)
+   thairiod (yes/no)
+   pcod (yes/no)
+   blood_thinners (yes/no)
+   used_salicylic_acid (yes/no)
+   used_glycolic_acid (yes/no)
+   aloe_vera_allergy (yes/no)
+   vitamin_c_allergy (yes/no)
+

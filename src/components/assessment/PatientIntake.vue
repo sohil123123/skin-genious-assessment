@@ -19,7 +19,7 @@
         </div>
       </div>
 
-      <div class="row q-col-gutter-lg">
+      <div v-if="!startFaceScan && !uploadImagesStep" class="row q-col-gutter-lg">
         <!-- Left Column -->
         <div class="col-md-6">
           <!-- Patient Basics -->
@@ -33,11 +33,11 @@
                 class="custom-input"
               />
 
-              <div class="flex items-center gap-4">
+              <div class="flex items-center q-gutter-sm">
                 <span class="text-sm">Age</span>
                 <q-select outlined v-model="formData.age" :options="ageOptions" dense />
 
-                <div class="flex gap-4 q-ml-sm">
+                <div class="flex q-gutter-xs q-ml-sm">
                   <q-radio v-model="formData.gender" val="Male" label="Male" class="custom-radio" />
                   <q-radio
                     v-model="formData.gender"
@@ -51,50 +51,62 @@
           </section>
 
           <!-- Sun Exposure & Plans -->
-          <section>
-            <h2 class="text-sm font-semibold tracking-wider mb-4">SUN EXPOSURE & PLANS</h2>
-            <div class="space-y-3">
+          <section class="q-mt-lg">
+            <h2 class="text-sm font-semibold tracking-wider q-pb-sm">SUN EXPOSURE & PLANS</h2>
+            <div class="q-gutter-md">
               <div class="flex items-center justify-between">
-                <span class="text-sm">Sun exposure</span>
-                <div class="flex items-center gap-3">
-                  <span class="text-sm text-grey-7">Low</span>
-                  <q-toggle v-model="formData.sunExposure" color="orange" />
+                <div class="col">
+                  <q-select
+                    label="Daily sun exposure"
+                    outlined
+                    v-model="formData.sunExposure"
+                    :options="sunExposureOptions"
+                    clearable
+                  />
                 </div>
               </div>
 
-              <div class="flex items-center justify-between">
-                <span class="text-sm">Upcoming travel</span>
-                <div class="flex items-center gap-3">
-                  <span class="text-sm text-grey-7">Other</span>
-                  <q-toggle v-model="formData.upcomingTravel" color="orange" />
+              <div class="q-mt-lg">
+                <span class="text-sm text-weight-bold">Upcoming Travel (7 days)</span>
+                <div class="flex items-center q-gutter-sm q-mt-sm">
+                  <q-btn
+                    :flat="formData.upcomingTravel"
+                    rounded
+                    :class="formData.upcomingTravel ? 'btn-custom' : 'bg-white text-grey-7'"
+                    @click="updateField('upcomingTravel', true)"
+                    label="Yes"
+                    :outline="!formData.upcomingTravel"
+                  />
+                  <q-btn
+                    :flat="!formData.upcomingTravel"
+                    rounded
+                    :class="!formData.upcomingTravel ? 'btn-custom' : 'bg-white text-grey-7'"
+                    @click="updateField('upcomingTravel', false)"
+                    label="No"
+                    :outline="formData.upcomingTravel"
+                  />
                 </div>
               </div>
-            </div>
-          </section>
 
-          <!-- Clinical Examination -->
-          <section>
-            <h2 class="text-sm font-semibold tracking-wider mb-4">CLINICAL EXAMINATION</h2>
-            <div class="space-y-4">
-              <div>
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm">Pigment score</span>
-                </div>
-                <q-slider
-                  v-model="formData.pigmentScore"
-                  :min="0"
-                  :max="100"
-                  color="primary"
-                  class="custom-slider"
-                />
-              </div>
-
-              <div class="flex items-center justify-between">
-                <span class="text-sm">Acne grade</span>
-                <div class="flex items-center gap-4">
-                  <span class="text-sm">None</span>
-                  <span class="text-grey-6">|</span>
-                  <span class="text-sm">Severe</span>
+              <div class="q-mt-lg">
+                <span class="text-sm text-weight-bold">Social Event (7 days)</span>
+                <div class="flex items-center q-gutter-sm q-mt-xs">
+                  <q-btn
+                    :flat="formData.socialEvent"
+                    rounded
+                    :class="formData.socialEvent ? 'btn-custom' : 'bg-white text-grey-7'"
+                    @click="updateField('socialEvent', true)"
+                    label="Yes"
+                    :outline="!formData.socialEvent"
+                  />
+                  <q-btn
+                    :flat="!formData.socialEvent"
+                    rounded
+                    :class="!formData.socialEvent ? 'btn-custom' : 'bg-white text-grey-7'"
+                    @click="updateField('socialEvent', false)"
+                    label="No"
+                    :outline="formData.socialEvent"
+                  />
                 </div>
               </div>
             </div>
@@ -107,118 +119,257 @@
           <section>
             <h2 class="text-sm font-semibold tracking-wider mb-4">MEDICAL HISTORY</h2>
             <div class="grid grid-cols-2 gap-3">
-              <q-checkbox v-model="formData.diabetes" label="Diabetes" class="custom-checkbox" />
-              <q-checkbox v-model="formData.thyroid" label="Thyroid" class="custom-checkbox" />
-              <q-checkbox v-model="formData.pcod" label="PCOD" class="custom-checkbox" />
-              <q-checkbox
-                v-model="formData.hypertension"
-                label="Hypertension"
-                class="custom-checkbox"
-              />
-              <q-checkbox
-                v-model="formData.onMedications"
-                label="On medications"
-                class="custom-checkbox col-span-2"
-              />
+              <template v-for="value in medicalHistoryOptions" :key="value">
+                <q-checkbox
+                  v-model="formData.medicalHistory"
+                  :label="value"
+                  :val="value"
+                  class="custom-checkbox"
+                  @update:model-value="updateMedicalHistory"
+                />
+              </template>
             </div>
           </section>
 
           <!-- Current Skincare & Allergies -->
           <section>
             <h2 class="text-sm font-semibold tracking-wider mb-4">CURRENT SKINCARE & ALLERGIES</h2>
-            <div class="space-y-3">
-              <div class="flex items-center justify-between">
-                <q-checkbox
-                  v-model="formData.usingSkincare"
-                  label="Using skincare products"
-                  class="custom-checkbox"
-                />
-                <q-toggle v-model="formData.usingSkincare" color="orange" />
-              </div>
-
-              <div class="flex items-center justify-between">
-                <q-checkbox
-                  v-model="formData.allergies"
-                  label="Any allergies"
-                  class="custom-checkbox"
-                />
-                <q-toggle v-model="formData.allergies" color="orange" />
-              </div>
-            </div>
-          </section>
-
-          <!-- Clinical Examination -->
-          <section>
-            <h2 class="text-sm font-semibold tracking-wider mb-4">CLINICAL EXAMINATION</h2>
-            <div class="space-y-4">
-              <div>
-                <label class="text-sm block mb-2">Acne grade</label>
-                <div class="flex gap-2">
-                  <q-btn
-                    v-for="grade in acneGrades"
-                    :key="grade"
-                    :label="grade"
-                    :color="formData.acneGradeRight === grade ? 'primary' : 'white'"
-                    :text-color="formData.acneGradeRight === grade ? 'white' : 'grey-7'"
-                    :outline="formData.acneGradeRight !== grade"
-                    @click="updateField('acneGradeRight', grade)"
-                    class="rounded-lg"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label class="text-sm block mb-2">Skin type</label>
-                <q-select
-                  outlined
-                  v-model="formData.skinType"
-                  :options="skinTypes"
-                  class="w-full"
-                />
-              </div>
+            <div class="q-gutter-sm">
+              <q-btn
+                v-for="product in productsAndAllergies"
+                :key="product"
+                :flat="formData.allergies.includes(product)"
+                rounded
+                :class="
+                  formData.allergies.includes(product) ? 'btn-custom' : 'bg-white text-grey-7'
+                "
+                @click="updateAllergies(product)"
+                :label="product"
+                no-caps
+                :outline="!formData.allergies.includes(product)"
+              />
             </div>
           </section>
         </div>
       </div>
 
+      <div v-if="startFaceScan && !startProcessingStep">
+        <div class="container" id="scan-animation">
+          <h6>Initializing Scan...</h6>
+          <div class="scanner"></div>
+          <p>Please hold while we prepare your face scan upload.</p>
+        </div>
+      </div>
+
+      <div v-if="uploadImagesStep && !startProcessingStep && !showResultsStep">
+        <div class="row justify-center">
+          <div class="upload-container">
+            <h2 class="upload-title">Upload Face Scan</h2>
+            <q-uploader
+              ref="uploader"
+              url=""
+              label="Drag & drop face images here"
+              multiple
+              accept="image/*"
+              flat
+              bordered
+              no-thumbnails
+              style="max-width: 500px; width: 100%"
+              class="custom-uploader"
+            >
+              <template v-slot:header> </template>
+              <template v-slot:list="scope">
+                <div
+                  v-if="scope.files && scope.files.length > 0"
+                  class="column flex flex-center file-upload"
+                >
+                  <q-list separator class="q-gutter-sm">
+                    <q-item
+                      v-for="file in scope.files"
+                      :key="file.__key"
+                      style="border: 1px solid #ccc"
+                    >
+                      <q-item-section avatar>
+                        <q-icon name="image" color="deep-orange" size="36px" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label class="full-width ellipsis">
+                          {{ file.name.length > 30 ? file.name.slice(0, 27) + '...' : file.name }}
+                        </q-item-label>
+                        <q-item-label caption>
+                          {{ file.__sizeLabel }}
+                        </q-item-label>
+                      </q-item-section>
+                      <q-item-section top side>
+                        <q-btn
+                          class="gt-xs"
+                          size="12px"
+                          flat
+                          dense
+                          round
+                          icon="delete"
+                          @click="scope.removeFile(file)"
+                        />
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </div>
+                <div class="q-pa-md row flex-center column full-width">
+                  <div class="text-subtitle1 q-mb-sm text-black text-center">
+                    Drag & drop face images here
+                  </div>
+                  <div class="text-subtitle1 q-mb-md text-black">or</div>
+                  <q-btn
+                    v-if="scope.canAddFiles"
+                    label="Choose Files"
+                    type="a"
+                    no-caps
+                    @click="scope.pickFiles"
+                    class="btn-custom"
+                  >
+                    <q-uploader-add-trigger />
+                  </q-btn>
+                </div>
+              </template>
+            </q-uploader>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="startProcessingStep">
+        <div class="row justify-center">
+          <div class="container" id="processing-screen">
+            <h6>Processing Scans...</h6>
+            <div
+              class="wheels"
+              style="display: flex; justify-content: center; gap: 20px; margin: 40px 0"
+            >
+              <div class="wheel"></div>
+              <div class="wheel"></div>
+              <div class="wheel"></div>
+            </div>
+            <p>Please wait while we analyze your images...</p>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="showResultsStep">
+        <div class="row justify-center">
+          <div class="container" id="processing-screen">
+            <div class="row items-stretch q-gutter-sm justify-center q-mb-sm">
+              <q-icon name="check_circle" color="green" size="md" />
+              <h6 class="q-ma-sm">Results Ready!</h6>
+            </div>
+            <p class="text-subtitle1">Your scans have been processed successfully.</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Start Face Scan Button -->
       <div class="flex justify-center q-mt-lg">
-        <q-btn color="primary" label="Start Face Scan" size="lg" />
+        <q-btn
+          v-if="!startFaceScan && !uploadImagesStep"
+          label="🚀 Start Face Scan"
+          rounded
+          no-caps
+          size="18px"
+          class="btn-custom"
+          @click="uploadImages"
+        />
+        <q-btn
+          v-if="uploader?.files.length > 0 && uploadImagesStep && !startProcessingStep"
+          label="⚡ Process Scanned Results"
+          rounded
+          no-caps
+          size="18px"
+          class="btn-custom"
+          @click="startProcessing"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
+import _ from 'lodash'
 
 // Form data
 const formData = reactive({
   fullName: '',
   age: 21,
   gender: 'Male',
-  sunExposure: false,
+  sunExposure: null,
   upcomingTravel: false,
-  diabetes: false,
-  thyroid: false,
-  pcod: false,
-  hypertension: false,
-  onMedications: false,
+  socialEvent: false,
+  medicalHistory: [],
   usingSkincare: false,
-  allergies: false,
-  pigmentScore: 50,
-  acneGrade: 'None',
-  acneGradeRight: 'None',
-  skinType: 'Normal',
+  allergies: [],
 })
+
+const uploader = ref(null)
+const startFaceScan = ref(false)
+const uploadImagesStep = ref(false)
+const startProcessingStep = ref(false)
+const showResultsStep = ref(false)
 
 // Options for selects
 const ageOptions = Array.from({ length: 83 }, (_, i) => i + 18)
-const acneGrades = ['None', 'Mild', 'Moderate']
-const skinTypes = ['Normal', 'Dry', 'Oily', 'Combination', 'Sensitive']
+const sunExposureOptions = ['Less than 1 hour', '1-2 hours', 'More than 2 hours']
+const medicalHistoryOptions = [
+  'Blood thinners',
+  'Diabetes',
+  'Thyroid',
+  'PCOD',
+  'Hypertension',
+  'On medications',
+  'None',
+]
+
+const productsAndAllergies = ['Salicylic Acid', 'Glycolic Acid', 'Aloe Vera', 'Vitamin C', 'None']
 
 // Update field function
 const updateField = (field, value) => {
   formData[field] = value
+}
+
+function updateMedicalHistory(value) {
+  if (value.includes('None')) {
+    // If "None" is selected, keep only "None"
+    formData.medicalHistory = ['None']
+  } else {
+    // If any other option is selected, remove "None"
+    formData.medicalHistory = _.filter(value, (item) => item !== 'None')
+  }
+}
+
+function updateAllergies(product) {
+  const index = formData.allergies.indexOf(product)
+  if (index > -1) {
+    formData.allergies.splice(index, 1)
+  } else {
+    if (product === 'None') {
+      formData.allergies = ['None']
+    } else {
+      formData.allergies = formData.allergies.filter((item) => item !== 'None')
+      formData.allergies.push(product)
+    }
+  }
+}
+
+function uploadImages() {
+  startFaceScan.value = true
+  setTimeout(() => {
+    startFaceScan.value = false
+    uploadImagesStep.value = true
+  }, 2000) // 2 seconds delay
+}
+
+function startProcessing() {
+  startProcessingStep.value = true
+  setTimeout(() => {
+    startProcessingStep.value = false
+    showResultsStep.value = true
+  }, 2000) // 2 seconds delay
 }
 </script>

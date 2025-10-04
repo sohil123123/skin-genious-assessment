@@ -261,3 +261,130 @@
   width: 20px;
   height: 20px;
 }
+
+.btn-custom {
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  border-color: #818cf8;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(129, 140, 248, 0.6);
+}
+
+#scan-animation {
+  text-align: center;
+}
+
+.scanner {
+  position: relative;
+  width: 300px;
+  height: 200px;
+  margin: 20px auto;
+  border: 2px solid #6366f1;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+}
+
+.scanner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.2), transparent);
+  animation: scanMove 2s linear infinite;
+}
+
+@keyframes scanMove {
+  0% {
+    top: -50%;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+#scan-animation h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #2563eb, #9333ea, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+#scan-animation p {
+  margin-top: 15px;
+  font-size: 14px;
+  color: #374151;
+}
+
+h6 {
+  font-size: 28px;
+  text-align: center;
+  margin-bottom: 25px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #2563eb, #9333ea, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.upload-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  // width: 50%;
+}
+
+.upload-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+}
+
+.custom-uploader {
+  border: 2px dashed #d1d5db;
+  border-radius: 16px;
+  background: #f9fafb;
+  padding: 20px;
+}
+
+.custom-uploader .q-uploader__header {
+  background-color: transparent;
+}
+
+.choose-btn {
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.wheel {
+  width: 50px;
+  height: 50px;
+  border: 6px solid #e5e7eb;
+  border-top: 6px solid #6366f1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+.wheel:nth-child(2) {
+  border-top: 6px solid #a855f7;
+  animation-duration: 1.5s;
+}
+.wheel:nth-child(3) {
+  border-top: 6px solid #ec4899;
+  animation-duration: 2s;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
