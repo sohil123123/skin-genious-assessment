@@ -1,12 +1,23 @@
 const routes = [
+  // {
+  //   path: '/login',
+  //   component: () => import('src/layouts/AuthLayout.vue'),
+  //   meta: { public: true },
+  //   children: [
+  //     {
+  //       path: '',
+  //       component: () => import('src/pages/auth/LoginPage.vue'),
+  //     },
+  //   ],
+  // },
   {
-    path: '/login',
+    path: '/authenticate/:token?/:userId?',
     component: () => import('src/layouts/AuthLayout.vue'),
     meta: { public: true },
     children: [
       {
         path: '',
-        component: () => import('src/pages/auth/LoginPage.vue'),
+        component: () => import('src/pages/auth/AuthenticattionPage.vue'),
       },
     ],
   },

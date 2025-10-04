@@ -12,11 +12,11 @@
           <span class="text-xl font-light tracking-wider">AI AESTHETICS</span>
         </div>
         <!-- <h1 class="text-4xl font-serif">Patient Intake</h1> -->
-        <div class="flex gap-2">
+        <!-- <div class="flex gap-2">
           <div class="w-2 h-2 rounded-full bg-black"></div>
           <div class="w-2 h-2 rounded-full bg-grey-4"></div>
           <div class="w-2 h-2 rounded-full bg-grey-4"></div>
-        </div>
+        </div> -->
       </div>
 
       <div v-if="!startFaceScan && !uploadImagesStep" class="row q-col-gutter-lg">
@@ -273,7 +273,7 @@
 
       <div v-if="showResultsStep">
         <div class="row justify-center">
-          <div class="container" id="processing-screen">
+          <div class="container text-center" id="processing-screen">
             <div class="row items-stretch q-gutter-sm justify-center q-mb-sm">
               <q-icon name="check_circle" color="green" size="md" />
               <h6 class="q-ma-sm">Results Ready!</h6>

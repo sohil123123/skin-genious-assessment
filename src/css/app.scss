@@ -388,3 +388,15 @@ h6 {
     transform: rotate(360deg);
   }
 }
+
+@media screen and (max-width: 768px) {
+  .text-xl {
+    font-size: 1.5rem;
+  }
+  .h-12 {
+    height: 2.5rem;
+  }
+  .w-12 {
+    width: 2.5rem;
+  }
+}

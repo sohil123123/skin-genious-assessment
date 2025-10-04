@@ -12,12 +12,12 @@ export default boot(async ({ router, store }) => {
     token = authStore.bearer?.access_token
     expireAt = authStore.bearer?.expires_at
     if (requiresAuth && (!authStore.user || !validateToken(token, expireAt))) {
-      next('/login')
+      next('/authenticate')
     } else if (
       requiresAuth &&
       authStore.user &&
       validateToken(token, expireAt) &&
-      to.path === '/login'
+      to.path === '/authenticate'
     ) {
       next('/')
     }
