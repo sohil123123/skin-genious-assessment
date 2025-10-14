@@ -155,13 +155,13 @@
 
       <div v-if="startFaceScan && !startProcessingStep">
         <div class="container" id="scan-animation">
-          <h6>Initializing Scan...</h6>
+          <h6 class="heading">Initializing Scan...</h6>
           <div class="scanner"></div>
           <p>Please hold while we prepare your face scan upload.</p>
         </div>
       </div>
 
-      <div v-if="uploadImagesStep && !startProcessingStep && !showResultsStep">
+      <div v-show="uploadImagesStep && !startProcessingStep && !showResultsStep">
         <div class="row justify-center">
           <div class="upload-container">
             <h2 class="upload-title">Upload Face Scan</h2>
@@ -257,7 +257,7 @@
       <div v-if="startProcessingStep">
         <div class="row justify-center">
           <div class="container" id="processing-screen">
-            <h6>Processing Scans...</h6>
+            <h6 class="heading">Processing Scans...</h6>
             <div
               class="wheels"
               style="display: flex; justify-content: center; gap: 20px; margin: 40px 0"
@@ -309,24 +309,22 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, nextTick } from 'vue'
 import _ from 'lodash'
 import { useCommonStore } from 'src/stores/commonStore'
 
 const commonStore = useCommonStore()
+const emit = defineEmits(['process'])
 
 // Form data
-const formData = reactive({
-  fullName: '',
-  age: 21,
-  gender: 'Male',
-  sunExposure: null,
-  upcomingTravel: false,
-  socialEvent: false,
-  medicalHistory: [],
-  usingSkincare: false,
-  allergies: [],
+const props = defineProps({
+  formData: {
+    type: Object,
+    required: true,
+  },
 })
+
+const formData = reactive(_.cloneDeep(props.formData))
 
 const uploader = ref(null)
 const startFaceScan = ref(false)
@@ -383,14 +381,46 @@ function uploadImages() {
   setTimeout(() => {
     startFaceScan.value = false
     uploadImagesStep.value = true
-  }, 2000) // 2 seconds delay
+  }, 2000)
 }
 
-function startProcessing() {
+async function fileToBase64(fileWrapper) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    // Quasar stores the real File in fileWrapper.__file
+    const actualFile = fileWrapper.__file || fileWrapper
+
+    if (!(actualFile instanceof Blob)) {
+      return reject(new Error('Invalid file type passed to fileToBase64()'))
+    }
+
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1]
+      resolve(base64)
+    }
+
+    reader.onerror = (error) => reject(error)
+    reader.readAsDataURL(actualFile)
+  })
+}
+
+async function prepareUploaderImages() {
+  if (!uploader.value || !uploader.value.files.length) return []
+
+  const base64List = await Promise.all(uploader.value.files.map((f) => fileToBase64(f)))
+
+  return base64List
+}
+
+async function startProcessing() {
   startProcessingStep.value = true
-  setTimeout(() => {
-    startProcessingStep.value = false
-    showResultsStep.value = true
-  }, 2000) // 2 seconds delay
+  await nextTick()
+  const base64Images = await prepareUploaderImages(uploader)
+  if (uploader.value && uploader.value.files) {
+    emit('process', base64Images)
+  } else {
+    console.warn('Uploader not ready or has no files')
+  }
 }
 </script>

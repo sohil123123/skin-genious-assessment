@@ -262,6 +262,14 @@
   height: 20px;
 }
 
+.gredient {
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+}
+
+.gredient-bg {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+}
+
 .btn-custom {
   background: linear-gradient(90deg, #6366f1, #a855f7);
   border-color: #818cf8;
@@ -320,6 +328,13 @@
 }
 
 h6 {
+  font-weight: 700;
+  background: linear-gradient(90deg, #2563eb, #9333ea, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+h6.heading {
   font-size: 28px;
   text-align: center;
   margin-bottom: 25px;
