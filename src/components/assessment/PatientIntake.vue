@@ -28,19 +28,31 @@
             <div class="space-y-4">
               <q-input
                 outlined
+                placeholder="Patient ID"
+                v-model="patientData.id"
+                class="custom-input"
+              />
+
+              <q-input
+                outlined
                 placeholder="Full name"
-                v-model="formData.fullName"
+                v-model="patientData.fullName"
                 class="custom-input"
               />
 
               <div class="flex items-center q-gutter-sm">
                 <span class="text-sm">Age</span>
-                <q-select outlined v-model="formData.age" :options="ageOptions" dense />
+                <q-select outlined v-model="patientData.age" :options="ageOptions" dense />
 
                 <div class="flex q-gutter-xs q-ml-sm">
-                  <q-radio v-model="formData.gender" val="Male" label="Male" class="custom-radio" />
                   <q-radio
-                    v-model="formData.gender"
+                    v-model="patientData.gender"
+                    val="Male"
+                    label="Male"
+                    class="custom-radio"
+                  />
+                  <q-radio
+                    v-model="patientData.gender"
                     val="Female"
                     label="Female"
                     class="custom-radio"
@@ -59,7 +71,7 @@
                   <q-select
                     label="Daily sun exposure"
                     outlined
-                    v-model="formData.sunExposure"
+                    v-model="patientData.sunExposure"
                     :options="sunExposureOptions"
                     clearable
                   />
@@ -70,20 +82,20 @@
                 <span class="text-sm text-weight-bold">Upcoming Travel (7 days)</span>
                 <div class="flex items-center q-gutter-sm q-mt-sm">
                   <q-btn
-                    :flat="formData.upcomingTravel"
+                    :flat="patientData.upcomingTravel"
                     rounded
-                    :class="formData.upcomingTravel ? 'btn-custom' : 'bg-white text-grey-7'"
+                    :class="patientData.upcomingTravel ? 'btn-custom' : 'bg-white text-grey-7'"
                     @click="updateField('upcomingTravel', true)"
                     label="Yes"
-                    :outline="!formData.upcomingTravel"
+                    :outline="!patientData.upcomingTravel"
                   />
                   <q-btn
-                    :flat="!formData.upcomingTravel"
+                    :flat="!patientData.upcomingTravel"
                     rounded
-                    :class="!formData.upcomingTravel ? 'btn-custom' : 'bg-white text-grey-7'"
+                    :class="!patientData.upcomingTravel ? 'btn-custom' : 'bg-white text-grey-7'"
                     @click="updateField('upcomingTravel', false)"
                     label="No"
-                    :outline="formData.upcomingTravel"
+                    :outline="patientData.upcomingTravel"
                   />
                 </div>
               </div>
@@ -92,20 +104,20 @@
                 <span class="text-sm text-weight-bold">Social Event (7 days)</span>
                 <div class="flex items-center q-gutter-sm q-mt-xs">
                   <q-btn
-                    :flat="formData.socialEvent"
+                    :flat="patientData.socialEvent"
                     rounded
-                    :class="formData.socialEvent ? 'btn-custom' : 'bg-white text-grey-7'"
+                    :class="patientData.socialEvent ? 'btn-custom' : 'bg-white text-grey-7'"
                     @click="updateField('socialEvent', true)"
                     label="Yes"
-                    :outline="!formData.socialEvent"
+                    :outline="!patientData.socialEvent"
                   />
                   <q-btn
-                    :flat="!formData.socialEvent"
+                    :flat="!patientData.socialEvent"
                     rounded
-                    :class="!formData.socialEvent ? 'btn-custom' : 'bg-white text-grey-7'"
+                    :class="!patientData.socialEvent ? 'btn-custom' : 'bg-white text-grey-7'"
                     @click="updateField('socialEvent', false)"
                     label="No"
-                    :outline="formData.socialEvent"
+                    :outline="patientData.socialEvent"
                   />
                 </div>
               </div>
@@ -121,7 +133,7 @@
             <div class="grid grid-cols-2 gap-3">
               <template v-for="value in medicalHistoryOptions" :key="value">
                 <q-checkbox
-                  v-model="formData.medicalHistory"
+                  v-model="patientData.medicalHistory"
                   :label="value"
                   :val="value"
                   class="custom-checkbox"
@@ -138,15 +150,15 @@
               <q-btn
                 v-for="product in productsAndAllergies"
                 :key="product"
-                :flat="formData.allergies.includes(product)"
+                :flat="patientData.allergies.includes(product)"
                 rounded
                 :class="
-                  formData.allergies.includes(product) ? 'btn-custom' : 'bg-white text-grey-7'
+                  patientData.allergies.includes(product) ? 'btn-custom' : 'bg-white text-grey-7'
                 "
                 @click="updateAllergies(product)"
                 :label="product"
                 no-caps
-                :outline="!formData.allergies.includes(product)"
+                :outline="!patientData.allergies.includes(product)"
               />
             </div>
           </section>
@@ -314,17 +326,17 @@ import _ from 'lodash'
 import { useCommonStore } from 'src/stores/commonStore'
 
 const commonStore = useCommonStore()
-const emit = defineEmits(['process'])
+const emit = defineEmits(['process', 'update-patient'])
 
 // Form data
 const props = defineProps({
-  formData: {
+  patientData: {
     type: Object,
     required: true,
   },
 })
 
-const formData = reactive(_.cloneDeep(props.formData))
+const patientData = reactive(_.cloneDeep(props.patientData))
 
 const uploader = ref(null)
 const startFaceScan = ref(false)
@@ -349,29 +361,29 @@ const productsAndAllergies = ['Salicylic Acid', 'Glycolic Acid', 'Aloe Vera', 'V
 
 // Update field function
 const updateField = (field, value) => {
-  formData[field] = value
+  patientData[field] = value
 }
 
 function updateMedicalHistory(value) {
   if (value.includes('None')) {
     // If "None" is selected, keep only "None"
-    formData.medicalHistory = ['None']
+    patientData.medicalHistory = ['None']
   } else {
     // If any other option is selected, remove "None"
-    formData.medicalHistory = _.filter(value, (item) => item !== 'None')
+    patientData.medicalHistory = _.filter(value, (item) => item !== 'None')
   }
 }
 
 function updateAllergies(product) {
-  const index = formData.allergies.indexOf(product)
+  const index = patientData.allergies.indexOf(product)
   if (index > -1) {
-    formData.allergies.splice(index, 1)
+    patientData.allergies.splice(index, 1)
   } else {
     if (product === 'None') {
-      formData.allergies = ['None']
+      patientData.allergies = ['None']
     } else {
-      formData.allergies = formData.allergies.filter((item) => item !== 'None')
-      formData.allergies.push(product)
+      patientData.allergies = patientData.allergies.filter((item) => item !== 'None')
+      patientData.allergies.push(product)
     }
   }
 }
@@ -418,6 +430,7 @@ async function startProcessing() {
   await nextTick()
   const base64Images = await prepareUploaderImages(uploader)
   if (uploader.value && uploader.value.files) {
+    emit('update-patient', patientData)
     emit('process', base64Images)
   } else {
     console.warn('Uploader not ready or has no files')

@@ -13,101 +13,117 @@
           <span class="text-xl font-light tracking-wider">AI AESTHETICS</span>
         </div>
       </div>
-      <div>
-        <!-- Primary Focus -->
-        <q-card flat bordered class="q-mt-md">
-          <q-card-section>
-            <h6 class="q-ma-none">Primary Focus</h6>
-          </q-card-section>
-          <q-list dense>
-            <q-item v-for="(focus, index) in treatmentPlan.primary_focus" :key="index">
-              <q-item-section>
-                {{ focus }}
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card>
 
-        <!-- In-Clinic Sessions -->
-        <h5 class="q-mt-lg q-mb-md">In-Clinic Sessions</h5>
-        <div
-          v-for="(clinic, clinicIndex) in treatmentPlan.in_clinic_sessions"
-          :key="clinicIndex"
-          class="q-mb-lg"
-        >
-          <q-card flat bordered>
-            <q-card-section>
-              <div class="text-h6">{{ clinic.name }}</div>
-              <div class="text-subtitle2 text-grey">{{ clinic.frequency }}</div>
-            </q-card-section>
-            <q-separator />
-            <q-card-section v-for="(sess, sessIndex) in clinic.sessions" :key="sessIndex">
-              <div class="text-subtitle1 q-mb-md">
-                Session {{ sess.session_number }}: {{ sess.title }}
+      <div v-for="(plan, planIndex) in treatmentPlan" :key="planIndex" class="q-mb-xl">
+        <!-- Plan Header Card -->
+        <q-card flat bordered class="bg-white shadow-2 q-pa-md rounded-borders">
+          <div class="row items-center justify-between">
+            <div>
+              <div class="text-h6 text-weight-bold text-primary">
+                {{ plan.plan_name }}
               </div>
-              <q-timeline color="primary" layout="dense">
-                <q-timeline-entry
-                  v-for="(step, stepIndex) in sess.steps"
-                  :key="stepIndex"
-                  :side="false"
-                >
-                  <template v-slot:title> Step {{ step.step_number }}: {{ step.title }} </template>
-                  <template v-slot:subtitle>
-                    <q-chip class="text-accent" dense outline>Duration: {{ step.duration }}</q-chip>
-                  </template>
-                  <div>Details: {{ step.details }}</div>
-                  <div>Products: {{ step.products_equipments.join(', ') }}</div>
-                  <div>How to do: {{ step.how_to_do }}</div>
-                  <div>Finish: {{ step.finish.join(', ') }}</div>
-                </q-timeline-entry>
-              </q-timeline>
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <!-- Homecare -->
-        <q-card flat bordered class="q-mt-md">
-          <q-card-section>
-            <h6 class="q-ma-none">Homecare</h6>
-          </q-card-section>
-          <q-list bordered separator>
-            <q-item v-for="(home, index) in treatmentPlan.homecare" :key="index">
-              <q-item-section>
-                <q-item-label>{{ home.product }}</q-item-label>
-                <q-item-label caption>{{ home.usage }}</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-list>
+              <div class="text-caption text-grey">Total Duration: {{ plan.total_time }}</div>
+            </div>
+          </div>
         </q-card>
 
-        <!-- Contraindications -->
-        <q-card flat bordered class="q-mt-md">
-          <q-card-section>
-            <h6 class="q-ma-none">Contraindications</h6>
-          </q-card-section>
-          <q-list dense>
-            <q-item v-for="(contra, index) in treatmentPlan.contraindications" :key="index">
-              <q-item-section>
-                {{ contra }}
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card>
+        <!-- Timeline -->
+        <q-timeline color="primary" layout="dense" class="q-mt-lg">
+          <q-timeline-entry
+            v-for="(session, sIndex) in plan.sessions"
+            :key="sIndex"
+            :title="`Week ${session.week}`"
+            :subtitle="session.title"
+            color="secondary"
+            icon="event_note"
+          >
+            <q-card flat bordered class="bg-grey-2 q-pa-sm q-mt-sm shadow-1 rounded-borders">
+              <q-expansion-item
+                dense
+                expand-separator
+                default-opened
+                icon="content_paste"
+                label="Session Details"
+                header-class="text-weight-medium text-primary"
+              >
+                <q-card flat bordered class="bg-white q-pa-sm">
+                  <q-list separator dense>
+                    <q-expansion-item
+                      v-for="(step, stIndex) in session.steps"
+                      :key="stIndex"
+                      dense
+                      expand-icon="expand_more"
+                      switch-toggle-side
+                      header-class="text-dark text-weight-medium"
+                    >
+                      <template #header>
+                        <div>Step {{ step.step_number }}: {{ step.title }}</div>
+                      </template>
 
-        <!-- Follow Up -->
-        <q-card flat bordered class="q-mt-md">
-          <q-card-section>
-            <h6 class="q-ma-none">Follow Up</h6>
-          </q-card-section>
-          <q-list dense>
-            <q-item v-for="(follow, index) in treatmentPlan.follow_up" :key="index">
-              <q-item-section>
-                {{ follow }}
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card>
+                      <q-card flat bordered class="q-pa-sm bg-grey-1 q-my-xs rounded-borders">
+                        <div class="text-caption q-mb-xs">
+                          <strong>Details:</strong> {{ step.details }}
+                        </div>
+                        <div class="text-caption q-mb-xs">
+                          <strong>Duration:</strong> {{ step.duration }}
+                        </div>
+
+                        <div class="q-my-xs">
+                          <div class="text-caption text-weight-medium text-secondary q-mb-xs">
+                            Devices & Equipments:
+                          </div>
+                          <div>
+                            <q-chip
+                              v-for="device in step.devices_equipments"
+                              :key="device"
+                              color="blue-3"
+                              text-color="black"
+                              size="sm"
+                              icon="devices"
+                              class="q-mr-xs q-mb-xs"
+                            >
+                              {{ device }}
+                            </q-chip>
+                          </div>
+
+                          <div
+                            class="text-caption text-weight-medium text-secondary q-mt-sm q-mb-xs"
+                          >
+                            Products Used:
+                          </div>
+                          <div>
+                            <q-chip
+                              v-for="product in step.products_equipments"
+                              :key="product"
+                              color="green-3"
+                              text-color="black"
+                              size="sm"
+                              icon="spa"
+                              class="q-mr-xs q-mb-xs"
+                            >
+                              {{ product }}
+                            </q-chip>
+                          </div>
+                        </div>
+
+                        <div class="text-caption q-mt-xs">
+                          <strong>Finish:</strong>
+                          <span>{{ step.finish.join(', ') }}</span>
+                        </div>
+
+                        <div class="text-caption q-mt-xs">
+                          <strong>How to Do:</strong> {{ step.how_to_do }}
+                        </div>
+                      </q-card>
+                    </q-expansion-item>
+                  </q-list>
+                </q-card>
+              </q-expansion-item>
+            </q-card>
+          </q-timeline-entry>
+        </q-timeline>
       </div>
+
       <!-- Display AI response; format as needed -->
       <div class="flex justify-start q-mt-lg">
         <q-btn label="Previous" rounded no-caps class="btn-custom" @click="emitPrevious" />

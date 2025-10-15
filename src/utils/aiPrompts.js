@@ -270,26 +270,12 @@ to detect key facial skin features and generate a structured JSON diagnostic rep
 
 ### 11. PeriOrbital Health
 {
-  "peri_orbital_health": [
+  "periorbital_health": [
     {"parameter": "Puffiness", "grading": ["None", "Mild", "Moderate", "Severe"]},
     {"parameter": "Hollowness", "grading": ["None", "Mild", "Moderate", "Severe"]},
     {"parameter": "Pigmentation", "grading": ["None", "Mild", "Moderate", "Severe"]},
     {"parameter": "Vascularity", "grading": ["None", "Mild", "Moderate", "Severe"]}
   ]
-}
-
----
-
-### 12. Lip Pigmentation
-{
-  "lip_pigmentation": {
-    "status": ["Present", "Absent"],
-    "features": [
-      "Darkening compared to surrounding skin",
-      "May be uniform or patchy",
-      "Causes: sun exposure, smoking, genetics, PIH, dehydration"
-    ]
-  }
 }
 
 ---
@@ -332,7 +318,7 @@ to detect key facial skin features and generate a structured JSON diagnostic rep
 
 ### 16. Comedonal Density
 {
-  "comedonal_density_grading": [
+  "comedonal_density": [
     {"score": "Score 0 - None", "scoring_parameters": ["No comedones"]},
     {"score": "Score 1 - Mild", "scoring_parameters": ["Few scattered comedones"]},
     {"score": "Score 2 - Moderate", "scoring_parameters": ["Multiple clusters"]},
@@ -457,7 +443,7 @@ to detect key facial skin features and generate a structured JSON diagnostic rep
         "periorbital_health": {
             "parameter_name": "PeriOrbital Health",
             "description": "This parameter assesses the health of the skin around the eyes, including puffiness, hollowness, pigmentation, and vascularity.",
-            "score_or_label": "<Mild / Moderate / Severe>",
+            "score_or_label": "<None / Mild / Moderate / Severe>",
             "score_explanation": "<Why this score was chosen>",
             "affected_area_image": "<URL or empty string>",
             "possible_causes": ["<Cause 1>", "<Cause 2>"]

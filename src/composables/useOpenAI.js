@@ -48,7 +48,7 @@ export function useOpenAI() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4.1',
+          model: 'gpt-5-nano',
           conversation: convId,
           input,
         }),
@@ -65,19 +65,19 @@ export function useOpenAI() {
       // Try to return the assistant's text output
       // return data.output?.[0]?.content?.[0]?.text || JSON.stringify(data, null, 2)
 
-      const extractedText = data.output?.[0]?.content?.[0]?.text || JSON.stringify(data, null, 2)
+      const extractedText = data.output?.[1]?.content?.[0]?.text || JSON.stringify(data, null, 2)
 
-      let cleanedText = ''
-      const match = extractedText.match(/```json([\s\S]*?)```/)
-      if (match && match[1]) {
-        cleanedText = match[1].trim()
-      } else if (extractedText.trim().startsWith('{')) {
-        cleanedText = extractedText.trim()
-      } else {
-        throw new Error('No valid JSON found.')
-      }
+      // let cleanedText = ''
+      // const match = extractedText.match(/```json([\s\S]*?)```/)
+      // if (match && match[1]) {
+      //   cleanedText = match[1].trim()
+      // } else if (extractedText.trim().startsWith('{')) {
+      //   cleanedText = extractedText.trim()
+      // } else {
+      //   throw new Error('No valid JSON found.')
+      // }
 
-      const parsed = JSON.parse(cleanedText)
+      const parsed = JSON.parse(extractedText)
       return parsed
     } catch (err) {
       console.error(err)
