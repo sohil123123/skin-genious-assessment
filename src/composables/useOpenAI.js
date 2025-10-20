@@ -65,7 +65,8 @@ export function useOpenAI() {
       // Try to return the assistant's text output
       // return data.output?.[0]?.content?.[0]?.text || JSON.stringify(data, null, 2)
 
-      const extractedText = data.output?.[1]?.content?.[0]?.text || JSON.stringify(data, null, 2)
+      const extractedText =
+        data.output?.[data.output?.length - 1]?.content?.[0]?.text || JSON.stringify(data, null, 2)
 
       // let cleanedText = ''
       // const match = extractedText.match(/```json([\s\S]*?)```/)

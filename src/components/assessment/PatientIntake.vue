@@ -162,14 +162,67 @@
               />
             </div>
           </section>
+
+          <section class="q-mt-md">
+            <span class="text-sm text-weight-bold">Is Patient Pregnant</span>
+            <div class="flex items-center q-gutter-sm q-mt-xs">
+              <q-btn
+                :flat="patientData.is_patient_pregnant"
+                rounded
+                :class="patientData.is_patient_pregnant ? 'btn-custom' : 'bg-white text-grey-7'"
+                @click="updateField('is_patient_pregnant', true)"
+                label="Yes"
+                :outline="!patientData.is_patient_pregnant"
+              />
+              <q-btn
+                :flat="!patientData.is_patient_pregnant"
+                rounded
+                :class="!patientData.is_patient_pregnant ? 'btn-custom' : 'bg-white text-grey-7'"
+                @click="updateField('is_patient_pregnant', false)"
+                label="No"
+                :outline="patientData.is_patient_pregnant"
+              />
+            </div>
+          </section>
+
+          <section class="q-mt-md">
+            <span class="text-sm text-weight-bold">Breast Feeding?</span>
+            <div class="flex items-center q-gutter-sm q-mt-xs">
+              <q-btn
+                :flat="patientData.breastfeeding"
+                rounded
+                :class="patientData.breastfeeding ? 'btn-custom' : 'bg-white text-grey-7'"
+                @click="updateField('breastfeeding', true)"
+                label="Yes"
+                :outline="!patientData.breastfeeding"
+              />
+              <q-btn
+                :flat="!patientData.breastfeeding"
+                rounded
+                :class="!patientData.breastfeeding ? 'btn-custom' : 'bg-white text-grey-7'"
+                @click="updateField('breastfeeding', false)"
+                label="No"
+                :outline="patientData.breastfeeding"
+              />
+            </div>
+          </section>
         </div>
       </div>
 
       <div v-if="startFaceScan && !startProcessingStep">
-        <div class="container" id="scan-animation">
-          <h6 class="heading">Initializing Scan...</h6>
-          <div class="scanner"></div>
-          <p>Please hold while we prepare your face scan upload.</p>
+        <div class="row justify-center">
+          <div class="container" id="processing-screen">
+            <h6 class="heading">Initializing Scans...</h6>
+            <div
+              class="wheels"
+              style="display: flex; justify-content: center; gap: 20px; margin: 40px 0"
+            >
+              <div class="wheel"></div>
+              <div class="wheel"></div>
+              <div class="wheel"></div>
+            </div>
+            <p>Please hold while we prepare your face scan upload.</p>
+          </div>
         </div>
       </div>
 
@@ -267,19 +320,10 @@
       </div>
 
       <div v-if="startProcessingStep">
-        <div class="row justify-center">
-          <div class="container" id="processing-screen">
-            <h6 class="heading">Processing Scans...</h6>
-            <div
-              class="wheels"
-              style="display: flex; justify-content: center; gap: 20px; margin: 40px 0"
-            >
-              <div class="wheel"></div>
-              <div class="wheel"></div>
-              <div class="wheel"></div>
-            </div>
-            <p>Please wait while we analyze your images...</p>
-          </div>
+        <div class="container" id="scan-animation">
+          <h6 class="heading">Processing Scans...</h6>
+          <div class="scanner"></div>
+          <p>Please wait while we analyze your images...</p>
         </div>
       </div>
 
@@ -393,7 +437,7 @@ function uploadImages() {
   setTimeout(() => {
     startFaceScan.value = false
     uploadImagesStep.value = true
-  }, 2000)
+  }, 100)
 }
 
 async function fileToBase64(fileWrapper) {

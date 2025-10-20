@@ -10,12 +10,20 @@
     <DiagnosisComponent
       v-if="currentStep === 2"
       :diagnosis="diagnosis"
-      @generate-treatment="handleGenerateTreatment"
+      :faceImages="faceImages"
+      @show-major-concerns="handleMajorConcerns"
       @previous="goToPreviousStep"
     />
-    <TreatmentPlanComponent
+    <MajorConcerns
       v-if="currentStep === 3"
+      :treatable-concerns-summary="diagnosis.treatable_concerns_summary"
+      @previous="goToPreviousStep"
+      @generate-treatment="handleGenerateTreatment"
+    />
+    <TreatmentPlanComponent
+      v-if="currentStep === 4"
       :treatment-plan="treatmentPlan"
+      :recommended-full-plan="recommendedFullPlan"
       @previous="goToPreviousStep"
     />
   </q-page>
@@ -26,6 +34,7 @@ import { ref } from 'vue'
 import PatientIntake from 'src/components/assessment/PatientIntake.vue'
 import DiagnosisComponent from 'src/components/assessment/DiagnosisComponent.vue'
 import TreatmentPlanComponent from 'src/components/assessment/TreatmentPlanComponent.vue'
+import MajorConcerns from 'src/components/assessment/MajorConcerns.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
 import {
   SYSTEM_PROMPT_DIAGNOSIS,
@@ -36,6 +45,7 @@ import { Loading, LocalStorage, QSpinnerFacebook } from 'quasar'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 
+const faceImages = ref([])
 const currentStep = ref(1)
 const patientData = ref({
   id: null,
@@ -47,10 +57,13 @@ const patientData = ref({
   socialEvent: false,
   medicalHistory: [],
   allergies: [],
+  is_patient_pregnant: false,
+  breastfeeding: false,
 })
 const uploaderFiles = ref([]) // To store uploaded files references
 const diagnosis = ref(null)
 const treatmentPlan = ref(null)
+const recommendedFullPlan = ref(null)
 
 // const faceImages = [
 //   {
@@ -70,13 +83,15 @@ const handleProcess = async (files) => {
   currentStep.value = 2
 }
 
-const handleGenerateTreatment = async () => {
-  // Simulate or implement API call to ChatGPT for treatment plan
-  // Send diagnosis.value or original patientData.value + images URLs, with constraints from DOCX in prompt
-  // Placeholder:
-  const apiResponse = await callApiForTreatmentPlan()
-  treatmentPlan.value = apiResponse.treatment_plans // e.g., { plan: '...', sessions: [...] }
+const handleMajorConcerns = async () => {
   currentStep.value = 3
+}
+
+const handleGenerateTreatment = async (selected, treatmentType) => {
+  const apiResponse = await callApiForTreatmentPlan(selected, treatmentType)
+  treatmentPlan.value = apiResponse.treatment_plan // e.g., { plan: '...', sessions: [...] }
+  recommendedFullPlan.value = apiResponse.recommended_full_plan
+  currentStep.value = 4
 }
 
 const goToPreviousStep = () => {
@@ -84,6 +99,8 @@ const goToPreviousStep = () => {
     currentStep.value = 1
   } else if (currentStep.value === 3) {
     currentStep.value = 2
+  } else if (currentStep.value === 4) {
+    currentStep.value = 3
   }
 }
 
@@ -92,6 +109,10 @@ async function callApiForDiagnosis(data, images) {
   console.log('Patient data:', data)
   const convId = await getOrCreateConversation(data.id)
   console.log('Conversation ID:', convId)
+
+  faceImages.value = images.map((b64) => {
+    return `data:image/jpeg;base64,${b64}`
+  })
 
   const input = [
     {
@@ -120,9 +141,11 @@ async function callApiForDiagnosis(data, images) {
   return result
 }
 
-async function callApiForTreatmentPlan() {
+async function callApiForTreatmentPlan(selected, treatmentType) {
   // Implement ChatGPT API call here
   // Prompt example: "Generate treatment plan based on diagnosis: [JSON.stringify(input)], constraints: [paste DOCX content]"
+
+  console.log('===>', selected, treatmentType)
   Loading.show({
     spinner: QSpinnerFacebook,
     spinnerColor: 'yellow',
@@ -136,6 +159,15 @@ async function callApiForTreatmentPlan() {
 
   const input = [
     {
+      role: 'system',
+      content: [
+        {
+          type: 'input_text',
+          text: SYSTEM_TREATEMENT_PLAN_PROMPT,
+        },
+      ],
+    },
+    {
       role: 'user',
       content: [
         {
@@ -144,7 +176,14 @@ async function callApiForTreatmentPlan() {
         },
         {
           type: 'input_text',
-          text: SYSTEM_TREATEMENT_PLAN_PROMPT,
+          text: JSON.stringify({
+            treatable_concerns: {
+              description:
+                'Parameters showing deviations that can be treated or improved with appropriate interventions.',
+              parameters_with_abnormal_scores: selected,
+            },
+            treatment_plan_type: `${treatmentType} session`, // 'single session' or 'full treatment'
+          }),
         },
       ],
     },

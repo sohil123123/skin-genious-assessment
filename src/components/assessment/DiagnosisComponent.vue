@@ -14,13 +14,7 @@
       </div>
       <div class="flex justify-between q-mt-lg">
         <q-btn label="Previous" rounded no-caps class="btn-custom" @click="emitPrevious" />
-        <q-btn
-          label="Generate Treatment Plan"
-          rounded
-          no-caps
-          class="btn-custom"
-          @click="emitGenerate"
-        />
+        <q-btn label="Next" rounded no-caps class="btn-custom" @click="emitMajorConcerns" />
       </div>
       <div v-for="(param, key) in diagnosis.diagnosis_report" :key="key" class="q-mt-md">
         <q-card flat bordered class="q-pa-md">
@@ -53,18 +47,15 @@
               </q-chip>
             </div>
           </div>
+          <div>
+            <img :src="faceImages[param.affected_area_image - 1]" width="100px" />
+          </div>
         </q-card>
       </div>
 
       <div class="flex justify-between q-mt-lg">
         <q-btn label="Previous" rounded no-caps class="btn-custom" @click="emitPrevious" />
-        <q-btn
-          label="Generate Treatment Plan"
-          rounded
-          no-caps
-          class="btn-custom"
-          @click="emitGenerate"
-        />
+        <q-btn label="Next" rounded no-caps class="btn-custom" @click="emitMajorConcerns" />
       </div>
     </div>
   </div>
@@ -76,12 +67,16 @@ defineProps({
     type: [String, Object],
     required: true,
   },
+  faceImages: {
+    type: [String, Array],
+    required: true,
+  },
 })
 
-const emit = defineEmits(['generate-treatment', 'previous'])
+const emit = defineEmits(['show-major-concerns', 'previous'])
 
-const emitGenerate = () => {
-  emit('generate-treatment')
+const emitMajorConcerns = () => {
+  emit('show-major-concerns')
 }
 
 const emitPrevious = () => {
@@ -95,8 +90,12 @@ function isScore(label) {
 
 // Extract just the numeric/grade part for badge display
 function extractScore(label) {
-  const match = label.match(/^(\d+|Grade \d+|Score \d+)/)
-  return match ? match[0].replace(/Grade |Score /, '') : label
+  if (label) {
+    const match = label.match(/^(\d+|Grade \d+|Score \d+)/)
+    return match ? match[0].replace(/Grade |Score /, '') : label
+  } else {
+    return 'N.A.'
+  }
 }
 </script>
 
