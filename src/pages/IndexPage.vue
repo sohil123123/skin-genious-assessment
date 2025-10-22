@@ -22,6 +22,7 @@
     />
     <TreatmentPlanComponent
       v-if="currentStep === 4"
+      :treatment-type="treatment_type"
       :treatment-plan="treatmentPlan"
       :recommended-full-plan="recommendedFullPlan"
       @previous="goToPreviousStep"
@@ -64,6 +65,7 @@ const uploaderFiles = ref([]) // To store uploaded files references
 const diagnosis = ref(null)
 const treatmentPlan = ref(null)
 const recommendedFullPlan = ref(null)
+const treatment_type = ref(null)
 
 // const faceImages = [
 //   {
@@ -88,6 +90,7 @@ const handleMajorConcerns = async () => {
 }
 
 const handleGenerateTreatment = async (selected, treatmentType) => {
+  treatment_type.value = treatmentType
   const apiResponse = await callApiForTreatmentPlan(selected, treatmentType)
   treatmentPlan.value = apiResponse.treatment_plan // e.g., { plan: '...', sessions: [...] }
   recommendedFullPlan.value = apiResponse.recommended_full_plan

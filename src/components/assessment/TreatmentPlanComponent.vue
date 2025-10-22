@@ -120,7 +120,7 @@
 
       <q-separator class="q-my-lg" />
 
-      <q-card class="professional-card shadow-2">
+      <q-card v-if="treatmentType == 'single'" class="professional-card shadow-2">
         <q-card-section class="bg-accent text-white">
           <div class="row items-center">
             <q-icon name="calendar_today" size="md" class="q-mr-sm" />
@@ -196,6 +196,7 @@
           </q-card>
         </q-expansion-item>
       </q-card>
+
       <div class="flex justify-between q-mt-lg">
         <q-btn label="Previous" rounded no-caps class="btn-custom" @click="emitPrevious" />
         <q-btn
@@ -234,6 +235,10 @@ const props = defineProps({
   },
   recommendedFullPlan: {
     type: [String, Object],
+    required: true,
+  },
+  treatmentType: {
+    type: String,
     required: true,
   },
 })

@@ -138,7 +138,7 @@
           />
           <q-btn
             label="Generate Treatment Plan"
-            color="secondary"
+            color="positive"
             icon="assignment"
             @click="generatePlan"
             class="q-ml-sm q-px-lg"
