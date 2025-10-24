@@ -107,9 +107,24 @@ const handleMajorConcerns = async () => {
 const handleGenerateTreatment = async (selected, treatmentType) => {
   treatment_type.value = treatmentType
   const apiResponse = await callApiForTreatmentPlan(selected, treatmentType)
-  treatmentPlan.value = apiResponse.treatment_plan // e.g., { plan: '...', sessions: [...] }
-  recommendedFullPlan.value = apiResponse.recommended_full_plan
-  currentStep.value = 4
+  if (apiResponse.error) {
+    Notify.create({
+      type: 'negative',
+      message: apiResponse.error.message,
+      timeout: 0,
+      actions: [
+        {
+          icon: 'close',
+          color: 'white',
+          round: true,
+        },
+      ],
+    })
+  } else {
+    treatmentPlan.value = apiResponse.treatment_plan // e.g., { plan: '...', sessions: [...] }
+    recommendedFullPlan.value = apiResponse.recommended_full_plan
+    currentStep.value = 4
+  }
 }
 
 const goToPreviousStep = () => {
