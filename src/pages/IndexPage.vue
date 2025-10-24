@@ -42,7 +42,7 @@ import {
   D_REPORT_USER_PROMPT,
   SYSTEM_TREATEMENT_PLAN_PROMPT,
 } from 'src/utils/aiPrompts'
-import { Loading, LocalStorage, QSpinnerFacebook } from 'quasar'
+import { Loading, LocalStorage, Notify, QSpinnerFacebook } from 'quasar'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 
@@ -81,8 +81,23 @@ const handleProcess = async (files) => {
   // For example: Upload images to a storage (e.g., Firebase/S3) to get URLs, then send to ChatGPT Vision API with prompt including patientData and constraints from the DOCX
   // Placeholder:
   const apiResponse = await callApiForDiagnosis(patientData.value, files)
-  diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
-  currentStep.value = 2
+  if (apiResponse.error) {
+    Notify.create({
+      type: 'negative',
+      message: apiResponse.error.message,
+      timeout: 0,
+      actions: [
+        {
+          icon: 'close',
+          color: 'white',
+          round: true,
+        },
+      ],
+    })
+  } else {
+    diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
+    currentStep.value = 2
+  }
 }
 
 const handleMajorConcerns = async () => {

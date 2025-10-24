@@ -48,7 +48,7 @@ export function useOpenAI() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-5-nano',
+          model: 'gpt-5', // gpt-5
           conversation: convId,
           input,
         }),
@@ -56,10 +56,7 @@ export function useOpenAI() {
 
       const data = await res.json()
       if (!res.ok) {
-        return {
-          error: true,
-          message: `Response failed: ${JSON.stringify(data)}`,
-        }
+        return data
       }
 
       // Try to return the assistant's text output

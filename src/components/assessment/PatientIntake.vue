@@ -317,6 +317,16 @@
             </q-uploader>
           </div>
         </div>
+        <div class="row" style="margin-top: 1rem">
+          <q-btn
+            label="Previous"
+            color="primary"
+            icon="west"
+            @click="uploadImagesStep = false"
+            class="q-px-lg"
+            unelevated
+          />
+        </div>
       </div>
 
       <div v-if="startProcessingStep">
@@ -324,6 +334,16 @@
           <h6 class="heading">Processing Scans...</h6>
           <div class="scanner"></div>
           <p>Please wait while we analyze your images...</p>
+        </div>
+        <div class="row" style="margin-top: 1rem">
+          <q-btn
+            label="Previous"
+            color="primary"
+            icon="west"
+            @click="((uploadImagesStep = false), (startProcessingStep = false))"
+            class="q-px-lg"
+            unelevated
+          />
         </div>
       </div>
 

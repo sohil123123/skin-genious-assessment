@@ -32,6 +32,12 @@ const routes = [
         meta: { requiresAuth: false },
         component: () => import('pages/IndexPage.vue'),
       },
+      {
+        path: '/test-pdf',
+        name: 'test_pdf',
+        meta: { requiresAuth: false },
+        component: () => import('pages/PdfTestPage.vue'),
+      },
     ],
   },
 
