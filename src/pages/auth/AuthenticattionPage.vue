@@ -25,40 +25,43 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from 'boot/axios' // Quasar's Axios boot file
-import { useQuasar } from 'quasar'
+import { useQuasar, LocalStorage } from 'quasar'
+import { useAuthStore } from 'src/stores/authStore'
 
+const store = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 
-const token = ref(route.params.token)
-const userId = ref(route.params.userId)
+const token = route.query.token
+const userId = route.query.user_id
 const isValid = ref(false)
 
 onMounted(async () => {
-  if (!token.value || !userId.value) {
+  if (!token || !userId) {
     $q.notify({ type: 'negative', message: 'Invalid access. Redirecting...' })
-    return router.push('/error') // Or redirect to CRM login
+    window.location.href = `${process.env.CRM_URL}/users`
   }
 
   try {
     const response = await api.get('/validate-assessment-token', {
-      headers: { Authorization: `Bearer ${token.value}` },
+      headers: { Authorization: `Bearer ${token}` },
     })
-
     if (response.data.valid) {
       isValid.value = true
-      // Proceed: Fetch patient data via another API using token
-      // e.g., await api.get(`/api/patients/${patientId.value}`, { headers: { Authorization: `Bearer ${token.value}` } });
-      // Start assessment form, upload images, etc.
-      // For "restart," clear local storage or reset form state here.
+      LocalStorage.set('user_id', userId)
+      LocalStorage.set('token_id', token)
+      store.token_id = token
+      api.defaults.headers.common.Authorization = 'Bearer ' + token
+      console.log(api)
+      router.push({ name: 'index' })
     } else {
       throw new Error('Invalid token')
     }
   } catch (error) {
     console.error('Authentication error:', error.message)
     $q.notify({ type: 'negative', message: 'Validation failed. Please try from CRM.' })
-    // Redirect back to CRM, e.g., window.location.href = 'https://crm.example.com';
+    window.location.href = `${process.env.CRM_URL}/users`
   }
 })
 </script>

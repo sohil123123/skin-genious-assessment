@@ -1,13 +1,24 @@
-Step1:
-   age
-   daily_sun_exposure_hours (no of hours)
-   planing_to_travel (yes/no)
-   diabitic (yes/no)
-   thairiod (yes/no)
-   pcod (yes/no)
-   blood_thinners (yes/no)
-   used_salicylic_acid (yes/no)
-   used_glycolic_acid (yes/no)
-   aloe_vera_allergy (yes/no)
-   vitamin_c_allergy (yes/no)
+Assessment: patient_id
+  age (int)
+  daily_sun_exposure_hours (string)
+  social_event (yes/no)
+  upcoming_travel (yes/no)
+  medical_history (json)
+  allergies (json)
+  is_patient_pregnant (yes/no)
+  breastfeeding (yes/no)
+  diagnosis (json)
+  parameters_with_abnormal_scores (json)
+  treatment_plan_type (string)
+  treatment_plan (json)
 
+patient_images: patient_id
+  assessment_id
+  image_1 (url)
+  image_2 (url)
+  image_3 (url)
+  image_4 (url)
+  image_5 (url)
+  image_6 (url)
+  image_7 (url)
+  image_8 (url)

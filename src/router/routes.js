@@ -1,15 +1,15 @@
 const routes = [
-  // {
-  //   path: '/login',
-  //   component: () => import('src/layouts/AuthLayout.vue'),
-  //   meta: { public: true },
-  //   children: [
-  //     {
-  //       path: '',
-  //       component: () => import('src/pages/auth/LoginPage.vue'),
-  //     },
-  //   ],
-  // },
+  {
+    path: '/login',
+    component: () => import('src/layouts/AuthLayout.vue'),
+    meta: { public: true },
+    children: [
+      {
+        path: '',
+        component: () => import('src/pages/auth/LoginPage.vue'),
+      },
+    ],
+  },
   {
     path: '/authenticate/:token?/:userId?',
     component: () => import('src/layouts/AuthLayout.vue'),
@@ -29,13 +29,13 @@ const routes = [
       {
         path: '',
         name: 'index',
-        meta: { requiresAuth: false },
+        meta: { requiresAuth: true },
         component: () => import('pages/IndexPage.vue'),
       },
       {
         path: '/test-pdf',
         name: 'test_pdf',
-        meta: { requiresAuth: false },
+        meta: { requiresAuth: true },
         component: () => import('pages/PdfTestPage.vue'),
       },
     ],

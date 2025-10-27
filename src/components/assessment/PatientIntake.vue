@@ -71,7 +71,7 @@
                   <q-select
                     label="Daily sun exposure"
                     outlined
-                    v-model="patientData.sunExposure"
+                    v-model="patientData.daily_sun_exposure_hours"
                     :options="sunExposureOptions"
                     clearable
                   />
@@ -104,20 +104,20 @@
                 <span class="text-sm text-weight-bold">Social Event (7 days)</span>
                 <div class="flex items-center q-gutter-sm q-mt-xs">
                   <q-btn
-                    :flat="patientData.socialEvent"
+                    :flat="patientData.social_event"
                     rounded
-                    :class="patientData.socialEvent ? 'btn-custom' : 'bg-white text-grey-7'"
-                    @click="updateField('socialEvent', true)"
+                    :class="patientData.social_event ? 'btn-custom' : 'bg-white text-grey-7'"
+                    @click="updateField('social_event', true)"
                     label="Yes"
-                    :outline="!patientData.socialEvent"
+                    :outline="!patientData.social_event"
                   />
                   <q-btn
-                    :flat="!patientData.socialEvent"
+                    :flat="!patientData.social_event"
                     rounded
-                    :class="!patientData.socialEvent ? 'btn-custom' : 'bg-white text-grey-7'"
-                    @click="updateField('socialEvent', false)"
+                    :class="!patientData.social_event ? 'btn-custom' : 'bg-white text-grey-7'"
+                    @click="updateField('social_event', false)"
                     label="No"
-                    :outline="patientData.socialEvent"
+                    :outline="patientData.social_event"
                   />
                 </div>
               </div>
@@ -133,7 +133,7 @@
             <div class="grid grid-cols-2 gap-3">
               <template v-for="value in medicalHistoryOptions" :key="value">
                 <q-checkbox
-                  v-model="patientData.medicalHistory"
+                  v-model="patientData.medical_history"
                   :label="value"
                   :val="value"
                   class="custom-checkbox"
@@ -431,10 +431,10 @@ const updateField = (field, value) => {
 function updateMedicalHistory(value) {
   if (value.includes('None')) {
     // If "None" is selected, keep only "None"
-    patientData.medicalHistory = ['None']
+    patientData.medical_history = ['None']
   } else {
     // If any other option is selected, remove "None"
-    patientData.medicalHistory = _.filter(value, (item) => item !== 'None')
+    patientData.medical_history = _.filter(value, (item) => item !== 'None')
   }
 }
 

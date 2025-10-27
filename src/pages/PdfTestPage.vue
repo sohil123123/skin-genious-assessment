@@ -6,6 +6,8 @@
 
 <script setup>
 import jsPDF from 'jspdf'
+import { api } from 'src/boot/axios'
+import { onMounted } from 'vue'
 
 const diagnosis = {
   skin_type: {
@@ -379,4 +381,10 @@ const exportToPDF = () => {
 
   doc.save('AIA_Diagnosis_Report.pdf')
 }
+
+onMounted(() => {
+  api.get('/users/4').then((response) => {
+    console.log(response.data.results)
+  })
+})
 </script>
