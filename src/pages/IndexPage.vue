@@ -2,9 +2,7 @@
   <q-page>
     <PatientIntake
       v-if="currentStep === 1"
-      :patient-data="patientData"
       :uploader-files="uploaderFiles"
-      @update-patient="patientData = $event"
       @process="handleProcess"
     />
     <DiagnosisComponent
@@ -31,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import PatientIntake from 'src/components/assessment/PatientIntake.vue'
 import DiagnosisComponent from 'src/components/assessment/DiagnosisComponent.vue'
 import TreatmentPlanComponent from 'src/components/assessment/TreatmentPlanComponent.vue'
@@ -43,44 +41,33 @@ import {
   SYSTEM_TREATEMENT_PLAN_PROMPT,
 } from 'src/utils/aiPrompts'
 import { Loading, LocalStorage, Notify, QSpinnerFacebook } from 'quasar'
+import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { storeToRefs } from 'pinia'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 
+const store = useAssessmentStore()
+const { assessmentData } = storeToRefs(store)
+
 const faceImages = ref([])
 const currentStep = ref(1)
-const patientData = ref({
-  id: null,
-  fullName: '',
-  age: 21,
-  gender: 'Male',
-  daily_sun_exposure_hours: null,
-  upcomingTravel: false,
-  social_event: false,
-  medical_history: [],
-  allergies: [],
-  is_patient_pregnant: false,
-  breastfeeding: false,
-})
+
 const uploaderFiles = ref([]) // To store uploaded files references
 const diagnosis = ref(null)
 const treatmentPlan = ref(null)
 const recommendedFullPlan = ref(null)
 const treatment_type = ref(null)
 
-// const faceImages = [
-//   {
-//     image_url:
-//       'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg',
-//     type: 'input_image',
-//   },
-// ]
+onMounted(async () => {
+  await store.getPatientData()
+})
 
 const handleProcess = async (files) => {
   // Simulate or implement API call to ChatGPT for diagnosis
-  // You need to handle patientData.value and files (array of File objects)
-  // For example: Upload images to a storage (e.g., Firebase/S3) to get URLs, then send to ChatGPT Vision API with prompt including patientData and constraints from the DOCX
+  // You need to handle assessmentData.value and files (array of File objects)
+  // For example: Upload images to a storage (e.g., Firebase/S3) to get URLs, then send to ChatGPT Vision API with prompt including assessmentData and constraints from the DOCX
   // Placeholder:
-  const apiResponse = await callApiForDiagnosis(patientData.value, files)
+  const apiResponse = await callApiForDiagnosis(assessmentData.value, files)
   if (apiResponse.error) {
     Notify.create({
       type: 'negative',
@@ -111,7 +98,7 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
     Notify.create({
       type: 'negative',
       message: apiResponse.error.message,
-      timeout: 0,
+      timeout: 3000,
       actions: [
         {
           icon: 'close',
@@ -187,7 +174,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     message: 'Generating treatment plan. Hang on...',
     messageColor: 'white',
   })
-  const convId = LocalStorage.getItem(`conv_${patientData.value.id}`)
+  const convId = LocalStorage.getItem(`conv_${assessmentData.value.id}`)
   console.log('Conversation ID:', convId)
 
   const input = [
@@ -205,7 +192,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
       content: [
         {
           type: 'input_text',
-          text: JSON.stringify(patientData.value, null, 2),
+          text: JSON.stringify(assessmentData.value, null, 2),
         },
         {
           type: 'input_text',

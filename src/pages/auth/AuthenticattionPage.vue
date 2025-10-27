@@ -60,7 +60,7 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Authentication error:', error.message)
-    $q.notify({ type: 'negative', message: 'Validation failed. Please try from CRM.' })
+    $q.notify({ type: 'negative', message: 'Validation failed. Redirecting to CRM.' })
     window.location.href = `${process.env.CRM_URL}/users`
   }
 })
