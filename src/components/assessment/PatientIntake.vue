@@ -28,7 +28,6 @@
             <div class="space-y-4">
               <q-input
                 outlined
-                readonly
                 placeholder="Patient ID"
                 v-model="assessmentData.patient_id"
                 class="custom-input"
@@ -36,7 +35,6 @@
 
               <q-input
                 outlined
-                readonly
                 placeholder="Full name"
                 v-model="assessmentData.name"
                 class="custom-input"
@@ -52,14 +50,12 @@
                     val="Male"
                     label="Male"
                     class="custom-radio"
-                    disable
                   />
                   <q-radio
                     v-model="assessmentData.gender"
                     val="Female"
                     label="Female"
                     class="custom-radio"
-                    disable
                   />
                 </div>
               </div>

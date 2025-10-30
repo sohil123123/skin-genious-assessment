@@ -36,7 +36,8 @@
               clickable
             >
               <q-item-section avatar>
-                <q-checkbox v-model="selected" :val="param" color="primary" size="md" keep-color />
+                <q-avatar color="grey-3" text-color="black">{{ index + 1 }}</q-avatar>
+                <!-- <q-checkbox v-model="selected" :val="param" color="primary" size="md" keep-color /> -->
               </q-item-section>
 
               <q-item-section>
@@ -151,30 +152,34 @@
 </template>
 
 <script setup>
-import { Notify } from 'quasar'
+// import { Notify } from 'quasar'
 import { ref } from 'vue'
 
 const emit = defineEmits(['generate-treatment', 'previous'])
 
-defineProps({
+const props = defineProps({
   treatableConcernsSummary: {
     type: [String, Object],
     required: true,
   },
 })
 
-const selected = ref([])
+// const selected = ref([])
 const treatmentType = ref('single')
 
 const generatePlan = () => {
-  if (!selected.value.length) {
-    Notify.create({
-      type: 'negative',
-      message: 'Please select at least one parameter to generate a treatment plan.',
-    })
-    return
-  }
-  emit('generate-treatment', selected.value, treatmentType.value)
+  // if (!selected.value.length) {
+  //   Notify.create({
+  //     type: 'negative',
+  //     message: 'Please select at least one parameter to generate a treatment plan.',
+  //   })
+  //   return
+  // }
+  emit(
+    'generate-treatment',
+    props.treatableConcernsSummary.parameters_with_abnormal_scores,
+    treatmentType.value,
+  )
 }
 
 const emitPrevious = () => {

@@ -127,7 +127,7 @@ const goToPreviousStep = () => {
 // Placeholder API functions - replace with actual implementations
 async function callApiForDiagnosis(data, images) {
   console.log('Patient data:', data)
-  const convId = await getOrCreateConversation(data.id)
+  const convId = await getOrCreateConversation(`${data.patient_id}`)
   console.log('Conversation ID:', convId)
 
   faceImages.value = images.map((b64) => {

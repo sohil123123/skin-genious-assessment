@@ -1,0 +1,871 @@
+{
+  "treatment_plan": {
+    "total_time": "12 weeks",
+    "treatments": [
+      {
+        "session_number": 1,
+        "title": "Foundational Deep Cleanse + Hydrafacial + Gentle Exfoliation + Lymphatic Drainage",
+        "treatment_time": "75 mins",
+        "week": 1,
+        "preparations_checklist_for_therapist": [
+          "Verify consent is signed and review allergies, pregnancy/breastfeeding status, and current medications (including blood thinners).",
+          "Confirm last peel/laser (none reported); check upcoming travel or events that may affect plan.",
+          "Prepare Hydrafacial machine with Ice Probe, Ocular ultrasound infusion, Face ultrasound infusion, suction/bubble pen, and appropriate disposables.",
+          "Load Hydrafacial serums (SA2, A03) and ensure PDRN/Exosome options are available for optional use in infusion steps.",
+          "Have Charcoal mask ready for oily skin detox and a mild glycolic/Salicylic peel (e.g., Glyco 35% or Salicylic 30%) available with neutralizer if needed.",
+          "Set aside neutralizer, sunscreen (SPF 30+), cleansers, moisturizers, and finishing serums.",
+          "Apply eye shields and verify patient comfort; prepare cold pack if requested.",
+          "Sanitize room, prep towels, and ensure proper temperature/lighting for a relaxing experience.",
+          "Confirm no Aloe Vera or Vitamin C allergies before formulation.",
+          "Have lymphatic drainage massage plan and timer ready."
+        ],
+        "concerns_addressed": [
+          {
+            "concern": "Skin Type",
+            "current_value": "Oily Skin",
+            "target_value": "Normal/Balanced Skin"
+          },
+          {
+            "concern": "Superficial Pigmentation Score",
+            "current_value": 2,
+            "target_value": 1
+          },
+          {
+            "concern": "Texture + Open Pores Grading",
+            "current_value": "Grade 3 - Moderate",
+            "target_value": "Grade 0-1"
+          },
+          {
+            "concern": "Superficial Wrinkles",
+            "current_value": "Grade 2 - Mild",
+            "target_value": "Grade 1"
+          },
+          {
+            "concern": "PeriOrbital Health",
+            "current_value": "Mild",
+            "target_value": "None"
+          },
+          {
+            "concern": "Skin Sebum Content",
+            "current_value": 2,
+            "target_value": 1
+          },
+          {
+            "concern": "Lip Pigmentation",
+            "current_value": "Present",
+            "target_value": "Absent"
+          },
+          {
+            "concern": "Under-Eye Vascularity vs Structural Shadows",
+            "current_value": 1,
+            "target_value": 0
+          },
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": 2,
+            "target_value": 3
+          },
+          {
+            "concern": "Comedonal Density",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Texture Irregularities Beyond Pores",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Regional Oil Distribution",
+            "current_value": 1,
+            "target_value": "0-1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "8",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial machine (Ice Probe)"],
+            "how_to_do": "Perform a thorough cleanse to remove surface oils and makeup. Use circular motions for 1–2 minutes. Rinse and pat dry; ensure skin is dry before proceeding."
+          },
+          {
+            "step_number": 2,
+            "duration": "25",
+            "ingredients_equipments": [
+              "Hydrafacial core treatment with Ice Probe",
+              "Suction/Bubble Pen",
+              "Ocular ultrasound infusion",
+              "Face ultrasound infusion"
+            ],
+            "how_to_do": "Execute Hydrafacial core treatment: cleanse, exfo/peel, extraction, and infusion. Include an eye-area infusion using ocular ultrasound with soothing serums as tolerated. Monitor for any sensitivity."
+          },
+          {
+            "step_number": 3,
+            "duration": "5",
+            "ingredients_equipments": ["Charcoal mask (Oily Skin)", "Mask brush"],
+            "how_to_do": "Apply Charcoal mask to T-zone and other oily regions; allow 5 minutes for absorption; remove with gentle sponges."
+          },
+          {
+            "step_number": 4,
+            "duration": "7",
+            "ingredients_equipments": [
+              "Glyco Peel 35% or Salicylic 30% peel",
+              "Neutralizer if needed"
+            ],
+            "how_to_do": "Apply a light Glyco 35% or Salicylic 30% peel to targeted areas for 1–2 minutes; monitor for tingling; neutralize as per product protocol. Do not apply to lips; avoid eyes."
+          },
+          {
+            "step_number": 5,
+            "duration": "10",
+            "ingredients_equipments": [
+              "Ocular ultrasound infusion serums (Vitamin C or Hyaluronic)",
+              "Eye shields"
+            ],
+            "how_to_do": "Perform targeted ocular-area infusion to support periocular health; keep eyes shielded and monitor for discomfort."
+          },
+          {
+            "step_number": 6,
+            "duration": "12",
+            "ingredients_equipments": [
+              "Lymphatic drainage massage technique",
+              "Light massage oil or gel"
+            ],
+            "how_to_do": "Perform gentle lymphatic drainage massage on face, neck, and décolletage in upward strokes. Focus on jawline, cheekbones, and periorbital regions to reduce puffiness and promote drainage."
+          },
+          {
+            "step_number": 7,
+            "duration": "7",
+            "ingredients_equipments": [
+              "Hydrating serum (Hyaluronic Acid)",
+              "Moisturizer",
+              "Sunscreen (SPF 30+)"
+            ],
+            "how_to_do": "Apply a hydrating serum, followed by a light moisturizer and broad-spectrum sunscreen. Ensure finish is comfortable and non-greasy."
+          }
+        ]
+      },
+      {
+        "session_number": 2,
+        "title": "Texture Refinement + Pore Reduction via Microneedling + Hydrafacial",
+        "treatment_time": "75 mins",
+        "week": 3,
+        "preparations_checklist_for_therapist": [
+          "Consult for microneedling patch test if needed; obtain consent for Dermapen use.",
+          "Check for any skin sensitivity or active breakouts; confirm no recent isotretinoin use in past 6 months.",
+          "Prepare Dermapen device with 0.5 mm needles (adjust as tolerated) and sterilized heads.",
+          "Load post-procedure infusions (Hyaluronic Acid, TRX A or Exosome option) and ensure Hydrafacial accessories are ready.",
+          "Ensure patient is informed about possible transient redness; schedule post-care instructions.",
+          "Have eye protection and protective barriers ready; ensure room is warm and comfortable."
+        ],
+        "concerns_addressed": [
+          {
+            "concern": "Texture + Open Pores Grading",
+            "current_value": "Grade 3 - Moderate",
+            "target_value": "Grade 0-1"
+          },
+          {
+            "concern": "Comedonal Density",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Texture Irregularities Beyond Pores",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": 2,
+            "target_value": 3
+          },
+          {
+            "concern": "Regional Oil Distribution",
+            "current_value": 1,
+            "target_value": "0-1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "8",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial machine (Ice Probe)"],
+            "how_to_do": "Cleanse and prep skin, ensuring oil-free surface ready for microneedling."
+          },
+          {
+            "step_number": 2,
+            "duration": "20",
+            "ingredients_equipments": ["Hydrafacial core treatment", "Suction/Bubble Pen"],
+            "how_to_do": "Perform Hydrafacial cleanse and gentle exfoliation to remove surface debris and prepare for microchannel formation."
+          },
+          {
+            "step_number": 3,
+            "duration": "25",
+            "ingredients_equipments": [
+              "Dermapen microneedling device (0.5 mm)",
+              "Hyaluronic acid infusion",
+              "TRX A / Exosome option"
+            ],
+            "how_to_do": "Perform 4 passes in each direction (horizontal & vertical) over cheeks and T-zone; avoid sensitive lips and overly pigmented areas. Apply Hyaluronic acid infusion post-needling; optionally apply TRX A or Exosome per protocol."
+          },
+          {
+            "step_number": 4,
+            "duration": "7",
+            "ingredients_equipments": [
+              "Glycolic/Hydration serum (HA)",
+              "Mask refresh (Charcoal or Hydrate)"
+            ],
+            "how_to_do": "Apply post-procedure hydrating serums; optionally use a hydrating mask for soothing effect."
+          },
+          {
+            "step_number": 5,
+            "duration": "10",
+            "ingredients_equipments": ["LED Red light (anti-inflammatory + collagen synthesis)"],
+            "how_to_do": "Place red LED panel over face for 10 minutes while monitoring comfort."
+          },
+          {
+            "step_number": 6,
+            "duration": "5",
+            "ingredients_equipments": ["Sunscreen", "Finishing moisturizer"],
+            "how_to_do": "Conclude with finishing moisturizers and sunscreen; ensure skin is protected."
+          }
+        ]
+      },
+      {
+        "session_number": 3,
+        "title": "Pigmentation Brightening + Gentle Peel + Eye Area Care",
+        "treatment_time": "75 mins",
+        "week": 5,
+        "preparations_checklist_for_therapist": [
+          "Confirm no active facial lesions; verify no recent aggressive exfoliation within 1 week.",
+          "Prepare Glyco Peel or Whitening Peel; confirm patch tolerance around lips and perioral area.",
+          "Set up LED Green light for pigmentation work; have eye shields ready for safe periocular work.",
+          "Have Hydrofilm or hydrating masque ready for post-peel hydration."
+        ],
+        "concerns_addressed": [
+          {
+            "concern": "Superficial Pigmentation Score",
+            "current_value": 2,
+            "target_value": 1
+          },
+          {
+            "concern": "Lip Pigmentation",
+            "current_value": "Present",
+            "target_value": "Absent"
+          },
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": 2,
+            "target_value": 3
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "8",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial machine (Ice Probe)"],
+            "how_to_do": "Cleansing and prep for treatment; ensure skin is dry."
+          },
+          {
+            "step_number": 2,
+            "duration": "25",
+            "ingredients_equipments": ["Hydrafacial core treatment", "Ocular ultrasound infusion"],
+            "how_to_do": "Hydrafacial cleansing, exfoliation, and extraction; follow with eye-area ultrasound infusion using Vitamin C serum for periorbital health."
+          },
+          {
+            "step_number": 3,
+            "duration": "6",
+            "ingredients_equipments": [
+              "Glyco Peel 35% or Whitening Peel",
+              "Neutralizer if required"
+            ],
+            "how_to_do": "Apply light Glyco/Whitening Peel to pigmented regions with careful avoidance of lips and eyes; monitor for tingling; neutralize per protocol."
+          },
+          {
+            "step_number": 4,
+            "duration": "10",
+            "ingredients_equipments": ["LED Green light"],
+            "how_to_do": "Place LED Green panel over face for pigment-optimizing light exposure for 10 minutes."
+          },
+          {
+            "step_number": 5,
+            "duration": "12",
+            "ingredients_equipments": ["Eye shields", "Calming mask or Hydrogel eye patch"],
+            "how_to_do": "Apply periocular soothing mask to help minimize post-peel irritation and support vascular clarity around the eyes."
+          },
+          {
+            "step_number": 6,
+            "duration": "9",
+            "ingredients_equipments": [
+              "Serum (Vitamin C safe if tolerated)",
+              "Moisturizer",
+              "Sunscreen"
+            ],
+            "how_to_do": "Finish with a brightening serum if tolerated, moisturizer, and broad-spectrum sunscreen. Ensure the lip area is not irritated by peel; avoid lip contact with peeling agents."
+          }
+        ]
+      },
+      {
+        "session_number": 4,
+        "title": "Periocular Health Boost + Eye Area Hydration",
+        "treatment_time": "75 mins",
+        "week": 7,
+        "preparations_checklist_for_therapist": [
+          "Check for any ocular sensitivities; confirm eye shields are intact.",
+          "Prepare Hydrafacial eye-concentrated infusion and ocular ultrasound setup.",
+          "Have LED Red ready for periorbital region; ensure patient comfort and temperature control.",
+          "Confirm post-care directions including gentle eye-area care."
+        ],
+        "concerns_addressed": [
+          {
+            "concern": "PeriOrbital Health",
+            "current_value": "Mild",
+            "target_value": "None"
+          },
+          {
+            "concern": "Under-Eye Vascularity vs Structural Shadows",
+            "current_value": 1,
+            "target_value": 0
+          },
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": 2,
+            "target_value": 3
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "6",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial machine (Ice Probe)"],
+            "how_to_do": "Gentle cleanse to prepare skin, avoiding overstimulation in periocular area."
+          },
+          {
+            "step_number": 2,
+            "duration": "22",
+            "ingredients_equipments": ["Hydrafacial core treatment", "Ocular ultrasound infusion"],
+            "how_to_do": "Hydrafacial core steps with focused infusion around eye region using ultrasound. Ensure shields are in place and no product penetrates into the eye."
+          },
+          {
+            "step_number": 3,
+            "duration": "8",
+            "ingredients_equipments": ["LED Red light therapy"],
+            "how_to_do": "Apply Red LED over the periocular area for 8–10 minutes to stimulate collagen and vascular stability."
+          },
+          {
+            "step_number": 4,
+            "duration": "14",
+            "ingredients_equipments": ["Lymphatic drainage technique", "Gentle moisturizer"],
+            "how_to_do": "Perform targeted lymphatic drainage around the face and periorbital region with light upward strokes; finish with calm moisturizer."
+          },
+          {
+            "step_number": 5,
+            "duration": "12",
+            "ingredients_equipments": ["Sunscreen", "Eye-safe hydrating mask if needed"],
+            "how_to_do": "Finish with sunscreen and optional hydrating mask for eye area; ensure no irritation."
+          }
+        ]
+      },
+      {
+        "session_number": 5,
+        "title": "Comedonal Density & Texture Refinement with Peel + Hydrafacial",
+        "treatment_time": "75 mins",
+        "week": 9,
+        "preparations_checklist_for_therapist": [
+          "Assess for active comedones and infection; patch test for any sensitive areas.",
+          "Prepare Salicylic 30% Peel and/or Combo Salicylic + Mandelic as needed.",
+          "Set up Dermapen and Hydrafacial attachments; have post-procedure serums ready.",
+          "Ensure safety equipment for oil control and pore tightening (LED Green optional)."
+        ],
+        "concerns_addressed": [
+          {
+            "concern": "Comedonal Density",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Texture Irregularities Beyond Pores",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Skin Type",
+            "current_value": "Oily Skin",
+            "target_value": "Normal/Balanced"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "8",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial machine (Ice Probe)"],
+            "how_to_do": "Prepare skin with gentle cleanse; ensure dryness prior to deeper steps."
+          },
+          {
+            "step_number": 2,
+            "duration": "22",
+            "ingredients_equipments": ["Hydrafacial core treatment", "Suction/Bubble Pen"],
+            "how_to_do": "Hydrafacial cleanse, exfoliation, extraction, and infusion; use oil-control mode as needed."
+          },
+          {
+            "step_number": 3,
+            "duration": "20",
+            "ingredients_equipments": [
+              "Dermapen microneedling (0.5 mm)",
+              "Hyaluronic acid infusion",
+              "TRX A or Exosome option"
+            ],
+            "how_to_do": "Perform 4 passes in each direction across prone zones (cheeks, forehead, chin) while maintaining sterile technique; apply post-needling HA infusion."
+          },
+          {
+            "step_number": 4,
+            "duration": "6",
+            "ingredients_equipments": ["Salicylic 30% Peel"],
+            "how_to_do": "Apply peel to targeted oily zones for short contact; neutralize according to product protocol; avoid lips and eye area."
+          },
+          {
+            "step_number": 5,
+            "duration": "10",
+            "ingredients_equipments": ["LED Green light therapy"],
+            "how_to_do": "Activate green LED for 10 minutes to modulate pigment and reduce inflammation."
+          },
+          {
+            "step_number": 6,
+            "duration": "9",
+            "ingredients_equipments": ["Sunscreen", "Finishing serum", "Moisturizer"],
+            "how_to_do": "Finish with serum, moisturizer, and broad-spectrum sunscreen. Provide post-care instructions to minimize irritation."
+          }
+        ]
+      },
+      {
+        "session_number": 6,
+        "title": "Final Evaluation & Maintenance Plan",
+        "treatment_time": "75 mins",
+        "week": 12,
+        "preparations_checklist_for_therapist": [
+          "Review all prior session outcomes and adherence to home care.",
+          "Prepare a maintenance plan with a flexible schedule (every 6–8 weeks as needed).",
+          "Decide on optional follow-up treatments (mild peels or Hydrafacial refreshers) based on skin response.",
+          "Provide written aftercare and sunscreen instructions; schedule next appointment."
+        ],
+        "concerns_addressed": [
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": 2,
+            "target_value": 3
+          },
+          {
+            "concern": "Lip Pigmentation",
+            "current_value": "Present",
+            "target_value": "Absent"
+          },
+          {
+            "concern": "Regional Oil Distribution",
+            "current_value": 1,
+            "target_value": "0-1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "6",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial (Ice Probe)"],
+            "how_to_do": "Light cleansing and skin prep; ensure skin is clean and dry."
+          },
+          {
+            "step_number": 2,
+            "duration": "28",
+            "ingredients_equipments": ["Hydrafacial core treatment", "Ocular ultrasound infusion"],
+            "how_to_do": "Full Hydrafacial session with emphasis on pore cleansing and hydration; optional eye-area infusion to support periocular health."
+          },
+          {
+            "step_number": 3,
+            "duration": "8",
+            "ingredients_equipments": ["LED Red light therapy"],
+            "how_to_do": "Red LED session over entire face for anti-aging and collagen stimulation."
+          },
+          {
+            "step_number": 4,
+            "duration": "12",
+            "ingredients_equipments": ["Lymphatic drainage massage"],
+            "how_to_do": "Full facial lymphatic drainage with gentle, rhythmic strokes to reduce residual edema and promote radiance."
+          },
+          {
+            "step_number": 5,
+            "duration": "9",
+            "ingredients_equipments": ["Finishing antioxidant serum", "Moisturizer", "Sunscreen"],
+            "how_to_do": "Apply finishing serum, moisturizer, and sunscreen; ensure comfortable finish."
+          }
+        ]
+      }
+    ]
+  },
+  "recommended_full_plan": {
+    "total_time": "12 weeks to 6 months",
+    "treatments": [
+      {
+        "session_number": 1,
+        "title": "Foundational Cleanse + Hydrafacial + Gentle Exfoliation",
+        "treatment_time": "75 mins",
+        "week": 1,
+        "concerns_addressed": [
+          {
+            "concern": "Skin Type",
+            "current_value": "Oily Skin",
+            "target_value": "Normal/Balanced Skin"
+          },
+          {
+            "concern": "Superficial Pigmentation Score",
+            "current_value": 2,
+            "target_value": 1
+          },
+          {
+            "concern": "Texture + Open Pores Grading",
+            "current_value": "Grade 3 - Moderate",
+            "target_value": "Grade 0-1"
+          },
+          {
+            "concern": "Comedonal Density",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Regional Oil Distribution",
+            "current_value": 1,
+            "target_value": "0-1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "8",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial Ice Probe"],
+            "how_to_do": "Cleansing and prep."
+          },
+          {
+            "step_number": 2,
+            "duration": "25",
+            "ingredients_equipments": ["Hydrafacial core", "Suction/Bubble Pen"],
+            "how_to_do": "Core Hydrofacial with exfoliation, extraction, and infusion."
+          },
+          {
+            "step_number": 3,
+            "duration": "5",
+            "ingredients_equipments": ["Charcoal mask"],
+            "how_to_do": "Apply Charcoal mask to oily areas; remove after 5 minutes."
+          },
+          {
+            "step_number": 4,
+            "duration": "7",
+            "ingredients_equipments": ["Glyco 35% or Salicylic 30% peel"],
+            "how_to_do": "Light peel; monitor patient; neutralize if required."
+          },
+          {
+            "step_number": 5,
+            "duration": "10",
+            "ingredients_equipments": ["Ocular ultrasound infusion serums"],
+            "how_to_do": "Eye-area infusion to support periocular health."
+          },
+          {
+            "step_number": 6,
+            "duration": "12",
+            "ingredients_equipments": ["Lymphatic drainage massage"],
+            "how_to_do": "Lymph drainage around face/neck."
+          },
+          {
+            "step_number": 7,
+            "duration": "7",
+            "ingredients_equipments": ["Serum", "Moisturizer", "Sunscreen"],
+            "how_to_do": "Finish with Serum + Moisturizer + Sunscreen."
+          }
+        ]
+      },
+      {
+        "session_number": 2,
+        "title": "Texture Refinement with Microneedling + Hydrafacial",
+        "treatment_time": "75 mins",
+        "week": 3,
+        "concerns_addressed": [
+          {
+            "concern": "Texture + Open Pores Grading",
+            "current_value": "Grade 3 - Moderate",
+            "target_value": "Grade 0-1"
+          },
+          {
+            "concern": "Comedonal Density",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Texture Irregularities Beyond Pores",
+            "current_value": 2,
+            "target_value": "0-1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "8",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial Ice Probe"],
+            "how_to_do": "Cleansing and prep."
+          },
+          {
+            "step_number": 2,
+            "duration": "20",
+            "ingredients_equipments": ["Hydrafacial core", "Suction/Bubble Pen"],
+            "how_to_do": "Hydrafacial cleanse and exfoliation."
+          },
+          {
+            "step_number": 3,
+            "duration": "25",
+            "ingredients_equipments": ["Dermapen 0.5 mm", "HA infusion", "TRX A or Exosome option"],
+            "how_to_do": "Dermapen in multiple passes; apply post-needling HA infusion."
+          },
+          {
+            "step_number": 4,
+            "duration": "7",
+            "ingredients_equipments": ["Post-procedure serums"],
+            "how_to_do": "Apply TRX A/Exosome topical serum if indicated."
+          },
+          {
+            "step_number": 5,
+            "duration": "10",
+            "ingredients_equipments": ["LED Red light therapy"],
+            "how_to_do": "Red LED for 10 minutes on affected zones."
+          },
+          {
+            "step_number": 6,
+            "duration": "5",
+            "ingredients_equipments": ["Sunscreen", "Moisturizer"],
+            "how_to_do": "Finish with sunscreen and moisturizer."
+          }
+        ]
+      },
+      {
+        "session_number": 3,
+        "title": "Pigmentation Brightening + Gentle Peel",
+        "treatment_time": "75 mins",
+        "week": 5,
+        "concerns_addressed": [
+          {
+            "concern": "Superficial Pigmentation Score",
+            "current_value": 2,
+            "target_value": 1
+          },
+          {
+            "concern": "Lip Pigmentation",
+            "current_value": "Present",
+            "target_value": "Absent"
+          },
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": 2,
+            "target_value": 3
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "8",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial Ice Probe"],
+            "how_to_do": "Cleansing and prep."
+          },
+          {
+            "step_number": 2,
+            "duration": "25",
+            "ingredients_equipments": ["Hydrafacial core", "Ocular ultrasound infusion"],
+            "how_to_do": "Hydrafacial cleanse + eye-area infusion."
+          },
+          {
+            "step_number": 3,
+            "duration": "6",
+            "ingredients_equipments": ["Glyco Peel 35% or Whitening Peel"],
+            "how_to_do": "Apply, monitor tolerability, and neutralize per protocol."
+          },
+          {
+            "step_number": 4,
+            "duration": "10",
+            "ingredients_equipments": ["LED Green light therapy"],
+            "how_to_do": "Green LED over face for pigment improvement for 10 minutes."
+          },
+          {
+            "step_number": 5,
+            "duration": "12",
+            "ingredients_equipments": ["Eye-safe soothing mask"],
+            "how_to_do": "Eye-area masking and calming treatment."
+          },
+          {
+            "step_number": 6,
+            "duration": "9",
+            "ingredients_equipments": ["Serum", "Moisturizer", "Sunscreen"],
+            "how_to_do": "Finish with serum + moisturizer + sunscreen."
+          }
+        ]
+      },
+      {
+        "session_number": 4,
+        "title": "Periorbital Health Boost + Eye Hydration",
+        "treatment_time": "75 mins",
+        "week": 7,
+        "concerns_addressed": [
+          {
+            "concern": "Under-Eye Vascularity vs Structural Shadows",
+            "current_value": 1,
+            "target_value": 0
+          },
+          {
+            "concern": "PeriOrbital Health",
+            "current_value": "Mild",
+            "target_value": "None"
+          },
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": 2,
+            "target_value": 3
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "6",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial Ice Probe"],
+            "how_to_do": "Cleansing and prep."
+          },
+          {
+            "step_number": 2,
+            "duration": "22",
+            "ingredients_equipments": ["Hydrafacial core treatment", "Ocular ultrasound infusion"],
+            "how_to_do": "Eye-area focused infusion and light hydration."
+          },
+          {
+            "step_number": 3,
+            "duration": "8",
+            "ingredients_equipments": ["LED Red light therapy"],
+            "how_to_do": "Eye-area red LED session for collagen support."
+          },
+          {
+            "step_number": 4,
+            "duration": "14",
+            "ingredients_equipments": ["Lymphatic drainage massage"],
+            "how_to_do": "Facial lymph drainage with emphasis on periorbital drainage."
+          },
+          {
+            "step_number": 5,
+            "duration": "15",
+            "ingredients_equipments": ["Finishing serum", "Moisturizer", "Sunscreen"],
+            "how_to_do": "Apply finishing serum, moisturizer, and sunscreen. Ensure comfortable finish."
+          }
+        ]
+      },
+      {
+        "session_number": 5,
+        "title": "Comedonal Density & Oil Control Reinforcement",
+        "treatment_time": "75 mins",
+        "week": 9,
+        "concerns_addressed": [
+          {
+            "concern": "Comedonal Density",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Texture Irregularities Beyond Pores",
+            "current_value": 2,
+            "target_value": "0-1"
+          },
+          {
+            "concern": "Regional Oil Distribution",
+            "current_value": 1,
+            "target_value": "0-1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "8",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial Ice Probe"],
+            "how_to_do": "Cleansing and prep."
+          },
+          {
+            "step_number": 2,
+            "duration": "22",
+            "ingredients_equipments": ["Hydrafacial core", "Suction/Bubble Pen"],
+            "how_to_do": "Hydrafacial cleansing and extraction; focus on pore-cleansing mode."
+          },
+          {
+            "step_number": 3,
+            "duration": "20",
+            "ingredients_equipments": ["Dermapen 0.5 mm", "HA infusion", "Salicylic 30% peel"],
+            "how_to_do": "Dermapen with 0.5 mm depth for targeted zones; post-infusion HA; mild peel on oily zones if tolerated."
+          },
+          {
+            "step_number": 4,
+            "duration": "6",
+            "ingredients_equipments": ["Sunscreen", "Moisturizer"],
+            "how_to_do": "Finish with sunscreen and moisturizer."
+          },
+          {
+            "step_number": 5,
+            "duration": "9",
+            "ingredients_equipments": ["LED Green light therapy"],
+            "how_to_do": "Green LED for decongestion and pore improvement."
+          }
+        ]
+      },
+      {
+        "session_number": 6,
+        "title": "Maintenance & Final Assessment",
+        "treatment_time": "75 mins",
+        "week": 12,
+        "concerns_addressed": [
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": 2,
+            "target_value": 3
+          },
+          {
+            "concern": "Lip Pigmentation",
+            "current_value": "Present",
+            "target_value": "Absent"
+          },
+          {
+            "concern": "Regional Oil Distribution",
+            "current_value": 1,
+            "target_value": "0-1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "6",
+            "ingredients_equipments": ["Gentle cleanser", "Hydrafacial Ice Probe"],
+            "how_to_do": "Light cleansing and prep."
+          },
+          {
+            "step_number": 2,
+            "duration": "22",
+            "ingredients_equipments": ["Hydrafacial core", "Ocular ultrasound infusion"],
+            "how_to_do": "Full Hydrafacial with emphasis on pore cleansing and hydration."
+          },
+          {
+            "step_number": 3,
+            "duration": "8",
+            "ingredients_equipments": ["LED Red light therapy"],
+            "how_to_do": "Red LED session to maintain collagen and vascular stability."
+          },
+          {
+            "step_number": 4,
+            "duration": "12",
+            "ingredients_equipments": ["Lymphatic drainage massage"],
+            "how_to_do": "Full facial lymph drainage with gentle, rhythmic strokes."
+          },
+          {
+            "step_number": 5,
+            "duration": "9",
+            "ingredients_equipments": ["Finishing serum", "Moisturizer", "Sunscreen"],
+            "how_to_do": "Apply finishing serum, moisturizer, and SPF."
+          }
+        ]
+      }
+    ]
+  }
+}
