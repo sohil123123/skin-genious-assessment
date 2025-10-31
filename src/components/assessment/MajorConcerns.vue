@@ -13,55 +13,6 @@
         </div>
       </div>
       <q-card flat bordered class="q-pa-md bg-white shadow-2xl">
-        <!-- Header -->
-        <q-card-section>
-          <div class="text-h6 text-primary text-weight-bold">
-            Clinical Parameters – Deviation & Improvement Goals
-          </div>
-          <div class="text-body2 text-grey-7 q-mt-xs">
-            {{ treatableConcernsSummary.description }}
-          </div>
-        </q-card-section>
-
-        <q-separator spaced />
-
-        <!-- Parameters Checklist -->
-        <q-card-section>
-          <q-list separator>
-            <q-item
-              v-for="(param, index) in treatableConcernsSummary.parameters_with_abnormal_scores"
-              :key="index"
-              tag="label"
-              class="q-py-md"
-              clickable
-            >
-              <q-item-section avatar>
-                <q-avatar color="grey-3" text-color="black">{{ index + 1 }}</q-avatar>
-                <!-- <q-checkbox v-model="selected" :val="param" color="primary" size="md" keep-color /> -->
-              </q-item-section>
-
-              <q-item-section>
-                <q-item-label class="text-weight-medium text-dark text-subtitle1">
-                  {{ param.parameter }}
-                </q-item-label>
-
-                <q-item-label caption class="q-mt-xs">
-                  <div class="text-grey-8 q-mb-xs">
-                    <span class="text-weight-medium text-negative">Current:</span>
-                    {{ param.current_score }}
-                  </div>
-                  <div class="text-grey-8">
-                    <span class="text-weight-medium text-positive">Target:</span>
-                    {{ param.target_score }}
-                  </div>
-                </q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card-section>
-
-        <q-separator spaced />
-
         <!-- Treatment Plan Selection -->
         <q-card-section>
           <div class="text-subtitle1 text-primary text-weight-medium q-mb-sm">
@@ -123,6 +74,54 @@
               </q-card>
             </div>
           </div>
+        </q-card-section>
+
+        <q-separator spaced />
+        <!-- Header -->
+        <q-card-section>
+          <div class="text-h6 text-primary text-weight-bold">
+            Clinical Parameters – Deviation & Improvement Goals
+          </div>
+          <div class="text-body2 text-grey-7 q-mt-xs">
+            {{ treatableConcernsSummary.description }}
+          </div>
+        </q-card-section>
+
+        <q-separator spaced />
+
+        <!-- Parameters Checklist -->
+        <q-card-section>
+          <q-list separator>
+            <q-item
+              v-for="(param, index) in treatableConcernsSummary.parameters_with_abnormal_scores"
+              :key="index"
+              tag="label"
+              class="q-py-md"
+              clickable
+            >
+              <q-item-section avatar>
+                <q-avatar color="grey-3" text-color="black">{{ index + 1 }}</q-avatar>
+                <!-- <q-checkbox v-model="selected" :val="param" color="primary" size="md" keep-color /> -->
+              </q-item-section>
+
+              <q-item-section>
+                <q-item-label class="text-weight-medium text-dark text-subtitle1">
+                  {{ param.parameter }}
+                </q-item-label>
+
+                <q-item-label caption class="q-mt-xs">
+                  <div class="text-grey-8 q-mb-xs">
+                    <span class="text-weight-medium text-negative">Current:</span>
+                    {{ param.current_score }}
+                  </div>
+                  <div class="text-grey-8">
+                    <span class="text-weight-medium text-positive">Target:</span>
+                    {{ param.target_score }}
+                  </div>
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
         </q-card-section>
 
         <q-separator spaced />

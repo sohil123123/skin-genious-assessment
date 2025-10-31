@@ -29,7 +29,7 @@
           <div class="row items-center justify-between">
             <h6 class="q-ma-none">{{ param.parameter_name }}</h6>
             <q-badge v-if="isScore(param.score_or_label)" rounded class="text-h6 q-pa-sm gredient">
-              {{ extractScore(param.score_or_label) }}
+              {{ param.score_or_label }}
             </q-badge>
             <q-chip v-else class="gredient" text-color="white" removable="false">
               {{ param.score_or_label }}
@@ -101,14 +101,15 @@ function isScore(label) {
 }
 
 // Extract just the numeric/grade part for badge display
-function extractScore(label) {
-  if (label) {
-    const match = label.match(/^(\d+|Grade \d+|Score \d+)/)
-    return match ? match[0].replace(/Grade |Score /, '') : label
-  } else {
-    return 'N.A.'
-  }
-}
+// function extractScore(label) {
+//   console.log('Extracting score from label:', label)
+//   if (label) {
+//     const match = label.match(/^(\d+|Grade \d+|Score \d+)/)
+//     return match ? match[0].replace(/Grade |Score /, '') : label
+//   } else {
+//     return 'N.A.'
+//   }
+// }
 
 const exportToPDF = () => {
   const doc = new jsPDF({

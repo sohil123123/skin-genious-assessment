@@ -72,7 +72,7 @@ const handleProcess = async (files) => {
     Notify.create({
       type: 'negative',
       message: apiResponse.error.message,
-      timeout: 0,
+      timeout: 3000,
       actions: [
         {
           icon: 'close',
@@ -174,7 +174,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     message: 'Generating treatment plan. Hang on...',
     messageColor: 'white',
   })
-  const convId = LocalStorage.getItem(`conv_${assessmentData.value.id}`)
+  const convId = LocalStorage.getItem(`conv_${assessmentData.value.patient_id}`)
   console.log('Conversation ID:', convId)
 
   const input = [

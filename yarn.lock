@@ -2070,21 +2070,13 @@ html-minifier-terser@^7.2.0:
     relateurl "^0.2.7"
     terser "^5.15.1"
 
-html2canvas@^1.0.0, html2canvas@^1.0.0-rc.5:
+html2canvas@^1.0.0-rc.5:
   version "1.4.1"
   resolved "https://registry.npmjs.org/html2canvas/-/html2canvas-1.4.1.tgz"
   integrity sha512-fPU6BHNpsyIhr8yyMpTLLxAbkaK8ArIBcmZIRiBLiDhjeqvXolaEmDGmELFuX9I4xDcaKKcJl+TKZLqruBbmWA==
   dependencies:
     css-line-break "^2.1.0"
     text-segmentation "^1.0.3"
-
-html2pdf.js@^0.12.1:
-  version "0.12.1"
-  resolved "https://registry.npmjs.org/html2pdf.js/-/html2pdf.js-0.12.1.tgz"
-  integrity sha512-3rBWQ96H5oOU9jtoz3MnE/epGi27ig9h8aonBk4JTpvUERM3lMRxhIRckhJZEi4wE0YfRINoYOIDY0hLY0CHgQ==
-  dependencies:
-    html2canvas "^1.0.0"
-    jspdf "^3.0.0"
 
 http-errors@2.0.0:
   version "2.0.0"
@@ -2339,7 +2331,12 @@ jsonfile@^6.0.1:
   optionalDependencies:
     graceful-fs "^4.1.6"
 
-jspdf@^3.0.0, jspdf@^3.0.3:
+jspdf-autotable@^5.0.2:
+  version "5.0.2"
+  resolved "https://registry.npmjs.org/jspdf-autotable/-/jspdf-autotable-5.0.2.tgz"
+  integrity sha512-YNKeB7qmx3pxOLcNeoqAv3qTS7KuvVwkFe5AduCawpop3NOkBUtqDToxNc225MlNecxT4kP2Zy3z/y/yvGdXUQ==
+
+"jspdf@^2 || ^3", jspdf@^3.0.3:
   version "3.0.3"
   resolved "https://registry.npmjs.org/jspdf/-/jspdf-3.0.3.tgz"
   integrity sha512-eURjAyz5iX1H8BOYAfzvdPfIKK53V7mCpBTe7Kb16PaM8JSXEcUQNBQaiWMI8wY5RvNOPj4GccMjTlfwRBd+oQ==
