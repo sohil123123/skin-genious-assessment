@@ -1,18 +1,18 @@
-Assessment: patient_id
+Assessment: user_id
   age (int)
   daily_sun_exposure_hours (string)
   social_event (yes/no)
   upcoming_travel (yes/no)
   medical_history (json)
   allergies (json)
-  is_patient_pregnant (yes/no)
+  is_pregnant (yes/no)
   breastfeeding (yes/no)
   diagnosis (json)
   parameters_with_abnormal_scores (json)
   treatment_plan_type (string)
   treatment_plan (json)
 
-patient_images: patient_id
+patient_images: user_id
   assessment_id
   image_1 (url)
   image_2 (url)

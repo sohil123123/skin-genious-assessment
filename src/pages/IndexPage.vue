@@ -4,6 +4,7 @@
       v-if="currentStep === 1"
       :uploader-files="uploaderFiles"
       @process="handleProcess"
+      @save_data="submit"
     />
     <DiagnosisComponent
       v-if="currentStep === 2"
@@ -17,6 +18,7 @@
       :treatable-concerns-summary="diagnosis.treatable_concerns_summary"
       @previous="goToPreviousStep"
       @generate-treatment="handleGenerateTreatment"
+      @save_data="submit"
     />
     <TreatmentPlanComponent
       v-if="currentStep === 4"
@@ -24,6 +26,7 @@
       :treatment-plan="treatmentPlan"
       :recommended-full-plan="recommendedFullPlan"
       @previous="goToPreviousStep"
+      @save_data="submit"
     />
   </q-page>
 </template>
@@ -43,11 +46,18 @@ import {
 import { Loading, LocalStorage, Notify, QSpinnerFacebook } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
+import { api } from 'src/boot/axios'
+import _ from 'lodash'
+import { useAuthStore } from 'src/stores/authStore'
+
+const authStore = useAuthStore()
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
+const route = useRoute()
 
 const faceImages = ref([])
 const currentStep = ref(1)
@@ -60,13 +70,63 @@ const treatment_type = ref(null)
 
 onMounted(async () => {
   await store.getPatientData()
+
+  let recentStoredId = await getValidAssessmentId()
+  if (route.params.assessment_id || recentStoredId) {
+    let id = route.params.assessment_id ? route.params.assessment_id : recentStoredId
+    await store.getSingleAssessment(id)
+    assessmentData.value.id = route.params.assessment_id
+      ? route.params.assessment_id
+      : recentStoredId
+  } else {
+    store.createNewAssessment()
+  }
 })
 
+async function getValidAssessmentId() {
+  try {
+    Loading.show({
+      message: 'Checking for in-progress assessment...',
+    })
+    const response = await api.get(`/assessments/get-in-progress-assessment/${authStore.user_id}`)
+    const item = response.data.results
+    if (!item.assessment_id) return null
+
+    if (item.assessment_id) {
+      return item.assessment_id
+    } else {
+      // localStorage.removeItem(`recent_assessment_${route.params.patient_id}`)
+      return null
+    }
+  } catch (error) {
+    console.error('Error fetching assessment:', error.response.data)
+    return null
+  } finally {
+    Loading.hide()
+  }
+}
+
+async function submit(field) {
+  const activeAssessmentId = route.params.assessment_id || assessmentData.value.id
+  if (authStore.user_id && activeAssessmentId) {
+    let data = {}
+    field.forEach((f) => {
+      data[f] = _.cloneDeep(assessmentData.value[f])
+    })
+    console.log(data)
+    await store.updateAssessment(data)
+  } else {
+    if (authStore.user_id && !assessmentData.value.id) {
+      await store.createNewAssessment()
+    }
+  }
+}
+
 const handleProcess = async (files) => {
-  // Simulate or implement API call to ChatGPT for diagnosis
-  // You need to handle assessmentData.value and files (array of File objects)
-  // For example: Upload images to a storage (e.g., Firebase/S3) to get URLs, then send to ChatGPT Vision API with prompt including assessmentData and constraints from the DOCX
-  // Placeholder:
+  // INFO: This is use when images stored in server
+  // const faceImages = await store.storeFaceImages(files)
+  // const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages)
+
   const apiResponse = await callApiForDiagnosis(assessmentData.value, files)
   if (apiResponse.error) {
     Notify.create({
@@ -83,6 +143,9 @@ const handleProcess = async (files) => {
     })
   } else {
     diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
+    assessmentData.value.diagnosis = apiResponse
+    assessmentData.value.parameters_with_abnormal_scores = apiResponse.treatable_concerns_summary
+    submit(['diagnosis', 'parameters_with_abnormal_scores'])
     currentStep.value = 2
   }
 }
@@ -110,6 +173,8 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
   } else {
     treatmentPlan.value = apiResponse.treatment_plan // e.g., { plan: '...', sessions: [...] }
     recommendedFullPlan.value = apiResponse.recommended_full_plan
+    assessmentData.value.treatment_plan = apiResponse
+    submit(['treatment_plan'])
     currentStep.value = 4
   }
 }
@@ -126,14 +191,10 @@ const goToPreviousStep = () => {
 
 // Placeholder API functions - replace with actual implementations
 async function callApiForDiagnosis(data, images) {
-  console.log('Patient data:', data)
-  const convId = await getOrCreateConversation(`${data.patient_id}`)
-  console.log('Conversation ID:', convId)
-
+  const convId = await getOrCreateConversation(`${data.user_id}`)
   faceImages.value = images.map((b64) => {
     return `data:image/jpeg;base64,${b64}`
   })
-
   const input = [
     {
       role: 'system',
@@ -142,12 +203,16 @@ async function callApiForDiagnosis(data, images) {
     {
       role: 'user',
       content: [
-        // { type: 'input_text', text: 'Patient data:\n' + JSON.stringify(data, null, 2) },
+        // INFO: This is for Base64 Images
         ...images.map((b64) => ({
           type: 'input_image',
           image_url: `data:image/jpeg;base64,${b64}`,
         })),
-        // ...faceImages,
+        // INFO: This is used when images stored in server
+        // ...images.map((img_url) => ({
+        //   type: 'input_image',
+        //   image_url: img_url,
+        // })),
         {
           type: 'input_text',
           text: D_REPORT_USER_PROMPT,
@@ -174,7 +239,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     message: 'Generating treatment plan. Hang on...',
     messageColor: 'white',
   })
-  const convId = LocalStorage.getItem(`conv_${assessmentData.value.patient_id}`)
+  const convId = LocalStorage.getItem(`conv_${assessmentData.value.user_id}`)
   console.log('Conversation ID:', convId)
 
   const input = [

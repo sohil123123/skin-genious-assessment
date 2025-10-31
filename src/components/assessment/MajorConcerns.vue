@@ -76,21 +76,21 @@
           </div>
         </q-card-section>
 
-        <q-separator spaced />
+        <!-- <q-separator spaced /> -->
         <!-- Header -->
-        <q-card-section>
+        <!-- <q-card-section>
           <div class="text-h6 text-primary text-weight-bold">
             Clinical Parameters – Deviation & Improvement Goals
           </div>
           <div class="text-body2 text-grey-7 q-mt-xs">
             {{ treatableConcernsSummary.description }}
           </div>
-        </q-card-section>
+        </q-card-section> -->
 
-        <q-separator spaced />
+        <!-- <q-separator spaced /> -->
 
         <!-- Parameters Checklist -->
-        <q-card-section>
+        <!-- <q-card-section>
           <q-list separator>
             <q-item
               v-for="(param, index) in treatableConcernsSummary.parameters_with_abnormal_scores"
@@ -101,7 +101,6 @@
             >
               <q-item-section avatar>
                 <q-avatar color="grey-3" text-color="black">{{ index + 1 }}</q-avatar>
-                <!-- <q-checkbox v-model="selected" :val="param" color="primary" size="md" keep-color /> -->
               </q-item-section>
 
               <q-item-section>
@@ -122,9 +121,9 @@
               </q-item-section>
             </q-item>
           </q-list>
-        </q-card-section>
+        </q-card-section> -->
 
-        <q-separator spaced />
+        <!-- <q-separator spaced /> -->
 
         <!-- Actions -->
         <q-card-actions align="between">
@@ -153,8 +152,13 @@
 <script setup>
 // import { Notify } from 'quasar'
 import { ref } from 'vue'
+import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { storeToRefs } from 'pinia'
 
-const emit = defineEmits(['generate-treatment', 'previous'])
+const emit = defineEmits(['generate-treatment', 'previous', 'save_data'])
+
+const store = useAssessmentStore()
+const { assessmentData } = storeToRefs(store)
 
 const props = defineProps({
   treatableConcernsSummary: {
@@ -174,6 +178,8 @@ const generatePlan = () => {
   //   })
   //   return
   // }
+  assessmentData.value.treatment_plan_type = treatmentType.value
+  emit('save_data', ['treatment_plan_type'])
   emit(
     'generate-treatment',
     props.treatableConcernsSummary.parameters_with_abnormal_scores,

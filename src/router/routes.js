@@ -17,7 +17,7 @@ const routes = [
     children: [
       {
         path: '',
-        component: () => import('src/pages/auth/AuthenticattionPage.vue'),
+        component: () => import('src/pages/auth/AuthenticationPage.vue'),
       },
     ],
   },
@@ -33,10 +33,10 @@ const routes = [
         component: () => import('pages/IndexPage.vue'),
       },
       {
-        path: '/test-pdf',
-        name: 'test_pdf',
+        path: ':assessment_id?',
+        name: 'index-with-id',
         meta: { requiresAuth: true },
-        component: () => import('pages/PdfTestPage.vue'),
+        component: () => import('pages/IndexPage.vue'),
       },
     ],
   },

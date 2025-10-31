@@ -52,8 +52,8 @@ onMounted(async () => {
       LocalStorage.set('user_id', userId)
       LocalStorage.set('token_id', token)
       store.token_id = token
+      store.user_id = userId
       api.defaults.headers.common.Authorization = 'Bearer ' + token
-      console.log(api)
       router.push({ name: 'index' })
     } else {
       throw new Error('Invalid token')

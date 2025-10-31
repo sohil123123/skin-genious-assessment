@@ -5,10 +5,12 @@ import { api } from 'src/boot/axios'
 let token_id = LocalStorage.getItem('token_id') ? LocalStorage.getItem('token_id') : null
 let bearer = LocalStorage.getItem('bearer') ? LocalStorage.getItem('bearer') : null
 let user = LocalStorage.getItem('user') ? JSON.parse(LocalStorage.getItem('user')) : null
+let user_id = LocalStorage.getItem('user_id') ? JSON.parse(LocalStorage.getItem('user_id')) : null
 
 export const useAuthStore = defineStore('backend_auth', {
   state: () => ({
     user: user,
+    user_id: user_id,
     bearer: bearer,
     token_id: token_id,
     expireAt: null,

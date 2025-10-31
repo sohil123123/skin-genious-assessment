@@ -48,7 +48,7 @@ export function useOpenAI() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-5-nano', // gpt-5
+          model: 'gpt-5', // gpt-5
           conversation: convId,
           input,
         }),

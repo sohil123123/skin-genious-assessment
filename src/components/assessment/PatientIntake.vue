@@ -29,7 +29,7 @@
               <q-input
                 outlined
                 placeholder="Patient ID"
-                v-model="assessmentData.patient_id"
+                v-model="assessmentData.user_id"
                 class="custom-input"
               />
 
@@ -42,7 +42,13 @@
 
               <div class="flex items-center q-gutter-sm">
                 <span class="text-sm">Age</span>
-                <q-select outlined v-model="assessmentData.age" :options="ageOptions" dense />
+                <q-select
+                  outlined
+                  v-model="assessmentData.age"
+                  :options="ageOptions"
+                  dense
+                  @update:model-value="saveData(['age'])"
+                />
 
                 <div class="flex q-gutter-xs q-ml-sm">
                   <q-radio
@@ -74,6 +80,7 @@
                     v-model="assessmentData.daily_sun_exposure_hours"
                     :options="sunExposureOptions"
                     clearable
+                    @update:model-value="saveData(['daily_sun_exposure_hours'])"
                   />
                 </div>
               </div>
@@ -82,20 +89,26 @@
                 <span class="text-sm text-weight-bold">Upcoming Travel (7 days)</span>
                 <div class="flex items-center q-gutter-sm q-mt-sm">
                   <q-btn
-                    :flat="assessmentData.upcoming_travel"
+                    :flat="assessmentData.upcoming_travel == 'yes'"
                     rounded
-                    :class="assessmentData.upcoming_travel ? 'btn-custom' : 'bg-white text-grey-7'"
-                    @click="updateField('upcoming_travel', true)"
+                    :class="
+                      assessmentData.upcoming_travel == 'yes'
+                        ? 'btn-custom'
+                        : 'bg-white text-grey-7'
+                    "
+                    @click="updateField('upcoming_travel', 'yes')"
                     label="Yes"
-                    :outline="!assessmentData.upcoming_travel"
+                    :outline="assessmentData.upcoming_travel == 'no'"
                   />
                   <q-btn
-                    :flat="!assessmentData.upcoming_travel"
+                    :flat="assessmentData.upcoming_travel == 'no'"
                     rounded
-                    :class="!assessmentData.upcoming_travel ? 'btn-custom' : 'bg-white text-grey-7'"
-                    @click="updateField('upcoming_travel', false)"
+                    :class="
+                      assessmentData.upcoming_travel == 'no' ? 'btn-custom' : 'bg-white text-grey-7'
+                    "
+                    @click="updateField('upcoming_travel', 'no')"
                     label="No"
-                    :outline="assessmentData.upcoming_travel"
+                    :outline="assessmentData.upcoming_travel == 'yes'"
                   />
                 </div>
               </div>
@@ -104,20 +117,24 @@
                 <span class="text-sm text-weight-bold">Social Event (7 days)</span>
                 <div class="flex items-center q-gutter-sm q-mt-xs">
                   <q-btn
-                    :flat="assessmentData.social_event"
+                    :flat="assessmentData.social_event == 'yes'"
                     rounded
-                    :class="assessmentData.social_event ? 'btn-custom' : 'bg-white text-grey-7'"
-                    @click="updateField('social_event', true)"
+                    :class="
+                      assessmentData.social_event == 'yes' ? 'btn-custom' : 'bg-white text-grey-7'
+                    "
+                    @click="updateField('social_event', 'yes')"
                     label="Yes"
-                    :outline="!assessmentData.social_event"
+                    :outline="assessmentData.social_event == 'no'"
                   />
                   <q-btn
-                    :flat="!assessmentData.social_event"
+                    :flat="assessmentData.social_event == 'no'"
                     rounded
-                    :class="!assessmentData.social_event ? 'btn-custom' : 'bg-white text-grey-7'"
-                    @click="updateField('social_event', false)"
+                    :class="
+                      assessmentData.social_event == 'no' ? 'btn-custom' : 'bg-white text-grey-7'
+                    "
+                    @click="updateField('social_event', 'no')"
                     label="No"
-                    :outline="assessmentData.social_event"
+                    :outline="assessmentData.social_event == 'yes'"
                   />
                 </div>
               </div>
@@ -167,20 +184,20 @@
             <span class="text-sm text-weight-bold">Is Patient Pregnant</span>
             <div class="flex items-center q-gutter-sm q-mt-xs">
               <q-btn
-                :flat="assessmentData.is_patient_pregnant"
+                :flat="assessmentData.is_pregnant == 1"
                 rounded
-                :class="assessmentData.is_patient_pregnant ? 'btn-custom' : 'bg-white text-grey-7'"
-                @click="updateField('is_patient_pregnant', true)"
+                :class="assessmentData.is_pregnant == 1 ? 'btn-custom' : 'bg-white text-grey-7'"
+                @click="updateField('is_pregnant', 1)"
                 label="Yes"
-                :outline="!assessmentData.is_patient_pregnant"
+                :outline="assessmentData.is_pregnant == 0"
               />
               <q-btn
-                :flat="!assessmentData.is_patient_pregnant"
+                :flat="assessmentData.is_pregnant == 0"
                 rounded
-                :class="!assessmentData.is_patient_pregnant ? 'btn-custom' : 'bg-white text-grey-7'"
-                @click="updateField('is_patient_pregnant', false)"
+                :class="assessmentData.is_pregnant == 0 ? 'btn-custom' : 'bg-white text-grey-7'"
+                @click="updateField('is_pregnant', 0)"
                 label="No"
-                :outline="assessmentData.is_patient_pregnant"
+                :outline="assessmentData.is_pregnant == 1"
               />
             </div>
           </section>
@@ -189,20 +206,24 @@
             <span class="text-sm text-weight-bold">Breast Feeding?</span>
             <div class="flex items-center q-gutter-sm q-mt-xs">
               <q-btn
-                :flat="assessmentData.breastfeeding"
+                :flat="assessmentData.breastfeeding == 'yes'"
                 rounded
-                :class="assessmentData.breastfeeding ? 'btn-custom' : 'bg-white text-grey-7'"
-                @click="updateField('breastfeeding', true)"
+                :class="
+                  assessmentData.breastfeeding == 'yes' ? 'btn-custom' : 'bg-white text-grey-7'
+                "
+                @click="updateField('breastfeeding', 'yes')"
                 label="Yes"
-                :outline="!assessmentData.breastfeeding"
+                :outline="assessmentData.breastfeeding == 'no'"
               />
               <q-btn
-                :flat="!assessmentData.breastfeeding"
+                :flat="assessmentData.breastfeeding == 'no'"
                 rounded
-                :class="!assessmentData.breastfeeding ? 'btn-custom' : 'bg-white text-grey-7'"
-                @click="updateField('breastfeeding', false)"
+                :class="
+                  assessmentData.breastfeeding == 'no' ? 'btn-custom' : 'bg-white text-grey-7'
+                "
+                @click="updateField('breastfeeding', 'no')"
                 label="No"
-                :outline="assessmentData.breastfeeding"
+                :outline="assessmentData.breastfeeding == 'yes'"
               />
             </div>
           </section>
@@ -395,7 +416,7 @@ const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
 const commonStore = useCommonStore()
-const emit = defineEmits(['process'])
+const emit = defineEmits(['process', 'save_data'])
 
 const uploader = ref(null)
 const startFaceScan = ref(false)
@@ -421,6 +442,11 @@ const productsAndAllergies = ['Salicylic Acid', 'Glycolic Acid', 'Aloe Vera', 'V
 // Update field function
 const updateField = (field, value) => {
   assessmentData.value[field] = value
+  saveData([field])
+}
+
+function saveData(field) {
+  emit('save_data', field)
 }
 
 function updateMedicalHistory(value) {
@@ -431,6 +457,7 @@ function updateMedicalHistory(value) {
     // If any other option is selected, remove "None"
     assessmentData.value.medical_history = _.filter(value, (item) => item !== 'None')
   }
+  saveData(['medical_history'])
 }
 
 function updateAllergies(product) {
@@ -447,6 +474,7 @@ function updateAllergies(product) {
       assessmentData.value.allergies.push(product)
     }
   }
+  saveData(['allergies'])
 }
 
 function uploadImages() {
@@ -491,8 +519,11 @@ async function startProcessing() {
   await nextTick()
   const base64Images = await prepareUploaderImages(uploader)
   if (uploader.value && uploader.value.files) {
-    emit('update-patient', assessmentData.value)
+    // INFO: This is used for Base64 images
     emit('process', base64Images)
+
+    // INFO: This is use when images stored in server
+    // emit('process', uploader.value.files)
   } else {
     console.warn('Uploader not ready or has no files')
   }

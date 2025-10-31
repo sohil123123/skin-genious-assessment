@@ -20,7 +20,15 @@
       <RecommendedFullPlan v-if="treatmentType == 'single'" :treatmentPlan="recommendedFullPlan" />
 
       <div>
-        <q-input v-model="therapistNotes" type="textarea" label="Notes" outlined clearable />
+        <q-input
+          v-model="assessmentData.therapist_notes"
+          type="textarea"
+          label="Notes"
+          outlined
+          clearable
+          :debounce="2000"
+          @update:model-value="saveData(['therapist_notes'])"
+        />
       </div>
 
       <div class="flex justify-between q-mt-lg">
@@ -34,7 +42,13 @@
           title="Export Patient Treatment Plan to PDF"
           color="positive"
         />
-        <q-btn label="Finish" rounded no-caps class="btn-custom" @click="submit" />
+        <q-btn
+          label="Finalize Plan & Exit"
+          rounded
+          no-caps
+          class="btn-custom"
+          @click="finalizeAndExit"
+        />
       </div>
     </div>
   </div>
@@ -47,6 +61,9 @@ import { storeToRefs } from 'pinia'
 import SelectedPlan from 'src/components/assessment/SelectedPlan.vue'
 import RecommendedFullPlan from 'src/components/assessment/RecommendedFullPlan.vue'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { useQuasar, LocalStorage } from 'quasar'
+
+const $q = useQuasar()
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
@@ -66,15 +83,51 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['previous'])
+const emit = defineEmits(['previous', 'save_data'])
 
 const treatmentPlan = ref(props.treatmentPlan)
 const recommendedFullPlan = ref(props.recommendedFullPlan)
 
-const therapistNotes = ref('')
-
 const emitPrevious = () => {
   emit('previous')
+}
+
+function saveData(field) {
+  emit('save_data', field)
+}
+function finalizeAndExit() {
+  $q.dialog({
+    title: 'Confirm',
+    message: 'Would you like to confirm the treatment plan and return to CRM?',
+    persistent: true,
+
+    ok: {
+      label: 'Yes, Confirm & Exit',
+      color: 'positive',
+      icon: 'check_circle',
+      unelevated: true,
+    },
+    cancel: {
+      label: 'Cancel',
+      color: 'negative',
+      flat: true,
+      icon: 'close',
+    },
+  })
+    .onOk(() => {
+      assessmentData.value.status = 'completed'
+      emit('save_data', ['status'])
+      LocalStorage.clear()
+      setTimeout(() => {
+        window.location.href = `${process.env.CRM_URL}/users`
+      }, 2000)
+    })
+    .onCancel(() => {
+      console.log('User cancelled')
+    })
+    .onDismiss(() => {
+      console.log('Dialog closed (OK or Cancel)')
+    })
 }
 
 const exportToPDF = () => {
@@ -264,7 +317,7 @@ const exportToPDF = () => {
   y = addWrappedText(doc, 'Therapist Notes:', 10, y, pageWidth, lineHeight)
 
   doc.setFont('helvetica', 'normal')
-  const notes = therapistNotes.value || 'No notes added.'
+  const notes = assessmentData.value.therapist_notes || 'No notes added.'
   y = addWrappedText(doc, notes, 10, y, pageWidth, lineHeight)
 
   // Add footer to all pages
