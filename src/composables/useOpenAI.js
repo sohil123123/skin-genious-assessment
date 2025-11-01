@@ -40,21 +40,25 @@ export function useOpenAI() {
   }
 
   // 💬 2. Run response (send message + get reply)
-  const runResponse = async (convId, input) => {
+  const runResponse = async (convId, input, type) => {
     try {
+      const body = {
+        model: 'gpt-5',
+        conversation: convId,
+        input,
+        ...(type === 'diagnosis' && {
+          tools: [...skinTypeFunctions, ...imageAnalysisFunctions],
+          tool_choice: 'auto',
+        }),
+      }
+
       const res = await fetch(`${BASE_URL}/responses`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: 'gpt-5', // gpt-5
-          conversation: convId,
-          input,
-          tools: [...skinTypeFunctions, ...imageAnalysisFunctions],
-          tool_choice: 'auto',
-        }),
+        body: JSON.stringify(body),
       })
 
       const data = await res.json()

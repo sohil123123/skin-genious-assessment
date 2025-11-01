@@ -221,7 +221,7 @@ async function callApiForDiagnosis(data, images) {
     },
   ]
 
-  const result = await runResponse(convId, input)
+  const result = await runResponse(convId, input, 'diagnosis')
   console.log('✅ Diagnosis:', result)
   return result
 }
@@ -273,7 +273,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     },
   ]
 
-  const result = await runResponse(convId, input)
+  const result = await runResponse(convId, input, 'treatment_plan')
   console.log('🩺 Treatment plans:', result)
   return result
 }
