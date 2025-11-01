@@ -230,7 +230,6 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
   // Implement ChatGPT API call here
   // Prompt example: "Generate treatment plan based on diagnosis: [JSON.stringify(input)], constraints: [paste DOCX content]"
 
-  console.log('===>', selected, treatmentType)
   Loading.show({
     spinner: QSpinnerFacebook,
     spinnerColor: 'yellow',

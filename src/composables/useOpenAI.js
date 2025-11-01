@@ -1,4 +1,5 @@
 import { useQuasar } from 'quasar'
+import { skinTypeFunctions, imageAnalysisFunctions } from 'src/utils/ai-functions'
 
 export function useOpenAI() {
   const $q = useQuasar()
@@ -51,6 +52,8 @@ export function useOpenAI() {
           model: 'gpt-5', // gpt-5
           conversation: convId,
           input,
+          tools: [...skinTypeFunctions, ...imageAnalysisFunctions],
+          tool_choice: 'auto',
         }),
       })
 

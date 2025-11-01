@@ -7,7 +7,7 @@
       {{ treatmentPlan.treatments.length }} sessions
     </div>
 
-    <div class="q-mt-sm row q-gutter-sm">
+    <!-- <div class="q-mt-sm row q-gutter-sm">
       <q-chip
         v-for="(c, i) in treatmentPlan.treatments[0].concerns_addressed"
         :key="i"
@@ -15,7 +15,7 @@
       >
         {{ c.concern }} → {{ c.target_value }}
       </q-chip>
-    </div>
+    </div> -->
   </q-card>
 
   <!-- Sessions -->

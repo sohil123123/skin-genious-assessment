@@ -61,7 +61,7 @@ import { storeToRefs } from 'pinia'
 import SelectedPlan from 'src/components/assessment/SelectedPlan.vue'
 import RecommendedFullPlan from 'src/components/assessment/RecommendedFullPlan.vue'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
-import { useQuasar, LocalStorage } from 'quasar'
+import { useQuasar, LocalStorage, Loading } from 'quasar'
 
 const $q = useQuasar()
 
@@ -117,10 +117,13 @@ function finalizeAndExit() {
     .onOk(() => {
       assessmentData.value.status = 'completed'
       emit('save_data', ['status'])
-      LocalStorage.clear()
+      Loading.show({
+        message: 'Finalizing and redirecting...',
+      })
       setTimeout(() => {
+        LocalStorage.clear()
         window.location.href = `${process.env.CRM_URL}/users`
-      }, 2000)
+      }, 3000)
     })
     .onCancel(() => {
       console.log('User cancelled')
@@ -202,7 +205,7 @@ const exportToPDF = () => {
     doc.setTextColor(0, 0, 0) // Ensure black color
     y = addWrappedText(
       doc,
-      `Session ${treatment.session_number}: ${treatment.title}`,
+      `Session ${treatment.session_number}: ${treatment.title.replaceAll(/[‑–→]/g, '-')}`,
       10,
       y,
       pageWidth,
@@ -254,7 +257,7 @@ const exportToPDF = () => {
       const concernText = `${concern.concern}: From ${concern.current_value} To ${concern.target_value}`
       y = addWrappedText(
         doc,
-        `• ${concernText.replaceAll('–', '-')}`,
+        `• ${concernText.replaceAll(/[‑–→]/g, '-')}`,
         15,
         y,
         pageWidth - 5,
@@ -289,7 +292,7 @@ const exportToPDF = () => {
       // y = addWrappedText(doc, ingredientsText, 20, y, pageWidth - 10, lineHeight)
 
       // Procedure
-      const howToText = `${step.how_to_do}`
+      const howToText = `${step.how_to_do.replaceAll(/[‑–→]/g, '-')}`
       y = addWrappedText(doc, howToText, 20, y, pageWidth - 10, lineHeight)
 
       // Add space between steps, but not after the last step
