@@ -29,13 +29,13 @@ const routes = [
       {
         path: '',
         name: 'index',
-        meta: { requiresAuth: false },
+        meta: { requiresAuth: true },
         component: () => import('pages/IndexPage.vue'),
       },
       {
         path: ':assessment_id?',
         name: 'index-with-id',
-        meta: { requiresAuth: false },
+        meta: { requiresAuth: true },
         component: () => import('pages/IndexPage.vue'),
       },
     ],
