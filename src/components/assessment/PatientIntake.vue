@@ -28,26 +28,28 @@
             <div class="space-y-4">
               <q-input
                 outlined
-                placeholder="Patient ID"
+                label="Patient ID"
                 v-model="assessmentData.user_id"
                 class="custom-input"
               />
 
               <q-input
                 outlined
-                placeholder="Full name"
+                label="Full name"
                 v-model="assessmentData.name"
                 class="custom-input"
               />
 
               <div class="flex items-center q-gutter-sm">
-                <span class="text-sm">Age</span>
+                <!-- <span class="text-sm">Age</span> -->
                 <q-select
                   outlined
+                  label="Age"
                   v-model="assessmentData.age"
                   :options="ageOptions"
                   dense
                   @update:model-value="saveData(['age'])"
+                  style="width: 100px"
                 />
 
                 <div class="flex q-gutter-xs q-ml-sm">
