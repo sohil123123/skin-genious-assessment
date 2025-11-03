@@ -2,7 +2,7 @@ const routes = [
   {
     path: '/login',
     component: () => import('src/layouts/AuthLayout.vue'),
-    meta: { public: true },
+    meta: { requiresAuth: false },
     children: [
       {
         path: '',
@@ -11,9 +11,9 @@ const routes = [
     ],
   },
   {
-    path: '/authenticate/:token?/:userId?',
+    path: '/authenticate',
     component: () => import('src/layouts/AuthLayout.vue'),
-    meta: { public: true },
+    meta: { requiresAuth: false },
     children: [
       {
         path: '',
@@ -24,25 +24,20 @@ const routes = [
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
-    meta: { public: false },
+    meta: { requiresAuth: true },
     children: [
       {
         path: '',
         name: 'index',
-        meta: { requiresAuth: true },
         component: () => import('pages/IndexPage.vue'),
       },
       {
         path: ':assessment_id?',
         name: 'index-with-id',
-        meta: { requiresAuth: true },
         component: () => import('pages/IndexPage.vue'),
       },
     ],
   },
-
-  // Always leave this as last one,
-  // but you can also remove it
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
