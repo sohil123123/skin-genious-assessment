@@ -144,13 +144,14 @@ export const useAssessmentStore = defineStore('assessment', {
           console.log(response.data.message)
         })
         .catch((e) => {
-          console.log(e)
-          Notify.create({
-            type: 'negative',
-            message: e.response.data.message,
-          })
+          console.log(e.response.data)
+          // Notify.create({
+          //   type: 'negative',
+          //   message: e.response.data.message,
+          // })
         })
     },
+
     setPatientData(data) {
       this.assessmentData.user_id = data.id
       this.assessmentData.name = data.first_name + ' ' + data.last_name
