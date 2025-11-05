@@ -1,0 +1,390 @@
+{
+  "treatment_plan": {
+    "total_time": "1 session (75 minutes)",
+    "treatments": [
+      {
+        "session_number": 1,
+        "title": "HydraFacial core treatment with Mandelic Peel, RF lift, LED, and lymphatic drainage",
+        "treatment_time": "75 mins",
+        "week": 1,
+        "preparations_checklist_for_therapist": [
+          "Verify patient consent and allergies (none reported).",
+          "Confirm no pregnancy or breastfeeding status; patient is not pregnant or breastfeeding.",
+          "Review medications and ensure no contraindicated photosensitizing drugs.",
+          "Prepare room with towels, headband, eye protection, and sanitized surfaces.",
+          "Confirm Hydrafacial device is on and loaded with Ice probe, O2 infusion, and RF lifting probe ready.",
+          "Prepare Mandelic Peel (Gel Mandelic Peel) and neutralizer; have serums AS1, SA2, A03 ready.",
+          "Set up LED panel (Blue, Red, Green) and eye shields; ensure timer is functional.",
+          "Prepare post-care products: serum, moisturizer, and sunscreen (SPF 50+).",
+          "Have cold packs available for post-treatment cooling if needed."
+        ],
+        "concerns_addressed": [
+          {
+            "concern": "Skin Type",
+            "current_value": "Oily",
+            "target_value": "Balanced (Combination)"
+          },
+          {
+            "concern": "Superficial Pigmentation Score",
+            "current_value": "2 (Mild)",
+            "target_value": "1 (Very mild)"
+          },
+          {
+            "concern": "Texture + Open Pores Grading",
+            "current_value": "2",
+            "target_value": "1"
+          },
+          {
+            "concern": "Superficial Wrinkles",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Jawline Sagging",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Skin Hydration",
+            "current_value": "2",
+            "target_value": "3"
+          },
+          {
+            "concern": "Skin Sebum Content",
+            "current_value": "2",
+            "target_value": "1"
+          },
+          {
+            "concern": "Skin Sensitivity Scoring",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Barrier Health",
+            "current_value": "2",
+            "target_value": "3"
+          },
+          {
+            "concern": "PeriOrbital Health",
+            "current_value": "1",
+            "target_value": "None"
+          },
+          {
+            "concern": "Vascularity / Redness Profiling",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Under-Eye Vascularity vs Structural Shadows",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": "2",
+            "target_value": "3"
+          },
+          {
+            "concern": "Comedonal Density",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Texture Irregularities Beyond Pores",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Regional Oil Distribution",
+            "current_value": "2",
+            "target_value": "1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "20",
+            "ingredients_equipments": [
+              "HydraFacial device (Ice probe)",
+              "Oxygen infusion",
+              "AS1 serum",
+              "SA2 serum",
+              "A03 serum"
+            ],
+            "how_to_do": "Perform cleansing and gentle exfoliation; engage Ice probe for cooling while initiating suction-based extraction; sequentially infuse AS1, SA2, and A03 serums via Hydrafacial head; apply oxygen infusion; monitor tolerance."
+          },
+          {
+            "step_number": 2,
+            "duration": "15",
+            "ingredients_equipments": ["Gel Mandelic Peel", "Neutralizer"],
+            "how_to_do": "Apply a thin, even layer of Gel Mandelic Peel to the entire face, avoiding eyes; leave 5–7 minutes; neutralize per product instructions; rinse with lukewarm water and pat dry."
+          },
+          {
+            "step_number": 3,
+            "duration": "10",
+            "ingredients_equipments": ["RF lifting probe"],
+            "how_to_do": "Perform 2–3 passes across the midface and jawline at low–moderate intensity; ensure full contact; monitor heat sensation; avoid excessive concentration on any one area."
+          },
+          {
+            "step_number": 4,
+            "duration": "12",
+            "ingredients_equipments": ["LED panel (Blue + Red)"],
+            "how_to_do": "Blue light for antibacterial/pores refinement for 6 minutes; Red light for collagen stimulation and anti-inflammatory effects for 6 minutes; maintain comfortable intensity."
+          },
+          {
+            "step_number": 5,
+            "duration": "7",
+            "ingredients_equipments": ["Lymphatic drainage massage"],
+            "how_to_do": "Perform gentle, upward and outward lymphatic strokes across the face, focusing on periorbital and cheek regions; 7 minutes total."
+          },
+          {
+            "step_number": 6,
+            "duration": "5",
+            "ingredients_equipments": ["Serum", "Moisturizer", "Sunscreen"],
+            "how_to_do": "Apply Hydrating serum (if provided), seal with moisturizer, and finish with broad-spectrum sunscreen; provide post-care instructions."
+          }
+        ]
+      }
+    ]
+  },
+  "recommended_full_plan": {
+    "total_time": "3 months",
+    "treatments": [
+      {
+        "session_number": 1,
+        "title": "Foundational Hydration and Gentle Pigmentation Reduction",
+        "treatment_time": "75 mins",
+        "week": 1,
+        "concerns_addressed": [
+          {
+            "concern": "Skin Type",
+            "current_value": "Oily",
+            "target_value": "Balanced (Combination)"
+          },
+          {
+            "concern": "Superficial Pigmentation Score",
+            "current_value": "2 (Mild)",
+            "target_value": "1 (Very mild)"
+          },
+          {
+            "concern": "Texture + Open Pores Grading",
+            "current_value": "2",
+            "target_value": "1"
+          },
+          {
+            "concern": "Comedonal Density",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Regional Oil Distribution",
+            "current_value": "2",
+            "target_value": "1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "20",
+            "ingredients_equipments": ["Hydrafacial (Ice probe)", "AS1", "SA2", "A03"],
+            "how_to_do": "Cleansing and suction extraction; serums infusion; oxygen infusion; assess response."
+          },
+          {
+            "step_number": 2,
+            "duration": "15",
+            "ingredients_equipments": ["Gel Mandelic Peel", "Neutralizer"],
+            "how_to_do": "Even peel application; 5–7 minutes; neutralize; rinse."
+          },
+          {
+            "step_number": 3,
+            "duration": "15",
+            "ingredients_equipments": ["RF lifting probe"],
+            "how_to_do": "2 passes; low–moderate intensity; monitor heat."
+          },
+          {
+            "step_number": 4,
+            "duration": "12",
+            "ingredients_equipments": ["LED (Blue + Red)"],
+            "how_to_do": "Blue 6 min, Red 6 min; adjust for tolerance."
+          },
+          {
+            "step_number": 5,
+            "duration": "7",
+            "ingredients_equipments": ["Lymphatic drainage"],
+            "how_to_do": "7-min facial drainage."
+          },
+          {
+            "step_number": 6,
+            "duration": "5",
+            "ingredients_equipments": ["Sunscreen", "Moisturizer"],
+            "how_to_do": "Finish with protection and hydration."
+          }
+        ]
+      },
+      {
+        "session_number": 2,
+        "title": "Pigmentation Refinement and Texture Boost",
+        "treatment_time": "60–75 mins",
+        "week": 3,
+        "concerns_addressed": [
+          {
+            "concern": "Superficial Pigmentation Score",
+            "current_value": "2 (Mild)",
+            "target_value": "1 (Very mild)"
+          },
+          {
+            "concern": "Texture + Open Pores Grading",
+            "current_value": "2",
+            "target_value": "1"
+          },
+          {
+            "concern": "Jawline Sagging",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Skin Luminosity / Glow Index",
+            "current_value": "2",
+            "target_value": "3"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "15",
+            "ingredients_equipments": ["Gel Mandelic Peel", "Neutralizer"],
+            "how_to_do": "Gentle peel; 5–7 minutes; neutralize; rinse."
+          },
+          {
+            "step_number": 2,
+            "duration": "20",
+            "ingredients_equipments": ["Glycolic Peel 35% or Mandelic 20%"],
+            "how_to_do": "Apply for 3–5 minutes; monitor sensitivity; neutralize; rinse."
+          },
+          {
+            "step_number": 3,
+            "duration": "15",
+            "ingredients_equipments": ["RF lifting probe"],
+            "how_to_do": "Contouring passes on cheeks/jawline; moderate intensity."
+          },
+          {
+            "step_number": 4,
+            "duration": "10",
+            "ingredients_equipments": ["LED (Red) and (Blue)"],
+            "how_to_do": "Blue ~5 min, Red ~5 min."
+          },
+          {
+            "step_number": 5,
+            "duration": "5",
+            "ingredients_equipments": ["Lymphatic drainage"]
+          },
+          {
+            "step_number": 6,
+            "duration": "5",
+            "ingredients_equipments": ["Sunscreen", "Moisturizer"]
+          }
+        ]
+      },
+      {
+        "session_number": 3,
+        "title": "Texture & Elasticity Enhancement",
+        "treatment_time": "60–75 mins",
+        "week": 5,
+        "concerns_addressed": [
+          {
+            "concern": "Texture Irregularities Beyond Pores",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Jawline Sagging",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "PeriOrbital Health",
+            "current_value": "1",
+            "target_value": "None"
+          },
+          {
+            "concern": "Regional Oil Distribution",
+            "current_value": "2",
+            "target_value": "1"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "20",
+            "ingredients_equipments": [
+              "Dermapen / Dermaroller (discussed with patient)",
+              "Hydrafacial serums"
+            ],
+            "how_to_do": "Microneedling with cautious depth; follow with serums infusion."
+          },
+          {
+            "step_number": 2,
+            "duration": "20",
+            "ingredients_equipments": ["RF lifting probe", "LED panel"],
+            "how_to_do": "RF passes with gentle overlapping strokes; Blue/Red LED 10 minutes."
+          },
+          {
+            "step_number": 3,
+            "duration": "15",
+            "ingredients_equipments": ["Sunscreen", "Moisturizer"],
+            "how_to_do": "Finish with serums; sunscreen and hydration."
+          }
+        ]
+      },
+      {
+        "session_number": 4,
+        "title": "Maintenance and Brightening",
+        "treatment_time": "60 mins",
+        "week": 9,
+        "concerns_addressed": [
+          {
+            "concern": "Skin Hydration",
+            "current_value": "2",
+            "target_value": "3"
+          },
+          {
+            "concern": "Vascularity / Redness Profiling",
+            "current_value": "1",
+            "target_value": "0"
+          },
+          {
+            "concern": "Lip Pigmentation",
+            "current_value": "Absent",
+            "target_value": "Absent"
+          }
+        ],
+        "steps": [
+          {
+            "step_number": 1,
+            "duration": "15",
+            "ingredients_equipments": ["Hydrafacial infusion serums (AS1/A03)"],
+            "how_to_do": "Cleansing and infusion to topically hydrate."
+          },
+          {
+            "step_number": 2,
+            "duration": "20",
+            "ingredients_equipments": ["Glycolic or Mandelic Peel"],
+            "how_to_do": "Light peel to refresh texture."
+          },
+          {
+            "step_number": 3,
+            "duration": "15",
+            "ingredients_equipments": ["LED (Green) and Red"],
+            "how_to_do": "Green for pigmentation balance; Red for collagen."
+          },
+          {
+            "step_number": 4,
+            "duration": "10",
+            "ingredients_equipments": ["Lymphatic drainage", "Sunscreen", "Moisturizer"],
+            "how_to_do": "Drainage followed by protection and hydration."
+          }
+        ]
+      }
+    ]
+  }
+}

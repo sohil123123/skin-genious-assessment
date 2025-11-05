@@ -44,6 +44,7 @@ export function useOpenAI() {
     try {
       const body = {
         model: 'gpt-5',
+        temperature: 0.3,
         conversation: convId,
         input,
         ...(type === 'diagnosis' && {
