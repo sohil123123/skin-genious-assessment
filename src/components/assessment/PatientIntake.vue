@@ -487,45 +487,45 @@ function uploadImages() {
   }, 100)
 }
 
-async function fileToBase64(fileWrapper) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
+// async function fileToBase64(fileWrapper) {
+//   return new Promise((resolve, reject) => {
+//     const reader = new FileReader()
 
-    // Quasar stores the real File in fileWrapper.__file
-    const actualFile = fileWrapper.__file || fileWrapper
+//     // Quasar stores the real File in fileWrapper.__file
+//     const actualFile = fileWrapper.__file || fileWrapper
 
-    if (!(actualFile instanceof Blob)) {
-      return reject(new Error('Invalid file type passed to fileToBase64()'))
-    }
+//     if (!(actualFile instanceof Blob)) {
+//       return reject(new Error('Invalid file type passed to fileToBase64()'))
+//     }
 
-    reader.onload = () => {
-      const base64 = reader.result.split(',')[1]
-      resolve(base64)
-    }
+//     reader.onload = () => {
+//       const base64 = reader.result.split(',')[1]
+//       resolve(base64)
+//     }
 
-    reader.onerror = (error) => reject(error)
-    reader.readAsDataURL(actualFile)
-  })
-}
+//     reader.onerror = (error) => reject(error)
+//     reader.readAsDataURL(actualFile)
+//   })
+// }
 
-async function prepareUploaderImages() {
-  if (!uploader.value || !uploader.value.files.length) return []
+// async function prepareUploaderImages() {
+//   if (!uploader.value || !uploader.value.files.length) return []
 
-  const base64List = await Promise.all(uploader.value.files.map((f) => fileToBase64(f)))
+//   const base64List = await Promise.all(uploader.value.files.map((f) => fileToBase64(f)))
 
-  return base64List
-}
+//   return base64List
+// }
 
 async function startProcessing() {
   startProcessingStep.value = true
   await nextTick()
-  const base64Images = await prepareUploaderImages(uploader)
+  // const base64Images = await prepareUploaderImages(uploader)
   if (uploader.value && uploader.value.files) {
     // INFO: This is used for Base64 images
-    emit('process', base64Images)
+    // emit('process', base64Images)
 
     // INFO: This is use when images stored in server
-    // emit('process', uploader.value.files)
+    emit('process', uploader.value.files)
   } else {
     console.warn('Uploader not ready or has no files')
   }

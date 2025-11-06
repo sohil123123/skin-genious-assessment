@@ -124,10 +124,11 @@ async function submit(field) {
 
 const handleProcess = async (files) => {
   // INFO: This is use when images stored in server
-  // const faceImages = await store.storeFaceImages(files)
-  // const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages)
+  const faceImages = await store.storeFaceImages(files)
+  const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages)
 
-  const apiResponse = await callApiForDiagnosis(assessmentData.value, files)
+  // const apiResponse = await callApiForDiagnosis(assessmentData.value, files)
+
   if (apiResponse.error) {
     Notify.create({
       type: 'negative',
@@ -192,9 +193,9 @@ const goToPreviousStep = () => {
 // Placeholder API functions - replace with actual implementations
 async function callApiForDiagnosis(data, images) {
   const convId = await getOrCreateConversation(`${data.user_id}`)
-  faceImages.value = images.map((b64) => {
-    return `data:image/jpeg;base64,${b64}`
-  })
+  // faceImages.value = images.map((b64) => {
+  //   return `data:image/jpeg;base64,${b64}`
+  // })
   const input = [
     {
       role: 'system',
@@ -204,15 +205,15 @@ async function callApiForDiagnosis(data, images) {
       role: 'user',
       content: [
         // INFO: This is for Base64 Images
-        ...images.map((b64) => ({
-          type: 'input_image',
-          image_url: `data:image/jpeg;base64,${b64}`,
-        })),
-        // INFO: This is used when images stored in server
-        // ...images.map((img_url) => ({
+        // ...images.map((b64) => ({
         //   type: 'input_image',
-        //   image_url: img_url,
+        //   image_url: `data:image/jpeg;base64,${b64}`,
         // })),
+        // INFO: This is used when images stored in server
+        ...images.map((img_url) => ({
+          type: 'input_image',
+          image_url: img_url,
+        })),
         {
           type: 'input_text',
           text: D_REPORT_USER_PROMPT,
