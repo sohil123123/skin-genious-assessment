@@ -48,6 +48,8 @@ export const useAssessmentStore = defineStore('assessment', {
       therapist_notes: null,
       status: 'in_progress',
     },
+    faceImages: [],
+    isImagesUploaded: false,
   }),
 
   actions: {
@@ -161,6 +163,9 @@ export const useAssessmentStore = defineStore('assessment', {
       this.assessmentData = { ...this.assessmentData, ...data }
     },
     async storeFaceImages(files) {
+      if (this.isImagesUploaded) {
+        return this.faceImages
+      }
       const formData = new FormData()
       files.forEach((file) => {
         // check if real file exists
@@ -173,7 +178,10 @@ export const useAssessmentStore = defineStore('assessment', {
         .post(`assessments/${this.assessmentData.id}/images`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
-        .then((res) => res.data)
+        .then((res) => {
+          this.isImagesUploaded = true
+          return res.data
+        })
         .catch((e) => {
           console.error('UPLOAD ERROR:', e.response?.data || e)
           Notify.create({
@@ -182,9 +190,9 @@ export const useAssessmentStore = defineStore('assessment', {
           })
           return null
         })
-      console.log(response)
       const images = response.results.images
       const urls = images.map((file) => file.url)
+      this.faceImages = urls
       return urls
     },
   },

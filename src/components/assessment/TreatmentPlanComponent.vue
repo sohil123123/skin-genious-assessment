@@ -17,7 +17,7 @@
       <SelectedPlan :treatmentPlan="treatmentPlan" />
 
       <!-- Recommended Treatment Plan -->
-      <RecommendedFullPlan v-if="treatmentType == 'single'" :treatmentPlan="recommendedFullPlan" />
+      <!-- <RecommendedFullPlan v-if="treatmentType == 'single'" :treatmentPlan="recommendedFullPlan" /> -->
 
       <div>
         <q-input
@@ -59,7 +59,7 @@ import { ref } from 'vue'
 import jsPDF from 'jspdf'
 import { storeToRefs } from 'pinia'
 import SelectedPlan from 'src/components/assessment/SelectedPlan.vue'
-import RecommendedFullPlan from 'src/components/assessment/RecommendedFullPlan.vue'
+// import RecommendedFullPlan from 'src/components/assessment/RecommendedFullPlan.vue'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { useQuasar, LocalStorage, Loading } from 'quasar'
 
@@ -86,7 +86,7 @@ const props = defineProps({
 const emit = defineEmits(['previous', 'save_data'])
 
 const treatmentPlan = ref(props.treatmentPlan)
-const recommendedFullPlan = ref(props.recommendedFullPlan)
+// const recommendedFullPlan = ref(props.recommendedFullPlan)
 
 const emitPrevious = () => {
   emit('previous')

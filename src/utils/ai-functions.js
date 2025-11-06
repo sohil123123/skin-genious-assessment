@@ -336,7 +336,7 @@ export const skinTypeFunctions = [
     type: 'function',
     name: 'analyze_acne_grade_logic',
     description:
-      'Analyzes facial acne severity using multi-light imaging and lesion classification according to Acne Grading v2.3 standards. Returns final acne grade (0–4), confidence score, severity index, and region-level details.',
+      'Analyzes facial acne severity using multi-light imaging and lesion classification according to Acne Grading standards. Returns final acne grade (0–4), confidence score, severity index, and region-level details.',
     parameters: {
       type: 'object',
       properties: {
@@ -2131,7 +2131,7 @@ export const imageAnalysisFunctions = [
     type: 'function',
     name: 'affected_area_image_selector_logic',
     description:
-      'Determines the most suitable diagnostic image per parameter for Bitmoji A5 Analyzer reports. Automatically selects preferred lighting mode with fallback handling and defines global image inclusion policies. Ensures raw diagnostic visuals without overlays for consistent reporting.',
+      'To output the response for the affected_area_image_selector in dignostic report consider the following. Strictly output the prefered lighting mode image for every parameter.',
     parameters: {
       type: 'object',
       properties: {
@@ -2161,9 +2161,9 @@ export const imageAnalysisFunctions = [
                   },
                   {
                     parameter: 'Visual_acne_grading',
-                    preferred_lighting_mode: '',
-                    fallback_mode: '',
-                    reason: '',
+                    preferred_lighting_mode: 'white',
+                    fallback_mode: 'UV',
+                    reason: 'White light provides the clearest acne visualization.',
                   },
                   {
                     parameter: 'texture_open_pores',
@@ -2216,15 +2216,17 @@ export const imageAnalysisFunctions = [
                   },
                   {
                     parameter: 'peri_orbital_health',
-                    preferred_lighting_mode: '',
-                    fallback_mode: '',
-                    reason: '',
+                    preferred_lighting_mode: 'XPL',
+                    fallback_mode: 'White',
+                    reason:
+                      'Cross-polarized light minimizes surface glare and reveals deeper vascular and pigmentation issues under the eyes, ideal for assessing dark circles, puffiness, and fine lines. White light provides a natural appearance for comparison.',
                   },
                   {
                     parameter: 'lip_pigmentation',
-                    preferred_lighting_mode: '',
-                    fallback_mode: '',
-                    reason: '',
+                    preferred_lighting_mode: 'Brown',
+                    fallback_mode: 'XPL',
+                    reason:
+                      'Brown mode highlights melanin concentration, making it ideal for evaluating lip pigmentation or discoloration. Cross-polarized light serves as a fallback to visualize vascular tone and subsurface pigmentation patterns.',
                   },
                   {
                     parameter: 'vascularity_redness',
@@ -2235,9 +2237,10 @@ export const imageAnalysisFunctions = [
                   },
                   {
                     parameter: 'under_eye_vascularity_vs_structural_shadows',
-                    preferred_lighting_mode: '',
-                    fallback_mode: '',
-                    reason: '',
+                    preferred_lighting_mode: 'XPL',
+                    fallback_mode: 'White',
+                    reason:
+                      'Cross-polarized light penetrates below surface glare to reveal subsurface vascular patterns, helping distinguish true vascular dark circles from mere structural shadows. White light acts as a fallback for assessing anatomical contour and shadow depth under natural illumination.',
                   },
                   {
                     parameter: 'skin_luminosity_glow',

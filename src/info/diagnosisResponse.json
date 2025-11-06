@@ -1,0 +1,277 @@
+{
+  "diagnosis_report": {
+    "skin_type": {
+      "parameter_name": "Skin Type",
+      "description": "This parameter identifies the primary characteristics of your skin, which can be oily, dry, combination, or normal. Understanding your skin type is the foundation for a proper skincare routine.",
+      "score_or_label": "Combination (Oily T-zone)",
+      "score_explanation": "Noticeable shine and specular reflection on the nose with visible pores along the central face while the cheeks appear relatively matte, indicating higher sebum in the T‑zone with normal-to-drier U‑zone.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/1.jpg",
+      "possible_causes": [
+        "Genetic sebum regulation pattern",
+        "Climate/humidity influencing T-zone oil"
+      ]
+    },
+    "superficial_pigmentation_score": {
+      "parameter_name": "Superficial Pigmentation Score",
+      "description": "This parameter measures the amount of superficial pigmentation, such as sun spots, age spots, and post-inflammatory hyperpigmentation (PIH), on the skin's surface.",
+      "score_or_label": "3/5 - Moderate",
+      "score_explanation": "Brown-mode mapping shows multiple mottled tan macules on the nose, malar cheeks, and around the mouth with uneven tone rather than isolated dark patches, consistent with moderate superficial pigmentation.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/7.jpg",
+      "possible_causes": [
+        "Cumulative sun exposure",
+        "Post-inflammatory pigmentation from past breakouts"
+      ]
+    },
+    "visual_acne_grading": {
+      "parameter_name": "Visual Acne Grading",
+      "description": "This parameter assesses the severity of acne based on the number and type of lesions, such as blackheads, whiteheads, papules, and pustules.",
+      "score_or_label": "Grade 1",
+      "score_explanation": "UV imaging reveals numerous porphyrin fluorescences clustered on the nose and central cheeks indicating comedones with minimal inflammatory papules or pustules.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/5.jpg",
+      "possible_causes": ["Excess sebum and congested pores", "Inadequate pore-cleansing routine"]
+    },
+    "texture_open_pores_grading": {
+      "parameter_name": "Texture + Open Pores Grading",
+      "description": "This parameter evaluates the skin's texture, including the visibility of open pores.",
+      "score_or_label": "Grade 2",
+      "score_explanation": "Cross/parallel-polarized view highlights enlarged pores on the nose and medial cheeks with mild surface roughness but no widespread atrophic scarring, aligning with mild-to-moderate pore visibility.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/8.jpg",
+      "possible_causes": [
+        "Higher T-zone oil output stretching follicular openings",
+        "Sun exposure and age-related loss of elasticity"
+      ]
+    },
+    "superficial_wrinkles": {
+      "parameter_name": "Superficial Wrinkles",
+      "description": "This parameter assesses the presence and depth of superficial wrinkles and fine lines, which are early signs of aging. ",
+      "score_or_label": "Grade 1",
+      "score_explanation": "Fine lines are visible mainly in the peri‑orbital area under polarized light without clear etched lines on the forehead or cheeks, indicating mild superficial wrinkling.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/8.jpg",
+      "possible_causes": ["Early photoaging", "Transient dehydration of the stratum corneum"]
+    },
+    "jawline_sagging": {
+      "parameter_name": "Jawline Sagging",
+      "description": "This parameter evaluates the firmness and definition of the jawline, which can be affected by loss of skin elasticity and gravity.",
+      "score_or_label": "Grade 1",
+      "score_explanation": "Mandibular border remains largely defined with minimal jowling or shadow disruption, suggesting only very mild laxity.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/1.jpg",
+      "possible_causes": ["Early loss of collagen/elasticity", "Natural aging"]
+    },
+    "skin_hydration": {
+      "parameter_name": "Skin Hydration",
+      "description": "This parameter measures the water content in the skin, which is crucial for maintaining a healthy skin barrier and a plump, youthful appearance.",
+      "score_or_label": "Score 1",
+      "score_explanation": "Red/polarized views show slight dullness and micro‑lines around the mouth with limited diffuse glow, indicating mildly reduced hydration.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/6.jpg",
+      "possible_causes": ["Insufficient moisturizer usage", "Environmental dehydration (AC/sun)"]
+    },
+    "skin_sebum_content": {
+      "parameter_name": "Skin Sebum Content",
+      "description": "This parameter measures the amount of sebum (oil) produced by the sebaceous glands in the skin.",
+      "score_or_label": "Score 2",
+      "score_explanation": "Prominent porphyrin fluorescence and shine concentrated on the nose and central forehead reflect moderate sebum output.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/5.jpg",
+      "possible_causes": [
+        "Genetically active sebaceous glands",
+        "Warm/humid environment increasing oiliness"
+      ]
+    },
+    "skin_sensitivity_scoring": {
+      "parameter_name": "Skin Sensitivity Scoring",
+      "description": "This parameter assesses the skin's reactivity to external stimuli, such as skincare products, environmental factors, and touch.",
+      "score_or_label": "Score 1",
+      "score_explanation": "Low‑grade erythema around the nose and scattered faint redness without widespread flushing or scaling suggests mild sensitivity.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/6.jpg",
+      "possible_causes": [
+        "Barrier dryness in specific areas",
+        "Intermittent irritation from shaving/products"
+      ]
+    },
+    "barrier_health": {
+      "parameter_name": "Barrier Health",
+      "description": "This parameter evaluates the health of the skin's protective barrier, which is essential for retaining moisture and protecting against external aggressors.",
+      "score_or_label": "Score 1",
+      "score_explanation": "Slight perioral dullness and micro‑flaking cues with mild redness indicate a slightly compromised barrier rather than frank dermatitis.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/6.jpg",
+      "possible_causes": [
+        "Under‑moisturizing or harsh cleansers",
+        "UV exposure weakening barrier lipids"
+      ]
+    },
+    "periorbital_health": {
+      "parameter_name": "PeriOrbital Health",
+      "description": "This parameter assesses the health of the skin around the eyes, including puffiness, hollowness, pigmentation, and vascularity.",
+      "score_or_label": "Moderate",
+      "score_explanation": "Discernible tear‑trough shadowing with under‑eye pigmentation is visible under polarized/brown modes, indicating combined hollowness and pigment changes of moderate severity.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/8.jpg",
+      "possible_causes": [
+        "Anatomical tear‑trough contour",
+        "Chronic sun exposure or rubbing causing pigmentation"
+      ]
+    },
+    "lip_pigmentation": {
+      "parameter_name": "Lip Pigmentation",
+      "description": "This parameter assesses the presence of discoloration or dark spots on the lips.",
+      "score_or_label": "Present",
+      "score_explanation": "Brown-mode and white-light views show darker, uneven lip tone compared to surrounding skin, consistent with labial hyperpigmentation.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/7.jpg",
+      "possible_causes": [
+        "Sun exposure without lip SPF",
+        "Lifestyle factors such as tea/coffee or smoking"
+      ]
+    },
+    "vascularity_redness_profiling": {
+      "parameter_name": "Vascularity / Redness Profiling (XPL / Red Light)",
+      "description": "Mapping of visible and sub-dermal redness, capillary dilation, and vascular congestion using cross-polarized or red light imaging.",
+      "score_or_label": "Score 1",
+      "score_explanation": "Mild localized erythema around the nasal ala and central face without diffuse telangiectasia corresponds to low-grade vascular prominence.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/6.jpg",
+      "possible_causes": ["Irritation from shaving or friction", "Heat/sun-induced vasodilation"]
+    },
+    "under_eye_vascularity_vs_structural_shadows": {
+      "parameter_name": "Under-Eye Vascularity vs Structural Shadows (Peri-orbital Detail)",
+      "description": "Differentiation between pigmentation, vascular congestion, and anatomical shadowing under the eyes.",
+      "score_or_label": "Score 2",
+      "score_explanation": "The trough shows a clear concavity with shadowing plus a faint violaceous tone; findings suggest mixed structural hollowing with mild vascular/pigment contribution.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/8.jpg",
+      "possible_causes": [
+        "Age-related fat pad shift creating hollowness",
+        "Thin peri‑orbital skin revealing vessels"
+      ]
+    },
+    "skin_luminosity_glow_index": {
+      "parameter_name": "Skin Luminosity / Glow Index (White / PPL)",
+      "description": "Quantitative evaluation of skin radiance and uniformity under white and parallel polarized light.",
+      "score_or_label": "Score 1",
+      "score_explanation": "Reflectance appears uneven—oily highlight limited to the nose with general dullness over cheeks—indicating slightly reduced overall glow.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/1.jpg",
+      "possible_causes": [
+        "Mild dehydration decreasing light diffusion",
+        "Texture/pores disrupting even reflectance"
+      ]
+    },
+    "comedonal_density": {
+      "parameter_name": "Comedonal Density (PPL / UV)",
+      "description": "Detection of open and closed comedones visible in polarized or UV imaging modes.",
+      "score_or_label": "Score 2",
+      "score_explanation": "Numerous discrete porphyrin-positive follicular openings on the nose and inner cheeks under UV suggest a moderate density of comedones.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/5.jpg",
+      "possible_causes": [
+        "Sebum retention in T-zone",
+        "Irregular exfoliation leading to clogged pores"
+      ]
+    },
+    "texture_irregularities_beyond_pores": {
+      "parameter_name": "Texture Irregularities Beyond Pores (PPL / Brown)",
+      "description": "Identification of micro-surface irregularities, roughness, and post-inflammatory marks beyond pore-related texture.",
+      "score_or_label": "Score 1",
+      "score_explanation": "Brown-mode shows mild mottling and a few post-inflammatory marks without obvious depressed scarring, consistent with mild non-pore texture irregularity.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/7.jpg",
+      "possible_causes": [
+        "Past breakouts leaving PIH/PIE",
+        "Sun exposure impairing surface uniformity"
+      ]
+    },
+    "regional_oil_distribution": {
+      "parameter_name": "Regional Oil Distribution (White / UV)",
+      "description": "Distribution mapping of oil secretion across facial zones, highlighting T-zone vs U-zone differences.",
+      "score_or_label": "Score 2",
+      "score_explanation": "UV fluorescence and surface shine concentrate on the nose and central forehead with comparatively matte cheeks, indicating a T‑zone dominant oil pattern.",
+      "affected_area_image": "https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/5.jpg",
+      "possible_causes": [
+        "T-zone–predominant sebaceous gland density",
+        "Warm environment increasing central face sebum"
+      ]
+    }
+  },
+  "treatable_concerns_summary": {
+    "description": "Parameters showing deviations that can be treated or improved with appropriate interventions.",
+    "parameters_with_abnormal_scores": [
+      {
+        "parameter": "Superficial Pigmentation Score",
+        "current_score": "3/5 - Moderate",
+        "target_score": "1/5 - Minimal to None"
+      },
+      {
+        "parameter": "Visual Acne Grading",
+        "current_score": "Grade 1",
+        "target_score": "Grade 0"
+      },
+      {
+        "parameter": "Texture + Open Pores Grading",
+        "current_score": "Grade 2",
+        "target_score": "Grade 0-1"
+      },
+      {
+        "parameter": "Superficial Wrinkles",
+        "current_score": "Grade 1",
+        "target_score": "Grade 0-1 (Minimal)"
+      },
+      {
+        "parameter": "Jawline Sagging",
+        "current_score": "Grade 1",
+        "target_score": "Grade 0-1 (Minimal)"
+      },
+      {
+        "parameter": "Skin Hydration",
+        "current_score": "Score 1",
+        "target_score": "Score 2-3 (Well Hydrated)"
+      },
+      {
+        "parameter": "Skin Sebum Content",
+        "current_score": "Score 2",
+        "target_score": "Score 1 (Balanced)"
+      },
+      {
+        "parameter": "Skin Sensitivity Scoring",
+        "current_score": "Score 1",
+        "target_score": "Score 0"
+      },
+      {
+        "parameter": "Barrier Health",
+        "current_score": "Score 1",
+        "target_score": "Score 2-3 (Healthy)"
+      },
+      {
+        "parameter": "PeriOrbital Health",
+        "current_score": "Moderate",
+        "target_score": "None to Mild"
+      },
+      {
+        "parameter": "Lip Pigmentation",
+        "current_score": "Present",
+        "target_score": "Absent"
+      },
+      {
+        "parameter": "Vascularity / Redness Profiling",
+        "current_score": "Score 1",
+        "target_score": "Score 0"
+      },
+      {
+        "parameter": "Under-Eye Vascularity vs Structural Shadows",
+        "current_score": "Score 2",
+        "target_score": "Score 0-1"
+      },
+      {
+        "parameter": "Skin Luminosity / Glow Index",
+        "current_score": "Score 1",
+        "target_score": "Score 2-3 (Radiant)"
+      },
+      {
+        "parameter": "Comedonal Density",
+        "current_score": "Score 2",
+        "target_score": "Score 0-1"
+      },
+      {
+        "parameter": "Texture Irregularities Beyond Pores",
+        "current_score": "Score 1",
+        "target_score": "Score 0"
+      },
+      {
+        "parameter": "Regional Oil Distribution",
+        "current_score": "Score 2",
+        "target_score": "Score 1 (Balanced)"
+      }
+    ]
+  }
+}

@@ -50,6 +50,7 @@ import { useRoute } from 'vue-router'
 import { api } from 'src/boot/axios'
 import _ from 'lodash'
 import { useAuthStore } from 'src/stores/authStore'
+import constraints from 'src/utils/constraints'
 
 const authStore = useAuthStore()
 
@@ -123,11 +124,21 @@ async function submit(field) {
 }
 
 const handleProcess = async (files) => {
-  // INFO: This is use when images stored in server
-  const faceImages = await store.storeFaceImages(files)
-  const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages)
+  faceImages.value = [
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/1.jpg',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/2/2.jpg',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/3/3.jpg',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/4/4.jpg',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/5.jpg',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/6.jpg',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/7.jpg',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/8.jpg',
+  ]
+  if (process.env.APP_MODE != 'dev') {
+    faceImages.value = await store.storeFaceImages(files)
+  }
 
-  // const apiResponse = await callApiForDiagnosis(assessmentData.value, files)
+  const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages.value)
 
   if (apiResponse.error) {
     Notify.create({
@@ -146,7 +157,7 @@ const handleProcess = async (files) => {
     diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
     assessmentData.value.diagnosis = apiResponse
     assessmentData.value.parameters_with_abnormal_scores = apiResponse.treatable_concerns_summary
-    submit(['diagnosis', 'parameters_with_abnormal_scores'])
+    // submit(['diagnosis', 'parameters_with_abnormal_scores'])
     currentStep.value = 2
   }
 }
@@ -173,7 +184,7 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
     })
   } else {
     treatmentPlan.value = apiResponse.treatment_plan // e.g., { plan: '...', sessions: [...] }
-    recommendedFullPlan.value = apiResponse.recommended_full_plan
+    // recommendedFullPlan.value = apiResponse.recommended_full_plan
     assessmentData.value.treatment_plan = apiResponse
     submit(['treatment_plan'])
     currentStep.value = 4
@@ -193,9 +204,7 @@ const goToPreviousStep = () => {
 // Placeholder API functions - replace with actual implementations
 async function callApiForDiagnosis(data, images) {
   const convId = await getOrCreateConversation(`${data.user_id}`)
-  // faceImages.value = images.map((b64) => {
-  //   return `data:image/jpeg;base64,${b64}`
-  // })
+
   const input = [
     {
       role: 'system',
@@ -242,6 +251,19 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
   const convId = LocalStorage.getItem(`conv_${assessmentData.value.user_id}`)
   console.log('Conversation ID:', convId)
 
+  const patientData = {
+    name: assessmentData.value.name,
+    age: assessmentData.value.age,
+    gender: assessmentData.value.gender,
+    daily_sun_exposure_hours: assessmentData.value.daily_sun_exposure_hours,
+    social_event: assessmentData.value.social_event,
+    upcoming_travel: assessmentData.value.upcoming_travel,
+    medical_history: assessmentData.value.medical_history,
+    allergies: assessmentData.value.allergies,
+    is_pregnant: assessmentData.value.is_pregnant,
+    breastfeeding: assessmentData.value.breastfeeding,
+  }
+
   const input = [
     {
       role: 'system',
@@ -250,6 +272,10 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
           type: 'input_text',
           text: SYSTEM_TREATEMENT_PLAN_PROMPT,
         },
+        {
+          type: 'input_text',
+          text: JSON.stringify(constraints, null, 2),
+        },
       ],
     },
     {
@@ -257,7 +283,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
       content: [
         {
           type: 'input_text',
-          text: JSON.stringify(assessmentData.value, null, 2),
+          text: JSON.stringify(patientData, null, 2),
         },
         {
           type: 'input_text',

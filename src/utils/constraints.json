@@ -1,0 +1,335 @@
+{
+  "defined_by": "Dr. Aakriti Mehra",
+  "description": "Clinical , Products & machine constraints for AI Aesthetics skincare and facial treatment plan generation. All treatment plans must comply with these rules. No procedure, product, or device beyond the listed items should be suggested.",
+  "clinical_constraints": {
+    "patient_history_rules": [
+      {
+        "condition": "age_between_30_and_60",
+        "rule": "Include HiFU treatment only when clinically indicated and if patient age is between 30 and 60 years (inclusive)."
+      },
+      {
+        "condition": "sun_exposure_gt_2_hours",
+        "rule": "If daily sun exposure is greater than 2 hours, avoid Q-Switch Laser and all medium or deep chemical peels."
+      },
+      {
+        "condition": "sun_exposure_1_to_2_hours",
+        "rule": "If daily sun exposure is between 1 and 2 hours, avoid all deep chemical peels."
+      },
+      {
+        "condition": "travel_within_7_days",
+        "rule": "If the patient plans to travel within the next 7 days, avoid Q-Switch Laser and deep chemical peels."
+      },
+      {
+        "condition": "social_event_within_7_days",
+        "rule": "If the patient has a social event within the next 7 days, avoid Q-Switch Laser and deep chemical peels."
+      },
+      {
+        "condition": "diabetes",
+        "rule": "If patient has diabetes, look for link between the condition and Acanthotic patches/pigmentation and provide improvement outlook accordingly"
+      },
+      {
+        "condition": "thyroid",
+        "rule": "If patient has thyroid issues, look for link between the condition and melasma/pigmentation and provide improvement outlook accordingly"
+      },
+      {
+        "condition": "PCOD",
+        "rule": "In case patient has PCOD, keep it in mind while suggesting improvement levels in any active acne."
+      },
+      {
+        "condition": "on_blood_thinners",
+        "rule": "If the patient is on blood thinners, do only gentle exfoliation."
+      },
+      {
+        "condition": "used_salicylic_yesterday",
+        "rule": "If the patient has used Salicylic Acid on the previous day, avoid deep peels and Q-Switch Laser."
+      },
+      {
+        "condition": "used_glycolic_acid_yesterday",
+        "rule": "If the patient has used Glycolic Acid on the previous day, avoid deep peels and Q-Switch Laser."
+      },
+      {
+        "condition": "aloe_vera_allergy",
+        "rule": "If the patient has Aloe Vera allergy, skip all treatments or products containing Aloe Vera."
+      },
+      {
+        "condition": "vitamin_c_allergy",
+        "rule": "If the patient has Vitamin C allergy, skip all treatments or products containing Vitamin C."
+      },
+      {
+        "condition": "pregnant",
+        "rule": "If patient is pregnant, allow use of only hydrafacial machine in machines and only party peel and pumpkin peel within Peels. Avoid LED light therapy, Q-Switch, and medium/deep peels."
+      },
+      {
+        "condition": "breastfeeding",
+        "rule": "If the patient is breastfeeding, avoid retinol-based peels and products."
+      }
+    ],
+    "general_treatment_rules": [
+      {
+        "rule": "Every facial treatment must finish (last step of treatment) with Serum + Moisturizer + Sunscreen."
+      },
+      {
+        "rule": "Add a face massage and lymphatic drainage massage wherever possible."
+      }
+    ]
+  },
+  "availableResources": {
+    "machines": [
+      {
+        "name": "Hydrafacial Machine",
+        "type": "facial",
+        "probes": [
+          "Ice Probe",
+          "Ocular Ultrasound Infusion Probe",
+          "Face Ultrasound Infusion Probe",
+          "Cutin Removal Spatula (Exfoliator)",
+          "Lifting Probe (RF)",
+          "Suction Probe / Bubble Pen",
+          "Teenage Line",
+          "Oxygen Injection (Hydra spray)"
+        ]
+      },
+      {
+        "name": "Q-Switch Laser",
+        "type": "laser"
+      },
+      {
+        "name": "Radio frequency Machine",
+        "type": "skin tightening"
+      },
+      {
+        "name": "HiFU Machine",
+        "type": "aesthetic skin tightening"
+      },
+      {
+        "name": "Diode Laser Machine",
+        "type": "hair removal"
+      },
+      {
+        "name": "Micro needling Radio frequency"
+      },
+      {
+        "name": "LED Light Therapy Machine",
+        "modes": ["Blue", "Red", "Green"]
+      },
+      {
+        "name": "IV Infusion Kit",
+        "type": "Nutrition therapy"
+      },
+      {
+        "name": "Micro needling Machine"
+      },
+      {
+        "name": "Dermapen",
+        "type": "micro-needling"
+      },
+      {
+        "name": "Dermaroller",
+        "type": "micro-needling"
+      },
+      {
+        "name": "Microdermabrasion Machine"
+      }
+    ],
+
+    "jet_infusion_solutions": [
+      {
+        "name": "Hyaluronic Acid",
+        "use": "Hydration and skin plumping"
+      },
+      {
+        "name": "Vitamin C",
+        "use": "Brightening and antioxidant"
+      },
+      {
+        "name": "TRX A (Tranexamic Acid )",
+        "use": "Pigmentation reduction"
+      },
+      {
+        "name": "PDRN (polydeoxyribonucleotide)",
+        "use": "Skin repair, regeneration And hydration"
+      },
+      {
+        "name": "Exosomes",
+        "use": "Advanced skin regeneration , rejuvenation And pigmentation to some extent"
+      },
+      {
+        "name": "Lifting",
+        "use": "Firming and anti-aging"
+      },
+      {
+        "name": "Glutathione",
+        "use": "Skin lightening and detoxification"
+      },
+      {
+        "name": "Hydrafacial Serum AS1",
+        "use": "Cleanse & Exfoliate (Normal Skin)"
+      },
+      {
+        "name": "Hydrafacial Serum SA2",
+        "use": "Oil Control (Oily Skin)"
+      },
+      {
+        "name": "Hydrafacial Serum A03",
+        "use": "Hydration (Dry Skin)"
+      }
+    ],
+
+    "peelOffMasks": [
+      {
+        "name": "Charcoal",
+        "skinType": "Oily",
+        "use": "Oil control and detox"
+      },
+      {
+        "name": "Calming",
+        "use": "Reduce redness and irritation"
+      },
+      {
+        "name": "Brighten",
+        "use": "Improve skin tone and radiance"
+      },
+      {
+        "name": "Hydrate",
+        "use": "Deep moisturization"
+      },
+      {
+        "name": "Lift",
+        "use": "Tightening and firming"
+      }
+    ],
+
+    "ivInfusions": [
+      {
+        "name": "Glutathione",
+        "use": "Detox and brightening"
+      },
+      {
+        "name": "Vitamin B12",
+        "use": "Energy and cellular metabolism"
+      },
+      {
+        "name": "N-Acetyl Cysteine (NAC)",
+        "use": "Liver support and antioxidant"
+      },
+      {
+        "name": "Vitamin C",
+        "use": "Immunity and skin glow"
+      }
+    ],
+
+    "chemicalPeels": [
+      {
+        "name": "Party Peel",
+        "composition": {
+          "Lactic Acid": "40%",
+          "Arginine": "20%",
+          "Arbutin": "20%",
+          "Niacinamide": "10%"
+        },
+        "use": "Instant glow and rejuvenation"
+      },
+      {
+        "name": "Whitening Peel",
+        "composition": {
+          "Glycolic Acid": "15%",
+          "Lactic Acid": "10%",
+          "Koji Acid": "10%",
+          "Arbutin": "10%",
+          "Licorice Extract": "3%",
+          "Bright Light": "2%"
+        },
+        "use": "Skin lightening and tone improvement"
+      },
+      {
+        "name": "Sali DS Peel",
+        "composition": ["Salicylic Acid", "PEG400", "Polyquaternium-37", "N0Reg", "AEMPS 1510-PE"],
+        "use": "Anti-acne and deep exfoliation"
+      },
+      {
+        "name": "Salicylic Acid 30% Peel",
+        "composition": { "Salicylic Acid": "30%" },
+        "use": "Acne control and oil regulation"
+      },
+      {
+        "name": "Gel Based Pumpkin Peel",
+        "description": "Dissolves dull skin for instant glow",
+        "composition": {
+          "Pumpkin Puree": "present",
+          "Lactic Acid": "6%",
+          "Gluconic Acid": "1.5%",
+          "Salicylic Acid": "1%",
+          "Betaine": "1.5%",
+          "Resveratrol": "present",
+          "Mandelic Acid": "3%",
+          "Aloe Barbadensis": "present"
+        },
+        "use": "Brightening and gentle resurfacing"
+      },
+      {
+        "name": "Gel Based Mandelic Peel",
+        "composition": [
+          "Magnesium Aluminuim Silicate",
+          "polyvinyl alcohol",
+          "propylene glycol",
+          "Glycerine TIO2",
+          "Betaine",
+          "Mandelic Acid",
+          "Aloe Barbadensis",
+          "Vitamin B3",
+          "Tocopherol",
+          "Bentonite"
+        ],
+        "use": "Exfoliates, Brightens and clarifies skin "
+      },
+      {
+        "name": "Fusion Peel-E",
+        "composition": {
+          "Salicylic Acid": "10%",
+          "Glycolic Acid": "30%",
+          "Lactic Acid": "10%",
+          "Pyruvic Acid": "2%"
+        },
+        "use": "Post-acne pigmentation correction"
+      },
+      {
+        "name": "Glyco Peel 35",
+        "composition": {
+          "Glycolic Acid": "35%"
+        },
+        "use": "used for Skin Rejuvenation, Skin Texture, Hyper pigmentation, Wrinkles and fine lines"
+      },
+      {
+        "name": "Combination Peel",
+        "composition": {
+          "Salicylic Acid": "20%",
+          "Mandelic Acid": "20%"
+        },
+        "use": "Darker skin tone, active acne, and hyper pigmentation"
+      },
+      {
+        "name": "TCA Peel",
+        "composition": {
+          "Trichloroacetic Acid": "10%",
+          "Lactic Acid": "15%",
+          "Mandelic Acid": "10%",
+          "Tranexamic Acid": "8%"
+        },
+        "use": "Melasma and uneven skin texture"
+      },
+      {
+        "name": "Theraderm Black Peel",
+        "composition": ["Black Acetic Acid"],
+        "use": "Drying out blemishes (natural organic peel)"
+      },
+      {
+        "name": "Yellow Peel / Lightening Cream Formula 1614",
+        "use": "Advanced lightening and pigmentation management"
+      },
+      {
+        "name": "20% Salicylic Acid Peel",
+        "use": "exfoliate the skin, treat acne and blackheads, minimize the appearance of pores, and improve skin texture"
+      }
+    ]
+  }
+}
