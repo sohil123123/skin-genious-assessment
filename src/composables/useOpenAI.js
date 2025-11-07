@@ -1,5 +1,5 @@
 import { useQuasar } from 'quasar'
-import { skinTypeFunctions, imageAnalysisFunctions } from 'src/utils/ai-functions'
+// import { skinTypeFunctions, imageAnalysisFunctions } from 'src/utils/ai-functions'
 
 export function useOpenAI() {
   const $q = useQuasar()
@@ -40,17 +40,13 @@ export function useOpenAI() {
   }
 
   // 💬 2. Run response (send message + get reply)
-  const runResponse = async (convId, input, type) => {
+  const runResponse = async (convId, input) => {
     try {
       const body = {
         model: 'gpt-5',
         // temperature: 2.0,
         conversation: convId,
         input,
-        ...(type === 'diagnosis' && {
-          tools: [...skinTypeFunctions, ...imageAnalysisFunctions],
-          tool_choice: 'auto',
-        }),
       }
 
       const res = await fetch(`${BASE_URL}/responses`, {
