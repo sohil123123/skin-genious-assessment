@@ -409,7 +409,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, watch } from 'vue'
 import _ from 'lodash'
 // import { useCommonStore } from 'src/stores/commonStore'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
@@ -421,9 +421,21 @@ const { assessmentData } = storeToRefs(store)
 // const commonStore = useCommonStore()
 const emit = defineEmits(['process', 'save_data'])
 
+const props = defineProps({
+  uploadImagesStep: {
+    type: Boolean,
+    default: false,
+  },
+  isPostAssessment: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+const uploadImagesStep = ref(props.uploadImagesStep)
+
 const uploader = ref(null)
 const startFaceScan = ref(false)
-const uploadImagesStep = ref(false)
 const startProcessingStep = ref(false)
 const showResultsStep = ref(false)
 
@@ -443,7 +455,7 @@ const medicalHistoryOptions = [
 const productsAndAllergies = ['Salicylic Acid', 'Glycolic Acid', 'Aloe Vera', 'Vitamin C', 'None']
 
 onMounted(() => {
-  if (assessmentData.value.images) {
+  if (assessmentData.value.images && !props.isPostAssessment) {
     // Convert remote images to file-like objects
     const preloadFiles = assessmentData.value.images.map((img) => ({
       __key: img.id, // unique key for v-for
@@ -451,7 +463,7 @@ onMounted(() => {
       url: img.url,
       __uploaded: true, // custom flag to mark already uploaded files
       size: 0,
-      type: 'image/jpeg',
+      type: 'image/png',
     }))
 
     // Access uploader instance and inject these files
@@ -461,27 +473,27 @@ onMounted(() => {
   }
 })
 
-// watch(
-//   () => assessmentData.value.images,
-//   () => {
-//     if (assessmentData.value.images) {
-//       // Convert remote images to file-like objects
-//       const preloadFiles = assessmentData.value.images.map((img) => ({
-//         __key: img.id, // unique key for v-for
-//         name: img.name,
-//         url: img.url,
-//         __uploaded: true, // custom flag to mark already uploaded files
-//         size: 0,
-//         type: 'image/jpeg',
-//       }))
+watch(
+  () => assessmentData.value.images,
+  () => {
+    if (assessmentData.value.images && !props.isPostAssessment) {
+      // Convert remote images to file-like objects
+      const preloadFiles = assessmentData.value.images.map((img) => ({
+        __key: img.id, // unique key for v-for
+        name: img.name,
+        url: img.url,
+        __uploaded: true, // custom flag to mark already uploaded files
+        size: 0,
+        type: 'image/jpeg',
+      }))
 
-//       // Access uploader instance and inject these files
-//       if (uploader.value) {
-//         uploader.value.files.push(...preloadFiles)
-//       }
-//     }
-//   },
-// )
+      // Access uploader instance and inject these files
+      if (uploader.value) {
+        uploader.value.files.push(...preloadFiles)
+      }
+    }
+  },
+)
 
 // Utility functions
 const isImage = (file) => file.type?.startsWith('image/') || file.__uploaded

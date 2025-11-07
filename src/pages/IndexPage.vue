@@ -3,6 +3,8 @@
     <PatientIntake
       v-if="currentStep === 1"
       :uploader-files="uploaderFiles"
+      :uploadImagesStep="uploadImagesStep"
+      :isPostAssessment="isPostAssessment"
       @process="handleProcess"
       @save_data="submit"
     />
@@ -27,6 +29,14 @@
       :recommended-full-plan="recommendedFullPlan"
       @previous="goToPreviousStep"
       @save_data="submit"
+      @post_assessment="postAssessment"
+    />
+    <PostAssessment
+      v-if="currentStep === 5"
+      :post_diagnosis="post_diagnosis"
+      :faceImages="faceImages"
+      :postTreatmentImages="postTreatmentImages"
+      @save_data="submit"
     />
   </q-page>
 </template>
@@ -37,11 +47,13 @@ import PatientIntake from 'src/components/assessment/PatientIntake.vue'
 import DiagnosisComponent from 'src/components/assessment/DiagnosisComponent.vue'
 import TreatmentPlanComponent from 'src/components/assessment/TreatmentPlanComponent.vue'
 import MajorConcerns from 'src/components/assessment/MajorConcerns.vue'
+import PostAssessment from 'src/components/assessment/PostAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
 import {
   SYSTEM_PROMPT_DIAGNOSIS,
   D_REPORT_USER_PROMPT,
   SYSTEM_TREATEMENT_PLAN_PROMPT,
+  POST_DIAGNOSIS_USER_PROMPT,
 } from 'src/utils/aiPrompts'
 import { Loading, LocalStorage, Notify, QSpinnerFacebook } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
@@ -61,13 +73,17 @@ const { assessmentData } = storeToRefs(store)
 const route = useRoute()
 
 const faceImages = ref([])
+const postTreatmentImages = ref([])
 const currentStep = ref(1)
+const uploadImagesStep = ref(false)
+const isPostAssessment = ref(false)
 
 const uploaderFiles = ref([]) // To store uploaded files references
 const diagnosis = ref(null)
 const treatmentPlan = ref(null)
 const recommendedFullPlan = ref(null)
 const treatment_type = ref(null)
+const post_diagnosis = ref(null)
 
 onMounted(async () => {
   await store.getPatientData()
@@ -124,6 +140,14 @@ async function submit(field) {
 }
 
 const handleProcess = async (files) => {
+  if (isPostAssessment.value) {
+    await handlePostAssessment(files)
+  } else {
+    await handleDiagnosis(files)
+  }
+}
+
+async function handleDiagnosis(files) {
   faceImages.value = [
     'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/blue.png',
     'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/2/brown.png',
@@ -166,6 +190,51 @@ const handleProcess = async (files) => {
     assessmentData.value.parameters_with_abnormal_scores = apiResponse.treatable_concerns_summary
     // submit(['diagnosis', 'parameters_with_abnormal_scores'])
     currentStep.value = 2
+  }
+}
+
+async function handlePostAssessment(files) {
+  postTreatmentImages.value = [
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/blue.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/2/brown.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/3/ppl.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/4/red.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/uv.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/white.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/woods.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/xpl.png',
+  ]
+
+  if (process.env.APP_MODE != 'dev' && files.length > 0) {
+    postTreatmentImages.value = await store.storeFaceImages(files)
+  }
+
+  const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
+
+  postTreatmentImages.value = desiredOrder.map((name) =>
+    postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.png`)),
+  )
+
+  const apiResponse = await callApiForPostDiagnosis(assessmentData.value, postTreatmentImages.value)
+
+  if (apiResponse.error) {
+    Notify.create({
+      type: 'negative',
+      message: apiResponse.error.message,
+      timeout: 3000,
+      actions: [
+        {
+          icon: 'close',
+          color: 'white',
+          round: true,
+        },
+      ],
+    })
+  } else {
+    post_diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
+    assessmentData.value.post_diagnosis = apiResponse
+    // submit(['diagnosis', 'parameters_with_abnormal_scores'])
+    currentStep.value = 5
   }
 }
 
@@ -310,5 +379,55 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
   const result = await runResponse(convId, input)
   console.log('🩺 Treatment plans:', result)
   return result
+}
+
+async function callApiForPostDiagnosis(data, images) {
+  const convId = await getOrCreateConversation(`${data.user_id}`)
+
+  const input = [
+    {
+      role: 'user',
+      content: [
+        // INFO: This is for Base64 Images
+        // ...images.map((b64) => ({
+        //   type: 'input_image',
+        //   image_url: `data:image/jpeg;base64,${b64}`,
+        // })),
+        // INFO: This is used when images stored in server
+        ...images.map((img_url) => ({
+          type: 'input_image',
+          image_url: img_url,
+        })),
+        {
+          type: 'input_text',
+          text: POST_DIAGNOSIS_USER_PROMPT,
+        },
+        {
+          type: 'input_text',
+          text: JSON.stringify(
+            {
+              metadata: {
+                phase: 'reassessment',
+                evaluation_type: 'post_treatment',
+                treatment_session: 'Session 1',
+              },
+            },
+            null,
+            2,
+          ),
+        },
+      ],
+    },
+  ]
+
+  const result = await runResponse(convId, input)
+  console.log('✅ Post Assessment Result:', result)
+  return result
+}
+
+function postAssessment() {
+  currentStep.value = 1
+  uploadImagesStep.value = true
+  isPostAssessment.value = true
 }
 </script>

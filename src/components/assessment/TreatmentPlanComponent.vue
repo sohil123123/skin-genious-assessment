@@ -43,11 +43,11 @@
           color="positive"
         />
         <q-btn
-          label="Finalize Plan & Exit"
+          label="Generate Post Assessment"
           rounded
           no-caps
           class="btn-custom"
-          @click="finalizeAndExit"
+          @click="postAssessment"
         />
       </div>
     </div>
@@ -61,9 +61,9 @@ import { storeToRefs } from 'pinia'
 import SelectedPlan from 'src/components/assessment/SelectedPlan.vue'
 // import RecommendedFullPlan from 'src/components/assessment/RecommendedFullPlan.vue'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
-import { useQuasar, LocalStorage, Loading } from 'quasar'
+// import { useQuasar, LocalStorage, Loading } from 'quasar'
 
-const $q = useQuasar()
+// const $q = useQuasar()
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
@@ -83,7 +83,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['previous', 'save_data'])
+const emit = defineEmits(['previous', 'save_data', 'post_assessment'])
 
 const treatmentPlan = ref(props.treatmentPlan)
 // const recommendedFullPlan = ref(props.recommendedFullPlan)
@@ -95,42 +95,46 @@ const emitPrevious = () => {
 function saveData(field) {
   emit('save_data', field)
 }
-function finalizeAndExit() {
-  $q.dialog({
-    title: 'Confirm',
-    message: 'Would you like to confirm the treatment plan and return to CRM?',
-    persistent: true,
+// function finalizeAndExit() {
+//   $q.dialog({
+//     title: 'Confirm',
+//     message: 'Would you like to confirm the treatment plan and return to CRM?',
+//     persistent: true,
 
-    ok: {
-      label: 'Yes, Confirm & Exit',
-      color: 'positive',
-      icon: 'check_circle',
-      unelevated: true,
-    },
-    cancel: {
-      label: 'Cancel',
-      color: 'negative',
-      flat: true,
-      icon: 'close',
-    },
-  })
-    .onOk(() => {
-      assessmentData.value.status = 'completed'
-      emit('save_data', ['status'])
-      Loading.show({
-        message: 'Finalizing and redirecting...',
-      })
-      setTimeout(() => {
-        LocalStorage.clear()
-        window.location.href = `${process.env.CRM_URL}/users`
-      }, 3000)
-    })
-    .onCancel(() => {
-      console.log('User cancelled')
-    })
-    .onDismiss(() => {
-      console.log('Dialog closed (OK or Cancel)')
-    })
+//     ok: {
+//       label: 'Yes, Confirm & Exit',
+//       color: 'positive',
+//       icon: 'check_circle',
+//       unelevated: true,
+//     },
+//     cancel: {
+//       label: 'Cancel',
+//       color: 'negative',
+//       flat: true,
+//       icon: 'close',
+//     },
+//   })
+//     .onOk(() => {
+//       assessmentData.value.status = 'completed'
+//       emit('save_data', ['status'])
+//       Loading.show({
+//         message: 'Finalizing and redirecting...',
+//       })
+//       setTimeout(() => {
+//         LocalStorage.clear()
+//         window.location.href = `${process.env.CRM_URL}/users`
+//       }, 3000)
+//     })
+//     .onCancel(() => {
+//       console.log('User cancelled')
+//     })
+//     .onDismiss(() => {
+//       console.log('Dialog closed (OK or Cancel)')
+//     })
+// }
+
+function postAssessment() {
+  emit('post_assessment')
 }
 
 const exportToPDF = () => {

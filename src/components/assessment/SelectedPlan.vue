@@ -3,8 +3,8 @@
   <q-card flat bordered class="header-card q-pa-md q-mb-md">
     <div class="text-h5 text-weight-bold">Skin Treatment Plan</div>
     <div class="text-caption text-grey-7 q-mt-xs">
-      Total Duration: {{ treatmentPlan.total_time }} •
-      {{ treatmentPlan.treatments.length }} sessions
+      Total Duration: {{ treatmentPlan?.total_time }} •
+      {{ treatmentPlan?.treatments.length }} sessions
     </div>
 
     <!-- <div class="q-mt-sm row q-gutter-sm">
@@ -19,7 +19,7 @@
   </q-card>
 
   <!-- Sessions -->
-  <div v-for="session in treatmentPlan.treatments" :key="session.session_number" class="q-mb-md">
+  <div v-for="session in treatmentPlan?.treatments" :key="session.session_number" class="q-mb-md">
     <q-card bordered flat class="header-card">
       <q-card-section class="bg-white">
         <q-expansion-item
