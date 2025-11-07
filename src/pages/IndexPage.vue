@@ -125,18 +125,25 @@ async function submit(field) {
 
 const handleProcess = async (files) => {
   faceImages.value = [
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/1.jpg',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/2/2.jpg',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/3/3.jpg',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/4/4.jpg',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/5.jpg',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/6.jpg',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/7.jpg',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/8.jpg',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/blue.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/2/brown.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/3/ppl.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/4/red.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/uv.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/white.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/woods.png',
+    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/xpl.png',
   ]
-  if (process.env.APP_MODE != 'dev') {
+
+  if (process.env.APP_MODE != 'dev' && files.length > 0) {
     faceImages.value = await store.storeFaceImages(files)
   }
+
+  const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
+
+  faceImages.value = desiredOrder.map((name) =>
+    faceImages.value.find((url) => url.toLowerCase().includes(`${name}.png`)),
+  )
 
   const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages.value)
 

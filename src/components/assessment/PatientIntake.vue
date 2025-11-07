@@ -409,7 +409,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, watch } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 import _ from 'lodash'
 // import { useCommonStore } from 'src/stores/commonStore'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
@@ -461,27 +461,27 @@ onMounted(() => {
   }
 })
 
-watch(
-  () => assessmentData.value.images,
-  () => {
-    if (assessmentData.value.images) {
-      // Convert remote images to file-like objects
-      const preloadFiles = assessmentData.value.images.map((img) => ({
-        __key: img.id, // unique key for v-for
-        name: img.name,
-        url: img.url,
-        __uploaded: true, // custom flag to mark already uploaded files
-        size: 0,
-        type: 'image/jpeg',
-      }))
+// watch(
+//   () => assessmentData.value.images,
+//   () => {
+//     if (assessmentData.value.images) {
+//       // Convert remote images to file-like objects
+//       const preloadFiles = assessmentData.value.images.map((img) => ({
+//         __key: img.id, // unique key for v-for
+//         name: img.name,
+//         url: img.url,
+//         __uploaded: true, // custom flag to mark already uploaded files
+//         size: 0,
+//         type: 'image/jpeg',
+//       }))
 
-      // Access uploader instance and inject these files
-      if (uploader.value) {
-        uploader.value.files.push(...preloadFiles)
-      }
-    }
-  },
-)
+//       // Access uploader instance and inject these files
+//       if (uploader.value) {
+//         uploader.value.files.push(...preloadFiles)
+//       }
+//     }
+//   },
+// )
 
 // Utility functions
 const isImage = (file) => file.type?.startsWith('image/') || file.__uploaded
