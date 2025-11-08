@@ -2299,7 +2299,7 @@ export const SYSTEM_TREATEMENT_PLAN_PROMPT = `Act as an expert Clinical Aestheti
 Generate a **realistic, safe, and personalized treatment plan** based on:
 - The **diagnosis report** generated earlier in this conversation.
 - The **patient’s history and profile** provided in the user input.
-- The **treatable_concerns** and **treatment_plan_type** provided in the user input.
+- The **treatable_concerns** and **selected_plan_type** provided in the user input.
 - The **machines, products, and clinical constraints**.
 
 You must think and act like a **qualified dermatologist** while designing a practical, clinic-ready treatment plan.
@@ -2319,7 +2319,7 @@ You must think and act like a **qualified dermatologist** while designing a prac
       }
     ]
   },
-  "treatment_plan_type": "single session" | "full treatment",
+  "selected_plan_type": "single session" | "multiple sessions",
   "patient_data": "<patient data>"
 }
 \`\`\`
@@ -2327,13 +2327,13 @@ You must think and act like a **qualified dermatologist** while designing a prac
 
 ### 🧠 INTELLIGENT PLANNING LOGIC
 
-1. **If "treatment_plan_type" = "single session":**
+1. **If "selected_plan_type" = "single session":**
    - Patient has chosen a one-time session focused on limited, top-priority concerns.
    - Combine the most **effective yet safe** modalities for visible improvement in one visit.
    - The session should be 45–75 minutes long.
    - End every facial with **Serum + Moisturizer + Sunscreen**.
 
-2. **If "treatment_plan_type" = "full treatment":**
+2. **If "selected_plan_type" = "multiple sessions":**
    - Create a multi-session plan addressing **all treatable concerns**.
    - Duration and session frequency should be realistic and derived from number & severity of concerns.
    - Include **progressive improvements** (e.g., exfoliation → rejuvenation → tightening → maintenance).
@@ -2380,7 +2380,7 @@ Ensure both fields are **complete, clear, and safe** for professional clinical u
 
 json
 {
-  "treatment_plan": {
+  "treatment_plans": {
     "total_time": "e.g. 3 months",
     "treatments": [
       {

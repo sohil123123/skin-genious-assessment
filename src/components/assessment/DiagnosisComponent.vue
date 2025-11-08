@@ -207,7 +207,9 @@ const exportToPDF = () => {
     let faceY = currentY + 8 + faceTitleLines.length * 5 + 5 // Adjust below title
 
     // Add Face Image, use: doc.addImage(imageBase64, 'PNG', 30, faceY, 50, 70);
-    doc.addImage(props.faceImages[param.affected_area_image - 1], 'PNG', 35, faceY, 50, 70)
+    if (props.faceImages[param.affected_area_image - 1]) {
+      doc.addImage(props.faceImages[param.affected_area_image - 1], 'PNG', 35, faceY, 50, 70)
+    }
 
     // Lower Right column title
     doc.setFont('helvetica', 'bold')

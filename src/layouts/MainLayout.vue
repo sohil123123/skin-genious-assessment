@@ -7,6 +7,19 @@
         <q-toolbar-title>AI AESTHETICS </q-toolbar-title>
 
         <div>v{{ version }}</div>
+
+        <div class="q-ml-md">
+          <q-btn-dropdown flat icon="person">
+            <q-list>
+              <q-item clickable @click="logout">
+                <q-item-section avatar>
+                  <q-icon name="logout" />
+                </q-item-section>
+                <q-item-section>Logout</q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
+        </div>
       </q-toolbar>
     </q-header>
 
@@ -36,11 +49,22 @@
 <script setup>
 import { ref } from 'vue'
 import v from '../assets/version.json'
+import { Loading, LocalStorage } from 'quasar'
 
 const version = v.version
 const leftDrawerOpen = ref(false)
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
+}
+
+function logout() {
+  Loading.show({
+    message: 'Logging out...',
+  })
+  setTimeout(() => {
+    LocalStorage.clear()
+    window.location.href = `${process.env.CRM_URL}/users`
+  }, 3000)
 }
 </script>

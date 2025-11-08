@@ -2399,7 +2399,7 @@ Unified Diagnostic–Treatment Interface Schema (AIA-Aesthetics v3.2)
           "medical_conditions": ["None"],
           "upcoming_events_in_days": 5
         },
-        "treatment_plan_type": "single session"
+        "selected_plan_type": "single session"
       },
 
       "plan_generation_logic": {

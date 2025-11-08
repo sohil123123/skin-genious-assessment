@@ -53,15 +53,15 @@
                 flat
                 bordered
                 class="plan-card cursor-pointer"
-                :class="{ 'plan-card--active': treatmentType === 'full' }"
-                @click="treatmentType = 'full'"
+                :class="{ 'plan-card--active': treatmentType === 'multiple' }"
+                @click="treatmentType = 'multiple'"
               >
                 <q-card-section class="row items-center">
                   <div class="col-auto">
                     <q-icon
                       name="medical_services"
                       size="40px"
-                      :color="treatmentType === 'full' ? 'primary' : 'grey-7'"
+                      :color="treatmentType === 'multiple' ? 'primary' : 'grey-7'"
                     />
                   </div>
                   <div class="col">
@@ -178,8 +178,8 @@ const generatePlan = () => {
   //   })
   //   return
   // }
-  assessmentData.value.treatment_plan_type = treatmentType.value
-  emit('save_data', ['treatment_plan_type'])
+  assessmentData.value.selected_plan_type = treatmentType.value
+  emit('save_data', ['selected_plan_type'])
   emit(
     'generate-treatment',
     props.treatableConcernsSummary.parameters_with_abnormal_scores,

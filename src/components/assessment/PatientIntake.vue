@@ -252,7 +252,8 @@
       <div v-show="uploadImagesStep && !startProcessingStep && !showResultsStep">
         <div class="row justify-center">
           <div class="upload-container">
-            <h2 class="upload-title">Upload Face Scan</h2>
+            <h2 v-if="!isPostAssessment" class="upload-title">Upload Face Scan</h2>
+            <h2 v-else class="upload-title">Upload After Treatment Face Scan</h2>
             <q-uploader
               ref="uploader"
               url=""
@@ -315,7 +316,7 @@
                       outline
                       rounded
                       class="q-mt-sm"
-                      @click="scope.removeFile(file)"
+                      @click="removeFile(file, scope)"
                     />
                   </div>
                 </div>
@@ -364,7 +365,7 @@
             label="Previous"
             color="primary"
             icon="west"
-            @click="((uploadImagesStep = false), (startProcessingStep = false))"
+            @click="goToPreviousStep"
             class="q-px-lg"
             unelevated
           />
@@ -409,17 +410,18 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, watch } from 'vue'
+import { ref, nextTick, watch, onMounted } from 'vue'
 import _ from 'lodash'
 // import { useCommonStore } from 'src/stores/commonStore'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
+import { api } from 'src/boot/axios'
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
 // const commonStore = useCommonStore()
-const emit = defineEmits(['process', 'save_data'])
+const emit = defineEmits(['process', 'save_data', 'update:startProcessingStep'])
 
 const props = defineProps({
   uploadImagesStep: {
@@ -430,13 +432,30 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  startProcessingStep: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const uploadImagesStep = ref(props.uploadImagesStep)
+const startProcessingStep = ref(props.startProcessingStep)
+
+// Keep it in sync with parent changes
+watch(
+  () => props.startProcessingStep,
+  (val) => {
+    startProcessingStep.value = val
+  },
+)
+
+// Emit changes back to parent whenever child updates it
+watch(startProcessingStep, (val) => {
+  emit('update:startProcessingStep', val)
+})
 
 const uploader = ref(null)
 const startFaceScan = ref(false)
-const startProcessingStep = ref(false)
 const showResultsStep = ref(false)
 
 // Options for selects
@@ -458,6 +477,23 @@ onMounted(() => {
   if (assessmentData.value.images && !props.isPostAssessment) {
     // Convert remote images to file-like objects
     const preloadFiles = assessmentData.value.images.map((img) => ({
+      __key: img.id, // unique key for v-for
+      name: img.name,
+      url: img.url,
+      __uploaded: true, // custom flag to mark already uploaded files
+      size: 0,
+      type: 'image/png',
+    }))
+
+    // Access uploader instance and inject these files
+    if (uploader.value) {
+      uploader.value.files.push(...preloadFiles)
+    }
+  }
+
+  if (assessmentData.value.post_images && props.isPostAssessment) {
+    // Convert remote images to file-like objects
+    const preloadFiles = assessmentData.value.post_images.map((img) => ({
       __key: img.id, // unique key for v-for
       name: img.name,
       url: img.url,
@@ -495,6 +531,28 @@ watch(
   },
 )
 
+watch(
+  () => assessmentData.value.post_images,
+  () => {
+    if (assessmentData.value.post_images && props.isPostAssessment) {
+      // Convert remote images to file-like objects
+      const preloadFiles = assessmentData.value.post_images.map((img) => ({
+        __key: img.id, // unique key for v-for
+        name: img.name,
+        url: img.url,
+        __uploaded: true, // custom flag to mark already uploaded files
+        size: 0,
+        type: 'image/jpeg',
+      }))
+
+      // Access uploader instance and inject these files
+      if (uploader.value) {
+        uploader.value.files.push(...preloadFiles)
+      }
+    }
+  },
+)
+
 // Utility functions
 const isImage = (file) => file.type?.startsWith('image/') || file.__uploaded
 const getPreviewUrl = (file) => (file.__uploaded ? file.url : URL.createObjectURL(file))
@@ -507,6 +565,11 @@ const updateField = (field, value) => {
 
 function saveData(field) {
   emit('save_data', field)
+}
+
+function goToPreviousStep() {
+  uploadImagesStep.value = false
+  startProcessingStep.value = false
 }
 
 function updateMedicalHistory(value) {
@@ -582,10 +645,36 @@ async function startProcessing() {
     // INFO: This is used for Base64 images
     // emit('process', base64Images)
 
-    // INFO: This is use when images stored in server
-    emit('process', uploader.value.files)
+    // ✅ Separate files based on upload status
+    const newFiles = uploader.value.files.filter((file) => !file.__uploaded) // only new ones
+    // const existingFiles = uploader.value.files.filter(file => file.__uploaded) // preloaded ones
+
+    // 🔹 Option 1: Only emit new binary files (for upload)
+    emit('process', newFiles)
   } else {
     console.warn('Uploader not ready or has no files')
+  }
+}
+
+async function removeFile(file, scope) {
+  try {
+    // ✅ 1️⃣ If it’s an already uploaded image
+    if (file.__uploaded && file.__key) {
+      // ✅ 2️⃣ Call backend API to delete the image
+      const type = props.isPostAssessment ? 'post' : 'pre'
+      await api.delete(`/assessments/${assessmentData.value.id}/images/${file.__key}/${type}`)
+
+      // ✅ 3️⃣ Remove visually from uploader
+      scope.removeFile(file)
+
+      console.log(`Deleted image ID ${file.__key} from server`)
+    } else {
+      // ✅ 4️⃣ If it's a newly added file (not uploaded yet)
+      scope.removeFile(file)
+      console.log(`Removed unsaved image: ${file.name}`)
+    }
+  } catch (err) {
+    console.error('Error deleting image:', err)
   }
 }
 </script>

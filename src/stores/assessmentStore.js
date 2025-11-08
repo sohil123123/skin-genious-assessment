@@ -23,8 +23,8 @@ export const useAssessmentStore = defineStore('assessment', {
       breastfeeding: 'no',
       diagnosis: null,
       parameters_with_abnormal_scores: null,
-      treatment_plan_type: null,
-      treatment_plan: null,
+      selected_plan_type: null,
+      treatment_plans: null,
       therapist_notes: null,
       status: 'in_progress',
     },
@@ -43,8 +43,8 @@ export const useAssessmentStore = defineStore('assessment', {
       breastfeeding: 'no',
       diagnosis: null,
       parameters_with_abnormal_scores: null,
-      treatment_plan_type: null,
-      treatment_plan: null,
+      selected_plan_type: null,
+      treatment_plans: null,
       therapist_notes: null,
       status: 'in_progress',
     },
@@ -162,7 +162,7 @@ export const useAssessmentStore = defineStore('assessment', {
     setData(data) {
       this.assessmentData = { ...this.assessmentData, ...data }
     },
-    async storeFaceImages(files) {
+    async storeFaceImages(files, assessment_type) {
       if (this.isImagesUploaded) {
         return this.faceImages
       }
@@ -174,6 +174,8 @@ export const useAssessmentStore = defineStore('assessment', {
           formData.append('images[]', raw)
         }
       })
+      formData.append('assessment_type', assessment_type)
+
       const response = await api
         .post(`assessments/${this.assessmentData.id}/images`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },

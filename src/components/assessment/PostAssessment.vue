@@ -70,7 +70,6 @@
                     <q-img
                       :src="faceImages[param.before_image - 1]"
                       class="rounded-borders shadow-sm"
-                      ratio="1"
                       spinner-color="primary"
                     >
                       <!-- <div
@@ -91,7 +90,6 @@
                     <q-img
                       :src="postTreatmentImages[param.post_treatment_image - 1]"
                       class="rounded-borders shadow-sm"
-                      ratio="1"
                       spinner-color="secondary"
                     >
                       <!-- <div

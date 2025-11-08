@@ -5,6 +5,7 @@
       :uploader-files="uploaderFiles"
       :uploadImagesStep="uploadImagesStep"
       :isPostAssessment="isPostAssessment"
+      v-model:startProcessingStep="startProcessingStep"
       @process="handleProcess"
       @save_data="submit"
     />
@@ -76,6 +77,7 @@ const faceImages = ref([])
 const postTreatmentImages = ref([])
 const currentStep = ref(1)
 const uploadImagesStep = ref(false)
+const startProcessingStep = ref(false)
 const isPostAssessment = ref(false)
 
 const uploaderFiles = ref([]) // To store uploaded files references
@@ -148,30 +150,34 @@ const handleProcess = async (files) => {
 }
 
 async function handleDiagnosis(files) {
-  faceImages.value = [
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/blue.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/2/brown.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/3/ppl.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/4/red.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/uv.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/white.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/woods.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/xpl.png',
-  ]
-
-  if (process.env.APP_MODE != 'dev' && files.length > 0) {
-    faceImages.value = await store.storeFaceImages(files)
+  faceImages.value = assessmentData.value.images.map((img) => img.url)
+  if (files.length > 0) {
+    const uploadedImages = await store.storeFaceImages(files, 'pre')
+    faceImages.value.push(...uploadedImages)
   }
+
+  // NOTE: Only for test in local
+  // faceImages.value = [
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/3/blue.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/4/brown.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/ppl.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/red.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/uv.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/white.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/9/woods.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/10/xpl.png',
+  // ]
 
   const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
 
-  faceImages.value = desiredOrder.map((name) =>
-    faceImages.value.find((url) => url.toLowerCase().includes(`${name}.png`)),
-  )
+  faceImages.value = desiredOrder
+    .map((name) => faceImages.value.find((url) => url.toLowerCase().includes(`${name}.png`)))
+    .filter(Boolean)
 
   const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages.value)
 
   if (apiResponse.error) {
+    startProcessingStep.value = false
     Notify.create({
       type: 'negative',
       message: apiResponse.error.message,
@@ -185,39 +191,46 @@ async function handleDiagnosis(files) {
       ],
     })
   } else {
+    startProcessingStep.value = false
     diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
     assessmentData.value.diagnosis = apiResponse
     assessmentData.value.parameters_with_abnormal_scores = apiResponse.treatable_concerns_summary
-    // submit(['diagnosis', 'parameters_with_abnormal_scores'])
+    submit(['diagnosis', 'parameters_with_abnormal_scores'])
     currentStep.value = 2
   }
 }
 
 async function handlePostAssessment(files) {
-  postTreatmentImages.value = [
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/1/blue.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/2/brown.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/3/ppl.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/4/red.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/uv.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/white.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/woods.png',
-    'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/xpl.png',
-  ]
-
-  if (process.env.APP_MODE != 'dev' && files.length > 0) {
-    postTreatmentImages.value = await store.storeFaceImages(files)
+  postTreatmentImages.value = assessmentData.value.post_images.map((img) => img.url)
+  if (files.length > 0) {
+    const uploadedImages = await store.storeFaceImages(files, 'post')
+    postTreatmentImages.value.push(...uploadedImages)
   }
+
+  // NOTE: Only for test in local
+  // postTreatmentImages.value = [
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/11/blue.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/12/brown.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/13/ppl.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/14/red.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/15/uv.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/16/white.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/17/woods.png',
+  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/18/xpl.png',
+  // ]
 
   const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
 
-  postTreatmentImages.value = desiredOrder.map((name) =>
-    postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.png`)),
-  )
+  postTreatmentImages.value = desiredOrder
+    .map((name) =>
+      postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.png`)),
+    )
+    .filter(Boolean)
 
   const apiResponse = await callApiForPostDiagnosis(assessmentData.value, postTreatmentImages.value)
 
   if (apiResponse.error) {
+    startProcessingStep.value = false
     Notify.create({
       type: 'negative',
       message: apiResponse.error.message,
@@ -231,9 +244,10 @@ async function handlePostAssessment(files) {
       ],
     })
   } else {
+    startProcessingStep.value = false
     post_diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
     assessmentData.value.post_diagnosis = apiResponse
-    // submit(['diagnosis', 'parameters_with_abnormal_scores'])
+    submit(['post_diagnosis'])
     currentStep.value = 5
   }
 }
@@ -259,10 +273,10 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
       ],
     })
   } else {
-    treatmentPlan.value = apiResponse.treatment_plan // e.g., { plan: '...', sessions: [...] }
+    treatmentPlan.value = apiResponse.treatment_plans // e.g., { plan: '...', sessions: [...] }
     // recommendedFullPlan.value = apiResponse.recommended_full_plan
-    assessmentData.value.treatment_plan = apiResponse
-    submit(['treatment_plan'])
+    assessmentData.value.treatment_plans = apiResponse
+    submit(['treatment_plans'])
     currentStep.value = 4
   }
 }
@@ -369,7 +383,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
                 'Parameters showing deviations that can be treated or improved with appropriate interventions.',
               parameters_with_abnormal_scores: selected,
             },
-            treatment_plan_type: `${treatmentType} session`, // 'single session' or 'full treatment'
+            selected_plan_type: `${treatmentType} session`, // 'single session' or 'full treatment'
           }),
         },
       ],
