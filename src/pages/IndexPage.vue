@@ -171,7 +171,7 @@ async function handleDiagnosis(files) {
   const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
 
   faceImages.value = desiredOrder
-    .map((name) => faceImages.value.find((url) => url.toLowerCase().includes(`${name}.png`)))
+    .map((name) => faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
     .filter(Boolean)
 
   const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages.value)
@@ -222,9 +222,7 @@ async function handlePostAssessment(files) {
   const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
 
   postTreatmentImages.value = desiredOrder
-    .map((name) =>
-      postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.png`)),
-    )
+    .map((name) => postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
     .filter(Boolean)
 
   const apiResponse = await callApiForPostDiagnosis(assessmentData.value, postTreatmentImages.value)
