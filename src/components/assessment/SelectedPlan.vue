@@ -19,7 +19,11 @@
   </q-card>
 
   <!-- Sessions -->
-  <div v-for="session in treatmentPlan?.treatments" :key="session.session_number" class="q-mb-md">
+  <div
+    v-for="(session, index) in treatmentPlan?.treatments"
+    :key="session.session_number"
+    class="q-mb-md"
+  >
     <q-card bordered flat class="header-card">
       <q-card-section class="bg-white">
         <q-expansion-item
@@ -29,6 +33,7 @@
           header-class="bg-white text-weight-bold"
           dense
           expand-icon="arrow_drop_down"
+          :default-opened="index == 0"
         >
           <q-card flat class="q-pa-md bg-white">
             <div class="grid">
