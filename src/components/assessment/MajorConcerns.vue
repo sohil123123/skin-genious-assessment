@@ -182,7 +182,7 @@ const generatePlan = () => {
   emit('save_data', ['selected_plan_type'])
   emit(
     'generate-treatment',
-    props.treatableConcernsSummary.parameters_with_abnormal_scores,
+    props.treatableConcernsSummary?.parameters_with_abnormal_scores,
     treatmentType.value,
   )
 }
