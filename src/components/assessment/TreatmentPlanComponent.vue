@@ -229,22 +229,22 @@ const exportToPDF = () => {
 
     y += 8 // Add space before sections
 
-    // // Preparations Checklist
-    // doc.setFont('helvetica', 'bold')
-    // doc.setFontSize(12)
-    // y = addWrappedText(doc, 'Preparations Checklist:', 10, y, pageWidth, lineHeight)
+    // Preparations Checklist
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    y = addWrappedText(doc, 'Preparations Checklist:', 10, y, pageWidth, lineHeight)
 
-    // doc.setFont('helvetica', 'normal')
-    // doc.setFontSize(10)
-    // treatment.preparations_checklist_for_therapist.forEach((item) => {
-    //   if (y > 270) {
-    //     doc.addPage()
-    //     y = 20
-    //   }
-    //   y = addWrappedText(doc, `• ${item}`, 15, y, pageWidth - 5, lineHeight)
-    // })
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    treatment.preparations_checklist_for_therapist.forEach((item) => {
+      if (y > 270) {
+        doc.addPage()
+        y = 20
+      }
+      y = addWrappedText(doc, `• ${item}`, 15, y, pageWidth - 5, lineHeight)
+    })
 
-    // y += 5 // Space between sections
+    y += 5 // Space between sections
 
     // Concerns Addressed
     doc.setFont('helvetica', 'bold')
@@ -287,13 +287,13 @@ const exportToPDF = () => {
       }
 
       // Step Header
-      // doc.setFont('helvetica', 'bold')
-      // y = addWrappedText(doc, `Step ${step.step_number}`, 15, y, pageWidth - 5, lineHeight)
+      doc.setFont('helvetica', 'bold')
+      y = addWrappedText(doc, `Step ${step.step_number}`, 15, y, pageWidth - 5, lineHeight)
 
       // Ingredients/Equipment
       doc.setFont('helvetica', 'normal')
-      // const ingredientsText = `Equipment: ${step.ingredients_equipments.join(', ')}`
-      // y = addWrappedText(doc, ingredientsText, 20, y, pageWidth - 10, lineHeight)
+      const ingredientsText = `Equipment: ${step.ingredients_equipments.join(', ')}`
+      y = addWrappedText(doc, ingredientsText, 20, y, pageWidth - 10, lineHeight)
 
       // Procedure
       const howToText = `${step.how_to_do.replaceAll(/[‑–→]/g, '-')}`
