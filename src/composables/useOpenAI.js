@@ -78,8 +78,8 @@ export function useOpenAI() {
       // } else {
       //   throw new Error('No valid JSON found.')
       // }
-
       const parsed = JSON.parse(extractedText)
+      console.log(parsed)
       return parsed
     } catch (err) {
       console.error(err)

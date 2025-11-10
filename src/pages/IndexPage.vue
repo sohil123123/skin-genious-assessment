@@ -289,8 +289,29 @@ const goToPreviousStep = () => {
   }
 }
 
+// Utility: convert image URL → base64
+async function imageToBase64(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'Anonymous' // Required for CORS-enabled images
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = reject
+    img.src = url
+  })
+}
+
 // Placeholder API functions - replace with actual implementations
 async function callApiForDiagnosis(data, images) {
+  // Convert all images to base64
+  const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
+
   const convId = await getOrCreateConversation(`${data.user_id}`)
 
   const input = [
@@ -302,15 +323,15 @@ async function callApiForDiagnosis(data, images) {
       role: 'user',
       content: [
         // INFO: This is for Base64 Images
-        // ...images.map((b64) => ({
-        //   type: 'input_image',
-        //   image_url: `data:image/jpeg;base64,${b64}`,
-        // })),
-        // INFO: This is used when images stored in server
-        ...images.map((img_url) => ({
+        ...base64Images.map((b64) => ({
           type: 'input_image',
-          image_url: img_url,
+          image_url: b64,
         })),
+        // // INFO: This is used when images stored in server
+        // ...images.map((img_url) => ({
+        //   type: 'input_image',
+        //   image_url: img_url,
+        // })),
         {
           type: 'input_text',
           text: D_REPORT_USER_PROMPT,
@@ -318,7 +339,7 @@ async function callApiForDiagnosis(data, images) {
       ],
     },
   ]
-
+  console.log('Diagnosis Input:', input)
   const result = await runResponse(convId, input)
   console.log('✅ Diagnosis:', result)
   return result
@@ -388,6 +409,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     },
   ]
 
+  console.log('Treatment plans Input:', input)
   const result = await runResponse(convId, input)
   console.log('🩺 Treatment plans:', result)
   return result
@@ -396,20 +418,22 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
 async function callApiForPostDiagnosis(data, images) {
   const convId = await getOrCreateConversation(`${data.user_id}`)
 
+  const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
+
   const input = [
     {
       role: 'user',
       content: [
         // INFO: This is for Base64 Images
-        // ...images.map((b64) => ({
-        //   type: 'input_image',
-        //   image_url: `data:image/jpeg;base64,${b64}`,
-        // })),
-        // INFO: This is used when images stored in server
-        ...images.map((img_url) => ({
+        ...base64Images.map((b64) => ({
           type: 'input_image',
-          image_url: img_url,
+          image_url: b64,
         })),
+        // INFO: This is used when images stored in server
+        // ...images.map((img_url) => ({
+        //   type: 'input_image',
+        //   image_url: img_url,
+        // })),
         {
           type: 'input_text',
           text: POST_DIAGNOSIS_USER_PROMPT,
@@ -431,7 +455,7 @@ async function callApiForPostDiagnosis(data, images) {
       ],
     },
   ]
-
+  console.log('Post Assessment Input:', input)
   const result = await runResponse(convId, input)
   console.log('✅ Post Assessment Result:', result)
   return result
