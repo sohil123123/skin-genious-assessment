@@ -2,129 +2,129 @@
   "reassessment": {
     "skin_type": {
       "parameter_name": "Skin Type",
-      "before_treatment_score_or_label": "Combination Skin",
-      "before_image": "6",
-      "post_treatment_score_or_label": "Combination Skin",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Dry Skin",
+      "before_image": "3",
+      "post_treatment_score_or_label": "Dry Skin",
+      "post_treatment_image": "3"
     },
     "superficial_pigmentation_score": {
       "parameter_name": "Superficial Pigmentation Score",
-      "before_treatment_score_or_label": "2 - Mild",
-      "before_image": "6",
-      "post_treatment_score_or_label": "1 - Minimal / Almost Clear",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "4 - Marked",
+      "before_image": "7",
+      "post_treatment_score_or_label": "3 - Moderate",
+      "post_treatment_image": "7"
     },
     "visual_acne_grading": {
       "parameter_name": "Visual Acne Grading",
-      "before_treatment_score_or_label": "Grade 2",
-      "before_image": "6",
-      "post_treatment_score_or_label": "Grade 1",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Grade 1",
+      "before_image": "3",
+      "post_treatment_score_or_label": "Grade 0",
+      "post_treatment_image": "3"
     },
     "texture_open_pores_grading": {
       "parameter_name": "Texture / Open Pores Grading",
       "before_treatment_score_or_label": "Grade 2",
-      "before_image": "6",
+      "before_image": "2",
       "post_treatment_score_or_label": "Grade 1",
-      "post_treatment_image": "6"
+      "post_treatment_image": "2"
     },
     "superficial_wrinkles": {
       "parameter_name": "Superficial Wrinkles",
-      "before_treatment_score_or_label": "Grade 1",
-      "before_image": "6",
-      "post_treatment_score_or_label": "Grade 1",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Grade 3",
+      "before_image": "2",
+      "post_treatment_score_or_label": "Grade 2",
+      "post_treatment_image": "2"
     },
     "jawline_sagging": {
       "parameter_name": "Jawline Sagging",
-      "before_treatment_score_or_label": "Grade 1",
-      "before_image": "6",
-      "post_treatment_score_or_label": "Grade 1",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Grade 3",
+      "before_image": "3",
+      "post_treatment_score_or_label": "Grade 3",
+      "post_treatment_image": "3"
     },
     "skin_hydration": {
       "parameter_name": "Skin Hydration",
-      "before_treatment_score_or_label": "1",
-      "before_image": "6",
-      "post_treatment_score_or_label": "0",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Score 2",
+      "before_image": "3",
+      "post_treatment_score_or_label": "Score 1",
+      "post_treatment_image": "3"
     },
     "skin_sebum_content": {
       "parameter_name": "Skin Sebum Content",
-      "before_treatment_score_or_label": "2",
-      "before_image": "6",
-      "post_treatment_score_or_label": "1",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Score 1",
+      "before_image": "3",
+      "post_treatment_score_or_label": "Score 1",
+      "post_treatment_image": "5"
     },
     "skin_sensitivity_scoring": {
       "parameter_name": "Skin Sensitivity Scoring",
-      "before_treatment_score_or_label": "1",
+      "before_treatment_score_or_label": "Score 1",
       "before_image": "6",
-      "post_treatment_score_or_label": "0",
+      "post_treatment_score_or_label": "Score 1",
       "post_treatment_image": "6"
     },
     "barrier_health": {
       "parameter_name": "Barrier Health",
-      "before_treatment_score_or_label": "1",
-      "before_image": "6",
-      "post_treatment_score_or_label": "0",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Score 2",
+      "before_image": "2",
+      "post_treatment_score_or_label": "Score 1",
+      "post_treatment_image": "2"
     },
     "periorbital_health": {
       "parameter_name": "Periorbital Health",
-      "before_treatment_score_or_label": "Mild",
-      "before_image": "6",
-      "post_treatment_score_or_label": "Mild",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Moderate",
+      "before_image": "3",
+      "post_treatment_score_or_label": "Moderate",
+      "post_treatment_image": "3"
     },
     "lip_pigmentation": {
       "parameter_name": "Lip Pigmentation",
       "before_treatment_score_or_label": "Present",
-      "before_image": "6",
+      "before_image": "7",
       "post_treatment_score_or_label": "Present",
-      "post_treatment_image": "6"
+      "post_treatment_image": "7"
     },
     "vascularity_redness_profiling": {
       "parameter_name": "Vascularity / Redness Profiling",
-      "before_treatment_score_or_label": "1",
+      "before_treatment_score_or_label": "Score 1",
       "before_image": "6",
-      "post_treatment_score_or_label": "0",
+      "post_treatment_score_or_label": "Score 1",
       "post_treatment_image": "6"
     },
     "under_eye_vascularity_vs_structural_shadows": {
       "parameter_name": "Under Eye Vascularity vs Structural Shadows",
-      "before_treatment_score_or_label": "1",
-      "before_image": "6",
-      "post_treatment_score_or_label": "1",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Score 2",
+      "before_image": "3",
+      "post_treatment_score_or_label": "Score 2",
+      "post_treatment_image": "8"
     },
     "skin_luminosity_glow_index": {
       "parameter_name": "Skin Luminosity / Glow Index",
-      "before_treatment_score_or_label": "1",
-      "before_image": "6",
-      "post_treatment_score_or_label": "2",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Score 0",
+      "before_image": "3",
+      "post_treatment_score_or_label": "Score 1",
+      "post_treatment_image": "3"
     },
     "comedonal_density": {
       "parameter_name": "Comedonal Density",
-      "before_treatment_score_or_label": "2",
-      "before_image": "6",
-      "post_treatment_score_or_label": "1",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Score 1",
+      "before_image": "5",
+      "post_treatment_score_or_label": "Score 0",
+      "post_treatment_image": "5"
     },
     "texture_irregularities_beyond_pores": {
       "parameter_name": "Texture Irregularities Beyond Pores",
-      "before_treatment_score_or_label": "1",
-      "before_image": "6",
-      "post_treatment_score_or_label": "1",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Score 2",
+      "before_image": "2",
+      "post_treatment_score_or_label": "Score 1",
+      "post_treatment_image": "2"
     },
     "regional_oil_distribution": {
       "parameter_name": "Regional Oil Distribution",
-      "before_treatment_score_or_label": "1",
-      "before_image": "6",
-      "post_treatment_score_or_label": "1",
-      "post_treatment_image": "6"
+      "before_treatment_score_or_label": "Score 1",
+      "before_image": "5",
+      "post_treatment_score_or_label": "Score 1",
+      "post_treatment_image": "5"
     }
   },
   "metadata": {

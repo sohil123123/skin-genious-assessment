@@ -57,7 +57,7 @@ export function useOpenAI() {
         },
         body: JSON.stringify(body),
       })
-
+      console.log('AI Response: ', res)
       const data = await res.json()
       if (!res.ok) {
         return data
@@ -79,7 +79,6 @@ export function useOpenAI() {
       //   throw new Error('No valid JSON found.')
       // }
       const parsed = JSON.parse(extractedText)
-      console.log(parsed)
       return parsed
     } catch (err) {
       console.error(err)
