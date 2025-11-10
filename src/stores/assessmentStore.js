@@ -48,7 +48,6 @@ export const useAssessmentStore = defineStore('assessment', {
       therapist_notes: null,
       status: 'in_progress',
     },
-    faceImages: [],
   }),
 
   actions: {
@@ -189,7 +188,6 @@ export const useAssessmentStore = defineStore('assessment', {
         })
       const images = response.results.images
       const urls = images.map((file) => file.url)
-      this.faceImages = urls
       return urls
     },
   },
