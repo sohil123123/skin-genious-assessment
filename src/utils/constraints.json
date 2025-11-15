@@ -330,6 +330,13 @@
         "name": "20% Salicylic Acid Peel",
         "use": "exfoliate the skin, treat acne and blackheads, minimize the appearance of pores, and improve skin texture"
       }
+    ],
+
+    "Special_ingredients_for_facials_type": [
+      {
+        "name": "Liquid Charcoal (Carbon Facial)",
+        "use": "Anti acne Oil control Skin brightening"
+      }
     ]
   }
 }
