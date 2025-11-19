@@ -210,16 +210,16 @@ const downloadReport = () => {
   })
 
   // Summary section
-  const finalY = doc.lastAutoTable.finalY + 20
-  doc.setFont('helvetica', 'bold')
-  doc.text('Summary:', 40, finalY)
-  doc.setFont('helvetica', 'normal')
-  doc.text(
-    'Most parameters show improvement with visible gains in hydration, pigmentation, and luminosity.',
-    40,
-    finalY + 15,
-    { maxWidth: 500 },
-  )
+  // const finalY = doc.lastAutoTable.finalY + 20
+  // doc.setFont('helvetica', 'bold')
+  // doc.text('Summary:', 40, finalY)
+  // doc.setFont('helvetica', 'normal')
+  // doc.text(
+  //   'Most parameters show improvement with visible gains in hydration, pigmentation, and luminosity.',
+  //   40,
+  //   finalY + 15,
+  //   { maxWidth: 500 },
+  // )
 
   // Footer
   doc.setFontSize(9)

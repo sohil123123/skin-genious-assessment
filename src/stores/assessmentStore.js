@@ -143,6 +143,7 @@ export const useAssessmentStore = defineStore('assessment', {
         .then((response) => {
           this.assessmentData.images = response.data.results.images
           this.assessmentData.post_images = response.data.results.post_images
+          this.assessmentData.conversation_id = response.data.results.conversation_id
         })
         .catch((e) => {
           console.log(e.response.data)

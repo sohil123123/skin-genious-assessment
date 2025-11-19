@@ -34,6 +34,7 @@
         <TreatmentPlanComponent
           v-if="currentStep === 'step-5'"
           @previous="goPrev"
+          @post_assessment="goNext"
           @save_data="submit"
         />
         <UploadFaceImages
@@ -440,6 +441,7 @@ async function callApiForDiagnosis(data, images) {
       ],
     },
   ]
+  console.log('Conv ID:', convId)
   console.log('Diagnosis Input:', input)
   const result = await runResponse(convId, input)
   console.log('✅ Diagnosis:', result)
@@ -509,7 +511,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
       ],
     },
   ]
-
+  console.log('Conv ID:', convId)
   console.log('Treatment plans Input:', input)
   const result = await runResponse(convId, input)
   console.log('🩺 Treatment plans:', result)
@@ -556,6 +558,7 @@ async function callApiForPostDiagnosis(data, images) {
       ],
     },
   ]
+  console.log('Conv ID:', convId)
   console.log('Post Assessment Input:', input)
   const result = await runResponse(convId, input)
   console.log('✅ Post Assessment Result:', result)

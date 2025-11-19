@@ -254,7 +254,14 @@ const exportToPDF = () => {
 
       // Procedure
       doc.setFont('helvetica', 'normal')
-      y = addWrappedText(doc, step.how_to_do, 20, y, pageWidth - 15, lineHeight)
+      y = addWrappedText(
+        doc,
+        step.how_to_do.replaceAll(/[-–→]/g, '-'),
+        20,
+        y,
+        pageWidth - 15,
+        lineHeight,
+      )
 
       if (i < treatment.steps.length - 1) y += 3
     })
