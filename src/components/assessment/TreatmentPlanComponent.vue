@@ -1,61 +1,50 @@
 <template>
-  <div class="min-h-screen bg-grey-2 p-6">
-    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-8">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-8">
-        <div class="flex items-center gap-3">
-          <div
-            class="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center"
-          >
-            <span class="text-2xl font-serif">A</span>
-          </div>
-          <span class="text-xl font-light tracking-wider">AI AESTHETICS</span>
-        </div>
-      </div>
+  <div v-if="treatmentPlan">
+    <!-- Selected Treatment Plan -->
+    <SelectedPlan @start-treatment="$emit('startTreatment')" />
 
-      <!-- Selected Treatment Plan -->
-      <SelectedPlan :treatmentPlan="treatmentPlan" />
+    <!-- Recommended Treatment Plan -->
+    <!-- <RecommendedFullPlan :treatmentPlan="recommendedFullPlan" /> -->
 
-      <!-- Recommended Treatment Plan -->
-      <!-- <RecommendedFullPlan v-if="treatmentType == 'single'" :treatmentPlan="recommendedFullPlan" /> -->
-
-      <div>
-        <q-input
-          v-model="assessmentData.therapist_notes"
-          type="textarea"
-          label="Notes"
-          outlined
-          clearable
-          :debounce="2000"
-          @update:model-value="saveData(['therapist_notes'])"
-        />
-      </div>
-
-      <div class="flex justify-between q-mt-lg">
-        <q-btn label="Previous" rounded no-caps class="btn-custom" @click="emitPrevious" />
-        <q-btn
-          label="Export Patient Treatment Plan To PDF"
-          icon="get_app"
-          rounded
-          no-caps
-          @click="exportToPDF"
-          title="Export Patient Treatment Plan to PDF"
-          color="positive"
-        />
-        <q-btn
-          label="Generate Post Assessment"
-          rounded
-          no-caps
-          class="btn-custom"
-          @click="postAssessment"
-        />
-      </div>
+    <div>
+      <q-input
+        v-model="assessmentData.therapist_notes"
+        type="textarea"
+        label="Notes"
+        outlined
+        clearable
+        :debounce="2000"
+        @update:model-value="saveData(['therapist_notes'])"
+      />
     </div>
+
+    <div class="flex justify-between q-mt-lg">
+      <q-btn
+        label="Export Patient Treatment Plan To PDF"
+        icon="get_app"
+        rounded
+        no-caps
+        @click="exportToPDF"
+        title="Export Patient Treatment Plan to PDF"
+        color="positive"
+      />
+      <q-btn
+        label="Generate Post Assessment"
+        rounded
+        no-caps
+        class="btn-custom"
+        @click="postAssessment"
+      />
+    </div>
+  </div>
+
+  <div v-else class="flex justify-center q-mt-lg">
+    <h6>Please Go Back And Generate Treatment Plan To View Details.</h6>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { watch, ref } from 'vue'
 import jsPDF from 'jspdf'
 import { storeToRefs } from 'pinia'
 import SelectedPlan from 'src/components/assessment/SelectedPlan.vue'
@@ -68,29 +57,19 @@ import { useAssessmentStore } from 'src/stores/assessmentStore'
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
-const props = defineProps({
-  treatmentPlan: {
-    type: [String, Object],
-    required: true,
-  },
-  recommendedFullPlan: {
-    type: [String, Object],
-    required: true,
-  },
-  treatmentType: {
-    type: String,
-    required: true,
-  },
-})
-
 const emit = defineEmits(['previous', 'save_data', 'post_assessment'])
 
-const treatmentPlan = ref(props.treatmentPlan)
-// const recommendedFullPlan = ref(props.recommendedFullPlan)
+const treatmentPlan = ref(null)
 
-const emitPrevious = () => {
-  emit('previous')
-}
+watch(
+  () => assessmentData.value,
+  (val) => {
+    if (val) {
+      treatmentPlan.value = val.treatment_sessions
+    }
+  },
+  { immediate: true },
+)
 
 function saveData(field) {
   emit('save_data', field)
@@ -139,215 +118,191 @@ function postAssessment() {
 
 const exportToPDF = () => {
   const doc = new jsPDF()
-  const pageWidth = doc.internal.pageSize.width - 20 // 10mm margin on each side
+  const pageWidth = doc.internal.pageSize.width - 20
   const lineHeight = 6
   let y = 20
 
-  // Alternative simple cover page (replace the cover section with this):
-  // ===== SIMPLE COVER PAGE =====
-  doc.setFillColor(255, 255, 255)
-  doc.rect(0, 0, doc.internal.pageSize.width, doc.internal.pageSize.height, 'F')
-
-  // Title
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(20)
-  doc.setTextColor(38, 38, 38)
-  doc.text('AI AESTHETICS', pageWidth / 2 + 10, 40, { align: 'center' })
-
-  // Patient Info Box
-  y = 55
-
-  doc.setFontSize(11)
-  doc.setTextColor(38, 38, 38)
-
-  const simplePatientInfo = [
-    `Name: ${assessmentData.value?.name || 'Not specified'}`,
-    `Age: ${assessmentData.value?.age || 'Not specified'} | Gender: ${assessmentData.value?.gender || 'Not specified'}`,
-    // `Skin Type: ${assessmentData.value?.skinType || 'Not specified'}`,
-    // `Therapist: ${assessmentData.value?.therapist || 'Not specified'}`,
-  ]
-
-  simplePatientInfo.forEach((line, index) => {
-    doc.text(line, pageWidth / 2 + 10, y + index * 7, { align: 'center' })
-  })
-
-  // Treatment Overview
-  y = 75
-  doc.setFontSize(12)
-  doc.text(`Treatment Duration: ${treatmentPlan.value.total_time}`, pageWidth / 2 + 10, y, {
-    align: 'center',
-  })
-  doc.text(`Sessions: ${treatmentPlan.value.treatments.length}`, pageWidth / 2 + 10, y + 8, {
-    align: 'center',
-  })
-
-  doc.addPage()
-  y = 20 // Reset Y position for new page
-
-  let isFirstSession = true
-
-  y += 10 // Add some space before sessions
-
-  treatmentPlan.value.treatments.forEach((treatment, index) => {
-    // Start new page for each session except the first one
-    if (!isFirstSession) {
-      doc.addPage()
-      y = 20 // Reset Y position for new page
-    } else {
-      isFirstSession = false
-    }
-
-    // Check if we have enough space for session header
-    if (y > 200) {
+  const addLineIfNeeded = (height = 10) => {
+    if (y > 270) {
       doc.addPage()
       y = 20
     }
+    y += height
+  }
 
-    // Session Header
+  // COVER PAGE ----------------------------------------------------
+  doc.setFillColor(255, 255, 255)
+  doc.rect(0, 0, doc.internal.pageSize.width, doc.internal.pageSize.height, 'F')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(24)
+  doc.text('AI AESTHETICS', pageWidth / 2 + 10, 40, { align: 'center' })
+
+  // Patient Info
+  y = 65
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'normal')
+  const simplePatientInfo = [
+    `Name: ${assessmentData.value?.name || 'Not specified'}`,
+    `Age: ${assessmentData.value?.age || 'Not specified'} | Gender: ${
+      assessmentData.value?.gender || 'Not specified'
+    }`,
+  ]
+
+  simplePatientInfo.forEach((line, i) => {
+    doc.text(line, pageWidth / 2 + 10, y + i * 7, { align: 'center' })
+  })
+
+  // Overview
+  y = 90
+  doc.setFontSize(13)
+  doc.text(`Treatment Duration: ${treatmentPlan.value.total_time}`, pageWidth / 2 + 10, y, {
+    align: 'center',
+  })
+  doc.text(`Total Sessions: ${treatmentPlan.value.treatments.length}`, pageWidth / 2 + 10, y + 10, {
+    align: 'center',
+  })
+
+  // Start main content
+  doc.addPage()
+  y = 25
+
+  // ================================================================
+  // EACH SESSION
+  // ================================================================
+  treatmentPlan.value.treatments.forEach((treatment, index) => {
+    // SESSION HEADER BOX -------------------------------------------
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(16)
-    doc.setTextColor(0, 0, 0) // Ensure black color
     y = addWrappedText(
       doc,
-      `Session ${treatment.session_number}: ${treatment.title.replaceAll(/[‑–→]/g, '-')}`,
+      `Session ${treatment.session_number}: ${treatment.title.replaceAll(/[-–→]/g, '-')}`,
       10,
       y,
       pageWidth,
       lineHeight + 2,
     )
 
+    // TREATMENT TIME + WEEK ----------------------------------------
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(12)
     y = addWrappedText(
       doc,
-      `Treatment Time: ${treatment.treatment_time} | Week: ${treatment.week}`,
+      `Treatment Time: ${treatment.treatment_time}     |     Week: ${treatment.week}`,
       10,
       y,
       pageWidth,
       lineHeight,
     )
 
-    y += 8 // Add space before sections
+    addLineIfNeeded(5)
 
-    // Preparations Checklist
+    // PREPARATIONS --------------------------------------------------
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
     y = addWrappedText(doc, 'Preparations Checklist:', 10, y, pageWidth, lineHeight)
-
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
+
     treatment.preparations_checklist_for_therapist.forEach((item) => {
-      if (y > 270) {
-        doc.addPage()
-        y = 20
-      }
+      addLineIfNeeded(0)
       y = addWrappedText(doc, `• ${item}`, 15, y, pageWidth - 5, lineHeight)
     })
 
-    y += 5 // Space between sections
+    addLineIfNeeded(5)
 
-    // Concerns Addressed
+    // CONCERNS ADDRESSED -------------------------------------------
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
     y = addWrappedText(doc, 'Concerns Addressed:', 10, y, pageWidth, lineHeight)
-
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-    treatment.concerns_addressed.forEach((concern) => {
-      if (y > 270) {
-        doc.addPage()
-        y = 20
-      }
-      const concernText = `${concern.concern}: From ${concern.current_value} To ${concern.target_value}`
-      y = addWrappedText(
-        doc,
-        `• ${concernText.replaceAll(/[‑–→]/g, '-')}`,
-        15,
-        y,
-        pageWidth - 5,
-        lineHeight,
-      )
+
+    treatment.concerns_addressed.forEach((c) => {
+      addLineIfNeeded(0)
+      const concernText = `${c.concern}: From ${c.current_value} To ${c.target_value}`
+      y = addWrappedText(doc, `• ${concernText}`, 15, y, pageWidth - 10, lineHeight)
     })
 
-    y += 5 // Space between sections
+    addLineIfNeeded(5)
 
-    // Treatment Steps
+    // TREATMENT STEPS ----------------------------------------------
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(12)
     y = addWrappedText(doc, 'Treatment Steps:', 10, y, pageWidth, lineHeight)
 
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-    treatment.steps.forEach((step, stepIndex) => {
-      // Check if we need a new page for the next step
-      if (y > 240) {
-        // Lower threshold to accommodate step content
-        doc.addPage()
-        y = 20
-      }
+    treatment.steps.forEach((step, i) => {
+      addLineIfNeeded(0)
 
-      // Step Header
+      // Step header with duration
       doc.setFont('helvetica', 'bold')
-      y = addWrappedText(doc, `Step ${step.step_number}`, 15, y, pageWidth - 5, lineHeight)
+      y = addWrappedText(
+        doc,
+        `Step ${step.step_number}  •  Duration: ${step.duration} mins`,
+        15,
+        y,
+        pageWidth - 10,
+        lineHeight,
+      )
 
-      // Ingredients/Equipment
-      doc.setFont('helvetica', 'normal')
-      const ingredientsText = `Equipment: ${step.ingredients_equipments.join(', ')}`
-      y = addWrappedText(doc, ingredientsText, 20, y, pageWidth - 10, lineHeight)
+      // Equipment list
+      doc.setFont('helvetica', 'italic')
+      y = addWrappedText(
+        doc,
+        `Equipment: ${step.ingredients_equipments.join(', ')}`,
+        20,
+        y,
+        pageWidth - 15,
+        lineHeight,
+      )
 
       // Procedure
-      const howToText = `${step.how_to_do.replaceAll(/[‑–→]/g, '-')}`
-      y = addWrappedText(doc, howToText, 20, y, pageWidth - 10, lineHeight)
+      doc.setFont('helvetica', 'normal')
+      y = addWrappedText(doc, step.how_to_do, 20, y, pageWidth - 15, lineHeight)
 
-      // Add space between steps, but not after the last step
-      if (stepIndex < treatment.steps.length - 1) {
-        y += 1
-      }
+      if (i < treatment.steps.length - 1) y += 3
     })
 
-    // Add space between sessions, but not after the last session
+    // Space between sessions
     if (index < treatmentPlan.value.treatments.length - 1) {
-      y += 10
+      addLineIfNeeded(15)
+      doc.addPage()
+      y = 25
     }
   })
 
-  // Therapist Notes Section (starts on new page if needed)
+  // ================================================================
+  // THERAPIST NOTES
+  // ================================================================
   if (y > 250) {
     doc.addPage()
     y = 20
-  } else {
-    y += 10
   }
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
   y = addWrappedText(doc, 'Therapist Notes:', 10, y, pageWidth, lineHeight)
-
   doc.setFont('helvetica', 'normal')
+
   const notes = assessmentData.value.therapist_notes || 'No notes added.'
   y = addWrappedText(doc, notes, 10, y, pageWidth, lineHeight)
 
-  // Add footer to all pages
-  const pageCount = doc.internal.getNumberOfPages()
-  for (let i = 1; i <= pageCount; i++) {
+  // ================================================================
+  // FOOTER
+  // ================================================================
+  const totalPages = doc.internal.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
-    doc.setTextColor(150)
+    doc.setTextColor(120)
 
-    // Page number
-    doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, 285, { align: 'center' })
+    doc.text(`Page ${i} of ${totalPages}`, doc.internal.pageSize.width / 2, 285, {
+      align: 'center',
+    })
+    doc.text('Confidential - For Professional Use Only', 10, 292)
 
-    // Confidential notice
-    doc.text('Confidential - For Professional Use Only', 10, 290)
-
-    // Clinic name/date
     const currentDate = new Date().toLocaleDateString()
-    doc.text(`Generated on: ${currentDate}`, doc.internal.pageSize.width - 10, 290, {
+    doc.text(`Generated on: ${currentDate}`, doc.internal.pageSize.width - 10, 292, {
       align: 'right',
     })
   }
 
-  doc.save('treatment-plan.pdf')
+  doc.save(`${assessmentData.value.name} - Treatment Plan.pdf`)
 }
 
 // Helper function for wrapped text (make sure this exists)

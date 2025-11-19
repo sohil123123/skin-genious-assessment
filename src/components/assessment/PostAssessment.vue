@@ -1,111 +1,100 @@
 <template>
-  <div class="min-h-screen bg-grey-2 p-6">
-    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-8">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-8">
-        <div class="flex items-center gap-3">
-          <div
-            class="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center"
-          >
-            <span class="text-2xl font-serif">A</span>
+  <div v-if="post_diagnosis">
+    <q-card flat class="q-pa-md shadow-2 rounded-borders">
+      <div class="row items-center justify-between q-mb-md">
+        <div>
+          <div class="text-h5 text-primary text-weight-bold">
+            Reassessment Report — {{ post_diagnosis?.metadata.treatment_session }}
           </div>
-          <span class="text-xl font-light tracking-wider">AI AESTHETICS</span>
+          <div class="text-subtitle2 text-grey-8">
+            Evaluation Type: {{ post_diagnosis?.metadata.evaluation_type }} | Phase:
+            {{ post_diagnosis?.metadata.phase }}
+          </div>
+        </div>
+
+        <div class="q-gutter-sm">
+          <q-btn
+            class="gredient"
+            text-color="white"
+            icon="download"
+            label="Download Report"
+            unelevated
+            rounded
+            @click="downloadReport"
+          />
+          <q-btn
+            color="accent"
+            outline
+            label="Finalize & Exit"
+            unelevated
+            rounded
+            @click="finalizeAndExit"
+          />
         </div>
       </div>
 
-      <q-card flat class="q-pa-md shadow-2 rounded-borders">
-        <div class="row items-center justify-between q-mb-md">
-          <div>
-            <div class="text-h5 text-primary text-weight-bold">
-              Reassessment Report — {{ post_diagnosis?.metadata.treatment_session }}
-            </div>
-            <div class="text-subtitle2 text-grey-8">
-              Evaluation Type: {{ post_diagnosis?.metadata.evaluation_type }} | Phase:
-              {{ post_diagnosis?.metadata.phase }}
-            </div>
-          </div>
+      <div class="row q-col-gutter-md">
+        <div
+          v-for="(param, key) in post_diagnosis?.reassessment"
+          :key="key"
+          class="col-12 col-md-6"
+        >
+          <q-card bordered flat class="q-pa-sm bg-grey-1 hover-shadow">
+            <div class="q-pa-sm">
+              <div class="text-subtitle1 text-weight-medium text-primary">
+                {{ param.parameter_name }}
+              </div>
 
-          <div class="q-gutter-sm">
-            <q-btn
-              class="gredient"
-              text-color="white"
-              icon="download"
-              label="Download Report"
-              unelevated
-              rounded
-              @click="downloadReport"
-            />
-            <q-btn
-              color="accent"
-              outline
-              label="Finalize & Exit"
-              unelevated
-              rounded
-              @click="finalizeAndExit"
-            />
-          </div>
-        </div>
+              <q-separator spaced />
 
-        <div class="row q-col-gutter-md">
-          <div
-            v-for="(param, key) in post_diagnosis?.reassessment"
-            :key="key"
-            class="col-12 col-md-6"
-          >
-            <q-card bordered flat class="q-pa-sm bg-grey-1 hover-shadow">
-              <div class="q-pa-sm">
-                <div class="text-subtitle1 text-weight-medium text-primary">
-                  {{ param.parameter_name }}
-                </div>
-
-                <q-separator spaced />
-
-                <div class="row items-center q-col-gutter-md">
-                  <!-- Before Column -->
-                  <div class="col-6">
-                    <div class="text-caption text-grey">Before Treatment</div>
-                    <q-badge color="negative" outline class="q-mt-sm q-mb-sm">
-                      {{ param.before_treatment_score_or_label }}
-                    </q-badge>
-                    <q-img
-                      :src="faceImages[param.before_image - 1]"
-                      class="rounded-borders shadow-sm"
-                      spinner-color="primary"
-                    >
-                      <!-- <div
+              <div class="row items-center q-col-gutter-md">
+                <!-- Before Column -->
+                <div class="col-6">
+                  <div class="text-caption text-grey">Before Treatment</div>
+                  <q-badge color="negative" outline class="q-mt-sm q-mb-sm">
+                    {{ param.before_treatment_score_or_label }}
+                  </q-badge>
+                  <q-img
+                    :src="faceImages[param.before_image - 1]"
+                    class="rounded-borders shadow-sm"
+                    spinner-color="primary"
+                  >
+                    <!-- <div
                         class="absolute-bottom bg-black bg-opacity-2 text-white text-caption q-pa-xs text-center"
                       >
                         Before
                       </div> -->
-                    </q-img>
-                  </div>
+                  </q-img>
+                </div>
 
-                  <!-- After Column -->
-                  <div class="col-6">
-                    <div class="text-caption text-grey">Post Treatment</div>
-                    <q-badge color="positive" outline class="q-mt-sm q-mb-sm">
-                      {{ param.post_treatment_score_or_label }}
-                    </q-badge>
+                <!-- After Column -->
+                <div class="col-6">
+                  <div class="text-caption text-grey">Post Treatment</div>
+                  <q-badge color="positive" outline class="q-mt-sm q-mb-sm">
+                    {{ param.post_treatment_score_or_label }}
+                  </q-badge>
 
-                    <q-img
-                      :src="postTreatmentImages[param.post_treatment_image - 1]"
-                      class="rounded-borders shadow-sm"
-                      spinner-color="secondary"
-                    >
-                      <!-- <div
+                  <q-img
+                    :src="postTreatmentImages[param.post_treatment_image - 1]"
+                    class="rounded-borders shadow-sm"
+                    spinner-color="secondary"
+                  >
+                    <!-- <div
                         class="absolute-bottom bg-black bg-opacity-40 text-white text-caption q-pa-xs text-center"
                       >
                         After
                       </div> -->
-                    </q-img>
-                  </div>
+                  </q-img>
                 </div>
               </div>
-            </q-card>
-          </div>
+            </div>
+          </q-card>
         </div>
-      </q-card>
-    </div>
+      </div>
+    </q-card>
+  </div>
+  <div v-else class="flex justify-center q-mt-lg">
+    <h6>Please Go Back And Process After Treatment Scanned Images To Get Reassessment Details.</h6>
   </div>
 </template>
 <script setup>
@@ -115,6 +104,7 @@ import autoTable from 'jspdf-autotable'
 import { storeToRefs } from 'pinia'
 import { useQuasar, Loading, LocalStorage } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { ref, watch } from 'vue'
 
 const $q = useQuasar()
 
@@ -122,23 +112,34 @@ const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
 const emit = defineEmits(['save_data'])
-const props = defineProps({
-  post_diagnosis: {
-    type: [String, Object],
-    required: true,
-    default: null,
+
+const post_diagnosis = ref(null)
+const faceImages = ref(null)
+const postTreatmentImages = ref(null)
+
+watch(
+  () => assessmentData.value,
+  (val) => {
+    if (val) {
+      post_diagnosis.value = val.post_diagnosis
+
+      const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
+
+      const desiredImages = desiredOrder
+        .map((name) => val.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)))
+        .filter(Boolean)
+
+      faceImages.value = desiredImages.map((img) => img.url)
+
+      const desiredPostImages = desiredOrder
+        .map((name) => val.post_images?.find((img) => img.url.toLowerCase().includes(`${name}.`)))
+        .filter(Boolean)
+
+      postTreatmentImages.value = desiredPostImages.map((img) => img.url)
+    }
   },
-  faceImages: {
-    type: [String, Array],
-    required: true,
-    default: () => [],
-  },
-  postTreatmentImages: {
-    type: [String, Array],
-    required: true,
-    default: () => [],
-  },
-})
+  { immediate: true },
+)
 
 const downloadReport = () => {
   const doc = new jsPDF({
@@ -147,8 +148,8 @@ const downloadReport = () => {
     format: 'a4',
   })
 
-  const metadata = props.post_diagnosis.metadata
-  const reassessment = props.post_diagnosis.reassessment
+  const metadata = post_diagnosis.value.metadata
+  const reassessment = post_diagnosis.value.reassessment
 
   // Title
   doc.setFont('helvetica', 'bold')
@@ -231,7 +232,7 @@ const downloadReport = () => {
   )
 
   // Save file
-  const filename = `Reassessment_Report_${metadata.treatment_session.replace(/\s+/g, '_')}.pdf`
+  const filename = `${assessmentData.value.name} Reassessment_Report_${metadata.treatment_session.replace(/\s+/g, '_')}.pdf`
   doc.save(filename)
 }
 

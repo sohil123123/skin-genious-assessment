@@ -1,89 +1,75 @@
 <template>
-  <div class="min-h-screen bg-grey-2 p-6">
-    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-8">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-8">
-        <div class="flex items-center gap-3">
-          <div
-            class="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center"
-          >
-            <span class="text-2xl font-serif">A</span>
-          </div>
-          <span class="text-xl font-light tracking-wider">AI AESTHETICS</span>
+  <div v-if="diagnosis">
+    <div class="flex justify-between q-mt-lg">
+      <q-btn label="Previous" rounded no-caps class="btn-custom" @click="emitPrevious" />
+      <q-btn
+        label="Download PDF"
+        icon="picture_as_pdf"
+        rounded
+        no-caps
+        class="btn-custom"
+        @click="exportToPDF"
+      />
+      <q-btn label="Next" rounded no-caps class="btn-custom" @click="emitMajorConcerns" />
+    </div>
+    <div v-for="(param, key) in diagnosis?.diagnosis_report" :key="key" class="q-mt-md">
+      <q-card flat bordered class="q-pa-md">
+        <div class="row items-center justify-between">
+          <h6 class="q-ma-none">{{ param.parameter_name }}</h6>
+          <q-badge v-if="isScore(param.score_or_label)" rounded class="text-h6 q-pa-sm gredient">
+            {{ param.score_or_label }}
+          </q-badge>
+          <q-chip v-else class="gredient" text-color="white">
+            {{ param.score_or_label }}
+          </q-chip>
         </div>
-      </div>
-      <div class="flex justify-between q-mt-lg">
-        <q-btn label="Previous" rounded no-caps class="btn-custom" @click="emitPrevious" />
-        <q-btn
-          label="Download PDF"
-          icon="picture_as_pdf"
-          rounded
-          no-caps
-          class="btn-custom"
-          @click="exportToPDF"
-        />
-        <q-btn label="Next" rounded no-caps class="btn-custom" @click="emitMajorConcerns" />
-      </div>
-      <div v-for="(param, key) in diagnosis.diagnosis_report" :key="key" class="q-mt-md">
-        <q-card flat bordered class="q-pa-md">
-          <div class="row items-center justify-between">
-            <h6 class="q-ma-none">{{ param.parameter_name }}</h6>
-            <q-badge v-if="isScore(param.score_or_label)" rounded class="text-h6 q-pa-sm gredient">
-              {{ param.score_or_label }}
-            </q-badge>
-            <q-chip v-else class="gredient" text-color="white" removable="false">
-              {{ param.score_or_label }}
+
+        <p class="text-caption q-mt-sm q-mb-md">{{ param.description }}</p>
+
+        <q-card-section class="bg-grey-2 rounded-borders q-pa-md">
+          {{ param.score_explanation }}
+        </q-card-section>
+
+        <div class="q-mt-md">
+          <span class="text-subtitle2">Possible Causes:</span>
+          <div class="row q-mt-sm">
+            <q-chip
+              v-for="(cause, index) in param.possible_causes"
+              :key="index"
+              text-color="deep-purple-10"
+              class="q-mr-sm q-mb-sm gredient-bg"
+            >
+              {{ cause }}
             </q-chip>
           </div>
-
-          <p class="text-caption q-mt-sm q-mb-md">{{ param.description }}</p>
-
-          <q-card-section class="bg-grey-2 rounded-borders q-pa-md">
-            {{ param.score_explanation }}
-          </q-card-section>
-
-          <div class="q-mt-md">
-            <span class="text-subtitle2">Possible Causes:</span>
-            <div class="row q-mt-sm">
-              <q-chip
-                v-for="(cause, index) in param.possible_causes"
-                :key="index"
-                text-color="deep-purple-10"
-                class="q-mr-sm q-mb-sm gredient-bg"
-              >
-                {{ cause }}
-              </q-chip>
-            </div>
-          </div>
-          <div>
-            <img :src="faceImages[param.affected_area_image - 1]" width="100px" />
-          </div>
-        </q-card>
-      </div>
-
-      <div class="flex justify-between q-mt-lg">
-        <q-btn label="Previous" rounded no-caps class="btn-custom" @click="emitPrevious" />
-        <q-btn label="Next" rounded no-caps class="btn-custom" @click="emitMajorConcerns" />
-      </div>
+        </div>
+        <div>
+          <img :src="faceImages[param.affected_area_image - 1]" width="100px" />
+        </div>
+      </q-card>
     </div>
   </div>
-  <q-page-sticky position="bottom-right" :offset="[18, 18]">
+
+  <div v-else class="flex justify-center q-mt-lg">
+    <h6>Please Go Back And Process Scanned Images To Get Diagnosis</h6>
+  </div>
+
+  <q-page-sticky v-if="diagnosis" position="bottom-right" :offset="[18, 18]">
     <q-btn fab icon="download" color="accent" @click="exportToPDF" />
   </q-page-sticky>
 </template>
 
 <script setup>
 import jsPDF from 'jspdf'
-const props = defineProps({
-  diagnosis: {
-    type: [String, Object],
-    required: true,
-  },
-  faceImages: {
-    type: [String, Array],
-    required: true,
-  },
-})
+import { storeToRefs } from 'pinia'
+import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { onMounted, ref, watch } from 'vue'
+
+const store = useAssessmentStore()
+const { assessmentData } = storeToRefs(store)
+
+const diagnosis = ref(null)
+const faceImages = ref(null)
 
 const emit = defineEmits(['show-major-concerns', 'previous'])
 
@@ -95,21 +81,44 @@ const emitPrevious = () => {
   emit('previous')
 }
 
+watch(
+  () => assessmentData.value,
+  (val) => {
+    if (val) {
+      diagnosis.value = val.diagnosis
+
+      const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
+
+      const desiredImages = desiredOrder
+        .map((name) => val.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)))
+        .filter(Boolean)
+
+      faceImages.value = desiredImages.map((img) => img.url)
+    }
+  },
+  { immediate: true },
+)
+
+onMounted(async () => {
+  if (!diagnosis.value) {
+    diagnosis.value = assessmentData.value.diagnosis
+
+    const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
+
+    const desiredImages = desiredOrder
+      .map((name) =>
+        assessmentData.value.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
+      )
+      .filter(Boolean)
+
+    faceImages.value = desiredImages.map((img) => img.url)
+  }
+})
+
 // Helper to check if label looks like a score (starts with number or 'Score/Grade')
 function isScore(label) {
   return /^\d|Score|Grade/.test(label)
 }
-
-// Extract just the numeric/grade part for badge display
-// function extractScore(label) {
-//   console.log('Extracting score from label:', label)
-//   if (label) {
-//     const match = label.match(/^(\d+|Grade \d+|Score \d+)/)
-//     return match ? match[0].replace(/Grade |Score /, '') : label
-//   } else {
-//     return 'N.A.'
-//   }
-// }
 
 const exportToPDF = () => {
   const doc = new jsPDF({
@@ -119,7 +128,7 @@ const exportToPDF = () => {
   })
 
   let pageNumber = 1
-  const parameters = Object.values(props.diagnosis.diagnosis_report) // Extract parameters as array for iteration
+  const parameters = Object.values(diagnosis.value.diagnosis_report) // Extract parameters as array for iteration
 
   parameters.forEach((param, index) => {
     if (index > 0) {
@@ -207,8 +216,8 @@ const exportToPDF = () => {
     let faceY = currentY + 8 + faceTitleLines.length * 5 + 5 // Adjust below title
 
     // Add Face Image, use: doc.addImage(imageBase64, 'PNG', 30, faceY, 50, 70);
-    if (props.faceImages[param.affected_area_image - 1]) {
-      doc.addImage(props.faceImages[param.affected_area_image - 1], 'PNG', 35, faceY, 50, 70)
+    if (faceImages.value[param.affected_area_image - 1]) {
+      doc.addImage(faceImages.value[param.affected_area_image - 1], 'PNG', 35, faceY, 50, 70)
     }
 
     // Lower Right column title
@@ -239,7 +248,7 @@ const exportToPDF = () => {
     pageNumber++
   })
 
-  doc.save('AIA_Diagnosis_Report.pdf')
+  doc.save(`${assessmentData.value.name} AIA_Diagnosis_Report.pdf`)
 }
 </script>
 

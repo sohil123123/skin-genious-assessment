@@ -55,7 +55,7 @@ onMounted(async () => {
       store.user_id = userId
       api.defaults.headers.common.Authorization = 'Bearer ' + token
       // setTimeout(() => {
-      router.push({ name: 'index' })
+      router.push({ name: 'index', params: { step: 'step-1' } })
       // }, 2000)
     } else {
       throw new Error('Invalid token')

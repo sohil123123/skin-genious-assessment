@@ -1,53 +1,83 @@
 <template>
   <q-page>
-    <PatientIntake
-      v-if="currentStep === 1"
-      :uploader-files="uploaderFiles"
-      :uploadImagesStep="uploadImagesStep"
-      :isPostAssessment="isPostAssessment"
-      v-model:startProcessingStep="startProcessingStep"
-      @process="handleProcess"
-      @save_data="submit"
-    />
-    <DiagnosisComponent
-      v-if="currentStep === 2"
-      :diagnosis="diagnosis"
-      :faceImages="faceImages"
-      @show-major-concerns="handleMajorConcerns"
-      @previous="goToPreviousStep"
-    />
-    <MajorConcerns
-      v-if="currentStep === 3"
-      :treatable-concerns-summary="diagnosis.treatable_concerns_summary"
-      @previous="goToPreviousStep"
-      @generate-treatment="handleGenerateTreatment"
-      @save_data="submit"
-    />
-    <TreatmentPlanComponent
-      v-if="currentStep === 4"
-      :treatment-type="treatment_type"
-      :treatment-plan="treatmentPlan"
-      :recommended-full-plan="recommendedFullPlan"
-      @previous="goToPreviousStep"
-      @save_data="submit"
-      @post_assessment="postAssessment"
-    />
-    <PostAssessment
-      v-if="currentStep === 5"
-      :post_diagnosis="post_diagnosis"
-      :faceImages="faceImages"
-      :postTreatmentImages="postTreatmentImages"
-      @save_data="submit"
-    />
+    <div class="min-h-screen bg-grey-2 p-6">
+      <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-8">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center"
+            >
+              <span class="text-2xl font-serif">A</span>
+            </div>
+            <span class="text-xl font-light tracking-wider">AI AESTHETICS</span>
+          </div>
+        </div>
+
+        <PatientIntake v-if="currentStep === 'step-1'" @save_data="submit" />
+        <UploadFaceImages
+          v-if="currentStep === 'step-2'"
+          v-model:startProcessingStep="startProcessingStep"
+          @process="handleProcess"
+        />
+        <DiagnosisComponent
+          v-if="currentStep === 'step-3'"
+          @show-major-concerns="handleMajorConcerns"
+          @previous="goPrev"
+        />
+        <MajorConcerns
+          v-if="currentStep === 'step-4'"
+          @previous="goPrev"
+          @generate-treatment="handleGenerateTreatment"
+          @save_data="submit"
+        />
+        <TreatmentPlanComponent
+          v-if="currentStep === 'step-5'"
+          @previous="goPrev"
+          @save_data="submit"
+        />
+        <UploadFaceImages
+          v-if="currentStep === 'step-6'"
+          :isPostAssessment="true"
+          v-model:startProcessingStep="startProcessingStep"
+          @process="handleProcess"
+        />
+        <!-- <PreparationStep v-if="currentStep === 5" /> -->
+        <PostAssessment v-if="currentStep === 'step-7'" @save_data="submit" />
+
+        <!-- Navigation Buttons -->
+        <div class="q-mt-lg flex justify-between">
+          <q-btn color="black" label="Previous" :disable="isFirstStep" @click="goPrev" />
+          <q-btn
+            v-if="!isLastStep"
+            color="positive"
+            label="Next"
+            :disable="isLastStep"
+            @click="goNext"
+          />
+          <q-btn
+            v-if="isLastStep"
+            color="accent"
+            outline
+            label="Finalize & Exit"
+            unelevated
+            rounded
+            @click="finalizeAndExit"
+          />
+        </div>
+      </div>
+    </div>
   </q-page>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch, computed } from 'vue'
 import PatientIntake from 'src/components/assessment/PatientIntake.vue'
+import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
 import DiagnosisComponent from 'src/components/assessment/DiagnosisComponent.vue'
 import TreatmentPlanComponent from 'src/components/assessment/TreatmentPlanComponent.vue'
 import MajorConcerns from 'src/components/assessment/MajorConcerns.vue'
+// import PreparationStep from 'src/components/assessment/PreparationStep.vue'
 import PostAssessment from 'src/components/assessment/PostAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
 import {
@@ -56,36 +86,43 @@ import {
   SYSTEM_TREATEMENT_PLAN_PROMPT,
   POST_DIAGNOSIS_USER_PROMPT,
 } from 'src/utils/aiPrompts'
-import { Loading, LocalStorage, Notify, QSpinnerFacebook } from 'quasar'
+import { Loading, Notify, QSpinnerFacebook, LocalStorage, useQuasar } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from 'src/boot/axios'
 import _ from 'lodash'
 import { useAuthStore } from 'src/stores/authStore'
 import constraints from 'src/utils/constraints'
 
-const authStore = useAuthStore()
+// INFO: This jsons are just for testing
+import daignosisJson from 'src/info/diagnosisResponse.json'
+import singleSessionJson from 'src/info/singleTreatmentPlan.json'
+import fullTreatmentJson from 'src/info/fullTreatmentPlan.json'
+import reassessment from 'src/info/reassessment.json'
 
+const $q = useQuasar()
+const authStore = useAuthStore()
 const { getOrCreateConversation, runResponse } = useOpenAI()
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
+
 const route = useRoute()
+const router = useRouter()
+const currentStep = ref(route.params.step || 'step-1')
 
 const faceImages = ref([])
 const postTreatmentImages = ref([])
-const currentStep = ref(1)
-const uploadImagesStep = ref(false)
 const startProcessingStep = ref(false)
 const isPostAssessment = ref(false)
 
-const uploaderFiles = ref([]) // To store uploaded files references
-const diagnosis = ref(null)
-const treatmentPlan = ref(null)
-const recommendedFullPlan = ref(null)
+// const diagnosis = ref(null)
+// const recommendedFullPlan = ref(null)
 const treatment_type = ref(null)
-const post_diagnosis = ref(null)
+// const post_diagnosis = ref(null)
+
+console.log(process.env.APP_TEST)
 
 onMounted(async () => {
   await store.getPatientData()
@@ -100,7 +137,55 @@ onMounted(async () => {
   } else {
     store.createNewAssessment()
   }
+
+  if (route.params.step === 'step-6') {
+    isPostAssessment.value = true
+  } else {
+    isPostAssessment.value = false
+  }
 })
+
+// Watch for route changes
+watch(
+  () => route.params.step,
+  (newStep) => {
+    currentStep.value = newStep || 'step-1'
+    if (newStep === 'step-6') {
+      isPostAssessment.value = true
+    } else {
+      isPostAssessment.value = false
+    }
+  },
+)
+
+const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5', 'step-6', 'step-7']
+/* Helpers */
+const currentIndex = computed(() => steps.indexOf(currentStep.value))
+const isFirstStep = computed(() => steps.indexOf(currentStep.value) === 0)
+const isLastStep = computed(() => steps.indexOf(currentStep.value) === steps.length - 1)
+
+/* 🔥 ROUTE-DRIVEN NAVIGATION */
+function navigateToStep(step) {
+  router.push({
+    name: route.name,
+    params: {
+      step,
+      assessment_id: route.params.assessment_id || undefined,
+    },
+  })
+}
+
+function goNext() {
+  if (!isLastStep.value) {
+    navigateToStep(steps[currentIndex.value + 1])
+  }
+}
+
+function goPrev() {
+  if (!isFirstStep.value) {
+    navigateToStep(steps[currentIndex.value - 1])
+  }
+}
 
 async function getValidAssessmentId() {
   try {
@@ -174,29 +259,38 @@ async function handleDiagnosis(files) {
     .map((name) => faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
     .filter(Boolean)
 
-  const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages.value)
-
-  if (apiResponse.error) {
+  if (process.env.APP_TEST) {
     startProcessingStep.value = false
-    Notify.create({
-      type: 'negative',
-      message: apiResponse.error.message,
-      timeout: 3000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          round: true,
-        },
-      ],
-    })
-  } else {
-    startProcessingStep.value = false
-    diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
-    assessmentData.value.diagnosis = apiResponse
-    assessmentData.value.parameters_with_abnormal_scores = apiResponse.treatable_concerns_summary
+    // diagnosis.value = daignosisJson // e.g., { issues: [...], summary: '...' }
+    assessmentData.value.diagnosis = daignosisJson
+    assessmentData.value.parameters_with_abnormal_scores = daignosisJson.treatable_concerns_summary
     submit(['diagnosis', 'parameters_with_abnormal_scores'])
-    currentStep.value = 2
+    goNext()
+  } else {
+    const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages.value)
+
+    if (apiResponse.error) {
+      startProcessingStep.value = false
+      Notify.create({
+        type: 'negative',
+        message: apiResponse.error.message,
+        timeout: 3000,
+        actions: [
+          {
+            icon: 'close',
+            color: 'white',
+            round: true,
+          },
+        ],
+      })
+    } else {
+      startProcessingStep.value = false
+      // diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
+      assessmentData.value.diagnosis = apiResponse
+      assessmentData.value.parameters_with_abnormal_scores = apiResponse.treatable_concerns_summary
+      submit(['diagnosis', 'parameters_with_abnormal_scores'])
+      goNext()
+    }
   }
 }
 
@@ -225,67 +319,74 @@ async function handlePostAssessment(files) {
     .map((name) => postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
     .filter(Boolean)
 
-  const apiResponse = await callApiForPostDiagnosis(assessmentData.value, postTreatmentImages.value)
-
-  if (apiResponse.error) {
+  if (process.env.APP_TEST) {
     startProcessingStep.value = false
-    Notify.create({
-      type: 'negative',
-      message: apiResponse.error.message,
-      timeout: 3000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          round: true,
-        },
-      ],
-    })
+    assessmentData.value.post_diagnosis = reassessment
+    goNext()
   } else {
-    startProcessingStep.value = false
-    post_diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
-    assessmentData.value.post_diagnosis = apiResponse
-    submit(['post_diagnosis'])
-    currentStep.value = 5
+    const apiResponse = await callApiForPostDiagnosis(
+      assessmentData.value,
+      postTreatmentImages.value,
+    )
+
+    if (apiResponse.error) {
+      startProcessingStep.value = false
+      Notify.create({
+        type: 'negative',
+        message: apiResponse.error.message,
+        timeout: 3000,
+        actions: [
+          {
+            icon: 'close',
+            color: 'white',
+            round: true,
+          },
+        ],
+      })
+    } else {
+      startProcessingStep.value = false
+      assessmentData.value.post_diagnosis = apiResponse
+      submit(['post_diagnosis'])
+      goNext()
+    }
   }
 }
 
 const handleMajorConcerns = async () => {
-  currentStep.value = 3
+  goNext()
 }
 
 const handleGenerateTreatment = async (selected, treatmentType) => {
   treatment_type.value = treatmentType
-  const apiResponse = await callApiForTreatmentPlan(selected, treatmentType)
-  if (apiResponse.error) {
-    Notify.create({
-      type: 'negative',
-      message: apiResponse.error.message,
-      timeout: 3000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          round: true,
-        },
-      ],
-    })
-  } else {
-    treatmentPlan.value = apiResponse.treatment_plans // e.g., { plan: '...', sessions: [...] }
-    // recommendedFullPlan.value = apiResponse.recommended_full_plan
-    assessmentData.value.treatment_plans = apiResponse
-    submit(['treatment_plans'])
-    currentStep.value = 4
-  }
-}
 
-const goToPreviousStep = () => {
-  if (currentStep.value === 2) {
-    currentStep.value = 1
-  } else if (currentStep.value === 3) {
-    currentStep.value = 2
-  } else if (currentStep.value === 4) {
-    currentStep.value = 3
+  if (process.env.APP_TEST) {
+    if (treatmentType === 'single') {
+      assessmentData.value.treatment_sessions = singleSessionJson
+    } else {
+      assessmentData.value.treatment_sessions = fullTreatmentJson
+    }
+    goNext()
+  } else {
+    const apiResponse = await callApiForTreatmentPlan(selected, treatmentType)
+    if (apiResponse.error) {
+      Notify.create({
+        type: 'negative',
+        message: apiResponse.error.message,
+        timeout: 3000,
+        actions: [
+          {
+            icon: 'close',
+            color: 'white',
+            round: true,
+          },
+        ],
+      })
+    } else {
+      assessmentData.value.treatment_plans = apiResponse
+      assessmentData.value.treatment_sessions = apiResponse.treatment_plan
+      submit(['treatment_plans'])
+      goNext()
+    }
   }
 }
 
@@ -357,8 +458,8 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     message: 'Generating treatment plan. Hang on...',
     messageColor: 'white',
   })
-  const convId = LocalStorage.getItem(`conv_${assessmentData.value.user_id}`)
-  console.log('Conversation ID:', convId)
+
+  const convId = assessmentData.value.conversation_id
 
   const patientData = {
     name: assessmentData.value.name,
@@ -461,9 +562,41 @@ async function callApiForPostDiagnosis(data, images) {
   return result
 }
 
-function postAssessment() {
-  currentStep.value = 1
-  uploadImagesStep.value = true
-  isPostAssessment.value = true
+function finalizeAndExit() {
+  $q.dialog({
+    title: 'Confirm',
+    message: 'Would you like to confirm the treatment plan and return to CRM?',
+    persistent: true,
+
+    ok: {
+      label: 'Yes, Confirm & Exit',
+      color: 'positive',
+      icon: 'check_circle',
+      unelevated: true,
+    },
+    cancel: {
+      label: 'Cancel',
+      color: 'negative',
+      flat: true,
+      icon: 'close',
+    },
+  })
+    .onOk(() => {
+      assessmentData.value.status = 'completed'
+      submit(['status'])
+      Loading.show({
+        message: 'Finalizing and redirecting...',
+      })
+      setTimeout(() => {
+        LocalStorage.clear()
+        window.location.href = `${process.env.CRM_URL}/users`
+      }, 3000)
+    })
+    .onCancel(() => {
+      console.log('User cancelled')
+    })
+    .onDismiss(() => {
+      console.log('Dialog closed (OK or Cancel)')
+    })
 }
 </script>

@@ -91,22 +91,43 @@
       },
       {
         "name": "Q-Switch Laser",
-        "type": "laser"
+        "type": "laser",
+        "configurations": {
+          "wavelengths": "532nm, 755nm, 1064nm",
+          "fluence_range": "1Hz to 10Hz",
+          "energy": "100mJ to 2000mJ"
+        }
       },
       {
         "name": "Radio frequency Machine",
-        "type": "skin tightening"
+        "type": "skin tightening",
+        "configurations": {
+          "energy_range": "1 to 10"
+        }
       },
       {
         "name": "HiFU Machine",
-        "type": "aesthetic skin tightening"
+        "type": "aesthetic skin tightening",
+        "configurations": {
+          "probe_depths": "1.5mm, 3mm, 4.5mm",
+          "number_of_probes": "3"
+        }
       },
       {
         "name": "Diode Laser Machine",
-        "type": "hair removal"
+        "type": "hair removal",
+        "configurations": {
+          "wavelengths": "808nm, 755nm, 1064nm",
+          "spot_size": "15×28mm",
+          "power": "1000W"
+        }
       },
       {
-        "name": "Micro needling Radio frequency"
+        "name": "Micro needling Radio frequency",
+        "type": "needling",
+        "configurations": {
+          "needle_depth": "1.5mm"
+        }
       },
       {
         "name": "LED Light Therapy Machine",
@@ -121,11 +142,17 @@
       },
       {
         "name": "Dermapen",
-        "type": "micro-needling"
+        "type": "micro-needling",
+        "configurations": {
+          "needle_depth": "1.5mm"
+        }
       },
       {
         "name": "Dermaroller",
-        "type": "micro-needling"
+        "type": "micro-needling",
+        "configurations": {
+          "needle_depth": "1.5mm"
+        }
       },
       {
         "name": "Microdermabrasion Machine"

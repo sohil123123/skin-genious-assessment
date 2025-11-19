@@ -1,6 +1,8 @@
 import { useQuasar } from 'quasar'
 // import { skinTypeFunctions, imageAnalysisFunctions } from 'src/utils/ai-functions'
+import { useAssessmentStore } from 'src/stores/assessmentStore'
 
+const assessmentStore = useAssessmentStore()
 export function useOpenAI() {
   const $q = useQuasar()
   const API_KEY = process.env.OPENAI_API_KEY
@@ -9,8 +11,7 @@ export function useOpenAI() {
   // 🧠 1. Get or create conversation
   const getOrCreateConversation = async (pid) => {
     try {
-      const key = 'conv_' + pid
-      let id = localStorage.getItem(key)
+      let id = assessmentStore.assessmentData.conversation_id
       if (id) return id
 
       const res = await fetch(`${BASE_URL}/conversations`, {
@@ -27,7 +28,7 @@ export function useOpenAI() {
         throw new Error(`Conversation creation failed: ${JSON.stringify(data)}`)
       }
 
-      localStorage.setItem(key, data.id)
+      assessmentStore.updateAssessment({ conversation_id: data.id })
       return data.id
     } catch (err) {
       console.error(err)
@@ -78,8 +79,14 @@ export function useOpenAI() {
       // } else {
       //   throw new Error('No valid JSON found.')
       // }
-      const parsed = JSON.parse(extractedText)
-      return parsed
+      try {
+        const parsed = JSON.parse(extractedText)
+        return parsed
+      } catch (e) {
+        return {
+          error: e,
+        }
+      }
     } catch (err) {
       console.error(err)
       $q.notify({

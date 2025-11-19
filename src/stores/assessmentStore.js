@@ -141,7 +141,8 @@ export const useAssessmentStore = defineStore('assessment', {
           },
         })
         .then((response) => {
-          console.log(response.data.message)
+          this.assessmentData.images = response.data.results.images
+          this.assessmentData.post_images = response.data.results.post_images
         })
         .catch((e) => {
           console.log(e.response.data)
@@ -176,6 +177,11 @@ export const useAssessmentStore = defineStore('assessment', {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
         .then((res) => {
+          if (assessment_type == 'post') {
+            this.assessmentData.post_images = res.data.results.post_images
+          } else {
+            this.assessmentData.images = res.data.results.images
+          }
           return res.data
         })
         .catch((e) => {

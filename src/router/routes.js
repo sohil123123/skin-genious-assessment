@@ -27,12 +27,12 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       {
-        path: '',
+        path: ':step',
         name: 'index',
         component: () => import('pages/IndexPage.vue'),
       },
       {
-        path: ':assessment_id?',
+        path: ':step/:assessment_id',
         name: 'index-with-id',
         component: () => import('pages/IndexPage.vue'),
       },

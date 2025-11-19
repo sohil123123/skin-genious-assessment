@@ -1,21 +1,27 @@
 <template>
   <!-- Header -->
   <q-card flat bordered class="header-card q-pa-md q-mb-md">
-    <div class="text-h5 text-weight-bold">Skin Treatment Plan</div>
-    <div class="text-caption text-grey-7 q-mt-xs">
-      Total Duration: {{ treatmentPlan?.total_time }} •
-      {{ treatmentPlan?.treatments.length }} sessions
-    </div>
+    <div class="row justify-between items-center">
+      <!-- Left section -->
+      <div>
+        <div class="text-h5 text-weight-bold">Skin Treatment Plan</div>
+        <div class="text-caption text-grey-7 q-mt-xs">
+          Total Duration: {{ treatmentPlan?.total_time }} •
+          {{ treatmentPlan?.treatments?.length }} sessions
+        </div>
+      </div>
 
-    <!-- <div class="q-mt-sm row q-gutter-sm">
-      <q-chip
-        v-for="(c, i) in treatmentPlan.treatments[0].concerns_addressed"
-        :key="i"
-        class="gredient-bg"
-      >
-        {{ c.concern }} → {{ c.target_value }}
-      </q-chip>
-    </div> -->
+      <!-- Right button -->
+      <q-btn
+        color="primary"
+        label="Start Treatment"
+        icon-right="arrow_forward"
+        glossy
+        unelevated
+        rounded
+        @click="$emit('start-treatment')"
+      />
+    </div>
   </q-card>
 
   <!-- Sessions -->
@@ -109,9 +115,26 @@
   </div>
 </template>
 <script setup>
-defineProps({
-  treatmentPlan: { type: Object, required: true },
-})
+import { watch, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useAssessmentStore } from 'src/stores/assessmentStore'
+
+const store = useAssessmentStore()
+const { assessmentData } = storeToRefs(store)
+
+defineEmits(['start-treatment'])
+
+const treatmentPlan = ref(null)
+
+watch(
+  () => assessmentData.value,
+  (val) => {
+    if (val) {
+      treatmentPlan.value = val.treatment_sessions
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
