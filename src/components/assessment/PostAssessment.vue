@@ -131,7 +131,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { storeToRefs } from 'pinia'
-import { useQuasar, Loading, LocalStorage } from 'quasar'
+import { useQuasar, Loading } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { ref, watch } from 'vue'
 
@@ -478,7 +478,7 @@ function finalizeAndExit() {
         message: 'Finalizing and redirecting...',
       })
       setTimeout(() => {
-        LocalStorage.clear()
+        // LocalStorage.clear()
         window.location.href = `${process.env.CRM_URL}/users`
       }, 3000)
     })

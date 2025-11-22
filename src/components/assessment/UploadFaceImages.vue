@@ -169,9 +169,7 @@ onMounted(() => {
     }))
 
     // Access uploader instance and inject these files
-    if (uploader.value) {
-      uploader.value.files.push(...preloadFiles)
-    }
+    if (uploader.value) addUniqueFiles(preloadFiles)
   }
 
   if (assessmentData.value.post_images && props.isPostAssessment) {
@@ -186,9 +184,7 @@ onMounted(() => {
     }))
 
     // Access uploader instance and inject these files
-    if (uploader.value) {
-      uploader.value.files.push(...preloadFiles)
-    }
+    if (uploader.value) addUniqueFiles(preloadFiles)
   }
 })
 
@@ -207,9 +203,7 @@ watch(
       }))
 
       // Access uploader instance and inject these files
-      if (uploader.value) {
-        uploader.value.files.push(...preloadFiles)
-      }
+      if (uploader.value) addUniqueFiles(preloadFiles)
     }
   },
 )
@@ -229,12 +223,18 @@ watch(
       }))
 
       // Access uploader instance and inject these files
-      if (uploader.value) {
-        uploader.value.files.push(...preloadFiles)
-      }
+      if (uploader.value) addUniqueFiles(preloadFiles)
     }
   },
 )
+
+function addUniqueFiles(newFiles) {
+  const existingKeys = new Set(uploader.value.files.map((f) => f.__key))
+
+  const uniqueFiles = newFiles.filter((f) => !existingKeys.has(f.__key))
+
+  uploader.value.files.push(...uniqueFiles)
+}
 
 // Utility functions
 const isImage = (file) => file.type?.startsWith('image/') || file.__uploaded

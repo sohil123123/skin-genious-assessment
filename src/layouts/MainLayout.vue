@@ -49,7 +49,7 @@
 <script setup>
 import { ref } from 'vue'
 import v from '../assets/version.json'
-import { Loading, LocalStorage } from 'quasar'
+import { Loading } from 'quasar'
 
 const version = v.version
 const leftDrawerOpen = ref(false)
@@ -63,7 +63,7 @@ function logout() {
     message: 'Logging out...',
   })
   setTimeout(() => {
-    LocalStorage.clear()
+    // LocalStorage.clear()
     window.location.href = `${process.env.CRM_URL}/users`
   }, 3000)
 }

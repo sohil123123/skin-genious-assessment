@@ -87,7 +87,7 @@ import {
   SYSTEM_TREATEMENT_PLAN_PROMPT,
   POST_DIAGNOSIS_USER_PROMPT,
 } from 'src/utils/aiPrompts'
-import { Loading, Notify, QSpinnerFacebook, LocalStorage, useQuasar } from 'quasar'
+import { Loading, Notify, QSpinnerFacebook, useQuasar } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
@@ -568,7 +568,7 @@ function finalizeAndExit() {
         message: 'Finalizing and redirecting...',
       })
       setTimeout(() => {
-        LocalStorage.clear()
+        // LocalStorage.clear()
         window.location.href = `${process.env.CRM_URL}/users`
       }, 3000)
     })
