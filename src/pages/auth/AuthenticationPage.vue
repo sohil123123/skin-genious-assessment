@@ -49,13 +49,12 @@ onMounted(async () => {
     })
     if (response.data.valid) {
       isValid.value = true
-      LocalStorage.set('user_id', userId)
       LocalStorage.set('token_id', token)
       store.token_id = token
       store.user_id = userId
       api.defaults.headers.common.Authorization = 'Bearer ' + token
       // setTimeout(() => {
-      router.push({ name: 'index', params: { step: 'step-1' } })
+      router.push({ name: 'index', params: { user_id: userId, step: 'step-1' } })
       // }, 2000)
     } else {
       throw new Error('Invalid token')

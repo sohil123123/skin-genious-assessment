@@ -19,7 +19,7 @@
         glossy
         unelevated
         rounded
-        @click="$emit('start-treatment')"
+        @click="startSession(1)"
       />
     </div>
   </q-card>
@@ -111,6 +111,17 @@
           </q-card>
         </q-expansion-item>
       </q-card-section>
+      <q-card-actions align="right">
+        <q-btn
+          class="gredient text-white"
+          :label="`Start Session ${session.session_number}`"
+          icon-right="arrow_forward"
+          unelevated
+          rounded
+          no-caps
+          @click="startSession(session.session_number)"
+        />
+      </q-card-actions>
     </q-card>
   </div>
 </template>
@@ -118,11 +129,15 @@
 import { watch, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { useRouter, useRoute } from 'vue-router'
+import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
-defineEmits(['start-treatment'])
+const router = useRouter()
+const route = useRoute()
+const treatmentStore = useTreatmentFlowStore()
 
 const treatmentPlan = ref(null)
 
@@ -135,6 +150,20 @@ watch(
   },
   { immediate: true },
 )
+
+const startSession = (sessionNumber) => {
+  if (!sessionNumber) return
+  treatmentStore.setSessionByNumber(sessionNumber)
+  // route to preparation for that session
+  router.push({
+    name: 'TreatmentPrep',
+    params: {
+      user_id: route.params.user_id,
+      assessment_id: assessmentData.value.id,
+      session: sessionNumber,
+    },
+  })
+}
 </script>
 
 <style scoped>

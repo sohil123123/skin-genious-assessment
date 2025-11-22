@@ -1,7 +1,7 @@
 <template>
   <div v-if="treatmentPlan">
     <!-- Selected Treatment Plan -->
-    <SelectedPlan @start-treatment="$emit('startTreatment')" />
+    <SelectedPlan />
 
     <!-- Recommended Treatment Plan -->
     <!-- <RecommendedFullPlan :treatmentPlan="recommendedFullPlan" /> -->
@@ -74,43 +74,6 @@ watch(
 function saveData(field) {
   emit('save_data', field)
 }
-// function finalizeAndExit() {
-//   $q.dialog({
-//     title: 'Confirm',
-//     message: 'Would you like to confirm the treatment plan and return to CRM?',
-//     persistent: true,
-
-//     ok: {
-//       label: 'Yes, Confirm & Exit',
-//       color: 'positive',
-//       icon: 'check_circle',
-//       unelevated: true,
-//     },
-//     cancel: {
-//       label: 'Cancel',
-//       color: 'negative',
-//       flat: true,
-//       icon: 'close',
-//     },
-//   })
-//     .onOk(() => {
-//       assessmentData.value.status = 'completed'
-//       emit('save_data', ['status'])
-//       Loading.show({
-//         message: 'Finalizing and redirecting...',
-//       })
-//       setTimeout(() => {
-//         LocalStorage.clear()
-//         window.location.href = `${process.env.CRM_URL}/users`
-//       }, 3000)
-//     })
-//     .onCancel(() => {
-//       console.log('User cancelled')
-//     })
-//     .onDismiss(() => {
-//       console.log('Dialog closed (OK or Cancel)')
-//     })
-// }
 
 function postAssessment() {
   emit('post_assessment')

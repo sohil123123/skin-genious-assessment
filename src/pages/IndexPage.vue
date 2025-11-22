@@ -43,7 +43,7 @@
           v-model:startProcessingStep="startProcessingStep"
           @process="handleProcess"
         />
-        <!-- <PreparationStep v-if="currentStep === 5" /> -->
+
         <PostAssessment v-if="currentStep === 'step-7'" @save_data="submit" />
 
         <!-- Navigation Buttons -->
@@ -93,8 +93,8 @@ import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from 'src/boot/axios'
 import _ from 'lodash'
-import { useAuthStore } from 'src/stores/authStore'
 import constraints from 'src/utils/constraints'
+import { encode } from '@toon-format/toon'
 
 // INFO: This jsons are just for testing
 import daignosisJson from 'src/info/diagnosisResponse.json'
@@ -103,7 +103,6 @@ import fullTreatmentJson from 'src/info/fullTreatmentPlan.json'
 import reassessment from 'src/info/reassessment.json'
 
 const $q = useQuasar()
-const authStore = useAuthStore()
 const { getOrCreateConversation, runResponse } = useOpenAI()
 
 const store = useAssessmentStore()
@@ -123,10 +122,12 @@ const isPostAssessment = ref(false)
 const treatment_type = ref(null)
 // const post_diagnosis = ref(null)
 
+const userId = route.params.user_id
+
 console.log(process.env.APP_TEST)
 
 onMounted(async () => {
-  await store.getPatientData()
+  await store.getPatientData(userId)
 
   let recentStoredId = await getValidAssessmentId()
   if (route.params.assessment_id || recentStoredId) {
@@ -193,7 +194,7 @@ async function getValidAssessmentId() {
     Loading.show({
       message: 'Checking for in-progress assessment...',
     })
-    const response = await api.get(`/assessments/get-in-progress-assessment/${authStore.user_id}`)
+    const response = await api.get(`/assessments/get-in-progress-assessment/${userId}`)
     const item = response.data.results
     if (!item.assessment_id) return null
 
@@ -213,7 +214,7 @@ async function getValidAssessmentId() {
 
 async function submit(field) {
   const activeAssessmentId = route.params.assessment_id || assessmentData.value.id
-  if (authStore.user_id && activeAssessmentId) {
+  if (userId && activeAssessmentId) {
     let data = {}
     field.forEach((f) => {
       data[f] = _.cloneDeep(assessmentData.value[f])
@@ -221,7 +222,7 @@ async function submit(field) {
     console.log(data)
     await store.updateAssessment(data)
   } else {
-    if (authStore.user_id && !assessmentData.value.id) {
+    if (userId && !assessmentData.value.id) {
       await store.createNewAssessment()
     }
   }
@@ -241,18 +242,6 @@ async function handleDiagnosis(files) {
     const uploadedImages = await store.storeFaceImages(files, 'pre')
     faceImages.value.push(...uploadedImages)
   }
-
-  // NOTE: Only for test in local
-  // faceImages.value = [
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/3/blue.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/4/brown.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/5/ppl.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/6/red.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/7/uv.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/8/white.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/9/woods.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/10/xpl.png',
-  // ]
 
   const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
 
@@ -301,18 +290,6 @@ async function handlePostAssessment(files) {
     const uploadedImages = await store.storeFaceImages(files, 'post')
     postTreatmentImages.value.push(...uploadedImages)
   }
-
-  // NOTE: Only for test in local
-  // postTreatmentImages.value = [
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/11/blue.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/12/brown.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/13/ppl.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/14/red.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/15/uv.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/16/white.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/17/woods.png',
-  //   'https://skingeniouscrm.cbphysiotherapy.in/storage/user_assessment_images/18/xpl.png',
-  // ]
 
   const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
 
@@ -486,7 +463,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
         },
         {
           type: 'input_text',
-          text: JSON.stringify(constraints, null, 2),
+          text: encode(constraints),
         },
       ],
     },
@@ -495,11 +472,11 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
       content: [
         {
           type: 'input_text',
-          text: JSON.stringify(patientData, null, 2),
+          text: encode(patientData),
         },
         {
           type: 'input_text',
-          text: JSON.stringify({
+          text: encode({
             treatable_concerns: {
               description:
                 'Parameters showing deviations that can be treated or improved with appropriate interventions.',

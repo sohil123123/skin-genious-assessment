@@ -12,7 +12,7 @@ export default boot(async ({ router, store }) => {
     // ✅ If user is trying to re-authenticate
     if (to.path === '/authenticate') {
       // Clear all stored user/session data
-      localStorage.clear()
+      localStorage.removeItem('token_id')
 
       // Reset Pinia auth store if needed
       authStore.$reset?.()

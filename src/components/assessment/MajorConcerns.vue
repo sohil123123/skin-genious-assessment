@@ -1,128 +1,131 @@
 <template>
-  <q-card flat bordered class="q-pa-md bg-white shadow-2xl">
-    <!-- Treatment Plan Selection -->
-    <q-card-section>
-      <div class="text-subtitle1 text-primary text-weight-medium q-mb-sm">
-        Select Treatment Plan
-      </div>
-
-      <div class="row q-col-gutter-md">
-        <!-- Single Session Plan -->
-        <div class="col-12 col-md-6">
-          <q-card
-            flat
-            bordered
-            class="plan-card cursor-pointer"
-            :class="{ 'plan-card--active': treatmentType === 'single' }"
-            @click="treatmentType = 'single'"
-          >
-            <q-card-section class="row items-center">
-              <div class="col-auto">
-                <q-icon
-                  name="event_available"
-                  size="40px"
-                  :color="treatmentType === 'single' ? 'primary' : 'grey-7'"
-                />
-              </div>
-              <div class="col">
-                <div class="text-subtitle1 text-weight-medium">Single Session</div>
-                <div class="text-caption text-grey-7">
-                  Ideal for short-term improvement or one-time clinical procedure.
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
+  <q-card class="my-card" flat bordered>
+    <q-card-section horizontal>
+      <q-card-section>
+        <div class="text-h6 text-primary text-weight-bold">
+          Clinical Parameters – Deviation & Improvement Goals
         </div>
-
-        <!-- Full Treatment Plan -->
-        <div class="col-12 col-md-6">
-          <q-card
-            flat
-            bordered
-            class="plan-card cursor-pointer"
-            :class="{ 'plan-card--active': treatmentType === 'multiple' }"
-            @click="treatmentType = 'multiple'"
-          >
-            <q-card-section class="row items-center">
-              <div class="col-auto">
-                <q-icon
-                  name="medical_services"
-                  size="40px"
-                  :color="treatmentType === 'multiple' ? 'primary' : 'grey-7'"
-                />
-              </div>
-              <div class="col">
-                <div class="text-subtitle1 text-weight-medium">Full Treatment Plan</div>
-                <div class="text-caption text-grey-7">
-                  Comprehensive, multi-session approach for long-term correction.
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
+        <div class="text-body2 text-grey-7 q-mt-xs">
+          {{ treatableConcernsSummary?.description }}
         </div>
-      </div>
+        <q-list separator>
+          <q-item
+            v-for="(param, index) in treatableConcernsSummary?.parameters_with_abnormal_scores"
+            :key="index"
+            tag="label"
+            class="q-py-md"
+            clickable
+            @click="addPrimaryConcern(index)"
+          >
+            <q-item-section avatar>
+              <q-avatar color="grey-3" text-color="black">{{ index + 1 }}</q-avatar>
+            </q-item-section>
+
+            <q-item-section>
+              <q-item-label class="text-weight-medium text-dark text-subtitle1">
+                {{ param.parameter }}
+              </q-item-label>
+
+              <q-item-label caption class="q-mt-xs">
+                <div class="text-grey-8 q-mb-xs">
+                  <span class="text-weight-medium text-negative">Current:</span>
+                  {{ param.current_score }}
+                </div>
+                <div class="text-grey-8">
+                  <span class="text-weight-medium text-positive">Target:</span>
+                  {{ param.target_score }}
+                </div>
+              </q-item-label>
+            </q-item-section>
+
+            <q-item-section side top>
+              <q-chip
+                v-if="param.is_primary_concern"
+                color="positive"
+                text-color="white"
+                label="Primary"
+                icon="check"
+                clickable
+                dense
+              />
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </q-card-section>
+
+      <q-separator vertical />
+
+      <!-- Treatment Plan Selection -->
+      <q-card-section class="col-5">
+        <div class="text-h6 text-primary text-weight-bold q-mb-lg">Select Treatment Plan</div>
+
+        <div class="row q-col-gutter-md">
+          <!-- Single Session Plan -->
+          <div class="col-12">
+            <q-card
+              flat
+              bordered
+              class="plan-card cursor-pointer"
+              :class="{ 'plan-card--active': treatmentType === 'single' }"
+              @click="treatmentType = 'single'"
+            >
+              <q-card-section class="row items-center">
+                <div class="col-auto">
+                  <q-icon
+                    name="event_available"
+                    size="40px"
+                    :color="treatmentType === 'single' ? 'primary' : 'grey-7'"
+                  />
+                </div>
+                <div class="col">
+                  <div class="text-subtitle1 text-weight-medium">Single Session</div>
+                  <div class="text-caption text-grey-7">
+                    Ideal for short-term improvement or one-time clinical procedure.
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+
+          <!-- Full Treatment Plan -->
+          <div class="col-12">
+            <q-card
+              flat
+              bordered
+              class="plan-card cursor-pointer"
+              :class="{ 'plan-card--active': treatmentType === 'multiple' }"
+              @click="treatmentType = 'multiple'"
+            >
+              <q-card-section class="row items-center">
+                <div class="col-auto">
+                  <q-icon
+                    name="medical_services"
+                    size="40px"
+                    :color="treatmentType === 'multiple' ? 'primary' : 'grey-7'"
+                  />
+                </div>
+                <div class="col">
+                  <div class="text-subtitle1 text-weight-medium">Full Treatment Plan</div>
+                  <div class="text-caption text-grey-7">
+                    Comprehensive, multi-session approach for long-term correction.
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+          <div class="col-12 text-center">
+            <q-btn
+              label="Generate Treatment Plan"
+              color="positive"
+              icon="assignment"
+              @click="generatePlan"
+              class="q-ml-sm q-px-lg"
+              unelevated
+            />
+          </div>
+        </div>
+      </q-card-section>
     </q-card-section>
-
-    <!-- <q-separator spaced /> -->
-    <!-- Header -->
-    <!-- <q-card-section>
-      <div class="text-h6 text-primary text-weight-bold">
-        Clinical Parameters – Deviation & Improvement Goals
-      </div>
-      <div class="text-body2 text-grey-7 q-mt-xs">
-        {{ treatableConcernsSummary?.description }}
-      </div>
-    </q-card-section> -->
-
-    <!-- <q-separator spaced /> -->
-
-    <!-- Parameters Checklist -->
-    <!-- <q-card-section>
-      <q-list separator>
-        <q-item
-          v-for="(param, index) in treatableConcernsSummary?.parameters_with_abnormal_scores"
-          :key="index"
-          tag="label"
-          class="q-py-md"
-          clickable
-        >
-          <q-item-section avatar>
-            <q-avatar color="grey-3" text-color="black">{{ index + 1 }}</q-avatar>
-          </q-item-section>
-
-          <q-item-section>
-            <q-item-label class="text-weight-medium text-dark text-subtitle1">
-              {{ param.parameter }}
-            </q-item-label>
-
-            <q-item-label caption class="q-mt-xs">
-              <div class="text-grey-8 q-mb-xs">
-                <span class="text-weight-medium text-negative">Current:</span>
-                {{ param.current_score }}
-              </div>
-              <div class="text-grey-8">
-                <span class="text-weight-medium text-positive">Target:</span>
-                {{ param.target_score }}
-              </div>
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-      </q-list>
-    </q-card-section> -->
-
-    <!-- <q-separator spaced /> -->
-
-    <!-- Actions -->
-    <q-card-actions align="right">
-      <q-btn
-        label="Generate Treatment Plan"
-        color="positive"
-        icon="assignment"
-        @click="generatePlan"
-        class="q-ml-sm q-px-lg"
-        unelevated
-      />
-    </q-card-actions>
   </q-card>
 </template>
 
@@ -157,6 +160,15 @@ const generatePlan = () => {
     assessmentData.value.parameters_with_abnormal_scores,
     assessmentData.value.selected_plan_type,
   )
+}
+
+function addPrimaryConcern(index) {
+  assessmentData.value.parameters_with_abnormal_scores.parameters_with_abnormal_scores[
+    index
+  ].is_primary_concern =
+    !assessmentData.value.parameters_with_abnormal_scores.parameters_with_abnormal_scores[index]
+      .is_primary_concern
+  emit('save_data', ['parameters_with_abnormal_scores'])
 }
 </script>
 

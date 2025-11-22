@@ -44,7 +44,7 @@ export function useOpenAI() {
   const runResponse = async (convId, input) => {
     try {
       const body = {
-        model: 'gpt-5',
+        model: 'gpt-5-nano',
         // temperature: 2.0,
         conversation: convId,
         input,
@@ -93,7 +93,9 @@ export function useOpenAI() {
         type: 'negative',
         message: err.message || 'Error generating response',
       })
-      throw err
+      return {
+        error: err,
+      }
     } finally {
       $q.loading.hide()
     }

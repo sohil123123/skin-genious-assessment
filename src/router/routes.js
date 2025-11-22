@@ -27,12 +27,30 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       {
-        path: ':step',
+        path: ':user_id/treatment-prep/:assessment_id/:session?',
+        name: 'TreatmentPrep',
+        component: () => import('pages/PreparationStep.vue'),
+        props: true,
+      },
+      {
+        path: ':user_id/treatment-steps/:assessment_id/:session/:step',
+        name: 'TreatmentSteps',
+        component: () => import('pages/TreatmentSteps.vue'),
+        props: true,
+      },
+      {
+        path: ':user_id/treatment-complete/:assessment_id/:session?',
+        name: 'TreatmentComplete',
+        component: () => import('pages/TreatmentComplete.vue'),
+        props: true,
+      },
+      {
+        path: ':user_id/:step',
         name: 'index',
         component: () => import('pages/IndexPage.vue'),
       },
       {
-        path: ':step/:assessment_id',
+        path: ':user_id/:step/:assessment_id',
         name: 'index-with-id',
         component: () => import('pages/IndexPage.vue'),
       },

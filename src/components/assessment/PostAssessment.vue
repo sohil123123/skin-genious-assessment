@@ -16,12 +16,41 @@
           <q-btn
             class="gredient"
             text-color="white"
+            label="Download Report"
+            unelevated
+            rounded
+            no-caps
+          >
+            <q-menu transition-show="jump-down" transition-hide="jump-up">
+              <q-list style="min-width: 100px">
+                <q-item clickable @click="downloadReport">
+                  <q-item-section>Core Report</q-item-section>
+                </q-item>
+                <q-item clickable @click="downloadVisualReport">
+                  <q-item-section>Visual Comparison Report</q-item-section>
+                </q-item>
+                <q-separator />
+              </q-list>
+            </q-menu>
+          </q-btn>
+          <!-- <q-btn
+            class="gredient"
+            text-color="white"
             icon="download"
             label="Download Report"
             unelevated
             rounded
             @click="downloadReport"
           />
+          <q-btn
+            class="gredient"
+            text-color="white"
+            icon="download"
+            label="Download Comparsion Report"
+            unelevated
+            rounded
+            @click="downloadVisualReport"
+          /> -->
           <q-btn
             color="accent"
             outline
@@ -233,6 +262,193 @@ const downloadReport = () => {
 
   // Save file
   const filename = `${assessmentData.value.name} Reassessment_Report_${metadata.treatment_session.replace(/\s+/g, '_')}.pdf`
+  doc.save(filename)
+}
+
+const downloadVisualReport = async () => {
+  Loading.show({ message: 'Generating professional PDF report...' })
+  await new Promise((r) => setTimeout(r, 1000))
+
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: 'a4',
+  })
+
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+
+  const marginX = 48
+  const topPadding = 32
+  const bottomPadding = 40
+  const contentWidth = pageWidth - marginX * 2
+
+  const primaryRgb = [25, 118, 210]
+
+  const comparisonTitles = [
+    'White Light',
+    'PPL Light',
+    'XPL Light',
+    'UV Light',
+    'Woods Light',
+    'Blue Light',
+    'Brown Light',
+    'Red Light',
+  ]
+
+  const sectionGap = 18
+  const cardPadding = 10
+  const cardWidth = (contentWidth - 24) / 2
+  const cardHeight = 260
+
+  // ----------------------------
+  // COVER PAGE (Style D)
+  // ----------------------------
+  ;(() => {
+    // Title
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(28)
+    doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2])
+    doc.text('AI AESTHETICS', pageWidth / 2, pageHeight * 0.23, { align: 'center' })
+
+    doc.setFontSize(20)
+    doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2])
+    doc.text('BEFORE vs AFTER', pageWidth / 2, pageHeight * 0.28, { align: 'center' })
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(18)
+    doc.text('VISUAL COMPARISON REPORT', pageWidth / 2, pageHeight * 0.32, { align: 'center' })
+
+    // Patient Info
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(12)
+    doc.setTextColor(50)
+
+    const patientName = assessmentData.value.name || ''
+    const patientAge = assessmentData.value.age || ''
+    const patientGender = assessmentData.value.gender || ''
+
+    doc.text(`Patient: ${patientName}`, pageWidth / 2, pageHeight * 0.42, { align: 'center' })
+
+    doc.text(`Age / Gender: ${patientAge} ${patientGender}`, pageWidth / 2, pageHeight * 0.46, {
+      align: 'center',
+    })
+
+    doc.text(
+      `Treatment Session: ${post_diagnosis.value.metadata.treatment_session}`,
+      pageWidth / 2,
+      pageHeight * 0.5,
+      { align: 'center' },
+    )
+  })()
+
+  // Add page for content
+  doc.addPage()
+  let cursorY = topPadding
+
+  // ----------------------------
+  // MAIN PAGES — 8 COMPARISONS
+  // ----------------------------
+  for (let idx = 0; idx < 8; idx++) {
+    // page break check
+    if (cursorY + cardHeight + 120 > pageHeight - bottomPadding) {
+      doc.addPage()
+      cursorY = topPadding
+    }
+
+    // Section title
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(14)
+    doc.setTextColor(22, 63, 120)
+    doc.text(comparisonTitles[idx], marginX, cursorY)
+
+    doc.setDrawColor(200)
+    doc.line(marginX, cursorY + 4, marginX + 180, cursorY + 4)
+
+    cursorY += 18
+
+    // labels
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(100)
+    doc.text('Before (Baseline)', marginX, cursorY)
+    doc.text('After (Post)', marginX + cardWidth + 24, cursorY)
+
+    cursorY += 8
+
+    // card coords
+    const leftCardX = marginX
+    const rightCardX = marginX + cardWidth + 24
+    const topY = cursorY
+
+    // shadow + card left
+    doc.setFillColor(240, 240, 240)
+    doc.rect(leftCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
+    doc.setFillColor(255, 255, 255)
+    doc.rect(leftCardX, topY, cardWidth, cardHeight, 'F')
+    doc.setDrawColor(220)
+    doc.rect(leftCardX, topY, cardWidth, cardHeight, 'S')
+
+    // shadow + card right
+    doc.setFillColor(240, 240, 240)
+    doc.rect(rightCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
+    doc.setFillColor(255, 255, 255)
+    doc.rect(rightCardX, topY, cardWidth, cardHeight, 'F')
+    doc.setDrawColor(220)
+    doc.rect(rightCardX, topY, cardWidth, cardHeight, 'S')
+
+    // add images
+    const imgW = cardWidth - cardPadding * 2
+    const imgH = cardHeight - cardPadding * 2
+    const imgY = topY + cardPadding
+
+    const beforeImg = faceImages.value[idx]
+    const afterImg = postTreatmentImages.value[idx]
+
+    const addImage = (img, x, y) => {
+      if (!img) return
+      try {
+        doc.addImage(img, 'PNG', x, y, imgW, imgH)
+      } catch {
+        try {
+          doc.addImage(img, 'JPEG', x, y, imgW, imgH)
+        } catch (e) {
+          console.log(e)
+        }
+      }
+    }
+
+    addImage(beforeImg, leftCardX + cardPadding, imgY)
+    addImage(afterImg, rightCardX + cardPadding, imgY)
+
+    cursorY = topY + cardHeight + 42
+
+    // divider
+    doc.setDrawColor(225)
+    doc.line(marginX, cursorY, pageWidth - marginX, cursorY)
+
+    cursorY += sectionGap
+  }
+
+  // ----------------------------
+  // FOOTER (Except Cover Page)
+  // ----------------------------
+  const pageCount = doc.internal.getNumberOfPages()
+  for (let p = 2; p <= pageCount; p++) {
+    doc.setPage(p)
+
+    const footerY = pageHeight - 24
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(140)
+    doc.text('AI AESTHETICS — Generated Report', marginX, footerY)
+
+    doc.text(`Page ${p - 1} of ${pageCount - 1}`, pageWidth / 2, footerY, { align: 'center' })
+  }
+
+  Loading.hide()
+  const filename = `${assessmentData.value.name}_Visual_Comparison_Report_${post_diagnosis.value.metadata.treatment_session.replace(/\s+/g, '_')}.pdf`
   doc.save(filename)
 }
 

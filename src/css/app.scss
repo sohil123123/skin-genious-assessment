@@ -415,3 +415,96 @@ h6.heading {
     width: 2.5rem;
   }
 }
+
+/* Cards */
+.section-card,
+.info-card,
+.preview-card {
+  border-radius: 18px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+/* Soft peach background */
+.soft-bg {
+  background: #fdece6;
+}
+
+/* Title */
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+/* Description text */
+.desc {
+  font-size: 16px;
+  color: #333;
+  line-height: 1.4;
+}
+
+/* Info Blocks */
+.info-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+}
+
+.info-main {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 4px 0;
+}
+
+.info-duration {
+  font-size: 32px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.info-sub {
+  font-size: 14px;
+  color: #777;
+}
+
+/* Button */
+.complete-btn {
+  width: 100%;
+  padding: 14px 0;
+  font-size: 16px;
+  border-radius: 12px;
+  background: #8d5cf6;
+  color: white;
+}
+
+/* Right Side Preview */
+.preview-card {
+  background: #f2eefc;
+}
+
+.preview-label {
+  font-size: 14px;
+  color: #555;
+  font-weight: 600;
+}
+
+.preview-title {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 10px;
+}
+
+.preview-desc {
+  margin-top: 10px;
+  color: #444;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .treatment-container {
+    grid-template-columns: 1fr;
+  }
+}

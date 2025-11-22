@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import { Loading, Notify, LocalStorage } from 'quasar'
+import { Loading, Notify } from 'quasar'
 import { api } from 'src/boot/axios'
 import { serialize } from 'object-to-formdata'
 
-let user_id = LocalStorage.getItem('user_id') ? LocalStorage.getItem('user_id') : null
+// let user_id = LocalStorage.getItem('user_id') ? LocalStorage.getItem('user_id') : null
 
 export const useAssessmentStore = defineStore('assessment', {
   state: () => ({
@@ -51,12 +51,12 @@ export const useAssessmentStore = defineStore('assessment', {
   }),
 
   actions: {
-    async getPatientData() {
+    async getPatientData(uid) {
       Loading.show({
         message: 'Getting patient data...',
       })
       await api
-        .get(`/users/${user_id}`)
+        .get(`/users/${uid}`)
         .then((response) => {
           this.setPatientData(response.data.results)
           Loading.hide()
