@@ -44,7 +44,7 @@ export function useOpenAI() {
   const runResponse = async (convId, input) => {
     try {
       const body = {
-        model: 'gpt-5-nano',
+        model: 'gpt-5',
         // temperature: 2.0,
         conversation: convId,
         input,

@@ -33,9 +33,24 @@
               <div class="col-md-6 col-sm-6 col-xs-12">
                 <q-card class="info-card soft-bg q-pa-lg full-height">
                   <div class="info-main">Ingredients</div>
-                  <div v-for="(ie, idx) in step.ingredients_equipments" :key="idx" class="info-sub">
+                  <!-- <div v-for="(ie, idx) in step.ingredients_equipments" :key="idx" class="info-sub">
                     – {{ ie }}
-                  </div>
+                  </div> -->
+                  <q-list>
+                    <q-item
+                      v-for="(ie, idx) in step.ingredients_equipments"
+                      :key="idx"
+                      clickable
+                      v-ripple
+                      class="q-pl-none"
+                    >
+                      <q-item-section avatar class="ingredients-list" top>
+                        <q-avatar class="gredient" text-color="white" icon="science" size="24px" />
+                      </q-item-section>
+
+                      <q-item-section>{{ ie }}</q-item-section>
+                    </q-item>
+                  </q-list>
                 </q-card>
               </div>
 

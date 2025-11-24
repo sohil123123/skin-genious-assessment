@@ -463,8 +463,8 @@ h6.heading {
 }
 
 .info-sub {
-  font-size: 14px;
-  color: #777;
+  font-size: 16px;
+  color: #3f3f3f;
 }
 
 /* Button */
@@ -500,6 +500,12 @@ h6.heading {
   color: #444;
   font-size: 15px;
   line-height: 1.4;
+}
+
+.ingredients-list {
+  display: flex;
+  align-content: center;
+  padding-right: 0 !important;
 }
 
 /* Responsive */

@@ -141,6 +141,12 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
       "regions_analyzed": ["forehead", "cheeks", "nose", "chin"],
     },
 
+    "lighting_mode_confidence_weights": {
+      "white": 0.45,
+      "UV": 0.35,
+      "brown": 0.20
+    }
+
     "parameter_weights": {
       "coverage_area": 0.30,
       "color_intensity": 0.25,
@@ -151,26 +157,26 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
     "threshold_guidelines": {
       "coverage_area_percent": {
         "minimal": "<5%",
-        "mild": "5–20%",
-        "moderate": "20–40%",
-        "marked": "40–60%",
+        "mild": "5-20%",
+        "moderate": "20-40%",
+        "marked": "40-60%",
         "severe": ">60%"
       },
       "mean_intensity_index": {
         "light": "<0.35",
-        "mild": "0.35–0.50",
-        "moderate": "0.50–0.65",
-        "marked": "0.65–0.75",
+        "mild": "0.35-0.50",
+        "moderate": "0.50-0.65",
+        "marked": "0.65-0.75",
         "severe": ">0.75"
       },
       "contrast_uniformity_index": {
         "even": ">0.80",
-        "moderate_mottling": "0.65–0.80",
+        "moderate_mottling": "0.65-0.80",
         "uneven": "<0.65"
       },
       "depth_indicator_ratio": {
         "epidermal": "<0.35",
-        "mixed": "0.35–0.65",
+        "mixed": "0.35-0.65",
         "dermal": ">0.65"
       }
     },
@@ -193,9 +199,9 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
         "score": 2,
         "label": "Mild",
         "criteria": {
-          "coverage_area": "5–20%",
-          "mean_intensity_index": "0.35–0.50",
-          "contrast_uniformity_index": "0.75–0.85"
+          "coverage_area": "5-20%",
+          "mean_intensity_index": "0.35-0.50",
+          "contrast_uniformity_index": "0.75-0.85"
         },
         "visual_flags": [
           "Faint macules in forehead or malar regions",
@@ -206,9 +212,9 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
         "score": 3,
         "label": "Moderate",
         "criteria": {
-          "coverage_area": "20–40%",
-          "mean_intensity_index": "0.50–0.65",
-          "contrast_uniformity_index": "0.65–0.80"
+          "coverage_area": "20-40%",
+          "mean_intensity_index": "0.50-0.65",
+          "contrast_uniformity_index": "0.65-0.80"
         },
         "visual_flags": [
           "Visible macules and patches across forehead and cheeks",
@@ -220,13 +226,13 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
         "score": 4,
         "label": "Marked",
         "criteria": {
-          "coverage_area": "40–60%",
-          "mean_intensity_index": "0.65–0.75",
-          "contrast_uniformity_index": "0.55–0.70"
+          "coverage_area": "40-60%",
+          "mean_intensity_index": "0.65-0.75",
+          "contrast_uniformity_index": "0.55-0.70"
         },
         "visual_flags": [
           "Confluent dark patches spanning multiple regions",
-          "Uneven tone with mixed epidermal–dermal component"
+          "Uneven tone with mixed epidermal-dermal component"
         ]
       },
       {
@@ -243,6 +249,49 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
         ]
       }
     ],
+
+    "backend_analysis": {
+      "description": "Provide auxiliary indices to support treatment logic in next stage.",
+      "sub_indices": {
+        "pigmentation_depth_index": {
+          "description": "Relative depth of pigment based on UV:brown signal ratio.",
+          "formula": "UV_intensity / (brown_intensity + 0.001)",
+          "output_range": "0-1 (superficial → dermal)"
+        },
+        "distribution_pattern_index": {
+          "description": "Standard deviation of pigment intensity across regions, indicating localized vs diffuse.",
+          "formula": "stddev(region_intensity_map) / mean(region_intensity_map)",
+          "output_range": "0-1 (diffuse → focal)"
+        },
+        "asymmetry_index": {
+          "description": "Quantifies difference between left and right facial pigmentation load.",
+          "formula": "|left_intensity - right_intensity| / mean_intensity",
+          "output_range": "0-1"
+        },
+        "uv_enhancement_ratio": {
+          "description": "Enhancement factor of UV pigment vs brown mode, correlating with chronic photo-damage.",
+          "formula": "UV_intensity / brown_intensity",
+          "output_range": "0-1+"
+        }
+      },
+      "output_interpretation": {
+        "depth_type": {
+          "rules": [
+            {"if": "pigmentation_depth_index< 0.25", "then": "Superficial (Epidermal)"},
+            {"if": "0.25-0.5", "then": "Mixed"},
+            {"if": ">0.5", "then": "Deep (Dermal)"}
+          ]
+        },
+        "distribution_type": {
+          "rules": [
+            {"if": "distribution_pattern_index< 0.3", "then": "Diffuse"},
+            {"if": "0.3-0.6", "then": "Patchy"},
+            {"if": ">0.6", "then": "Focal"}
+          ]
+        }
+      }
+    },
+
     "decision_logic": {
       "description": "Compute pigmentation indices and calibrated score output with dermatologist-adjusted weightage.",
       "steps": [
@@ -251,24 +300,32 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
         "3. Compute distribution_pattern_index from region-wise variance.",
         "4. Compute asymmetry_index from left vs right intensity difference.",
         "5. Derive global_score using revised weighted aggregation of parameters.",
-        "6. Output integer score (1–5) plus backend indices for treatment logic."
+        "6. Output integer score (1-5) plus backend indices for treatment logic."
       ],
       "calibration_formula": {
         "description": "Adjusted weighting ensures moderate, diffuse superficial pigmentation reads as score 3.",
         "equation": "global_score = (0.30 * normalized_coverage_area) + (0.25 * normalized_intensity) + (0.30 * (1 - uniformity)) + (0.15 * border_definition)"
       },
       "output_format": {
-        "final_score": "integer (1–5)",
+        "final_score": "integer (1-5)",
+        "backend_details": {
+          "pigmentation_depth_index": "float (0-1)",
+          "distribution_pattern_index": "float (0-1)",
+          "asymmetry_index": "float (0-1)",
+          "uv_enhancement_ratio": "float (0-1)",
+          "depth_type": "Superficial / Mixed / Deep",
+          "distribution_type": "Diffuse / Patchy / Focal"
+        }
       },
       "score_bins": {
         "1": "<0.25",
-        "2": "0.25–0.40",
-        "3": "0.40–0.55",
-        "4": "0.55–0.70",
+        "2": "0.25-0.40",
+        "3": "0.40-0.55",
+        "4": "0.55-0.70",
         "5": ">0.70"
       },
       "single_output_mode": true
-    }
+    },
   }
 }
 ---
@@ -288,11 +345,11 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
         },
 
         lesion_type_weights: {
-          open_comedone: 0.15,
-          closed_comedone: 0.15,
-          papule: 0.25,
-          pustule: 0.25,
-          nodule: 0.2,
+          "open_comedone": 0.22,
+          "closed_comedone": 0.22,
+          "papule": 0.25,
+          "pustule": 0.20,
+          "nodule": 0.11
         },
 
         region_weights: {
@@ -306,14 +363,14 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
         quantitative_thresholds: {
           lesion_count_per_region: {
             grade_0: '<3 total lesions',
-            grade_1: '3–10',
-            grade_2: '11–25',
-            grade_3: '26–50',
+            grade_1: '3-10',
+            grade_2: '8-20',
+            grade_3: '20-40',
             grade_4: '>50 or presence of nodules/cysts',
           },
           inflammatory_ratio: {
             low: '<0.25',
-            moderate: '0.25–0.5',
+            moderate: '0.25-0.5',
             high: '>0.5',
           },
         },
@@ -334,7 +391,7 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
           {
             grade: '1 - Very Mild',
             criteria: {
-              total_lesion_count: '3–10',
+              total_lesion_count: '3-10',
               inflammatory_ratio: '<0.25',
             },
             visual_flags: [
@@ -345,8 +402,8 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
           {
             grade: '2 - Mild',
             criteria: {
-              total_lesion_count: '11–25',
-              inflammatory_ratio: '0.25–0.4',
+              total_lesion_count: '11-25',
+              inflammatory_ratio: '0.25-0.4',
             },
             visual_flags: [
               'Scattered papules/pustules without nodules',
@@ -356,8 +413,8 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
           {
             grade: '3 - Moderate',
             criteria: {
-              total_lesion_count: '26–50',
-              inflammatory_ratio: '0.4–0.6',
+              total_lesion_count: '26-50',
+              inflammatory_ratio: '0.4-0.6',
             },
             visual_flags: [
               'Multiple inflamed papules and pustules',
@@ -384,12 +441,12 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
             '2. Calculate inflammatory_ratio = (papules + pustules + nodules) / total_lesions.',
             '3. Compute region_score = Σ(lesion_count_region × region_weight).',
             '4. Calculate weighted_grade_score = Σ(lesion_type_count × lesion_type_weight).',
-            '5. Aggregate region_score and weighted_grade_score → global_severity_index (0–1).',
+            '5. Aggregate region_score and weighted_grade_score → global_severity_index (0-1).',
             '6. Map global_severity_index to final grade thresholds.',
             '7. Output single final grade with confidence and region breakdown.',
           ],
           output_format: {
-            final_grade: 'integer (0–4)'
+            final_grade: 'integer (0-4)'
           },
         },
       },
@@ -414,30 +471,30 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                 regions_analyzed: ['forehead', 'nose', 'cheeks', 'chin']
               },
 
-              parameter_weights: {
-                pore_diameter_ratio: 0.4,
-                texture_uniformity_index: 0.35,
-                light_reflection_evenness: 0.15,
-                roughness_variance: 0.1,
+              "parameter_weights": {
+                "pore_diameter_ratio": 0.50,
+                "texture_uniformity_index": 0.30,
+                "light_reflection_evenness": 0.10,
+                "roughness_variance": 0.10
               },
 
               threshold_guidelines: {
                 pore_diameter_ratio: {
-                  invisible: '<1.1× baseline',
-                  fine: '1.1–1.3×',
-                  moderate: '1.3–1.6×',
-                  large: '1.6–2.0×',
-                  very_large: '>2.0×',
+                  "invisible": "<1.10",
+                  "fine": "1.10-1.25",
+                  "moderate": "1.25-1.45",
+                  "large": "1.45-1.75",
+                  "very_large":">1.75"
                 },
                 texture_uniformity_index: {
-                  smooth: '>0.85',
-                  slightly_uneven: '0.7–0.85',
-                  rough: '0.5–0.7',
-                  coarse: '<0.5',
+                  "smooth": ">0.80",
+                  "slightly_uneven": "0.65-0.80",
+                  "rough": "0.50-0.65",
+                  "coarse": "<0.50"
                 },
                 light_reflection_evenness: {
                   even: '>0.8',
-                  minor_variation: '0.6–0.8',
+                  minor_variation: '0.6-0.8',
                   mottled: '<0.6',
                 },
               },
@@ -459,8 +516,8 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                 {
                   grade: '1 - Very Mild',
                   criteria: {
-                    pore_diameter_ratio: '1.1–1.3',
-                    texture_uniformity_index: '0.7–0.85',
+                    pore_diameter_ratio: '1.1-1.3',
+                    texture_uniformity_index: '0.7-0.85',
                   },
                   visual_flags: [
                     'Fine pores on nose or medial cheeks only',
@@ -470,8 +527,8 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                 {
                   grade: '2 - Mild',
                   criteria: {
-                    pore_diameter_ratio: '1.3–1.6',
-                    texture_uniformity_index: '0.6–0.8',
+                    pore_diameter_ratio: '1.3-1.6',
+                    texture_uniformity_index: '0.6-0.8',
                   },
                   visual_flags: [
                     'Visible pores extending laterally',
@@ -481,8 +538,8 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                 {
                   grade: '3 - Moderate',
                   criteria: {
-                    pore_diameter_ratio: '1.6–2.0',
-                    texture_uniformity_index: '0.5–0.7',
+                    pore_diameter_ratio: '1.6-2.0',
+                    texture_uniformity_index: '0.5-0.7',
                   },
                   visual_flags: [
                     'Obvious, enlarged pores across central face',
@@ -510,12 +567,12 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                   '2. Compute texture_uniformity_index from XPL micro-contrast variance.',
                   '3. Derive light_reflection_evenness from white-mode specular map.',
                   '4. Apply parameter_weights to obtain weighted_region_score.',
-                  '5. Combine all regions (weighted equally or per region_weights if defined) → global_texture_index (0–1).',
+                  '5. Combine all regions (weighted equally or per region_weights if defined) → global_texture_index (0-1).',
                   '6. Map global_texture_index to grade thresholds.',
                   '7. Select grade with highest confidence; output single final grade.',
                 ],
                 output_format: {
-                  final_grade: 'integer (0–4)',
+                  final_grade: 'integer (0-4)',
                 },
                 single_output_mode: true,
               },
@@ -549,19 +606,19 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
               threshold_guidelines: {
                 wrinkle_depth_index: {
                   very_mild: '<0.25',
-                  mild: '0.25–0.45',
-                  moderate: '0.45–0.65',
+                  mild: '0.25-0.45',
+                  moderate: '0.45-0.65',
                   severe: '>0.65',
                 },
                 wrinkle_density_index: {
                   very_mild: '<0.2',
-                  mild: '0.2–0.4',
-                  moderate: '0.4–0.6',
+                  mild: '0.2-0.4',
+                  moderate: '0.4-0.6',
                   severe: '>0.6',
                 },
                 contrast_visibility_index: {
                   low: '>0.8',
-                  moderate: '0.6–0.8',
+                  moderate: '0.6-0.8',
                   high: '<0.6',
                 },
               },
@@ -580,8 +637,8 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                 {
                   grade: '2 - Mild',
                   criteria: {
-                    wrinkle_depth_index: '0.25–0.45',
-                    wrinkle_density_index: '0.2–0.4',
+                    wrinkle_depth_index: '0.25-0.45',
+                    wrinkle_density_index: '0.2-0.4',
                   },
                   visual_flags: [
                     'Multiple fine superficial wrinkles visible at rest',
@@ -591,8 +648,8 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                 {
                   grade: '3 - Moderate',
                   criteria: {
-                    wrinkle_depth_index: '0.45–0.65',
-                    wrinkle_density_index: '0.4–0.6',
+                    wrinkle_depth_index: '0.45-0.65',
+                    wrinkle_density_index: '0.4-0.6',
                   },
                   visual_flags: [
                     'Clearly defined fine lines across multiple regions',
@@ -618,12 +675,12 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                   '1. Use XPL mode to measure wrinkle_depth_index (pixel contrast slope and shadow gradient).',
                   '2. Use PPL mode to compute wrinkle_density_index (line count per cm²).',
                   '3. Derive contrast_visibility_index from white-mode luminance difference between wrinkle and background skin.',
-                  '4. Combine all indices using parameter_weights to form a global_wrinkle_index (0–1).',
-                  '5. Map global_wrinkle_index to grade thresholds (1–4).',
+                  '4. Combine all indices using parameter_weights to form a global_wrinkle_index (0-1).',
+                  '5. Map global_wrinkle_index to grade thresholds (1-4).',
                   '6. Output only the highest-confidence single grade.',
                 ],
                 output_format: {
-                  final_grade: 'integer (1–4)',
+                  final_grade: 'integer (1-4)',
                 },
                 single_output_mode: true,
               },
@@ -658,26 +715,26 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
               },
               threshold_guidelines: {
                 mandibular_angle_change_deg: {
-                  very_mild: '<5°',
-                  mild: '5–10°',
-                  moderate: '10–15°',
-                  severe: '>15°',
+                  very_mild: '<4°',
+                  mild: '4-8°',
+                  moderate: '8-12°',
+                  severe: '>12°',
                 },
                 contour_smoothness_index: {
-                  sharp: '>0.85',
-                  slightly_blunted: '0.7–0.85',
-                  moderate_blunting: '0.5–0.7',
-                  severe_irregularity: '<0.5',
+                  sharp: '>0.88',
+                  slightly_blunted: '0.5-0.88',
+                  moderate_blunting: '0.55-0.75',
+                  severe_irregularity: '<0.55',
                 },
                 skin_laxity_index: {
                   firm: '<0.25',
-                  mild: '0.25–0.45',
-                  moderate: '0.45–0.65',
+                  mild: '0.25-0.45',
+                  moderate: '0.45-0.65',
                   severe: '>0.65',
                 },
                 shadow_intensity_ratio: {
                   low: '<0.3',
-                  moderate: '0.3–0.6',
+                  moderate: '0.3-0.6',
                   high: '>0.6',
                 },
               },
@@ -697,9 +754,9 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                 {
                   grade: '2 - Mild',
                   criteria: {
-                    mandibular_angle_change_deg: '5–10',
-                    contour_smoothness_index: '0.7–0.85',
-                    skin_laxity_index: '0.25–0.45',
+                    mandibular_angle_change_deg: '5-10',
+                    contour_smoothness_index: '0.7-0.85',
+                    skin_laxity_index: '0.25-0.45',
                   },
                   visual_flags: [
                     'Slight blunting of jawline definition',
@@ -709,9 +766,9 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                 {
                   grade: '3 - Moderate',
                   criteria: {
-                    mandibular_angle_change_deg: '10–15',
-                    contour_smoothness_index: '0.5–0.7',
-                    skin_laxity_index: '0.45–0.65',
+                    mandibular_angle_change_deg: '10-15',
+                    contour_smoothness_index: '0.5-0.7',
+                    skin_laxity_index: '0.45-0.65',
                   },
                   visual_flags: [
                     'Visible jowl formation with reduced jawline sharpness',
@@ -740,12 +797,12 @@ Your purpose is to generate a **structured diagnostic JSON report** based on obs
                   '3. Calculate contour_smoothness_index using gradient variance from XPL mode.',
                   '4. Estimate skin_laxity_index via vertical pixel displacement of lower cheek contour under PPL lighting.',
                   '5. Measure shadow_intensity_ratio from luminance map beneath mandible.',
-                  '6. Combine all parameters using defined weights to form global_sagging_index (0–1).',
-                  '7. Map global_sagging_index to grade thresholds (1–4).',
+                  '6. Combine all parameters using defined weights to form global_sagging_index (0-1).',
+                  '7. Map global_sagging_index to grade thresholds (1-4).',
                   '8. Output only the single grade with highest confidence.',
                 ],
                 output_format: {
-                  final_grade: 'integer (1–4)',
+                  final_grade: 'integer (1-4)',
                 },
                 single_output_mode: true,
               },
@@ -779,25 +836,25 @@ analyze_skin_hydration: {
               },
               threshold_guidelines: {
                 surface_reflectance_index: {
-                  excellent: '0.65–0.80',
-                  mildly_low: '0.50–0.65',
-                  low: '0.35–0.50',
+                  excellent: '0.65-0.80',
+                  mildly_low: '0.50-0.65',
+                  low: '0.35-0.50',
                   very_low: '<0.35',
                 },
                 microline_density_index: {
                   excellent: '<0.15',
-                  mild: '0.15–0.25',
-                  moderate: '0.25–0.35',
+                  mild: '0.15-0.25',
+                  moderate: '0.25-0.35',
                   severe: '>0.35',
                 },
                 subsurface_diffusion_index: {
                   high: '>0.70',
-                  moderate: '0.55–0.70',
+                  moderate: '0.55-0.70',
                   low: '<0.55',
                 },
                 color_luminance_uniformity: {
                   even: '>0.8',
-                  slightly_patchy: '0.6–0.8',
+                  slightly_patchy: '0.6-0.8',
                   uneven: '<0.6',
                 },
               },
@@ -820,8 +877,8 @@ analyze_skin_hydration: {
                   score: 1,
                   label: 'Mild Dehydration',
                   criteria: {
-                    surface_reflectance_index: '0.50–0.65',
-                    microline_density_index: '0.15–0.25',
+                    surface_reflectance_index: '0.50-0.65',
+                    microline_density_index: '0.15-0.25',
                   },
                   visual_flags: [
                     'Slight dullness, reduced glow',
@@ -832,9 +889,9 @@ analyze_skin_hydration: {
                   score: 2,
                   label: 'Moderate Dehydration',
                   criteria: {
-                    surface_reflectance_index: '0.35–0.50',
-                    microline_density_index: '0.25–0.35',
-                    subsurface_diffusion_index: '0.55–0.70',
+                    surface_reflectance_index: '0.35-0.50',
+                    microline_density_index: '0.25-0.35',
+                    subsurface_diffusion_index: '0.55-0.70',
                   },
                   visual_flags: [
                     'Noticeable dullness and uneven tone',
@@ -865,12 +922,12 @@ analyze_skin_hydration: {
                   '2. Compute microline_density_index from PPL texture analysis (inverse of smoothness).',
                   '3. Derive subsurface_diffusion_index from red-mode light scatter intensity.',
                   '4. Calculate color_luminance_uniformity from full-face brightness variance.',
-                  '5. Combine indices using parameter_weights → global_hydration_index (0–1).',
-                  '6. Map global_hydration_index to score thresholds (0–3).',
+                  '5. Combine indices using parameter_weights → global_hydration_index (0-1).',
+                  '6. Map global_hydration_index to score thresholds (0-3).',
                   '7. Output only the single score with highest confidence.',
                 ],
                 output_format: {
-                  final_score: 'integer (0–3)',
+                  final_score: 'integer (0-3)',
                 },
                 single_output_mode: true,
               },
@@ -899,19 +956,19 @@ sebum_content_grading: {
               threshold_guidelines: {
                 shine_reflectance_index: {
                   very_low: '<0.3',
-                  low_normal: '0.3–0.5',
-                  moderate: '0.5–0.7',
+                  low_normal: '0.3-0.5',
+                  moderate: '0.5-0.7',
                   high: '>0.7',
                 },
                 porphyrin_fluorescence_index: {
                   none: '<20',
-                  few: '20–40',
-                  moderate: '40–60',
+                  few: '20-40',
+                  moderate: '40-60',
                   dense: '>60',
                 },
                 regional_uniformity_index: {
                   balanced: '<0.2',
-                  T_zone_dominant: '0.2–0.4',
+                  T_zone_dominant: '0.2-0.4',
                   generalized: '>0.4',
                 },
               },
@@ -920,8 +977,8 @@ sebum_content_grading: {
                   description:
                     'Represents overall sebum output based on shine and porphyrin fluorescence.',
                   calculation: [
-                    '1. Normalize shine_reflectance_index (white mode) to 0–1 scale.',
-                    '2. Normalize porphyrin_fluorescence_index (UV mode) to 0–1 scale.',
+                    '1. Normalize shine_reflectance_index (white mode) to 0-1 scale.',
+                    '2. Normalize porphyrin_fluorescence_index (UV mode) to 0-1 scale.',
                     '3. Compute sebum_quantity_index = (0.55 × shine_reflectance) + (0.45 × porphyrin_fluorescence).',
                   ],
                   output_range: '0 (dry) → 1 (oily)',
@@ -931,7 +988,7 @@ sebum_content_grading: {
                   calculation: [
                     '1. Measure sebum quantity per region (forehead, nose, cheeks, chin).',
                     '2. Compute mean absolute deviation from global mean.',
-                    '3. Normalize to 0–1 range → higher = more uneven.',
+                    '3. Normalize to 0-1 range → higher = more uneven.',
                     '4. sebum_distribution_index = deviation_normalized × regional_uniformity_weight (0.2).',
                   ],
                   output_range: '0 (balanced) → 1 (diffuse / T-zone dominated)',
@@ -954,7 +1011,7 @@ sebum_content_grading: {
                   score: 1,
                   label: 'Low-Normal Sebum',
                   criteria: {
-                    sebum_quantity_index: '0.3–0.5',
+                    sebum_quantity_index: '0.3-0.5',
                     sebum_distribution_index: '<0.3',
                   },
                   visual_flags: ['Minimal T-zone shine', 'Few scattered porphyrins'],
@@ -963,8 +1020,8 @@ sebum_content_grading: {
                   score: 2,
                   label: 'Moderate / Normal-Oily',
                   criteria: {
-                    sebum_quantity_index: '0.5–0.7',
-                    sebum_distribution_index: '0.2–0.4',
+                    sebum_quantity_index: '0.5-0.7',
+                    sebum_distribution_index: '0.2-0.4',
                   },
                   visual_flags: [
                     'Healthy glow over T-zone and cheeks',
@@ -991,17 +1048,17 @@ sebum_content_grading: {
                   '1. Calculate sebum_quantity_index using shine_reflectance and porphyrin_fluorescence inputs.',
                   '2. Calculate sebum_distribution_index using per-region sebum variance.',
                   '3. Combine both: global_sebum_index = (0.8 × sebum_quantity_index) + (0.2 × sebum_distribution_index).',
-                  '4. Map global_sebum_index to discrete patient-visible score thresholds (0–3).',
+                  '4. Map global_sebum_index to discrete patient-visible score thresholds (0-3).',
                   '5. Retain both sub-indices for backend analytics and treatment planning.',
                   '6. Output one visible score for the patient report.',
                 ],
                 output_format: {
-                  final_score: 'integer (0–3)',
-                  confidence_score: 'float (0–1)',
-                  global_sebum_index: 'float (0–1)',
+                  final_score: 'integer (0-3)',
+                  confidence_score: 'float (0-1)',
+                  global_sebum_index: 'float (0-1)',
                   backend_details: {
-                    sebum_quantity_index: 'float (0–1)',
-                    sebum_distribution_index: 'float (0–1)',
+                    sebum_quantity_index: 'float (0-1)',
+                    sebum_distribution_index: 'float (0-1)',
                   },
                 },
                 single_output_mode: true,
@@ -1035,25 +1092,25 @@ analyze_skin_sensitivity: {
               threshold_guidelines: {
                 erythema_intensity_index: {
                   none: '<0.25',
-                  mild: '0.25–0.45',
-                  moderate: '0.45–0.65',
+                  mild: '0.25-0.45',
+                  moderate: '0.45-0.65',
                   severe: '>0.65',
                 },
                 vascular_pattern_index: {
                   none: '<0.2',
-                  diffuse: '0.2–0.4',
-                  telangiectatic: '0.4–0.6',
+                  diffuse: '0.2-0.4',
+                  telangiectatic: '0.4-0.6',
                   prominent: '>0.6',
                 },
                 barrier_uniformity_index: {
                   intact: '>0.8',
-                  slightly_disrupted: '0.6–0.8',
+                  slightly_disrupted: '0.6-0.8',
                   disrupted: '<0.6',
                 },
                 flaking_texture_index: {
                   smooth: '<0.2',
-                  fine_flakes: '0.2–0.4',
-                  coarse_flakes: '0.4–0.6',
+                  fine_flakes: '0.2-0.4',
+                  coarse_flakes: '0.4-0.6',
                   scaling: '>0.6',
                 },
               },
@@ -1075,7 +1132,7 @@ analyze_skin_sensitivity: {
                   score: 1,
                   label: 'Mild Sensitivity',
                   criteria: {
-                    erythema_intensity_index: '0.25–0.45',
+                    erythema_intensity_index: '0.25-0.45',
                     vascular_pattern_index: '<0.3',
                   },
                   visual_flags: [
@@ -1087,9 +1144,9 @@ analyze_skin_sensitivity: {
                   score: 2,
                   label: 'Moderate Sensitivity',
                   criteria: {
-                    erythema_intensity_index: '0.45–0.65',
-                    vascular_pattern_index: '0.3–0.6',
-                    barrier_uniformity_index: '0.6–0.8',
+                    erythema_intensity_index: '0.45-0.65',
+                    vascular_pattern_index: '0.3-0.6',
+                    barrier_uniformity_index: '0.6-0.8',
                   },
                   visual_flags: [
                     'Persistent visible redness',
@@ -1113,6 +1170,40 @@ analyze_skin_sensitivity: {
                   ],
                 },
               ],
+               "backend_analysis": {
+                "description": "Provide detailed diagnostic indices for downstream treatment logic.",
+                "sub_indices": {
+                  "erythema_intensity_index": {
+                    "description": "Normalized redness value from red-channel histogram compared to neutral reference.",
+                    "formula": "(mean_red_intensity - baseline) / max_intensity",
+                    "output_range": "0-1"
+                  },
+                  "vascular_pattern_index": {
+                    "description": "Pattern detection of linear red features in PPL/white mode using morphological filtering.",
+                    "formula": "vessel_pixel_density / total_skin_pixels",
+                    "output_range": "0-1"
+                  },
+                  "barrier_uniformity_index": {
+                    "description": "Variation in light reflection uniformity under PPL (inverse proxy for barrier integrity).",
+                    "formula": "1 - (stddev_reflectance / mean_reflectance)",
+                    "output_range": "0-1"
+                  },
+                  "flaking_texture_index": {
+                    "description": "Micro-texture variance in white-mode high-frequency channels indicating scaling or dryness.",
+                    "formula": "variance_high_freq / normalization_factor",
+                    "output_range": "0-1"
+                  }
+                },
+                "output_interpretation": {
+                  "sensitivity_pattern": {
+                    "rules": [
+                      {"if": "vascular_pattern_index> 0.5 and erythema_intensity_index> 0.45", "then": "Vascular-dominant"},
+                      {"if": "barrier_uniformity_index< 0.6 and flaking_texture_index> 0.4", "then": "Barrier-impaired"},
+                      {"if": "erythema_intensity_index< 0.45 and vascular_pattern_index< 0.3", "then": "Low-reactive / Normal"}
+                    ]
+                  }
+                }
+              },
               decision_logic: {
                 description:
                   'Quantify redness, vascular prominence, and barrier integrity, then output single score with backend detail.',
@@ -1121,12 +1212,19 @@ analyze_skin_sensitivity: {
                   '2. Detect vascular patterns via PPL edge filtering to derive vascular_pattern_index.',
                   '3. Assess barrier_uniformity_index from reflectance variance.',
                   '4. Evaluate flaking_texture_index from high-frequency white-mode texture.',
-                  '5. Combine weighted indices to calculate global_sensitivity_index (0–1).',
-                  '6. Map global_sensitivity_index to discrete score thresholds (0–3).',
+                  '5. Combine weighted indices to calculate global_sensitivity_index (0-1).',
+                  '6. Map global_sensitivity_index to discrete score thresholds (0-3).',
                   '7. Determine sensitivity_pattern classification for backend treatment mapping.',
                 ],
                 output_format: {
-                  final_score: 'integer (0–3)',
+                  final_score: 'integer (0-3)',
+                  "backend_details": {
+                    "erythema_intensity_index": "float (0-1)",
+                    "vascular_pattern_index": "float (0-1)",
+                    "barrier_uniformity_index": "float (0-1)",
+                    "flaking_texture_index": "float (0-1)",
+                    "sensitivity_pattern": "Vascular-dominant / Barrier-impaired / Low-reactive"
+                  }
                 },
                 single_output_mode: true,
               },
@@ -1161,25 +1259,25 @@ analyze_barrier_health: {
               threshold_guidelines: {
                 surface_texture_uniformity: {
                   excellent: '>0.85',
-                  mild_roughness: '0.7–0.85',
-                  moderate_roughness: '0.55–0.7',
+                  mild_roughness: '0.7-0.85',
+                  moderate_roughness: '0.55-0.7',
                   poor: '<0.55',
                 },
                 hydration_signal_index: {
                   well_hydrated: '>0.65',
-                  slightly_low: '0.45–0.65',
+                  slightly_low: '0.45-0.65',
                   low: '<0.45',
                 },
                 redness_intensity_index: {
                   none: '<0.25',
-                  mild: '0.25–0.45',
-                  moderate: '0.45–0.65',
+                  mild: '0.25-0.45',
+                  moderate: '0.45-0.65',
                   severe: '>0.65',
                 },
                 flaking_visibility_index: {
                   none: '<0.2',
-                  fine_flakes: '0.2–0.4',
-                  coarse_flakes: '0.4–0.6',
+                  fine_flakes: '0.2-0.4',
+                  coarse_flakes: '0.4-0.6',
                   scaling: '>0.6',
                 },
               },
@@ -1203,9 +1301,9 @@ analyze_barrier_health: {
                   score: 1,
                   label: 'Mildly Compromised Barrier',
                   criteria: {
-                    surface_texture_uniformity: '0.7–0.85',
-                    hydration_signal_index: '0.45–0.65',
-                    redness_intensity_index: '0.25–0.45',
+                    surface_texture_uniformity: '0.7-0.85',
+                    hydration_signal_index: '0.45-0.65',
+                    redness_intensity_index: '0.25-0.45',
                   },
                   visual_flags: [
                     'Slight dryness or faint redness in cheeks or nose',
@@ -1216,10 +1314,10 @@ analyze_barrier_health: {
                   score: 2,
                   label: 'Moderately Compromised Barrier',
                   criteria: {
-                    surface_texture_uniformity: '0.55–0.7',
+                    surface_texture_uniformity: '0.55-0.7',
                     hydration_signal_index: '<0.45',
-                    redness_intensity_index: '0.45–0.65',
-                    flaking_visibility_index: '0.3–0.5',
+                    redness_intensity_index: '0.45-0.65',
+                    flaking_visibility_index: '0.3-0.5',
                   },
                   visual_flags: [
                     'Visible patchy redness and rough texture',
@@ -1250,11 +1348,11 @@ analyze_barrier_health: {
                   '2. Compute hydration_signal_index from white-mode reflectance ratio.',
                   '3. Quantify redness_intensity_index from red-channel analysis in white mode.',
                   '4. Detect flaking_visibility_index using micro-texture variance.',
-                  '5. Combine all weighted indices → global_barrier_index (0–1).',
-                  '6. Map to discrete barrier score (0–3).',
+                  '5. Combine all weighted indices → global_barrier_index (0-1).',
+                  '6. Map to discrete barrier score (0-3).',
                 ],
                 output_format: {
-                  final_score: 'integer (0–3)',
+                  final_score: 'integer (0-3)',
                 },
                 single_output_mode: true,
               },
@@ -1343,24 +1441,24 @@ analyze_periorbital_health: {
               threshold_guidelines: {
                 erythema_intensity_index: {
                   none: '<0.25',
-                  mild: '0.25–0.45',
-                  moderate: '0.45–0.65',
+                  mild: '0.25-0.45',
+                  moderate: '0.45-0.65',
                   severe: '>0.65',
                 },
                 vascular_pattern_density: {
                   none: '<0.2',
-                  mild_capillary: '0.2–0.4',
-                  moderate_diffuse: '0.4–0.6',
+                  mild_capillary: '0.2-0.4',
+                  moderate_diffuse: '0.4-0.6',
                   dense_telangiectatic: '>0.6',
                 },
                 distribution_symmetry_index: {
                   balanced: '<0.25',
-                  slightly_asymmetric: '0.25–0.45',
+                  slightly_asymmetric: '0.25-0.45',
                   marked_asymmetry: '>0.45',
                 },
                 color_uniformity_index: {
                   even: '>0.8',
-                  patchy: '0.6–0.8',
+                  patchy: '0.6-0.8',
                   uneven: '<0.6',
                 },
               },
@@ -1382,8 +1480,8 @@ analyze_periorbital_health: {
                   score: 1,
                   label: 'Mild Vascularity / Redness',
                   criteria: {
-                    erythema_intensity_index: '0.25–0.45',
-                    vascular_pattern_density: '0.2–0.4',
+                    erythema_intensity_index: '0.25-0.45',
+                    vascular_pattern_density: '0.2-0.4',
                   },
                   visual_flags: [
                     'Faint redness over cheeks or nose',
@@ -1395,9 +1493,9 @@ analyze_periorbital_health: {
                   score: 2,
                   label: 'Moderate Vascularity / Redness',
                   criteria: {
-                    erythema_intensity_index: '0.45–0.65',
-                    vascular_pattern_density: '0.4–0.6',
-                    color_uniformity_index: '0.6–0.8',
+                    erythema_intensity_index: '0.45-0.65',
+                    vascular_pattern_density: '0.4-0.6',
+                    color_uniformity_index: '0.6-0.8',
                   },
                   visual_flags: [
                     'Diffuse redness across cheeks and nose',
@@ -1420,24 +1518,58 @@ analyze_periorbital_health: {
                   ],
                 },
               ],
+              "backend_analysis": {
+                "description": "Indices to support downstream treatment logic.",
+                "sub_indices": {
+                  "erythema_intensity_index": {
+                    "description": "Normalized red-channel intensity relative to neutral skin baseline.",
+                    "formula": "(mean_red_intensity - baseline) / max_intensity",
+                    "output_range": "0-1"
+                  },
+                  "vascular_pattern_density": {
+                    "description": "Ratio of vessel-like linear structures to total area in red/PPL mode.",
+                    "formula": "vessel_pixels / total_skin_pixels",
+                    "output_range": "0-1"
+                  },
+                  "distribution_symmetry_index": {
+                    "description": "Left-right asymmetry of redness distribution.",
+                    "formula": "|left_intensity - right_intensity| / mean_intensity",
+                    "output_range": "0-1"
+                  },
+                  "color_uniformity_index": {
+                    "description": "Homogeneity of hue across skin; lower = more patchy.",
+                    "formula": "1 - (stddev_hue / mean_hue)",
+                    "output_range": "0-1"
+                  }
+                },
+                "output_interpretation": {
+                  "vascular_pattern_type": {
+                    "rules": [
+                      {"if": "vascular_pattern_density< 0.3", "then": "Minimal / Reactive"},
+                      {"if": "0.3-0.6", "then": "Diffuse Capillary"},
+                      {"if": ">0.6", "then": "Telangiectatic / Rosacea-like"}
+                    ]
+                  }
+                }
+              },
               decision_logic: {
-                description: 'Quantify redness and vascular prominence to assign a 0–3 grade.',
+                description: 'Quantify redness and vascular prominence to assign a 0-3 grade.',
                 steps: [
                   '1. Analyze red and white mode histograms to compute erythema_intensity_index.',
                   '2. Detect linear vascular features in PPL/red modes → vascular_pattern_density.',
                   '3. Compute symmetry and color uniformity indices.',
-                  '4. Combine weighted indices into global_vascularity_index (0–1).',
-                  '5. Map to discrete score thresholds (0–3).',
+                  '4. Combine weighted indices into global_vascularity_index (0-1).',
+                  '5. Map to discrete score thresholds (0-3).',
                 ],
                 output_format: {
-                  final_score: 'integer (0–3)',
-                  confidence_score: 'float (0–1)',
-                  global_vascularity_index: 'float (0–1)',
+                  final_score: 'integer (0-3)',
+                  confidence_score: 'float (0-1)',
+                  global_vascularity_index: 'float (0-1)',
                   backend_details: {
-                    erythema_intensity_index: 'float (0–1)',
-                    vascular_pattern_density: 'float (0–1)',
-                    distribution_symmetry_index: 'float (0–1)',
-                    color_uniformity_index: 'float (0–1)',
+                    erythema_intensity_index: 'float (0-1)',
+                    vascular_pattern_density: 'float (0-1)',
+                    distribution_symmetry_index: 'float (0-1)',
+                    color_uniformity_index: 'float (0-1)',
                     vascular_pattern_type: 'Minimal / Diffuse / Telangiectatic',
                   },
                 },
@@ -1506,24 +1638,24 @@ analyze_periorbital_health: {
               threshold_guidelines: {
                 surface_reflectance_uniformity: {
                   low: '<0.5',
-                  moderate: '0.5–0.7',
-                  high: '0.7–0.85',
+                  moderate: '0.5-0.7',
+                  high: '0.7-0.85',
                   very_high: '>0.85',
                 },
                 color_luminance_index: {
                   dull: '<0.4',
-                  mild: '0.4–0.6',
-                  bright: '0.6–0.75',
+                  mild: '0.4-0.6',
+                  bright: '0.6-0.75',
                   radiant: '>0.75',
                 },
                 subsurface_diffusion_index: {
                   low: '<0.5',
-                  moderate: '0.5–0.7',
+                  moderate: '0.5-0.7',
                   high: '>0.7',
                 },
                 shadow_contrast_index: {
                   harsh: '>0.5',
-                  moderate: '0.3–0.5',
+                  moderate: '0.3-0.5',
                   soft: '<0.3',
                 },
               },
@@ -1546,8 +1678,8 @@ analyze_periorbital_health: {
                   score: 1,
                   label: 'Mild Glow',
                   criteria: {
-                    surface_reflectance_uniformity: '0.5–0.7',
-                    color_luminance_index: '0.4–0.6',
+                    surface_reflectance_uniformity: '0.5-0.7',
+                    color_luminance_index: '0.4-0.6',
                   },
                   visual_flags: [
                     'Slight uneven glow, moderate reflection',
@@ -1558,9 +1690,9 @@ analyze_periorbital_health: {
                   score: 2,
                   label: 'Healthy Glow / Moderate Luminosity',
                   criteria: {
-                    surface_reflectance_uniformity: '0.7–0.85',
-                    color_luminance_index: '0.6–0.75',
-                    subsurface_diffusion_index: '0.5–0.7',
+                    surface_reflectance_uniformity: '0.7-0.85',
+                    color_luminance_index: '0.6-0.75',
+                    subsurface_diffusion_index: '0.5-0.7',
                   },
                   visual_flags: [
                     'Even, healthy light reflection across T-zone and cheeks',
@@ -1584,6 +1716,40 @@ analyze_periorbital_health: {
                   ],
                 },
               ],
+              "backend_analysis": {
+                "description": "Provide sub-indices for AI-based treatment optimization.",
+                "sub_indices": {
+                  "surface_reflectance_uniformity": {
+                    "description": "Measure of evenness of surface brightness under white mode.",
+                    "formula": "1 - (stddev_reflectance / mean_reflectance)",
+                    "output_range": "0-1"
+                  },
+                  "color_luminance_index": {
+                    "description": "Perceived brightness from LAB color space (L channel normalized).",
+                    "formula": "mean_L_value / max_L_reference",
+                    "output_range": "0-1"
+                  },
+                  "subsurface_diffusion_index": {
+                    "description": "Red-channel light spread variance in brown/PPL mode (proxy for translucency).",
+                    "formula": "diffuse_reflection / total_reflection",
+                    "output_range": "0-1"
+                  },
+                  "shadow_contrast_index": {
+                    "description": "Ratio of shadow edge contrast to mean brightness (inverse of glow).",
+                    "formula": "edge_contrast / mean_reflectance",
+                    "output_range": "0-1"
+                  }
+                },
+                "output_interpretation": {
+                  "luminosity_pattern": {
+                    "rules": [
+                      {"if": "subsurface_diffusion_index> 0.7 and color_luminance_index> 0.7", "then": "Deep Radiance"},
+                      {"if": "surface_reflectance_uniformity> 0.75 and shadow_contrast_index< 0.3", "then": "Surface Radiance"},
+                      {"if": "surface_reflectance_uniformity< 0.6 and color_luminance_index< 0.5", "then": "Dull / Uneven"}
+                    ]
+                  }
+                }
+              },
               decision_logic: {
                 description:
                   'Combine reflectance, luminance, diffusion, and contrast indices into one glow score.',
@@ -1592,11 +1758,18 @@ analyze_periorbital_health: {
                   '2. Extract color_luminance_index from LAB L-channel normalization.',
                   '3. Derive subsurface_diffusion_index from brown/PPL red-channel spread.',
                   '4. Calculate shadow_contrast_index from brightness edge variance.',
-                  '5. Combine weighted indices into global_luminosity_index (0–1).',
-                  '6. Map to discrete glow score (0–3).',
+                  '5. Combine weighted indices into global_luminosity_index (0-1).',
+                  '6. Map to discrete glow score (0-3).',
                 ],
                 output_format: {
-                  final_score: 'integer (0–3)',
+                  final_score: 'integer (0-3)',
+                  "backend_details": {
+                    "surface_reflectance_uniformity": "float (0-1)",
+                    "color_luminance_index": "float (0-1)",
+                    "subsurface_diffusion_index": "float (0-1)",
+                    "shadow_contrast_index": "float (0-1)",
+                    "luminosity_pattern": "Deep Radiance / Surface Radiance / Dull"
+                  }
                 },
                 single_output_mode: true,
               },
@@ -1633,24 +1806,24 @@ analyze_periorbital_health: {
               threshold_guidelines: {
                 comedone_count_density: {
                   none: '<0.05 (≤1 lesion / cm²)',
-                  mild: '0.05–0.15 (2–5 lesions / cm²)',
-                  moderate: '0.15–0.3 (6–10 lesions / cm²)',
+                  mild: '0.05-0.15 (2-5 lesions / cm²)',
+                  moderate: '0.15-0.3 (6-10 lesions / cm²)',
                   severe: '>0.3 (>10 lesions / cm²)',
                 },
                 comedone_cluster_index: {
                   isolated: '<0.2',
-                  scattered: '0.2–0.4',
-                  localized_clusters: '0.4–0.6',
+                  scattered: '0.2-0.4',
+                  localized_clusters: '0.4-0.6',
                   confluent_clusters: '>0.6',
                 },
                 porphyrin_overlap_index: {
                   none: '<0.2',
-                  partial: '0.2–0.5',
+                  partial: '0.2-0.5',
                   strong: '>0.5',
                 },
                 texture_contrast_index: {
                   smooth: '<0.3',
-                  mild_irregularity: '0.3–0.5',
+                  mild_irregularity: '0.3-0.5',
                   coarse: '>0.5',
                 },
               },
@@ -1672,8 +1845,8 @@ analyze_periorbital_health: {
                   score: 1,
                   label: 'Mild Comedonal Activity',
                   criteria: {
-                    comedone_count_density: '0.05–0.15',
-                    comedone_cluster_index: '0.2–0.4',
+                    comedone_count_density: '0.05-0.15',
+                    comedone_cluster_index: '0.2-0.4',
                   },
                   visual_flags: [
                     'Few scattered comedones mainly on T-zone',
@@ -1684,9 +1857,9 @@ analyze_periorbital_health: {
                   score: 2,
                   label: 'Moderate Comedonal Activity',
                   criteria: {
-                    comedone_count_density: '0.15–0.3',
-                    comedone_cluster_index: '0.4–0.6',
-                    porphyrin_overlap_index: '0.2–0.5',
+                    comedone_count_density: '0.15-0.3',
+                    comedone_cluster_index: '0.4-0.6',
+                    porphyrin_overlap_index: '0.2-0.5',
                   },
                   visual_flags: [
                     'Multiple clustered comedones across forehead and cheeks',
@@ -1709,18 +1882,66 @@ analyze_periorbital_health: {
                   ],
                 },
               ],
+              "backend_analysis": {
+                "description": "Provide detailed indices for AI-based acne treatment logic.",
+                "sub_indices": {
+                  "comedone_count_density": {
+                    "description": "Ratio of detected comedonal lesions per cm² in PPL/white mode.",
+                    "formula": "number_of_comedones / analyzed_area_cm²",
+                    "output_range": "0-1"
+                  },
+                  "comedone_cluster_index": {
+                    "description": "Normalized measure of comedone spatial grouping using cluster variance.",
+                    "formula": "mean_interlesion_distance_variance / total_area",
+                    "output_range": "0-1"
+                  },
+                  "porphyrin_overlap_index": {
+                    "description": "Fraction of comedone pixels overlapping UV porphyrin fluorescence.",
+                    "formula": "overlapping_pixels / total_comedone_pixels",
+                    "output_range": "0-1"
+                  },
+                  "texture_contrast_index": {
+                    "description": "Local contrast ratio around comedone regions indicating pore edge definition.",
+                    "formula": "local_contrast / mean_texture_value",
+                    "output_range": "0-1"
+                  }
+                },
+                "output_interpretation": {
+                  "comedonal_pattern_type": {
+                    "rules": [
+                      {"if": "comedone_cluster_index< 0.3", "then": "Scattered"},
+                      {"if": "comedone_cluster_index 0.3-0.6", "then": "Clustered"},
+                      {"if": "comedone_cluster_index> 0.6", "then": "Confluent"}
+                    ]
+                  },
+                  "comedone_type_tendency": {
+                    "rules": [
+                      {"if": "porphyrin_overlap_index> 0.5", "then": "Closed / Inflammatory-prone"},
+                      {"if": "porphyrin_overlap_index< 0.2", "then": "Open / Non-inflammatory"}
+                    ]
+                  }
+                }
+              },
               decision_logic: {
-                description: 'Quantify comedone density and clustering to produce a 0–3 score.',
+                description: 'Quantify comedone density and clustering to produce a 0-3 score.',
                 steps: [
                   '1. Detect and count comedones using brightness contrast and circular pattern filters in PPL/white mode.',
                   '2. Compute comedone_count_density per region (lesions/cm²).',
                   '3. Calculate comedone_cluster_index from inter-lesion proximity mapping.',
                   '4. Measure porphyrin_overlap_index from UV fluorescence overlay.',
-                  '5. Compute weighted average to form global_comedonal_index (0–1).',
-                  '6. Map global_comedonal_index to discrete severity score (0–3).',
+                  '5. Compute weighted average to form global_comedonal_index (0-1).',
+                  '6. Map global_comedonal_index to discrete severity score (0-3).',
                 ],
                 output_format: {
-                  final_score: 'integer (0–3)',
+                  final_score: 'integer (0-3)',
+                  "backend_details": {
+                    "comedone_count_density": "float (0-1)",
+                    "comedone_cluster_index": "float (0-1)",
+                    "porphyrin_overlap_index": "float (0-1)",
+                    "texture_contrast_index": "float (0-1)",
+                    "comedonal_pattern_type": "Scattered / Clustered / Confluent",
+                    "comedone_type_tendency": "Open / Closed"
+                  }
                 },
                 single_output_mode: true,
               },
@@ -1757,25 +1978,25 @@ analyze_periorbital_health: {
               threshold_guidelines: {
                 microtexture_variance_index: {
                   smooth: '<0.3',
-                  mild: '0.3–0.5',
-                  moderate: '0.5–0.7',
+                  mild: '0.3-0.5',
+                  moderate: '0.5-0.7',
                   severe: '>0.7',
                 },
                 surface_gradient_irregularity: {
                   flat: '<0.25',
-                  slightly_undulated: '0.25–0.45',
-                  moderately_undulated: '0.45–0.65',
+                  slightly_undulated: '0.25-0.45',
+                  moderately_undulated: '0.45-0.65',
                   deeply_undulated: '>0.65',
                 },
                 shadow_depth_index: {
                   none: '<0.2',
-                  shallow: '0.2–0.4',
-                  moderate: '0.4–0.6',
+                  shallow: '0.2-0.4',
+                  moderate: '0.4-0.6',
                   deep: '>0.6',
                 },
                 diffuse_reflection_loss_index: {
                   minimal: '<0.25',
-                  moderate: '0.25–0.45',
+                  moderate: '0.25-0.45',
                   high: '>0.45',
                 },
               },
@@ -1798,8 +2019,8 @@ analyze_periorbital_health: {
                   score: 1,
                   label: 'Mild Textural Irregularities',
                   criteria: {
-                    microtexture_variance_index: '0.3–0.5',
-                    surface_gradient_irregularity: '0.25–0.45',
+                    microtexture_variance_index: '0.3-0.5',
+                    surface_gradient_irregularity: '0.25-0.45',
                   },
                   visual_flags: [
                     'Fine surface roughness and minor dullness',
@@ -1810,9 +2031,9 @@ analyze_periorbital_health: {
                   score: 2,
                   label: 'Moderate Textural Irregularities',
                   criteria: {
-                    microtexture_variance_index: '0.5–0.7',
-                    surface_gradient_irregularity: '0.45–0.65',
-                    shadow_depth_index: '0.3–0.5',
+                    microtexture_variance_index: '0.5-0.7',
+                    surface_gradient_irregularity: '0.45-0.65',
+                    shadow_depth_index: '0.3-0.5',
                   },
                   visual_flags: [
                     'Micro-roughness and patchy surface light distribution',
@@ -1836,6 +2057,39 @@ analyze_periorbital_health: {
                   ],
                 },
               ],
+              "backend_analysis": {
+                "description": "Backend indices to characterize surface roughness and structural texture loss.",
+                "sub_indices": {
+                  "microtexture_variance_index": {
+                    "description": "Pixel-level brightness variance over 3x3 to 7x7 window in PPL mode.",
+                    "formula": "stddev_local_intensity / mean_intensity",
+                    "output_range": "0-1"
+                  },
+                  "surface_gradient_irregularity": {
+                    "description": "Standard deviation of surface gradients from 3D texture map approximation.",
+                    "formula": "stddev(surface_normals)",
+                    "output_range": "0-1"
+                  },
+                  "shadow_depth_index": {
+                    "description": "Contrast ratio between highlight and adjacent shadow under directional light.",
+                    "formula": "(mean_highlight - mean_shadow) / mean_reflectance",
+                    "output_range": "0-1"
+                  },
+                  "diffuse_reflection_loss_index": {
+                    "description": "Loss of reflected light spread under PPL mode (inverse glow metric).",
+                    "formula": "1 - (diffuse_reflection / total_reflection)",
+                    "output_range": "0-1"
+                  }
+                },
+                "output_interpretation": {
+                  "texture_pattern_type": {
+                    "rules": [
+                      {"if": "shadow_depth_index< 0.3 and surface_gradient_irregularity< 0.45", "then": "Superficial Roughness"},
+                      {"if": "shadow_depth_index>= 0.3 and surface_gradient_irregularity>= 0.45", "then": "Deep Undulation / Scarring"}
+                    ]
+                  }
+                }
+              },
               decision_logic: {
                 description: 'Quantify and classify textural irregularities beyond pore size.',
                 steps: [
@@ -1843,11 +2097,18 @@ analyze_periorbital_health: {
                   '2. Compute surface_gradient_irregularity from gradient-normal field.',
                   '3. Measure shadow_depth_index using oblique white-mode contrast analysis.',
                   '4. Calculate diffuse_reflection_loss_index from PPL reflectance data.',
-                  '5. Combine all indices using parameter_weights → global_texture_irregularity_index (0–1).',
-                  '6. Map to discrete severity score (0–3).',
+                  '5. Combine all indices using parameter_weights → global_texture_irregularity_index (0-1).',
+                  '6. Map to discrete severity score (0-3).',
                 ],
                 output_format: {
-                  final_score: 'integer (0–3)',
+                  final_score: 'integer (0-3)',
+                  "backend_details": {
+                    "microtexture_variance_index": "float (0-1)",
+                    "surface_gradient_irregularity": "float (0-1)",
+                    "shadow_depth_index": "float (0-1)",
+                    "diffuse_reflection_loss_index": "float (0-1)",
+                    "texture_pattern_type": "Superficial Roughness / Deep Undulation"
+                  }
                 },
                 single_output_mode: true,
               },
@@ -1882,19 +2143,19 @@ analyze_periorbital_health: {
               threshold_guidelines: {
                 regional_variance_index: {
                   even: '<0.2',
-                  T_zone_predominant: '0.2–0.4',
-                  mixed: '0.4–0.6',
+                  T_zone_predominant: '0.2-0.4',
+                  mixed: '0.4-0.6',
                   global: '>0.6',
                 },
                 porphyrin_distribution_index: {
                   uniform: '<0.25',
-                  T_zone_focused: '0.25–0.45',
-                  mixed: '0.45–0.65',
+                  T_zone_focused: '0.25-0.45',
+                  mixed: '0.45-0.65',
                   diffuse: '>0.65',
                 },
                 shine_symmetry_index: {
                   balanced: '<0.25',
-                  slightly_asymmetric: '0.25–0.45',
+                  slightly_asymmetric: '0.25-0.45',
                   marked_asymmetry: '>0.45',
                 },
               },
@@ -1916,8 +2177,8 @@ analyze_periorbital_health: {
                   score: 1,
                   label: 'T-zone Predominant',
                   criteria: {
-                    regional_variance_index: '0.2–0.4',
-                    porphyrin_distribution_index: '0.25–0.45',
+                    regional_variance_index: '0.2-0.4',
+                    porphyrin_distribution_index: '0.25-0.45',
                   },
                   visual_flags: [
                     'Shine and porphyrins localized to forehead, nose, and chin',
@@ -1929,8 +2190,8 @@ analyze_periorbital_health: {
                   score: 2,
                   label: 'Mixed Distribution',
                   criteria: {
-                    regional_variance_index: '0.4–0.6',
-                    porphyrin_distribution_index: '0.45–0.65',
+                    regional_variance_index: '0.4-0.6',
+                    porphyrin_distribution_index: '0.45-0.65',
                     shine_symmetry_index: '<0.4',
                   },
                   visual_flags: [
@@ -1953,18 +2214,54 @@ analyze_periorbital_health: {
                   ],
                 },
               ],
+              "backend_analysis": {
+                "description": "Compute regional indices for oil distribution uniformity and symmetry.",
+                "sub_indices": {
+                  "regional_variance_index": {
+                    "description": "Normalized variance of sebum reflectance between T-zone and cheeks.",
+                    "formula": "stddev(region_reflectance) / mean_reflectance",
+                    "output_range": "0-1"
+                  },
+                  "porphyrin_distribution_index": {
+                    "description": "Ratio of UV porphyrin fluorescence intensity between T-zone and other regions.",
+                    "formula": "|mean_T_zone_UV - mean_cheeks_UV| / total_mean_UV",
+                    "output_range": "0-1"
+                  },
+                  "shine_symmetry_index": {
+                    "description": "Left-right reflectance asymmetry within same region type.",
+                    "formula": "|left_reflectance - right_reflectance| / mean_reflectance",
+                    "output_range": "0-1"
+                  }
+                },
+                "output_interpretation": {
+                  "distribution_pattern_type": {
+                    "rules": [
+                      {"if": "regional_variance_index< 0.2", "then": "Even / Balanced"},
+                      {"if": "0.2-0.4", "then": "T-zone Predominant"},
+                      {"if": "0.4-0.6", "then": "Mixed"},
+                      {"if": ">0.6", "then": "Global / Diffuse"}
+                    ]
+                  }
+                }
+              },
               decision_logic: {
-                description: 'Quantify oil distribution pattern and assign 0–3 score.',
+                description: 'Quantify oil distribution pattern and assign 0-3 score.',
                 steps: [
                   '1. Measure regional reflectance ratios from white light images (forehead, nose, cheeks, chin).',
                   '2. Compute regional_variance_index across regions.',
                   '3. Derive porphyrin_distribution_index from UV fluorescence map.',
                   '4. Calculate shine_symmetry_index across bilateral facial halves.',
-                  '5. Combine all using parameter_weights → global_oil_distribution_index (0–1).',
-                  '6. Map to discrete severity score (0–3).',
+                  '5. Combine all using parameter_weights → global_oil_distribution_index (0-1).',
+                  '6. Map to discrete severity score (0-3).',
                 ],
                 output_format: {
-                  final_score: 'integer (0–3)',
+                  final_score: 'integer (0-3)',
+                  "backend_details": {
+                    "regional_variance_index": "float (0-1)",
+                    "porphyrin_distribution_index": "float (0-1)",
+                    "shine_symmetry_index": "float (0-1)",
+                    "distribution_pattern_type": "Even / T-zone / Mixed / Global"
+                  }
                 },
                 single_output_mode: true,
               },
@@ -2328,6 +2625,14 @@ You must think and act like a **qualified dermatologist** while designing a prac
 
 ### 🧠 INTELLIGENT PLANNING LOGIC
 
+Always use all backend diagnostic values generated by the scoring JSON
+(sub-features, weights, region-severity, lighting-confidence, numerical indices)
+to decide modality choice, treatment strength, session sequencing, and safety.
+
+Rule: avoid low-impact steps unless time leftover
+Rule: prioritize highest-impact modalities over time
+Rule: avoid modality duplication (e.g., peel + mask + hydrafacial)
+
 1. **If "treatment_plan_type" = "single":**
    - Patient has chosen a one-time session focused on limited, top-priority concerns.
    - Combine the most **effective** modalities for visible improvement in one visit.
@@ -2342,7 +2647,7 @@ You must think and act like a **qualified dermatologist** while designing a prac
 3. **For both types:**
    - Respect all **clinical_constraints**.
    - Use only listed machines, products, and peels.
-   - If combination treatments are compatible, include them within a single session.
+   - Use only the minimum number of modalities required for maximum clinical improvement.Choose the highest-impact modality for each concern and avoid redundancy.
    - Always add a **lymphatic drainage massage step** where appropriate.
    - Time Constraint Rule : Use a standard session duration of 60 ± 15 minutes as a guideline, but do NOT exclude clinically superior modalities (e.g., Q-switch, Carbon Facial, HIFU, Microdermabrasion, RF, advanced peels) only because they may increase session time. If a high-efficacy modality is indicated by the diagnosis and clinically safe under the constraints, it should be prioritized even if the total estimated duration exceeds the standard range. In such cases, include the recommended modality and provide an adjusted session time that realistically accommodates the treatment while keeping patient outcomes and practicality in mind.
    - Always use all backend diagnostic values generated by the scoring JSON (sub-features, weights,region-severity, lighting-confidence, numerical indices) to decide modality choice, treatment strength, session sequencing, and contraindications.
@@ -2420,7 +2725,8 @@ json
   "You are free to choose any available machine, product, jet_infusion_solutions, peelOffMasks, ivInfusions, chemicalPeels, special ingredients for facials type to maximize visible improvement.",
   "Modalities may be combined if clinically compatible.",
   "Always respect all doctor-defined clinical constraints.",
-  "When scheduling conflicts arise between time and efficacy, efficacy must take priority unless a contraindication explicitly prohibits that modality."
+  "Always prioritize clinical effectiveness over completeness.Use your full dermatology knowledge and reasoning to select the optimal treatment modalities.",
+  "Never combine multiple exfoliation techniques in the same session.Choose only one: Microdermabrasion OR Hydrafacial OR a chemical peel."
 ]
 
 ### 🚫 OUTPUT RULES
