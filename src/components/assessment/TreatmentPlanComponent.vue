@@ -50,7 +50,7 @@ import { storeToRefs } from 'pinia'
 import SelectedPlan from 'src/components/assessment/SelectedPlan.vue'
 // import RecommendedFullPlan from 'src/components/assessment/RecommendedFullPlan.vue'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
-// import { useQuasar, LocalStorage, Loading } from 'quasar'
+import { Loading } from 'quasar'
 
 // const $q = useQuasar()
 
@@ -79,7 +79,10 @@ function postAssessment() {
   emit('post_assessment')
 }
 
-const exportToPDF = () => {
+const exportToPDF = async () => {
+  Loading.show({ message: 'Generating PDF report...' })
+  await new Promise((r) => setTimeout(r, 1000))
+
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.width - 20
   const lineHeight = 6
@@ -128,7 +131,7 @@ const exportToPDF = () => {
 
   // Start main content
   doc.addPage()
-  y = 25
+  y = 15
 
   // ================================================================
   // EACH SESSION
@@ -139,7 +142,7 @@ const exportToPDF = () => {
     doc.setFontSize(16)
     y = addWrappedText(
       doc,
-      `Session ${treatment.session_number}: ${treatment.title.replaceAll(/[-–→]/g, '-')}`,
+      `Session ${treatment.session_number}: ${treatment.title.replaceAll(/[‑-–→]/g, '-')}`,
       10,
       y,
       pageWidth,
@@ -168,7 +171,14 @@ const exportToPDF = () => {
 
     treatment.preparations_checklist_for_therapist.forEach((item) => {
       addLineIfNeeded(0)
-      y = addWrappedText(doc, `• ${item}`, 15, y, pageWidth - 5, lineHeight)
+      y = addWrappedText(
+        doc,
+        `• ${item.replaceAll(/[‑-–→]/g, '-')}`,
+        15,
+        y,
+        pageWidth - 5,
+        lineHeight,
+      )
     })
 
     addLineIfNeeded(5)
@@ -208,7 +218,7 @@ const exportToPDF = () => {
       doc.setFont('helvetica', 'italic')
       y = addWrappedText(
         doc,
-        `Equipment: ${step.ingredients_equipments.join(', ')}`,
+        `Equipment: ${step.ingredients_equipments.join(', ').replaceAll(/[‑-–→]/g, '-')}`,
         20,
         y,
         pageWidth - 15,
@@ -219,7 +229,7 @@ const exportToPDF = () => {
       doc.setFont('helvetica', 'normal')
       y = addWrappedText(
         doc,
-        step.how_to_do.replaceAll(/[-–→]/g, '-'),
+        step.how_to_do.replaceAll(/[‑-–→]/g, '-'),
         20,
         y,
         pageWidth - 15,
@@ -233,7 +243,7 @@ const exportToPDF = () => {
     if (index < treatmentPlan.value.treatments.length - 1) {
       addLineIfNeeded(15)
       doc.addPage()
-      y = 25
+      y = 15
     }
   })
 
@@ -271,7 +281,7 @@ const exportToPDF = () => {
       align: 'right',
     })
   }
-
+  Loading.hide()
   doc.save(`${assessmentData.value.name} - Treatment Plan.pdf`)
 }
 

@@ -26,16 +26,31 @@
             <q-card class="section-card soft-bg q-pa-lg">
               <div class="title">{{ session?.title }}</div>
               <div class="desc">{{ step.how_to_do }}</div>
+              <div class="q-mt-md">
+                <div class="info-main">Ingredients</div>
+
+                <q-list>
+                  <q-item
+                    v-for="(ie, idx) in step.ingredients_equipments"
+                    :key="idx"
+                    clickable
+                    v-ripple
+                    class="q-pl-none"
+                  >
+                    <q-item-section avatar class="ingredients-list" top>
+                      <q-avatar class="gredient" text-color="white" icon="science" size="24px" />
+                    </q-item-section>
+
+                    <q-item-section>{{ ie }}</q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
             </q-card>
 
-            <div class="row q-col-gutter-md q-mt-md">
-              <!-- Ingredients -->
+            <!-- <div class="row q-col-gutter-md q-mt-md">
               <div class="col-md-6 col-sm-6 col-xs-12">
                 <q-card class="info-card soft-bg q-pa-lg full-height">
                   <div class="info-main">Ingredients</div>
-                  <!-- <div v-for="(ie, idx) in step.ingredients_equipments" :key="idx" class="info-sub">
-                    – {{ ie }}
-                  </div> -->
                   <q-list>
                     <q-item
                       v-for="(ie, idx) in step.ingredients_equipments"
@@ -54,7 +69,6 @@
                 </q-card>
               </div>
 
-              <!-- TIMER -->
               <div class="col-md-6 col-sm-6 col-xs-12">
                 <q-card class="info-card soft-bg q-pa-lg full-height">
                   <TreatmentTimer
@@ -65,7 +79,7 @@
                   />
                 </q-card>
               </div>
-            </div>
+            </div> -->
 
             <!-- Complete Button -->
             <q-card class="preview-card q-pa-lg text-center q-mt-md">
@@ -76,15 +90,16 @@
           <!-- RIGHT SIDE -->
           <div v-if="session" class="col-md-4 col-sm-12 col-xs-12">
             <q-card class="preview-card q-pa-lg full-height">
-              <div class="preview-label">Preview</div>
-              <div class="preview-title">Concerns Addressed</div>
-
-              <div
-                v-for="(c, index) in session.concerns_addressed"
-                :key="index"
-                class="preview-desc"
-              >
-                - {{ c.concern }}
+              <div class="preview-label">Timer</div>
+              <div class="col-md-6 col-sm-6 col-xs-12 q-mt-md">
+                <q-card flat class="timer-card q-pa-lg full-height">
+                  <TreatmentTimer
+                    ref="timerRef"
+                    :duration="Number(step.duration.replace(' mins', '') * 60) || 0"
+                    :autoStart="true"
+                    @finished="onTimerFinished"
+                  />
+                </q-card>
               </div>
             </q-card>
           </div>
@@ -152,7 +167,7 @@ const session = computed(() => store.currentSession)
 const step = computed(() => store.currentStep)
 const totalSteps = computed(() => store.totalSteps)
 const isFirstStep = computed(() => store.currentStepIndex === 0)
-const stepDuration = computed(() => Number(step.value?.duration) * 60 || 0)
+const stepDuration = computed(() => Number(step.value?.duration.replace(' mins', '')) * 60 || 0)
 
 /* -------------------------------------------
    LOAD DATA

@@ -6,12 +6,12 @@
       <section>
         <h2 class="text-sm font-semibold tracking-wider mb-4">PATIENT BASICS</h2>
         <div class="space-y-4">
-          <q-input
+          <!-- <q-input
             outlined
             label="Patient ID"
             v-model="assessmentData.user_id"
             class="custom-input"
-          />
+          /> -->
 
           <q-input outlined label="Full name" v-model="assessmentData.name" class="custom-input" />
 

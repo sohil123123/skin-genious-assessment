@@ -5,9 +5,8 @@
       <q-btn
         label="Download PDF"
         icon="picture_as_pdf"
-        rounded
         no-caps
-        class="btn-custom"
+        color="positive"
         @click="exportToPDF"
       />
       <q-btn label="Next" rounded no-caps class="btn-custom" @click="emitMajorConcerns" />
@@ -62,6 +61,7 @@
 <script setup>
 import jsPDF from 'jspdf'
 import { storeToRefs } from 'pinia'
+import { Loading } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { onMounted, ref, watch } from 'vue'
 
@@ -120,7 +120,10 @@ function isScore(label) {
   return /^\d|Score|Grade/.test(label)
 }
 
-const exportToPDF = () => {
+const exportToPDF = async () => {
+  Loading.show({ message: 'Generating PDF report...' })
+  await new Promise((r) => setTimeout(r, 1000))
+
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -200,7 +203,10 @@ const exportToPDF = () => {
 
     // Score Explanation (wrapped)
     doc.setFont('helvetica', 'normal')
-    const scoreExpLines = doc.splitTextToSize(param.score_explanation.replaceAll('‑', '-'), 85)
+    const scoreExpLines = doc.splitTextToSize(
+      param.score_explanation.replaceAll(/[‑-–→]/g, '-'),
+      85,
+    )
     doc.text(scoreExpLines, 102, currentY + 13)
 
     // Move to lower row
@@ -229,7 +235,7 @@ const exportToPDF = () => {
     doc.setFont('helvetica', 'normal')
     let causeY = currentY + 8 + causesTitleLines.length * 5 + 5
     param.possible_causes.forEach((cause) => {
-      const causeLines = doc.splitTextToSize(`• ${cause.replaceAll('‑', '-')}`, 85)
+      const causeLines = doc.splitTextToSize(`• ${cause.replaceAll(/[-‑–→]/g, '-')}`, 85)
       doc.text(causeLines, 102, causeY)
       causeY += causeLines.length * 5 // Adjust for multi-line causes
     })
@@ -247,7 +253,7 @@ const exportToPDF = () => {
 
     pageNumber++
   })
-
+  Loading.hide()
   doc.save(`${assessmentData.value.name} AIA_Diagnosis_Report.pdf`)
 }
 </script>

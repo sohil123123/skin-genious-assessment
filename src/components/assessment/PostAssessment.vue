@@ -131,7 +131,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { storeToRefs } from 'pinia'
-import { useQuasar, Loading } from 'quasar'
+import { useQuasar, Loading, LocalStorage } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { ref, watch } from 'vue'
 
@@ -266,7 +266,7 @@ const downloadReport = () => {
 }
 
 const downloadVisualReport = async () => {
-  Loading.show({ message: 'Generating professional PDF report...' })
+  Loading.show({ message: 'Generating PDF report...' })
   await new Promise((r) => setTimeout(r, 1000))
 
   const doc = new jsPDF({
@@ -280,7 +280,7 @@ const downloadVisualReport = async () => {
 
   const marginX = 48
   const topPadding = 32
-  const bottomPadding = 40
+  // const bottomPadding = 40
   const contentWidth = pageWidth - marginX * 2
 
   const primaryRgb = [25, 118, 210]
@@ -296,10 +296,10 @@ const downloadVisualReport = async () => {
     'Red Light',
   ]
 
-  const sectionGap = 18
+  // const sectionGap = 18
   const cardPadding = 10
   const cardWidth = (contentWidth - 24) / 2
-  const cardHeight = 260
+  const cardHeight = 400
 
   // ----------------------------
   // COVER PAGE (Style D)
@@ -344,17 +344,17 @@ const downloadVisualReport = async () => {
 
   // Add page for content
   doc.addPage()
-  let cursorY = topPadding
 
   // ----------------------------
-  // MAIN PAGES — 8 COMPARISONS
+  // MAIN PAGES — 1 COMPARISON PER PAGE
   // ----------------------------
   for (let idx = 0; idx < 8; idx++) {
-    // page break check
-    if (cursorY + cardHeight + 120 > pageHeight - bottomPadding) {
+    // Start new page for every comparison (except first content page)
+    if (idx !== 0) {
       doc.addPage()
-      cursorY = topPadding
     }
+
+    let cursorY = topPadding
 
     // Section title
     doc.setFont('helvetica', 'bold')
@@ -367,7 +367,7 @@ const downloadVisualReport = async () => {
 
     cursorY += 18
 
-    // labels
+    // Labels
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
     doc.setTextColor(100)
@@ -376,12 +376,12 @@ const downloadVisualReport = async () => {
 
     cursorY += 8
 
-    // card coords
+    // Card positions
     const leftCardX = marginX
     const rightCardX = marginX + cardWidth + 24
     const topY = cursorY
 
-    // shadow + card left
+    // LEFT card
     doc.setFillColor(240, 240, 240)
     doc.rect(leftCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
     doc.setFillColor(255, 255, 255)
@@ -389,7 +389,7 @@ const downloadVisualReport = async () => {
     doc.setDrawColor(220)
     doc.rect(leftCardX, topY, cardWidth, cardHeight, 'S')
 
-    // shadow + card right
+    // RIGHT card
     doc.setFillColor(240, 240, 240)
     doc.rect(rightCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
     doc.setFillColor(255, 255, 255)
@@ -397,7 +397,7 @@ const downloadVisualReport = async () => {
     doc.setDrawColor(220)
     doc.rect(rightCardX, topY, cardWidth, cardHeight, 'S')
 
-    // add images
+    // Images
     const imgW = cardWidth - cardPadding * 2
     const imgH = cardHeight - cardPadding * 2
     const imgY = topY + cardPadding
@@ -421,13 +421,10 @@ const downloadVisualReport = async () => {
     addImage(beforeImg, leftCardX + cardPadding, imgY)
     addImage(afterImg, rightCardX + cardPadding, imgY)
 
-    cursorY = topY + cardHeight + 42
-
-    // divider
+    // Divider
+    let dividerY = topY + cardHeight + 42
     doc.setDrawColor(225)
-    doc.line(marginX, cursorY, pageWidth - marginX, cursorY)
-
-    cursorY += sectionGap
+    doc.line(marginX, dividerY, pageWidth - marginX, dividerY)
   }
 
   // ----------------------------
@@ -472,6 +469,7 @@ function finalizeAndExit() {
     },
   })
     .onOk(() => {
+      LocalStorage.removeItem(`treatment_flow_state_v1_${assessmentData.value.id}`)
       assessmentData.value.status = 'completed'
       emit('save_data', ['status'])
       Loading.show({
