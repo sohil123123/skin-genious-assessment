@@ -2798,7 +2798,7 @@ Append this section **after the diagnosis_report** as a new JSON object named "t
       "parameter": "<Parameter Name>",
       "current_score": "<Score or Label>",
       "target_score": "<Expected Normal Range or Label>",
-      "is_primary_concern": "<Always return false>"
+      "is_primary_concern": false
     }
   ]
 }
