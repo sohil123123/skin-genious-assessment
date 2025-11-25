@@ -2802,6 +2802,10 @@ Append this section **after the diagnosis_report** as a new JSON object named "t
     }
   ]
 }
+
+IMPORTANT RULE:
+The field "is_primary_concern" is a FIXED BOOLEAN CONSTANT.
+Its value must ALWAYS be: false
 `
 
 export const D_REPORT_USER_PROMPT = `
