@@ -247,7 +247,7 @@ async function connectDevice() {
     .get('/device/connect')
     .then((response) => {
       Notify.create({
-        type: 'positive',
+        type: response.data.success ? 'positive' : 'negative',
         message: response.data.message,
       })
       loading.value = false
