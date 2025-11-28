@@ -98,7 +98,17 @@
   </div>
 
   <!-- Start Face Scan Button -->
-  <div class="flex justify-center q-mt-lg">
+  <div class="flex justify-center q-mt-lg q-gutter-sm">
+    <q-btn
+      label="Connect To Device"
+      :loading="loading"
+      rounded
+      no-caps
+      size="18px"
+      class="btn-custom"
+      @click="connectDevice"
+    />
+
     <q-btn
       v-if="uploader?.files.length > 0 && !startProcessingStep"
       label="⚡ Process Scanned Results"
@@ -117,9 +127,12 @@ import { ref, nextTick, watch, onMounted } from 'vue'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
 import { api } from 'src/boot/axios'
+import { Notify } from 'quasar'
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
+
+const loading = ref(false)
 
 // const commonStore = useCommonStore()
 const emit = defineEmits(['process', 'save_data', 'update:startProcessingStep'])
@@ -227,6 +240,27 @@ watch(
     }
   },
 )
+
+async function connectDevice() {
+  loading.value = true
+  await api
+    .get('/device/connect')
+    .then((response) => {
+      Notify.create({
+        type: 'positive',
+        message: response.data.message,
+      })
+      loading.value = false
+    })
+    .catch((e) => {
+      console.log(e)
+      Notify.create({
+        type: 'negative',
+        message: e.response.data.message,
+      })
+      loading.value = false
+    })
+}
 
 function addUniqueFiles(newFiles) {
   const existingKeys = new Set(uploader.value.files.map((f) => f.__key))

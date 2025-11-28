@@ -20,7 +20,9 @@ export function useOpenAI() {
           Authorization: `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ metadata: { patient_id: pid } }),
+        body: JSON.stringify({
+          metadata: { patient_id: pid, assessment_id: assessmentStore.assessmentData.id },
+        }),
       })
 
       const data = await res.json()
@@ -48,6 +50,8 @@ export function useOpenAI() {
         // temperature: 2.0,
         conversation: convId,
         input,
+        prompt_cache_retention: '24h',
+        prompt_cache_key: 'ai-aesthetics-assessment-key-v1-ai',
       }
 
       const res = await fetch(`${BASE_URL}/responses`, {
@@ -58,8 +62,8 @@ export function useOpenAI() {
         },
         body: JSON.stringify(body),
       })
-      console.log('AI Response: ', res)
       const data = await res.json()
+      console.log('AI Response: ', data)
       if (!res.ok) {
         return data
       }
