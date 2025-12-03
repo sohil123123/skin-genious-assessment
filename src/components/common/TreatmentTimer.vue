@@ -8,6 +8,7 @@
       color="primary"
       track-color="grey-4"
       show-value
+      readonly
     >
       <template #default>
         <div class="text-h4 text-weight-bold">{{ formattedTime }}</div>

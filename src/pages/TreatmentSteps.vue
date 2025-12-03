@@ -95,7 +95,7 @@
                 <q-card flat class="timer-card q-pa-lg full-height">
                   <TreatmentTimer
                     ref="timerRef"
-                    :duration="Number(step.duration.replace(' mins', '') * 60) || 0"
+                    :duration="Number(step.duration.replace(/(mins|minutes)/g, '') * 60) || 0"
                     :autoStart="true"
                     @finished="onTimerFinished"
                   />
@@ -139,6 +139,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'stores/assessmentStore'
 import TreatmentTimer from 'src/components/common/TreatmentTimer.vue'
+import { useQuasar } from 'quasar'
+
+const $q = useQuasar()
 
 /* -------------------------------------------
    STORES
@@ -167,7 +170,9 @@ const session = computed(() => store.currentSession)
 const step = computed(() => store.currentStep)
 const totalSteps = computed(() => store.totalSteps)
 const isFirstStep = computed(() => store.currentStepIndex === 0)
-const stepDuration = computed(() => Number(step.value?.duration.replace(' mins', '')) * 60 || 0)
+const stepDuration = computed(
+  () => Number(step.value?.duration?.replace(/(mins|minutes)/g, '')) * 60 || 0,
+)
 
 /* -------------------------------------------
    LOAD DATA
@@ -262,10 +267,35 @@ function prev() {
 }
 
 function abort() {
-  store.resetFlow()
-  router.push({
-    name: 'TreatmentPrep',
-    params: { assessment_id: assessmentStore.assessmentData.id, session: sessionNumber },
+  $q.dialog({
+    title: 'Confirm',
+    message: 'Are you sure you want to abort the treatment?',
+    persistent: true,
+
+    ok: {
+      label: 'Yes, Abort',
+      color: 'positive',
+      icon: 'check_circle',
+    },
+    cancel: {
+      label: 'Cancel',
+      color: 'negative',
+      flat: true,
+      icon: 'close',
+    },
   })
+    .onOk(() => {
+      store.resetFlow()
+      router.push({
+        name: 'TreatmentPrep',
+        params: { assessment_id: assessmentStore.assessmentData.id, session: sessionNumber },
+      })
+    })
+    .onCancel(() => {
+      console.log('User cancelled')
+    })
+    .onDismiss(() => {
+      console.log('Dialog closed (OK or Cancel)')
+    })
 }
 </script>

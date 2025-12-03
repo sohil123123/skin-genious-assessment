@@ -134,6 +134,7 @@ import { storeToRefs } from 'pinia'
 import { useQuasar, Loading, LocalStorage } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { ref, watch } from 'vue'
+import config from 'src/config.js'
 
 const $q = useQuasar()
 
@@ -152,17 +153,15 @@ watch(
     if (val) {
       post_diagnosis.value = val.post_diagnosis
 
-      const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
-
-      const desiredImages = desiredOrder
-        .map((name) => val.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)))
-        .filter(Boolean)
+      const desiredImages = config.IMAGES_ORDER.map((name) =>
+        val.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
+      ).filter(Boolean)
 
       faceImages.value = desiredImages.map((img) => img.url)
 
-      const desiredPostImages = desiredOrder
-        .map((name) => val.post_images?.find((img) => img.url.toLowerCase().includes(`${name}.`)))
-        .filter(Boolean)
+      const desiredPostImages = config.IMAGES_ORDER.map((name) =>
+        val.post_images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
+      ).filter(Boolean)
 
       postTreatmentImages.value = desiredPostImages.map((img) => img.url)
     }

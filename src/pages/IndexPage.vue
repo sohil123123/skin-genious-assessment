@@ -95,6 +95,7 @@ import { api } from 'src/boot/axios'
 import _ from 'lodash'
 import constraints from 'src/utils/constraints'
 import { encode } from '@toon-format/toon'
+import config from 'src/config.js'
 
 // INFO: This jsons are just for testing
 import daignosisJson from 'src/info/diagnosisResponse.json'
@@ -243,11 +244,9 @@ async function handleDiagnosis(files) {
     faceImages.value.push(...uploadedImages)
   }
 
-  const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
-
-  faceImages.value = desiredOrder
-    .map((name) => faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
-    .filter(Boolean)
+  faceImages.value = config.IMAGES_ORDER.map((name) =>
+    faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
+  ).filter(Boolean)
 
   if (process.env.APP_TEST) {
     startProcessingStep.value = false
@@ -291,11 +290,9 @@ async function handlePostAssessment(files) {
     postTreatmentImages.value.push(...uploadedImages)
   }
 
-  const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
-
-  postTreatmentImages.value = desiredOrder
-    .map((name) => postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
-    .filter(Boolean)
+  postTreatmentImages.value = config.IMAGES_ORDER.map((name) =>
+    postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
+  ).filter(Boolean)
 
   if (process.env.APP_TEST) {
     startProcessingStep.value = false

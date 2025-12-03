@@ -1,2312 +1,2790 @@
 import { encode } from '@toon-format/toon'
 
 const skin_type_criteria = {
-  skin_type_classification: {
+  skin_type_classification_v4_0: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'UV', 'woods', 'blue', 'positive', 'negative'],
+      notes:
+        'Determines overall skin type based on oiliness, dryness, sensitivity, barrier quality, pore activity, pigment response and sebaceous distribution. No treatment mapping included.',
+    },
+
+    mode_roles: {
+      white: 'Texture, dryness, oil distribution, pore visibility, erythema, overall tone.',
+      woods: 'Barrier integrity, dryness fluorescence, sebum-deficient areas, keratin debris.',
+      UV: 'Subclinical inflammation, sensitivity, chronic sun reactivity.',
+      blue: 'Sebum fluorescence, oily zone mapping.',
+      positive: 'Pore-edge clarity, micro-roughness, sensitivity mapping.',
+      negative: 'Surface dryness patterning, matte vs shiny evaluation.',
+    },
+
+    primary_metrics: {
+      sebum_distribution_index: {
+        description: 'Oil pattern across T-zone and cheeks using blue & white modes.',
+        range: '0-1',
+        classification: {
+          dry: '<0.25',
+          combination: '0.25-0.55',
+          oily: '>0.55',
+        },
+      },
+      hydration_deficit_index: {
+        description: 'Dryness fluorescence and micro-flaking under woods/negative modes.',
+        range: '0-1',
+        classification: {
+          well_hydrated: '<0.25',
+          mildly_dehydrated: '0.25-0.45',
+          dehydrated: '>0.45',
+        },
+      },
+      pore_activity_index: {
+        description: 'Pore visibility, density, and congestion from positive/white modes.',
+        range: '0-1',
+        classification: {
+          minimal: '<0.25',
+          moderate: '0.25-0.55',
+          active: '>0.55',
+        },
+      },
+      barrier_integrity_index: {
+        description: 'Barrier strength inferred from woods fluorescence patterns.',
+        range: '0-1',
+        classification: {
+          strong: '<0.30',
+          compromised: '0.30-0.55',
+          weak: '>0.55',
+        },
+      },
+      sensitivity_index: {
+        description: 'Redness patterns in white + UV modes; micro-inflammation signals.',
+        range: '0-1',
+        classification: {
+          low: '<0.30',
+          moderate: '0.30-0.60',
+          high: '>0.60',
+        },
+      },
+      photo_reactivity_index: {
+        description: 'UV-enhancement relative to white light (sun reactivity).',
+        formula: 'UV_intensity / (white_intensity + 0.001)',
+        range: '0-2',
+      },
+    },
+
+    composite_skin_type_logic: {
+      hydration_vs_oil_matrix: {
+        logic: 'Combine sebum_distribution_index and hydration_deficit_index.',
+        mapping: {
+          dry: 'sebum <0.25 AND dehydration >=0.30',
+          oily: 'sebum >0.55 AND dehydration <0.40',
+          combination: 'sebum 0.25-0.55 OR mixed patterns across regions',
+          balanced: 'sebum <0.40 AND dehydration <0.30 AND minimal sensitivity',
+        },
+      },
+
+      sensitivity_modifier: {
+        rules: [
+          "If sensitivity_index>0.60 → append '_sensitive'",
+          "If barrier_integrity_index>0.55 → append '_sensitive'",
+          "If photo_reactivity_index>1.2 → append '_sun_reactive'",
+        ],
+      },
+    },
+
+    fitzpatrick_classification: {
+      inputs: [
+        'UV-visible pigment response',
+        'woods-mode melanocyte fluorescence',
+        'melanin density contrast',
+        'tanning vs burning likelihood inferred from imaging patterns',
+      ],
+      logic: {
+        FP1: 'Very low melanin signal, high UV-reactivity, minimal brown tone',
+        FP2: 'Low melanin, mild tanning markers, strong UV contrast',
+        FP3: 'Moderate melanin signal, even white/woods patterns',
+        FP4: 'High melanin density, low UV/photo-reactivity spikes',
+        FP5: 'Very high melanin, deep UV absorption, minimal visible erythema',
+        FP6: 'Exceptionally dense melanin and minimal visible UV scatter',
+      },
+    },
+
+    output_format: {
+      skin_type: 'Dry / Oily / Combination / Balanced (+ Sensitive modifiers)',
+      fitzpatrick_type: 'I-VI',
+      backend_details: {
+        sebum_distribution_index: '0-1',
+        hydration_deficit_index: '0-1',
+        pore_activity_index: '0-1',
+        barrier_integrity_index: '0-1',
+        sensitivity_index: '0-1',
+        photo_reactivity_index: '0-2',
+      },
+    },
+  },
+}
+
+const combined_barrier_sensitivity = {
+  combined_barrier_sensitivity_v6_0: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Extraction)',
+      lighting_modes_used: ['white', 'UV', 'woods', 'blue', 'positive', 'negative'],
+      regions_analyzed: ['forehead', 'cheeks', 'nose', 'chin'],
+      notes:
+        'Unified scoring combining barrier integrity + sensitivity reactivity. Vascularity kept separate. Sensitive to treatment-driven changes such as hydration, barrier repair, inflammation reduction.',
+    },
+
+    mode_roles: {
+      white: 'Surface dryness, roughness, flaking visibility, redness baseline.',
+      positive: 'Texture disruption, micro-cracks, flaky edges.',
+      negative: 'Barrier microtexture homogeneity, fine-line dryness.',
+      UV: 'Barrier disruption via hotspots, PIH-prone regions, inflammation accentuation.',
+      woods: 'Chronic dryness, keratin debris fluorescence.',
+      blue: 'Sebum vs dryness contrast, dehydrated-shine patterns.',
+    },
+
+    primary_metrics: {
+      surface_texture_uniformity: {
+        description: 'Smoothness of skin surface; reduced when barrier is compromised.',
+        range: '0-1',
+        bands: {
+          excellent: '>0.85',
+          mild_disruption: '0.70-0.85',
+          moderate_disruption: '0.55-0.70',
+          severe_disruption: '<0.55',
+        },
+      },
+
+      hydration_signal_index: {
+        description: 'Brightness uniformity + red-channel subsurface scatter (hydration proxy).',
+        range: '0-1',
+        bands: {
+          hydrated: '>0.65',
+          slightly_low: '0.45-0.65',
+          low: '0.30-0.45',
+          very_low: '<0.30',
+        },
+      },
+
+      erythema_intensity_index: {
+        description: 'Red-channel intensity relative to neutral baseline; indicates sensitivity.',
+        range: '0-1',
+        bands: {
+          none: '<0.25',
+          mild: '0.25-0.45',
+          moderate: '0.45-0.65',
+          severe: '>0.65',
+        },
+      },
+
+      vascular_pattern_index: {
+        description:
+          'Linear vascular features indicating reactive sensitivity (not chronic redness).',
+        range: '0-1',
+      },
+
+      barrier_uniformity_index: {
+        description: 'PPL reflectance stability; low values = impaired barrier.',
+        range: '0-1',
+        bands: {
+          intact: '>0.80',
+          mild_disruption: '0.60-0.80',
+          disrupted: '<0.60',
+        },
+      },
+
+      flaking_texture_index: {
+        description: 'High-frequency texture variance from dryness / micro-flaking.',
+        range: '0-1',
+      },
+    },
+
+    backend_indices: {
+      region_barrier_map: {
+        description: 'Barrier status per region (0-1).',
+        format: '{region: float}',
+      },
+
+      region_reactivity_map: {
+        description: 'Sensitivity/erythema per region (0-1).',
+        format: '{region: float}',
+      },
+
+      barrier_damage_pattern: {
+        description: 'Categorization of dominant barrier issue.',
+        rules: [
+          { if: 'flaking_texture_index> 0.5', then: 'Dryness-driven impairment' },
+          { if: 'hydration_signal_index< 0.40', then: 'Dehydration-driven impairment' },
+          { if: 'barrier_uniformity_index< 0.55', then: 'Structural barrier disruption' },
+          { if: 'erythema_intensity_index> 0.60', then: 'Inflammatory sensitivity' },
+        ],
+      },
+
+      sensitivity_pattern: {
+        description: 'Determines type of skin reactivity.',
+        rules: [
+          {
+            if: 'vascular_pattern_index> 0.5 &&erythema_intensity_index> 0.45',
+            then: 'Vascular-reactive',
+          },
+          {
+            if: 'barrier_uniformity_index< 0.55 &&flaking_texture_index> 0.30',
+            then: 'Barrier-impaired sensitive',
+          },
+          {
+            if: 'erythema_intensity_index< 0.45 &&barrier_uniformity_index> 0.60',
+            then: 'Low-reactive',
+          },
+        ],
+      },
+
+      improvability_index: {
+        description: 'How responsive the barrier + sensitivity are to treatment.',
+        formula:
+          '(hydration_signal_index * 0.4) + (surface_texture_uniformity * 0.3) + (1 - erythema_intensity_index) * 0.3',
+        range: '0-1',
+      },
+    },
+
+    combined_index_equation: {
+      description: 'Continuous barrier-sensitivity burden value (0-1).',
+      equation:
+        'BSI = 0.30*(1 - surface_texture_uniformity) + 0.25*(1 - hydration_signal_index) + 0.25*erythema_intensity_index + 0.10*vascular_pattern_index + 0.10*flaking_texture_index',
+    },
+
+    score_bins: {
+      1: {
+        range: '<0.20',
+        label: 'Strong Barrier / Low Sensitivity',
+        anchor: 'Smooth texture, well hydrated, minimal redness or reactivity.',
+      },
+      2: {
+        range: '0.20-0.35',
+        label: 'Mildly Compromised',
+        anchor: 'Early dryness or mild sensitivity but stable barrier.',
+      },
+      3: {
+        range: '0.35-0.55',
+        label: 'Moderately Compromised',
+        anchor: 'Visible dryness, uneven texture, mild-to-moderate redness.',
+      },
+      4: {
+        range: '0.55-0.75',
+        label: 'Severely Compromised',
+        anchor: 'Marked dryness, flaking, barrier disruption, persistent sensitivity.',
+      },
+      5: {
+        range: '>0.75',
+        label: 'Highly Sensitive / Barrier Breakdown',
+        anchor: 'Severe redness, scaling, burning-prone skin; urgent barrier repair needed.',
+      },
+    },
+
+    output_format: {
+      final_score: 'integer (1-5)',
+      BSI_continuous: 'float 0-1',
+      backend_details: {
+        surface_texture_uniformity: '0-1',
+        hydration_signal_index: '0-1',
+        erythema_intensity_index: '0-1',
+        vascular_pattern_index: '0-1',
+        barrier_uniformity_index: '0-1',
+        flaking_texture_index: '0-1',
+        region_barrier_map: 'dict',
+        region_reactivity_map: 'dict',
+        barrier_damage_pattern: 'string',
+        sensitivity_pattern: 'string',
+        improvability_index: '0-1',
+      },
+    },
+  },
+}
+
+const visual_acne_scoring = {
+  visual_acne_scoring_v5_1_spatial: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'UV', 'woods', 'blue', 'positive', 'negative'],
+      regions_analyzed: [
+        'forehead',
+        'cheek_left',
+        'cheek_right',
+        'nose',
+        'chin',
+        'jawline_left',
+        'jawline_right',
+      ],
+      notes:
+        'Scale 1-5 where 1 = minimal acne and 5 = severe/nodulocystic. Includes spatial maps & per-lesion coordinates for treatment-level intelligence.',
+    },
+
+    lesion_types: {
+      open_comedone: {
+        description: 'Visible dark comedones in white mode; minimal inflammation.',
+        weight: 0.18,
+      },
+      closed_comedone: { description: 'Whitish bumps in white/negative light.', weight: 0.18 },
+      papule: { description: 'Inflamed red bumps; strong signal in white + UV.', weight: 0.26 },
+      pustule: {
+        description: 'Papule with purulent center; strong positive-mode contrast.',
+        weight: 0.24,
+      },
+      nodule: { description: 'Deep, painful lesions with UV inflammatory halo.', weight: 0.14 },
+    },
+
+    region_weights: {
+      forehead: 0.15,
+      cheek_left: 0.2,
+      cheek_right: 0.2,
+      nose: 0.1,
+      chin: 0.15,
+      jawline_left: 0.1,
+      jawline_right: 0.1,
+    },
+
+    primary_metrics: {
+      total_lesion_count: {
+        description: 'Total lesions detected across all regions.',
+        range: '0-200+',
+      },
+
+      inflammatory_ratio: {
+        description: 'Inflammatory lesions / total lesions.',
+        range: '0-1',
+        bands: { low: '<0.25', moderate: '0.25-0.50', high: '>0.50' },
+      },
+
+      comedone_density_index: {
+        description: 'Closed + open comedones normalized 0-1 across the face.',
+        bands: {
+          minimal: '<0.15',
+          mild: '0.15-0.35',
+          moderate: '0.35-0.60',
+          dense: '>0.60',
+        },
+      },
+
+      inflammatory_cluster_index: {
+        description: 'Cluster analysis of papules/pustules/nodules using DBSCAN.',
+        range: '0-1',
+      },
+
+      uv_porhyrin_load: {
+        description: 'Bacterial porphyrin fluorescence load (UV mode).',
+        range: '0-1',
+      },
+
+      chronicity_index: {
+        description: 'Woods + UV composite: PIH, erythema, scarring.',
+        range: '0-1',
+      },
+    },
+
+    backend_indices: {
+      region_activity_map: {
+        description: 'Lesion count and severity per region.',
+        format: '{region: 0-1 normalized severity}',
+      },
+
+      nodular_flag: {
+        description: 'True if any nodules detected.',
+        values: ['true', 'false'],
+      },
+
+      relapse_risk_index: {
+        description: 'Likelihood of relapse (comedone density × chronicity).',
+        formula: 'comedone_density_index * chronicity_index',
+        range: '0-1',
+      },
+
+      improvability_index: {
+        description: 'Short-term treatment responsiveness.',
+        formula: '(1 - chronicity_index) * inflammatory_ratio',
+        range: '0-1',
+      },
+
+      per_lesion_coordinate_map: {
+        description: 'List of all lesions with type, coordinates, size, depth proxy.',
+        format: [
+          {
+            id: 'string lesion_id',
+            type: 'open_comedone | closed_comedone | papule | pustule | nodule',
+            region:
+              'forehead | cheek_left | cheek_right | nose | chin | jawline_left | jawline_right',
+            x: '0-1 normalized coordinate',
+            y: '0-1 normalized coordinate',
+            size_radius_px: 'float',
+            uv_halo_intensity: 'float 0-1 (depth/inflammation proxy)',
+            severity_weighted_value: 'float 0-1 using lesion_types.weight',
+          },
+        ],
+      },
+
+      inflammatory_hotspot_map: {
+        description: 'Cluster polygons for inflamed zones.',
+        format: {
+          clusters: [
+            {
+              cluster_id: 'string',
+              lesion_ids: ['L1', 'L2', 'L3'],
+              centroid: { x: '0-1', y: '0-1' },
+              polygon: [
+                [0.12, 0.3],
+                [0.15, 0.34],
+                [0.18, 0.29],
+              ],
+              cluster_severity: 'float 0-1',
+            },
+          ],
+        },
+      },
+
+      acne_grid_map: {
+        description: '6×4 spatial grid aligned with pigmentation v6.1 for precision treatment.',
+        components: {
+          grid_size: [4, 6],
+          grid_values: [
+            ['0-1', '0-1', '0-1', '0-1', '0-1', '0-1'],
+            ['0-1', '0-1', '0-1', '0-1', '0-1', '0-1'],
+            ['0-1', '0-1', '0-1', '0-1', '0-1', '0-1'],
+            ['0-1', '0-1', '0-1', '0-1', '0-1', '0-1'],
+          ],
+          grid_column_map: {
+            0: 'left_temporal',
+            1: 'left_malar_upper',
+            2: 'central_glabella_nose',
+            3: 'right_malar_upper',
+            4: 'right_temporal',
+            5: 'chin_perioral_central',
+          },
+          grid_row_map: {
+            0: 'upper_forehead',
+            1: 'mid_forehead_browline',
+            2: 'malar_Tzone',
+            3: 'perioral_chin_jawline',
+          },
+        },
+        usage_notes: [
+          'Cells >0.6 = treatment hotspots.',
+          'Combines lesion density + inflammation + porphyrins.',
+          'Laser/IPL/peel engines can allocate passes/fluence per cell.',
+        ],
+      },
+
+      BIBI_index: {
+        description:
+          'Global Bacterial + Inflammatory Burden Index. Higher values indicate high porphyrin load + high inflammatory lesion ratio.',
+        formula: '(0.6 * uv_porhyrin_load) + (0.4 * inflammatory_ratio)',
+        range: '0-1',
+        clinical_relevance:
+          'High BIBI directs AI engine toward antibacterial, anti-inflammatory, keratolytic and bacteriostatic treatments (Azelic acid, Salicylic acid, Blue light, Q-switch low fluence, Hydrafacial BHA, etc.).',
+      },
+    },
+
+    normalization_logic: {
+      lesion_load_normalized: {
+        method: '0 at <5 lesions, 1 at >=120 lesions',
+        equation: 'clip((total_lesion_count - 5) / (120 - 5), 0, 1)',
+      },
+      inflammation_normalized: { method: 'Use inflammatory_ratio directly.' },
+      clusters_normalized: { method: 'Use inflammatory_cluster_index directly.' },
+    },
+
+    acne_severity_equation: {
+      description: 'Core continuous acne severity score (0-1).',
+      equation:
+        'ASI = 0.40*lesion_load_normalized + 0.30*inflammation_normalized + 0.15*comedone_density_index + 0.15*inflammatory_cluster_index',
+    },
+
+    grading_scale: {
+      1: {
+        range: '<0.20',
+        label: 'Minimal Acne',
+        anchor: 'Few comedones, almost no inflammation.',
+      },
+      2: { range: '0.20-0.35', label: 'Mild Acne', anchor: 'Comedonal or occasional papules.' },
+      3: { range: '0.35-0.55', label: 'Moderate Acne', anchor: 'Papules/pustules, some clusters.' },
+      4: { range: '0.55-0.75', label: 'Marked Acne', anchor: 'Dense inflammatory lesions.' },
+      5: {
+        range: '>0.75',
+        label: 'Severe/Nodulocystic Acne',
+        anchor: 'Nodules, widespread inflammation.',
+      },
+    },
+
+    decision_logic: {
+      steps: [
+        '1. Detect lesions across modes (white + UV + blue).',
+        '2. Classify lesion type.',
+        '3. Assign region + XY coordinates.',
+        '4. Build cluster polygons for inflammatory hotspots.',
+        '5. Compute indices and normalization metrics.',
+        '6. Construct acne_grid_map from density + inflammation + porphyrins.',
+        '7. Compute ASI (Acne Severity Index).',
+        '8. Map ASI to 1-5 severity.',
+        '9. Output backend indices and spatial maps.',
+      ],
+    },
+
+    output_format: {
+      final_score: 'integer 1-5',
+      ASI_continuous: 'float 0-1',
+      lesion_counts: {
+        open_comedone: 'integer',
+        closed_comedone: 'integer',
+        papule: 'integer',
+        pustule: 'integer',
+        nodule: 'integer',
+      },
+      lesion_load_normalized: 'float 0-1',
+      inflammatory_ratio: 'float 0-1',
+      comedone_density_index: 'float 0-1',
+      inflammatory_cluster_index: 'float 0-1',
+      uv_porhyrin_load: 'float 0-1',
+      chronicity_index: 'float 0-1',
+      nodular_flag: 'true/false',
+      region_activity_map: 'dict',
+      relapse_risk_index: 'float 0-1',
+      improvability_index: 'float 0-1',
+      per_lesion_coordinate_map: 'array',
+      inflammatory_hotspot_map: 'object',
+      acne_grid_map: 'object',
+      confidence: '0-1',
+      BIBI_index: 'float 0-1',
+    },
+  },
+}
+
+const sebum_content_scoring = {
+  sebum_content_scoring_v6_0: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'blue', 'UV', 'woods', 'positive', 'negative'],
+      regions_analyzed: ['forehead', 'nose', 'cheeks_left', 'cheeks_right', 'chin'],
+      notes:
+        'Score reflects clinically visible oiliness, subclinical sebaceous activity, bacterial porphyrins, and shine dynamics. Designed to be highly treatment-responsive and sensitive to single-session improvements.',
+    },
+
+    mode_roles: {
+      white: 'Visible shine, highlight streaks, oily T-zone areas.',
+      blue: 'Sebum fluorescence, clogged follicles, sebum pooling.',
+      UV: 'Porphyrin bacterial fluorescence (C. acnes activity).',
+      woods: 'Keratin + oil debris patterns for subclinical congestion.',
+      positive: 'Highlight-enhanced pore shine + oil film mapping.',
+      negative: 'Contrast-based matte vs shiny zone discrimination.',
+    },
+
+    primary_metrics: {
+      shine_reflectance_index: {
+        description: 'Specular reflection (white + positive).',
+        formula: 'max_specular_intensity / mean_skin_intensity',
+        range: '0-1',
+      },
+      sebum_fluorescence_index: {
+        description: 'Blue-mode fluorescence of sebum.',
+        formula: 'fluorescent_pixel_ratio',
+        range: '0-1',
+      },
+      porphyrin_load_index: {
+        description: 'UV-mode porphyrin fluorescence.',
+        formula: 'porphyrin_spot_count_normalized',
+        range: '0-1',
+      },
+      sebaceous_congestion_index: {
+        description: 'Woods-mode follicular congestion.',
+        formula: 'cluster_density_normalized',
+        range: '0-1',
+      },
+    },
+
+    backend_indices: {
+      regional_sebum_map: {
+        description: 'Per-region visible + subclinical sebum burden.',
+        format: {
+          forehead: '0-1',
+          nose: '0-1',
+          cheeks_left: '0-1',
+          cheeks_right: '0-1',
+          chin: '0-1',
+        },
+      },
+
+      sebum_hotspot_grid: {
+        description: '6×4 grid of pixel-level shine/sebum hotspots.',
+        components: {
+          grid_size: [4, 6],
+          grid_values: 'array[4][6] with each cell 0-1',
+        },
+      },
+
+      sebum_quantity_index_global: {
+        description: 'Overall quantity of sebum.',
+        formula: '0.45*shine_reflectance + 0.35*sebum_fluorescence + 0.20*porphyrin_load',
+      },
+
+      sebum_depth_component_index: {
+        description: 'Superficial shine vs deeper follicular activity.',
+        formula: 'sebaceous_congestion_index * 0.6 + porphyrin_load_index * 0.4',
+        range: '0-1',
+      },
+
+      sebum_variability_index: {
+        description: 'Unevenness of distribution.',
+        formula: 'std(region_sebum_values)/mean(region_sebum_values)',
+        range: '0-1',
+      },
+
+      improvability_index: {
+        description: 'Responsiveness to treatment.',
+        formula: '(1 - sebum_depth_component_index) * (1 - sebum_variability_index)',
+        range: '0-1',
+      },
+
+      /* -----------------------------------------------
+         NEW ADDITION: BACTERIAL-INFLAMMATORY BURDEN INDEX
+         ----------------------------------------------- */
+
+      bacterial_inflammatory_burden_index: {
+        description:
+          'Combined measure of bacterial activity + inflammation derived from porphyrins, blue-mode sebum fluorescence and Woods congestion.',
+        components: {
+          bacterial_component: {
+            formula: 'porphyrin_load_index',
+            weight: 0.55,
+            description: 'Primary indicator of C. acnes bacterial load.',
+          },
+          subclinical_inflammation_component: {
+            formula: '(sebum_fluorescence_index * 0.6) + (sebaceous_congestion_index * 0.4)',
+            weight: 0.45,
+            description:
+              'Contribution from follicular blockage + inflammatory fluorescence patterns.',
+          },
+        },
+        final_equation:
+          'BIBI = (0.55 * porphyrin_load_index) + (0.45 * ((sebum_fluorescence_index * 0.6) + (sebaceous_congestion_index * 0.4)))',
+        output_range: '0-1',
+        clinical_interpretation: {
+          '0-0.25': 'Minimal bacterial/inflammatory burden',
+          '0.25-0.50': 'Mild burden; early congestion',
+          '0.50-0.75': 'Moderate burden; bacterial activity + inflammation present',
+          '0.75-1.00': 'High burden; strong bacterial proliferation and inflammatory potential',
+        },
+      },
+    },
+
+    normalization_logic: {
+      shine_norm: 'Use shine_reflectance_index directly',
+      fluorescence_norm: 'Use sebum_fluorescence_index directly',
+      porphyrin_norm: 'Use porphyrin_load_index directly',
+      congestion_norm: 'Use sebaceous_congestion_index directly',
+    },
+
+    sebum_burden_equation: {
+      description: 'Global continuous sebum severity metric.',
+      equation:
+        'SSI = 0.40*shine_norm + 0.25*fluorescence_norm + 0.20*porphyrin_norm + 0.15*congestion_norm',
+    },
+
+    score_bins: {
+      1: { range: '<0.20', label: 'Very Low Sebum / Dry' },
+      2: { range: '0.20-0.38', label: 'Low-Normal Sebum' },
+      3: { range: '0.38-0.58', label: 'Moderate Sebum' },
+      4: { range: '0.58-0.78', label: 'High Sebum / Oily' },
+      5: { range: '>0.78', label: 'Very Oily / Seborrheic' },
+    },
+
+    decision_logic: {
+      steps: [
+        '1. Quantify shine_reflectance.',
+        '2. Quantify sebum_fluorescence.',
+        '3. Count UV porphyrins.',
+        '4. Extract Woods congestion.',
+        '5. Compute regional_sebum_map.',
+        '6. Build sebum_hotspot_grid.',
+        '7. Compute SSI.',
+        '8. Map SSI to 1-5 severity.',
+        '9. Compute backend indices including BIBI.',
+      ],
+    },
+
+    output_format: {
+      final_score: 'integer 1-5',
+      SSI_continuous: 'float 0-1',
+      shine_reflectance_index: '0-1',
+      sebum_fluorescence_index: '0-1',
+      porphyrin_load_index: '0-1',
+      sebaceous_congestion_index: '0-1',
+      backend_details: {
+        regional_sebum_map: 'dict',
+        sebum_hotspot_grid: '4×6 matrix',
+        sebum_quantity_index_global: '0-1',
+        sebum_depth_component_index: '0-1',
+        sebum_variability_index: '0-1',
+        improvability_index: '0-1',
+        bacterial_inflammatory_burden_index: '0-1',
+      },
+    },
+  },
+}
+
+const vascularity_redness_scoring = {
+  vascularity_redness_scoring_v6: {
     metadata: {
       device: 'Bitmoji A5 Analyzer',
-      lighting_modes_used: ['white', 'UV', 'PPL'],
-      regions_analyzed: ['forehead', 'nose', 'chin', 'cheeks'],
+      lighting_modes_used: ['white', 'PPL_positive', 'XPL_negative', 'UV', 'woods', 'blue'],
+      regions_analyzed: ['forehead', 'cheeks', 'nose', 'chin'],
+      version: '6.0',
     },
-    threshold_definitions: {
-      shine_reflectance_ratio: {
-        low: '<0.3',
-        moderate: '0.4-0.6',
-        high: '≥0.7',
+
+    core_parameters: {
+      clinical_erythema_visibility: {
+        description: 'How clearly redness is seen in white-light mode with naked-eye clarity.',
+        lighting: 'white',
+        role: 'Primary determinant of patient-perceived redness.',
       },
-      porphyrin_fluorescence_intensity: {
-        none: '<20',
-        mild: '20-50',
-        strong: '≥50',
+      vascular_pattern_prominence: {
+        description: 'Visibility of linear/telangiectatic vessels in PPL (positive polarized).',
+        lighting: 'PPL_positive',
+        role: 'Indicates structural vascular changes that worsen redness.',
       },
-      pore_diameter_ratio: {
-        small: '<1.2× baseline texture',
-        moderate: '1.2-1.5× baseline texture',
-        enlarged: '>1.5× baseline texture',
+      diffuse_background_redness: {
+        description: 'Uniform blotchy redness, seen best in XPL negative cross-polarization.',
+        lighting: 'XPL_negative',
+        role: 'Represents inflammation that treatments can reduce.',
+      },
+      subclinical_inflammation_hotspots: {
+        description: 'UV/Woods detection of deeper inflammation clusters.',
+        lighting: ['UV', 'woods'],
+        role: 'Predicts future worsening; improves with anti-inflammatory treatments.',
+      },
+      sebaceous_inflammation_component: {
+        description: 'Blue-light detection of porphyrin-associated microinflammation.',
+        lighting: 'blue',
+        role: 'Detects acne-associated or T-zone inflammation contributing to redness.',
       },
     },
-    confidence_weights: {
-      white_light: 0.45,
-      uv_light: 0.35,
-      ppl_light: 0.2,
+
+    score_definitions: {
+      1: {
+        label: 'Minimal Redness',
+        clinical_features: [
+          'Almost no visible redness in white light',
+          'No vascular lines visible in PPL',
+          'No diffuse erythema in XPL',
+          'UV/Woods shows minimal fluorescence or hotspots',
+        ],
+        patient_perception: 'Skin appears even-toned with no visible redness.',
+        treatment_responsiveness: 'Small but noticeable improvements possible.',
+      },
+
+      2: {
+        label: 'Mild Redness / Reactive',
+        clinical_features: [
+          'Faint cheek or nose redness visible only on close view',
+          'Very fine vascular patterns may appear in PPL',
+          'XPL shows slight background erythema',
+          'UV/Woods shows scattered microinflammatory dots',
+        ],
+        patient_perception: 'Occasional redness, often called ‘sensitive skin’.',
+        treatment_responsiveness: 'Improves well with facials, LED, calming agents.',
+      },
+
+      3: {
+        label: 'Moderate Redness',
+        clinical_features: [
+          'Easily visible redness in cheeks/nose in white light',
+          'PPL shows clear but thin vascular structures',
+          'XPL shows noticeable diffuse erythema',
+          'UV/Woods shows multiple hotspots outlining inflamed areas',
+        ],
+        patient_perception: 'Redness is a visible cosmetic concern.',
+        treatment_responsiveness: 'Strongly responsive to clinical facials, yellow LED, peels.',
+      },
+
+      4: {
+        label: 'High Redness / Vascular Prominence',
+        clinical_features: [
+          'Obvious redness from conversational distance',
+          'PPL reveals dense or branching vessels',
+          'XPL shows widespread erythema',
+          'UV/Woods demonstrates strong inflammatory clusters',
+        ],
+        patient_perception: 'Skin appears constantly red; makeup needed to cover.',
+        treatment_responsiveness:
+          'Requires stronger interventions like vascular lasers or multiple sessions.',
+      },
+
+      5: {
+        label: 'Severe Redness / Rosacea-like',
+        clinical_features: [
+          'Intense diffuse redness covering large areas',
+          'Prominent telangiectasia in PPL',
+          'Strong XPL diffuse erythema',
+          'UV/Woods shows multiple active inflammation hotspots',
+          'Blue mode shows severe porphyrin-linked inflammation',
+        ],
+        patient_perception: 'Heavy facial redness impacting confidence.',
+        treatment_responsiveness: 'Significant improvement possible but requires structured plan.',
+      },
     },
-    skin_types: [
-      {
-        type: 'Oily Skin',
-        criteria: {
-          white_light: {
-            shine_reflectance_ratio: 'high',
-            shine_distribution: 'diffuse_across_face',
-          },
-          uv_light: {
-            porphyrin_fluorescence_intensity: 'strong',
-            fluorescence_distribution: 'generalized',
-          },
-          ppl_light: {
-            pore_diameter_ratio: 'enlarged',
-            texture_uniformity: 'coarse',
-          },
+
+    backend_output: {
+      clinical_erythema_score: '1-5',
+      vascular_pattern_score: '1-5',
+      diffuse_redness_score: '1-5',
+      subclinical_hotspot_score: '1-5',
+      sebaceous_inflammation_score: '1-5',
+      global_vascularity_redness_score:
+        'Final score (1-5 based on clinical hierarchy, not averaging)',
+
+      BIBI_index: {
+        description: 'Bacterial + Inflammatory Burden Index for redness pathways.',
+        components: {
+          porphyrin_component: 'Derived from blue + UV porphyrin load (0-1)',
+          deep_inflammation_component: 'Derived from Woods/UV hotspot density (0-1)',
+          sebaceous_inflammation_component: 'Blue-light microinflammatory shine (0-1)',
         },
-        diagnostic_logic: [
-          'if (white.shine_reflectance_ratio >= 0.7) and (uv.porphyrin_fluorescence >= 50) and (ppl.pore_diameter_ratio > 1.5) → Oily',
-        ],
+        formula:
+          'BIBI = 0.45*porphyrin_component + 0.35*deep_inflammation_component + 0.20*sebaceous_inflammation_component',
+        range: '0-1',
+        role_in_treatment_engine:
+          'Higher BIBI → increased prioritization of anti-inflammatory facials, LED yellow/red, antibacterial steps, and avoidance of heat-heavy procedures.',
       },
-      {
-        type: 'Dry Skin',
-        criteria: {
-          white_light: {
-            shine_reflectance_ratio: 'low',
-            texture_uniformity: 'rough',
-          },
-          uv_light: {
-            porphyrin_fluorescence_intensity: 'none',
-          },
-          ppl_light: {
-            micro_line_density: 'high',
-            pore_diameter_ratio: 'small',
-          },
-        },
-        diagnostic_logic: [
-          'if (white.shine_reflectance_ratio < 0.3) and (uv.porphyrin_fluorescence < 20) and (ppl.micro_line_density > threshold_lines) → Dry',
-        ],
-      },
-      {
-        type: 'Combination Skin',
-        criteria: {
-          white_light: {
-            shine_distribution: 'localized_T_zone',
-            cheek_reflectance: 'low_to_moderate',
-          },
-          uv_light: {
-            porphyrin_fluorescence_pattern: 'T_zone_only',
-          },
-          ppl_light: {
-            pore_diameter_ratio_T_zone: 'moderate_or_enlarged',
-            pore_diameter_ratio_cheeks: 'small',
-          },
-        },
-        diagnostic_logic: [
-          'if (white.shine_T_zone - white.shine_cheeks >= 0.3) and (uv.fluorescence_T_zone >= 40) and (uv.fluorescence_cheeks < 25) → Combination',
-        ],
-      },
-      {
-        type: 'Normal/Balanced Skin',
-        criteria: {
-          white_light: {
-            shine_reflectance_ratio: 'moderate',
-            shine_distribution: 'uniform',
-          },
-          uv_light: {
-            porphyrin_fluorescence_intensity: 'mild',
-            distribution: 'even',
-          },
-          ppl_light: {
-            texture_uniformity: 'smooth',
-            pore_diameter_ratio: 'small_to_moderate',
-          },
-        },
-        diagnostic_logic: [
-          'if (0.4 <= white.shine_reflectance_ratio <= 0.6) and (uv.porphyrin_fluorescence between 20 and 50) and (ppl.texture_uniformity_score >= 0.8) → Normal',
-        ],
-      },
-    ],
+    },
+
     decision_logic: {
-      description:
-        'After computing confidence scores for all skin types, output only the one with the highest score.',
-      steps: [
-        '1. Calculate weighted confidence for each skin type using mode-specific weights.',
-        '2. Compare all confidence values.',
-        '3. Select the skin type with the highest confidence score (max_confidence_type).',
-        "4. If two types differ by <0.05, classify as the higher one but flag 'borderline' in metadata.",
-        '5. Output only max_confidence_type.',
+      rules: [
+        'White-light erythema sets the baseline severity.',
+        'PPL vascular structures can raise the score by +1 if significant.',
+        'XPL diffuse redness can raise the score by +1 if widespread.',
+        'UV/Woods hotspots refine whether redness is inflammatory or vascular.',
+        'Final score reflects the highest clinically meaningful severity, not a mathematical mean.',
       ],
     },
   },
 }
 
-const superficial_pigmentation_score_criteria = {
-  superficial_pigmentation_scoring_v3_2: {
+const skin_hydration_scoring = {
+  skin_hydration_scoring_v6_0: {
     metadata: {
-      device: 'Bitmoji A5 Analyzer',
-      lighting_modes_used: ['brown', 'UV', 'white'],
-      regions_analyzed: ['forehead', 'cheeks', 'nose', 'chin'],
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'blue', 'woods', 'UV', 'positive', 'negative'],
+      regions_analyzed: ['forehead', 'cheeks_left', 'cheeks_right', 'nose', 'chin'],
+      notes:
+        'Score reflects surface hydration, micro-line density, diffusion quality, dullness, and dryness patterns. Fully treatment-responsive and patient-perception aligned.',
     },
 
-    lighting_mode_confidence_weights: {
-      white: 0.45,
-      UV: 0.35,
-      brown: 0.2,
+    mode_roles: {
+      white: 'Surface brightness, dullness, plumpness, fine-line visibility.',
+      blue: 'Sebum distribution → differentiates dehydration from oil-deficiency.',
+      woods: 'Dry keratin patches, scaling, uneven hydration zones.',
+      UV: 'Inflammation halos and compromised barrier (indirect dehydration marker).',
+      positive: 'Micro-lines, micro-cracks, surface irregularity.',
+      negative: 'Skin smoothness map, plumpness, micro-topography.',
     },
 
-    parameter_weights: {
-      coverage_area: 0.3,
-      color_intensity: 0.25,
-      homogeneity: 0.3,
-      lesion_border_definition: 0.15,
-    },
-
-    threshold_guidelines: {
-      coverage_area_percent: {
-        minimal: '<5%',
-        mild: '5-20%',
-        moderate: '20-40%',
-        marked: '40-60%',
-        severe: '>60%',
-      },
-      mean_intensity_index: {
-        light: '<0.35',
-        mild: '0.35-0.50',
-        moderate: '0.50-0.65',
-        marked: '0.65-0.75',
-        severe: '>0.75',
-      },
-      contrast_uniformity_index: {
-        even: '>0.80',
-        moderate_mottling: '0.65-0.80',
-        uneven: '<0.65',
-      },
-      depth_indicator_ratio: {
-        epidermal: '<0.35',
-        mixed: '0.35-0.65',
-        dermal: '>0.65',
-      },
-    },
-
-    score_definitions: [
-      {
-        score: 1,
-        label: 'Minimal / Almost Clear',
-        criteria: {
-          coverage_area: '<5%',
-          mean_intensity_index: '<0.35',
-          contrast_uniformity_index: '>0.85',
+    primary_metrics: {
+      surface_reflectance_index: {
+        description:
+          'How well hydrated skin reflects light. Hydrated skin shows smooth, even reflectance.',
+        range: '0-1',
+        bands: {
+          very_low: '<0.30',
+          low: '0.30-0.45',
+          moderate: '0.45-0.60',
+          good: '0.60-0.75',
+          excellent: '>0.75',
         },
-        visual_flags: ['Uniform tone under brown light', 'No visible UV fluorescence'],
       },
-      {
-        score: 2,
-        label: 'Mild',
-        criteria: {
-          coverage_area: '5-20%',
-          mean_intensity_index: '0.35-0.50',
-          contrast_uniformity_index: '0.75-0.85',
+
+      microline_density_index: {
+        description:
+          'Fine-line density from positive/negative modes. Dehydration exaggerates micro-lines.',
+        range: '0-1',
+        bands: {
+          minimal: '<0.15',
+          mild: '0.15-0.30',
+          moderate: '0.30-0.45',
+          marked: '0.45-0.60',
+          severe: '>0.60',
         },
-        visual_flags: ['Faint macules in forehead or malar regions', 'Minimal mottling in UV mode'],
       },
-      {
-        score: 3,
-        label: 'Moderate',
-        criteria: {
-          coverage_area: '20-40%',
-          mean_intensity_index: '0.50-0.65',
-          contrast_uniformity_index: '0.65-0.80',
+
+      subsurface_diffusion_index: {
+        description: 'Light diffusion (under white + UV), proxy for plump hydrated dermis.',
+        range: '0-1',
+        bands: {
+          poor: '<0.40',
+          fair: '0.40-0.55',
+          moderate: '0.55-0.70',
+          good: '0.70-0.80',
+          high: '>0.80',
         },
-        visual_flags: [
-          'Visible macules and patches across forehead and cheeks',
-          'Uneven tone in brown and UV without confluent darkness',
-          'Mottled pattern but not generalized',
+      },
+
+      dry_patch_fluorescence_index: {
+        description: 'Woods-mode detection of dry keratin, scaling, micropatch dehydration.',
+        range: '0-1',
+        bands: {
+          none: '<0.10',
+          few: '0.10-0.25',
+          scattered: '0.25-0.40',
+          multiple: '0.40-0.60',
+          dense: '>0.60',
+        },
+      },
+
+      sebum_balance_ratio: {
+        description:
+          'Blue-mode: differentiates true dehydration (low sebum) vs oil-dehydration mix.',
+        formula: 'sebum_presence / optimal_sebum_reference',
+        range: '0-1',
+        bands: {
+          very_low: '<0.25',
+          low: '0.25-0.40',
+          balanced: '0.40-0.65',
+          slightly_high: '0.65-0.80',
+          high: '>0.80',
+        },
+      },
+    },
+
+    backend_indices: {
+      regional_hydration_map: {
+        description: 'Per-region hydration status for treatment personalization.',
+        format: {
+          region: {
+            surface_reflectance_index: '0-1',
+            microline_density_index: '0-1',
+            dry_patch_fluorescence_index: '0-1',
+            regional_hydration_score: '0-1 (combined regional score)',
+          },
+        },
+      },
+
+      hydration_deficit_type: {
+        description: 'Characterizes dehydration type.',
+        values: [
+          'surface_dehydration',
+          'deep_dermal_dehydration',
+          'sebum_deficiency_dehydration',
+          'mixed_dehydration',
+          'well_hydrated',
         ],
       },
-      {
-        score: 4,
-        label: 'Marked',
-        criteria: {
-          coverage_area: '40-60%',
-          mean_intensity_index: '0.65-0.75',
-          contrast_uniformity_index: '0.55-0.70',
-        },
-        visual_flags: [
-          'Confluent dark patches spanning multiple regions',
-          'Uneven tone with mixed epidermal-dermal component',
-        ],
-      },
-      {
-        score: 5,
-        label: 'Severe',
-        criteria: {
-          coverage_area: '>60%',
-          mean_intensity_index: '>0.75',
-          contrast_uniformity_index: '<0.55',
-        },
-        visual_flags: [
-          'Generalized dense pigmentation',
-          'Deep dermal involvement visible under UV',
-        ],
-      },
-    ],
 
-    backend_analysis: {
-      description: 'Provide auxiliary indices to support treatment logic in next stage.',
-      sub_indices: {
-        pigmentation_depth_index: {
-          description: 'Relative depth of pigment based on UV:brown signal ratio.',
-          formula: 'UV_intensity / (brown_intensity + 0.001)',
-          output_range: '0-1 (superficial → dermal)',
-        },
-        distribution_pattern_index: {
-          description:
-            'Standard deviation of pigment intensity across regions, indicating localized vs diffuse.',
-          formula: 'stddev(region_intensity_map) / mean(region_intensity_map)',
-          output_range: '0-1 (diffuse → focal)',
-        },
-        asymmetry_index: {
-          description: 'Quantifies difference between left and right facial pigmentation load.',
-          formula: '|left_intensity - right_intensity| / mean_intensity',
-          output_range: '0-1',
-        },
-        uv_enhancement_ratio: {
-          description:
-            'Enhancement factor of UV pigment vs brown mode, correlating with chronic photo-damage.',
-          formula: 'UV_intensity / brown_intensity',
-          output_range: '0-1+',
-        },
+      barrier_compromise_index: {
+        description: 'UV halo + woods scaling → barrier dysfunction from dehydration.',
+        range: '0-1',
       },
-      output_interpretation: {
-        depth_type: {
-          rules: [
-            { if: 'pigmentation_depth_index< 0.25', then: 'Superficial (Epidermal)' },
-            { if: '0.25-0.5', then: 'Mixed' },
-            { if: '>0.5', then: 'Deep (Dermal)' },
-          ],
-        },
-        distribution_type: {
-          rules: [
-            { if: 'distribution_pattern_index< 0.3', then: 'Diffuse' },
-            { if: '0.3-0.6', then: 'Patchy' },
-            { if: '>0.6', then: 'Focal' },
-          ],
-        },
+
+      hydration_recovery_potential: {
+        description: 'How much hydration can improve after a single session.',
+        formula: '1 - (microline_density_index * dry_patch_fluorescence_index)',
+        range: '0-1',
+      },
+    },
+
+    normalization_logic: {
+      surface_reflectance_normalized: 'use surface_reflectance_index directly',
+      microline_penalty: 'equal to microline_density_index',
+      diffusion_normalized: 'use subsurface_diffusion_index directly',
+      dry_patch_penalty: 'use dry_patch_fluorescence_index',
+      sebum_balance_normalized: 'mapped toward ideal range (0.40-0.65)',
+    },
+
+    hydration_burden_equation: {
+      description: 'Core hydration score 0-1',
+      equation:
+        'HSI = 0.40*surface_reflectance_index + 0.25*subsurface_diffusion_index + 0.15*(1 - microline_density_index) + 0.10*sebum_balance_ratio + 0.10*(1 - dry_patch_fluorescence_index)',
+    },
+
+    score_bins: {
+      1: {
+        range: '<0.30',
+        label: 'Severely Dehydrated',
+        anchor: 'Dull, flaky, tight appearance; marked micro-lines.',
+      },
+      2: {
+        range: '0.30-0.45',
+        label: 'Moderately Dehydrated',
+        anchor: 'Uneven reflectance, scattered dry patches, visible fine lines.',
+      },
+      3: {
+        range: '0.45-0.60',
+        label: 'Mild Dehydration',
+        anchor: 'Healthy but lacks plumpness; minor dullness.',
+      },
+      4: {
+        range: '0.60-0.75',
+        label: 'Well Hydrated',
+        anchor: 'Smooth surface, good glow, soft micro-lines.',
+      },
+      5: {
+        range: '>0.75',
+        label: 'Optimally Hydrated',
+        anchor: 'Plump, luminous, radiant appearance with high diffusion.',
       },
     },
 
     decision_logic: {
-      description:
-        'Compute pigmentation indices and calibrated score output with dermatologist-adjusted weightage.',
       steps: [
-        '1. Measure coverage_area_percent, mean_intensity_index, and contrast_uniformity_index from brown and white modes.',
-        '2. Calculate pigmentation_depth_index and UV_enhancement_ratio from UV:brown ratio.',
-        '3. Compute distribution_pattern_index from region-wise variance.',
-        '4. Compute asymmetry_index from left vs right intensity difference.',
-        '5. Derive global_score using revised weighted aggregation of parameters.',
-        '6. Output integer score (1-5) plus backend indices for treatment logic.',
+        '1. Extract metrics from white, blue, woods, UV, positive, negative modes.',
+        '2. Compute regional hydration metrics and full-face averages.',
+        '3. Normalize all metrics (0-1).',
+        '4. Calculate HSI using hydration_burden_equation.',
+        '5. Map HSI to 1-5 hydration score.',
+        '6. Generate backend indices (hydration type, barrier compromise, recovery potential).',
       ],
-      calibration_formula: {
-        description:
-          'Adjusted weighting ensures moderate, diffuse superficial pigmentation reads as score 3.',
-        equation:
-          'global_score = (0.30 * normalized_coverage_area) + (0.25 * normalized_intensity) + (0.30 * (1 - uniformity)) + (0.15 * border_definition)',
+    },
+
+    output_format: {
+      final_score: 'integer 1-5',
+      HSI_continuous: 'float 0-1',
+      surface_reflectance_index: '0-1',
+      microline_density_index: '0-1',
+      subsurface_diffusion_index: '0-1',
+      dry_patch_fluorescence_index: '0-1',
+      sebum_balance_ratio: '0-1',
+      regional_hydration_map: 'dict',
+      hydration_deficit_type: 'string',
+      barrier_compromise_index: '0-1',
+      hydration_recovery_potential: '0-1',
+      confidence: '0-1',
+    },
+  },
+}
+
+const skin_luminosity_index = {
+  skin_luminosity_index_v1_0: {
+    metadata: {
+      device: 'Bitmoji A5 (6-mode)',
+      lighting_modes_used: ['white', 'positive', 'negative', 'blue', 'UV', 'woods'],
+      regions_analyzed: ['forehead', 'malar_left', 'malar_right', 'nose', 'chin'],
+      notes:
+        'Measures surface glow, subsurface translucency, brightness, uniformity, dryness/shadow contrast. Fully treatment-responsive.',
+    },
+
+    mode_roles: {
+      white: 'Primary for visible glow, reflectivity, LAB luminosity.',
+      positive: 'Edge contrast, hotspot detection, specular highlights.',
+      negative: 'Surface texture dullness, micro-shadow mapping.',
+      blue: 'Sebum-related shine, gloss vs patchiness.',
+      UV: 'Subsurface scatter, dehydration patches, dermal light diffusion loss.',
+      woods: 'Keratin/dryness fluorescence indicating reduced luminosity.',
+    },
+
+    primary_metrics: {
+      surface_reflectance_uniformity: {
+        description: 'Evenness of specular reflection under white mode.',
+        formula: '1 - (stddev_reflectance / mean_reflectance)',
+        range: '0-1',
+        bands: {
+          dull: '<0.55',
+          uneven: '0.55-0.70',
+          healthy: '0.70-0.82',
+          radiant: '>0.82',
+        },
       },
+
+      color_luminance_index: {
+        description: 'Brightness based on LAB L-channel normalized to reference white.',
+        formula: 'mean_L / L_reference',
+        range: '0-1',
+        bands: {
+          dull: '<0.45',
+          soft: '0.45-0.60',
+          bright: '0.60-0.75',
+          radiant: '>0.75',
+        },
+      },
+
+      subsurface_diffusion_index: {
+        description: 'Light scatter depth measured using UV + negative mode.',
+        formula: 'diffuse_spread / total_intensity',
+        range: '0-1',
+        bands: {
+          low: '<0.45',
+          moderate: '0.45-0.65',
+          high: '0.65-0.80',
+          very_high: '>0.80',
+        },
+      },
+
+      shadow_softness_index: {
+        description: 'Softness of contour transitions; lower harsh shadows = higher glow.',
+        formula: '1 - (edge_contrast / mean_reflectance)',
+        range: '0-1',
+        bands: {
+          harsh: '<0.35',
+          moderate: '0.35-0.55',
+          soft: '0.55-0.75',
+          silky: '>0.75',
+        },
+      },
+
+      sebum_gloss_index: {
+        description: 'Healthy gloss vs patchy oiliness using blue + white.',
+        formula: 'even_sebum_distribution_score',
+        range: '0-1',
+        bands: {
+          dry: '<0.25',
+          balanced: '0.25-0.55',
+          glossy: '>0.55',
+        },
+      },
+
+      dryness_dullness_index: {
+        description: 'Dryness-induced dullness from woods fluorescence + negative micro-texture.',
+        formula: 'dry_fluorescence / (total_reflectance + 1)',
+        range: '0-1',
+        bands: {
+          none: '<0.25',
+          mild: '0.25-0.45',
+          moderate: '0.45-0.65',
+          marked: '>0.65',
+        },
+      },
+    },
+
+    backend_indices: {
+      regional_glow_map: {
+        description: 'Glow score per region for zonal treatments.',
+        format: '{region: float_0-1}',
+      },
+
+      luminosity_grid_map: {
+        description: '4×6 grid for micro-zone glow targeting.',
+        components: {
+          grid_size: [4, 6],
+          grid_values: '2D array with 0-1 normalized luminosity per cell',
+          row_map: {
+            0: 'upper_forehead_hairline',
+            1: 'mid_forehead_browline',
+            2: 'malar_nose_zone',
+            3: 'perioral_chin_jawline',
+          },
+          col_map: {
+            0: 'left_temporal',
+            1: 'left_malar',
+            2: 'glabella_nose',
+            3: 'right_malar',
+            4: 'right_temporal',
+            5: 'chin_perioral',
+          },
+        },
+      },
+
+      glow_limiting_factors: {
+        description: 'Identifies what is reducing glow the most.',
+        fields: {
+          dullness_due_to_dryness: '0-1',
+          dullness_due_to_shadows: '0-1',
+          dullness_due_to_low_L: '0-1',
+          dullness_due_to_texture: '0-1',
+        },
+      },
+
+      treatment_responsiveness_index: {
+        description: 'Predicts whether glow will improve quickly.',
+        formula:
+          '0.5*(1 - dryness_dullness_index) + 0.3*sebum_gloss_index + 0.2*(subsurface_diffusion_index)',
+        range: '0-1',
+      },
+    },
+
+    index_equation: {
+      description: 'Weighted luminosity equation (0-1)',
+      equation:
+        'GLI = 0.30*surface_reflectance_uniformity + \
+               0.25*color_luminance_index + \
+               0.20*subsurface_diffusion_index + \
+               0.15*shadow_softness_index + \
+               0.05*sebum_gloss_index + \
+               0.05*(1 - dryness_dullness_index)',
+    },
+
+    score_bins: {
+      1: {
+        range: '<0.25',
+        label: 'Very Dull',
+        anchor: 'Low brightness, marked dryness, uneven reflection.',
+      },
+      2: {
+        range: '0.25-0.40',
+        label: 'Mild Glow',
+        anchor: 'Some brightness, but dullness/patchiness persists.',
+      },
+      3: {
+        range: '0.40-0.60',
+        label: 'Healthy Glow',
+        anchor: 'Good brightness and uniformity with mild shadow softness.',
+      },
+      4: {
+        range: '0.60-0.78',
+        label: 'Radiant',
+        anchor: 'Bright, even surface glow and soft facial contours.',
+      },
+      5: {
+        range: '>0.78',
+        label: 'Luminous / High Radiance',
+        anchor: 'Strong surface + subsurface glow, minimal dullness.',
+      },
+    },
+
+    output_format: {
+      final_score: 'integer 1-5',
+      GLI_continuous: 'float 0-1',
+
+      backend_details: {
+        surface_reflectance_uniformity: '0-1',
+        color_luminance_index: '0-1',
+        subsurface_diffusion_index: '0-1',
+        shadow_softness_index: '0-1',
+        sebum_gloss_index: '0-1',
+        dryness_dullness_index: '0-1',
+
+        regional_glow_map: 'dict region → 0-1',
+        luminosity_grid_map: '4×6 matrix 0-1',
+        glow_limiting_factors: 'dict',
+        treatment_responsiveness_index: '0-1',
+      },
+    },
+  },
+}
+
+const superficial_pigmentation_scoring = {
+  superficial_pigmentation_scoring_v6_1: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Extraction)',
+      lighting_modes_used: ['white', 'UV', 'woods', 'blue', 'positive', 'negative'],
+      regions_analyzed: ['forehead', 'malar_left', 'malar_right', 'nose', 'chin'],
+      notes:
+        'Score reflects perceived superficial pigment burden in real-life lighting and is designed to be treatment-relevant, sensitive to change, and spatially precise for localized treatments. No treatment mapping included.',
+    },
+
+    mode_roles: {
+      white:
+        'Visible pigmentation and unevenness as perceived by patient; primary driver of clinical score.',
+      woods:
+        'Highlights epidermal melanin clusters (freckles, macules, lentigines) and spot density.',
+      UV: 'Reveals subclinical pigment and photo-damage; used mainly for depth and chronicity indices.',
+      blue: 'Helps differentiate melanin from vascular/structural signal; supports depth and chroma indices.',
+      positive: 'Enhances contrast for lesion borders and segmentation.',
+      negative: 'Complementary view for border sharpening and homogeneity analysis.',
+    },
+
+    primary_metrics: {
+      coverage_area_percent: {
+        description:
+          'Percentage of analyzed facial area with pigment intensity above threshold in white + woods modes combined.',
+        bands: {
+          very_low: '<5%',
+          low: '5-15%',
+          moderate: '15-35%',
+          high: '35-60%',
+          very_high: '>60%',
+        },
+      },
+      mean_intensity_index: {
+        description:
+          'Average melanin-related intensity in pigmented pixels (white + woods), normalized 0-1.',
+        bands: {
+          light: '<0.30',
+          mild: '0.30-0.50',
+          moderate: '0.50-0.65',
+          marked: '0.65-0.80',
+          severe: '>0.80',
+        },
+      },
+      uniformity_index: {
+        description:
+          'How even the pigmentation is across the face. 1 = perfectly even, 0 = highly mottled.',
+        bands: {
+          even: '>=0.80',
+          mottled: '0.60-0.80',
+          uneven: '<0.60',
+        },
+      },
+      border_definition_score: {
+        description:
+          'Sharpness of lesion edges derived from positive/negative contrast; 0-1 (0 = indistinct, 1 = sharply demarcated).',
+        note: 'Higher values correspond to well-defined macules/patches.',
+      },
+      woods_cluster_density: {
+        description:
+          'Density of discrete Woods clusters (freckles/macules) per unit area, normalized 0-1.',
+        bands: {
+          sparse: '<0.20',
+          scattered: '0.20-0.40',
+          clustered: '0.40-0.70',
+          dense: '>0.70',
+        },
+      },
+      depth_indicator_ratio: {
+        description:
+          'Depth bias based on UV:woods and blue:positive relationships; 0 = superficial, 1 = predominantly deep.',
+        bands: {
+          superficial: '<0.35',
+          mixed: '0.35-0.65',
+          deep: '>0.65',
+        },
+      },
+    },
+
+    backend_indices: {
+      depth_index_uv_to_woods: {
+        description: 'UV intensity divided by Woods intensity over pigmented regions.',
+        formula: 'UV_intensity / (woods_intensity + 0.001)',
+        range: '0-2',
+      },
+      melanin_chroma_separation_index: {
+        description:
+          'Separates brown epidermal melanin from blue-purple dermal component using blue vs positive modes.',
+        formula:
+          '(blue_intensity - positive_intensity) / (blue_intensity + positive_intensity + 0.001)',
+        range: '-1 to +1',
+      },
+      region_variation_index: {
+        description: 'Variation of pigment load across forehead, cheeks, nose, chin.',
+        formula: 'stddev(region_pigment_loads) / mean(region_pigment_loads)',
+        range: '0-1',
+      },
+      asymmetry_index: {
+        description: 'Left-right malar pigment asymmetry.',
+        formula: 'abs(malar_left - malar_right) / ((malar_left + malar_right)/2 + 0.001)',
+        range: '0-1',
+      },
+      uv_enhancement_ratio: {
+        description: 'Photo-damage / chronicity proxy.',
+        formula: 'UV_intensity / (white_intensity + 0.001)',
+        range: '0-2',
+      },
+      superficial_fraction_index: {
+        description:
+          'Proportion of total pigment signal that is likely superficial/epidermal and therefore more treatment-responsive.',
+        formula: '1 - normalized_depth_indicator_ratio',
+        range: '0-1',
+      },
+      improvability_index: {
+        description:
+          'Heuristic measure of how much of the pigment burden is realistically improvable in the short-to-medium term.',
+        formula: 'superficial_fraction_index * (1 - chronicity_component)',
+        components: {
+          chronicity_component: 'clipped(uv_enhancement_ratio / 2, 0, 1)',
+        },
+        range: '0-1',
+      },
+
+      regional_burden_map: {
+        description: 'Per-region superficial pigment burden for treatment planning.',
+        format: {
+          forehead: {
+            coverage_area_percent: 'float 0-100',
+            mean_intensity_index: 'float 0-1',
+            woods_cluster_density: 'float 0-1',
+            regional_PPL: 'float 0-1 (same equation as global PPL but using regional metrics)',
+          },
+          malar_left: {
+            coverage_area_percent: 'float 0-100',
+            mean_intensity_index: 'float 0-1',
+            woods_cluster_density: 'float 0-1',
+            regional_PPL: 'float 0-1',
+          },
+          malar_right: {
+            coverage_area_percent: 'float 0-100',
+            mean_intensity_index: 'float 0-1',
+            woods_cluster_density: 'float 0-1',
+            regional_PPL: 'float 0-1',
+          },
+          nose: {
+            coverage_area_percent: 'float 0-100',
+            mean_intensity_index: 'float 0-1',
+            woods_cluster_density: 'float 0-1',
+            regional_PPL: 'float 0-1',
+          },
+          chin: {
+            coverage_area_percent: 'float 0-100',
+            mean_intensity_index: 'float 0-1',
+            woods_cluster_density: 'float 0-1',
+            regional_PPL: 'float 0-1',
+          },
+        },
+      },
+
+      pigment_grid_map: {
+        description:
+          'Hybrid anatomical 6×4 grid of superficial pigment intensity for precise spot treatments (lasers, peels, targeted topicals).',
+        components: {
+          grid_size: '[rows, columns] → [4, 6]',
+          grid_values:
+            '2D array [4][6] with each cell as float 0-1 representing normalized superficial pigment intensity.',
+          grid_column_map: {
+            0: 'left_temporal',
+            1: 'left_malar',
+            2: 'central_nose_glabella',
+            3: 'right_malar',
+            4: 'right_temporal',
+            5: 'central_chin_perioral',
+          },
+          grid_row_map: {
+            0: 'upper_forehead_hairline',
+            1: 'mid_forehead_brow_line',
+            2: 'malar_nose_zone',
+            3: 'perioral_chin_jawline',
+          },
+        },
+        usage_notes: [
+          'Cells with values >0.6 represent focal hotspots suitable for spot treatment emphasis.',
+          'Treatment engine can combine grid_cells + regional_burden_map to decide passes/fluence/peel layering per zone.',
+        ],
+      },
+    },
+
+    scoring_logic: {
+      description:
+        'Determines a perceived pigment load score (1-5) without population-based Gaussian normalization, while being sensitive to mottling and regional variation.',
+      normalization: {
+        coverage_area_normalized: {
+          method: 'Piecewise linear mapping: 0 at 0-5%, 1 at >=70%.',
+          equation: 'coverage_norm = clip((coverage_area_percent - 5) / (70 - 5), 0, 1)',
+        },
+        mean_intensity_normalized: {
+          method: 'Direct 0-1 normalization using defined bands.',
+          note: "0 at 'light', 1 at 'severe', linear interpolation between bands.",
+        },
+        woods_cluster_normalized: {
+          method: 'Use woods_cluster_density directly (0-1).',
+        },
+        uniformity_penalty: {
+          description: 'Higher penalty for mottled/uneven tone.',
+          equation: 'uniformity_penalty = 1 - uniformity_index',
+        },
+      },
+
+      perceived_pigment_load_equation: {
+        description:
+          'Core continuous load metric (0-1) that the 1-5 score is derived from. Coverage and intensity are primary drivers; mottling and regional variation add penalty.',
+        equation:
+          'PPL = 0.35 * coverage_area_normalized + 0.35 * mean_intensity_normalized + 0.20 * woods_cluster_normalized + 0.10 * ((uniformity_penalty + region_variation_index) / 2)',
+      },
+
+      score_bins: {
+        1: {
+          range: '<0.18',
+          anchor:
+            'Essentially clear or only a few faint spots; patient usually does not complain of pigmentation.',
+        },
+        2: {
+          range: '0.18-0.36',
+          anchor:
+            'Mild pigmentation; patient notices some spots or dullness in certain areas but not generalized.',
+        },
+        3: {
+          range: '0.36-0.58',
+          anchor:
+            'Moderate pigmentation; uneven tone is clearly visible in daily life and is a common cosmetic concern.',
+        },
+        4: {
+          range: '0.58-0.78',
+          anchor:
+            'Marked pigmentation; multiple obvious patches or dense clusters, often difficult to conceal with makeup.',
+        },
+        5: {
+          range: '>0.78',
+          anchor: 'Severe, widespread pigmentation with dense signal across most regions.',
+        },
+      },
+
+      steps: [
+        '1. From 6-mode images, segment pigmented vs non-pigmented areas in white + woods.',
+        '2. Compute global coverage_area_percent, mean_intensity_index, uniformity_index, woods_cluster_density.',
+        '3. Compute region_pigment_loads for forehead, malar_left, malar_right, nose, chin and derive region_variation_index.',
+        '4. Construct pigment_grid_map (4×6) from spatial distribution of pigmented pixels in white + woods.',
+        '5. Normalize metrics to 0-1 and compute PPL using perceived_pigment_load_equation.',
+        '6. Assign final_score 1-5 based on score_bins.',
+        '7. Independently compute backend_indices (depth_index_uv_to_woods, superficial_fraction_index, improvability_index, regional_burden_map, pigment_grid_map, etc.).',
+      ],
+    },
+
+    output_format: {
+      final_score: 'integer 1-5 representing perceived superficial pigment load (PPL category).',
+      backend_details: {
+        PPL_continuous: 'float 0-1',
+        coverage_area_percent: 'float 0-100',
+        coverage_area_normalized: 'float 0-1',
+        mean_intensity_index: 'float 0-1',
+        mean_intensity_normalized: 'float 0-1',
+        uniformity_index: 'float 0-1',
+        woods_cluster_density: 'float 0-1',
+        border_definition_score: 'float 0-1',
+        depth_indicator_ratio: 'float 0-1',
+        depth_index_uv_to_woods: 'float',
+        melanin_chroma_separation_index: 'float -1 to +1',
+        region_variation_index: 'float 0-1',
+        asymmetry_index: 'float 0-1',
+        uv_enhancement_ratio: 'float 0-2',
+        superficial_fraction_index: 'float 0-1',
+        improvability_index: 'float 0-1',
+        regional_burden_map:
+          'dict per region with coverage, intensity, woods_cluster_density, regional_PPL',
+        pigment_grid_map:
+          'object with grid_size [4,6], grid_values[rows][cols] 0-1, grid_column_map, grid_row_map',
+      },
+    },
+  },
+}
+
+const peri_orbital_skin_health_scoring = {
+  peri_orbital_skin_health_scoring_v1_0: {
+    metadata: {
+      device: 'Bitmoji A5 Analyzer',
+      lighting_modes_used: [
+        'white',
+        'cross_polarized',
+        'parallel_polarized',
+        'woods',
+        'uv',
+        'blue',
+      ],
+      regions_analyzed: ['infraorbital', 'lateral canthus', 'upper cheek junction'],
+      version: '1.0',
+    },
+
+    scoring_parameters: {
+      pigmentation_severity: {
+        description: 'Brown/gray hyperpigmentation visible in white, CP and Wood’s modes.',
+        grading_basis: 'Area, density, and uniformity of pigmentation.',
+      },
+      vascular_visibility: {
+        description: 'Purple/blue tones enhanced under UV and blue modes.',
+        grading_basis: 'Prominence of vascular networks and hue intensity.',
+      },
+      structural_shadows_hollowness: {
+        description: 'Depth of tear trough / infraorbital hollow creating shadow contrast.',
+        grading_basis: 'Shadow length, boundary sharpness under white and PPL.',
+      },
+      puffiness_edema: {
+        description: 'Infraorbital swelling due to fluid or fat prolapse.',
+        grading_basis: 'Forward projection under white and CP modes.',
+      },
+      texture_fine_lines: {
+        description: 'Micro-lines and creases amplified in PPL and white modes.',
+        grading_basis: 'Line density and depth.',
+      },
+    },
+
+    parameter_weights: {
+      pigmentation_severity: 0.3,
+      vascular_visibility: 0.2,
+      structural_shadows_hollowness: 0.3,
+      puffiness_edema: 0.1,
+      texture_fine_lines: 0.1,
+    },
+
+    severity_scale: {
+      1: {
+        label: 'Excellent Peri-orbital Health',
+        clinical_features: [
+          'No obvious pigmentation',
+          'Minimal vascular tint',
+          'No hollowness or puffiness',
+          'Fine lines barely visible',
+        ],
+      },
+      2: {
+        label: 'Mild Concerns',
+        clinical_features: [
+          'Mild brown/gray discoloration',
+          'Faint vascular hue',
+          'Slight trough demarcation',
+          'Occasional fine lines',
+          'No significant puffiness',
+        ],
+      },
+      3: {
+        label: 'Moderate Concerns',
+        clinical_features: [
+          'Visible pigmentation',
+          'Notable vascular tint (blue/purple)',
+          'Moderate tear trough shadowing',
+          'Fine lines present at rest',
+          'Mild puffiness',
+        ],
+      },
+      4: {
+        label: 'Significant Concerns',
+        clinical_features: [
+          'Marked pigmentation (brown/gray)',
+          'Prominent vascular visibility under UV/blue',
+          'Deep structural hollowness',
+          'Multiple fine lines',
+          'Moderate puffiness',
+        ],
+      },
+      5: {
+        label: 'Severe Peri-orbital Aging / Darkness',
+        clinical_features: [
+          'Dense pigmentation with sharp borders',
+          'Strong bluish vascular pooling',
+          'Severe hollowness with long shadows',
+          'Prominent lines/wrinkling',
+          'Pronounced puffiness or fat prolapse',
+        ],
+      },
+    },
+
+    backend_sub_indices: {
+      pigment_index: {
+        source_modes: ['white', 'CP', 'woods'],
+        output: '0-100',
+        description: 'Brown/gray melanin load and distribution.',
+      },
+      vascular_index: {
+        source_modes: ['UV', 'blue'],
+        output: '0-100',
+        description: 'Purple/blue vascular prominence and density.',
+      },
+      shadow_hollow_index: {
+        source_modes: ['white', 'PPL'],
+        output: '0-100',
+        description: 'Shadow intensity, length, and edge contrast.',
+      },
+      puffiness_index: {
+        source_modes: ['white', 'CP'],
+        output: '0-100',
+        description: 'Infraorbital bulging severity.',
+      },
+      texture_line_index: {
+        source_modes: ['white', 'PPL'],
+        output: '0-100',
+        description: 'Fine line count and micro-crease density.',
+      },
+    },
+
+    decision_logic: {
+      steps: [
+        '1. Compute pigment_index from CP + White + Wood’s mode.',
+        '2. Compute vascular_index from UV + Blue modes.',
+        '3. Compute shadow_hollow_index from white + PPL shadow contrast.',
+        '4. Compute puffiness_index from white + CP projection mapping.',
+        '5. Compute texture_line_index from PPL micro-texture.',
+        '6. Combine all into weighted global_periorbital_score.',
+        '7. Map global_periorbital_score → discrete 1-5 severity level.',
+      ],
       output_format: {
         final_score: 'integer (1-5)',
         backend_details: {
-          pigmentation_depth_index: 'float (0-1)',
-          distribution_pattern_index: 'float (0-1)',
-          asymmetry_index: 'float (0-1)',
-          uv_enhancement_ratio: 'float (0-1)',
-          depth_type: 'Superficial / Mixed / Deep',
-          distribution_type: 'Diffuse / Patchy / Focal',
-        },
-      },
-      score_bins: {
-        1: '<0.25',
-        2: '0.25-0.40',
-        3: '0.40-0.55',
-        4: '0.55-0.70',
-        5: '>0.70',
-      },
-      single_output_mode: true,
-    },
-  },
-}
-
-const visual_acne_grading_criteria = {
-  analyze_acne_grade: {
-    type: 'object',
-    description: 'Embedded analyze acne grade scoring logic and thresholds',
-    default: {
-      acne_grading: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['white', 'UV', 'PPL'],
-          regions_analyzed: ['forehead', 'cheeks', 'chin', 'nose', 'jawline'],
-        },
-
-        lesion_type_weights: {
-          open_comedone: 0.22,
-          closed_comedone: 0.22,
-          papule: 0.25,
-          pustule: 0.2,
-          nodule: 0.11,
-        },
-
-        region_weights: {
-          forehead: 0.2,
-          cheeks: 0.3,
-          chin: 0.2,
-          nose: 0.1,
-          jawline: 0.2,
-        },
-
-        quantitative_thresholds: {
-          lesion_count_per_region: {
-            grade_0: '<3 total lesions',
-            grade_1: '3-8',
-            grade_2: '8-20',
-            grade_3: '20-40',
-            grade_4: '>50 or presence of nodules/cysts',
-          },
-          inflammatory_ratio: {
-            low: '<0.25',
-            moderate: '0.25-0.5',
-            high: '>0.5',
-          },
-        },
-
-        grades: [
-          {
-            grade: '0 - Clear',
-            criteria: {
-              total_lesion_count: '<3',
-              inflammatory_ratio: '<0.1',
-            },
-            visual_flags: [
-              'Smooth skin under white light',
-              'No porphyrin fluorescence in UV',
-              'Even tone in PPL mode',
-            ],
-          },
-          {
-            grade: '1 - Very Mild',
-            criteria: {
-              total_lesion_count: '3-10',
-              inflammatory_ratio: '<0.25',
-            },
-            visual_flags: ['Few comedones visible in T-zone', 'Scattered fluorescence dots in UV'],
-          },
-          {
-            grade: '2 - Mild',
-            criteria: {
-              total_lesion_count: '11-25',
-              inflammatory_ratio: '0.25-0.4',
-            },
-            visual_flags: [
-              'Scattered papules/pustules without nodules',
-              'Localized inflammation, minimal erythema',
-            ],
-          },
-          {
-            grade: '3 - Moderate',
-            criteria: {
-              total_lesion_count: '26-50',
-              inflammatory_ratio: '0.4-0.6',
-            },
-            visual_flags: [
-              'Multiple inflamed papules and pustules',
-              'Porphyrin clustering in UV light',
-            ],
-          },
-          {
-            grade: '4 - Severe / Nodulocystic',
-            criteria: {
-              total_lesion_count: '>50 or nodules_present = true',
-              inflammatory_ratio: '>0.6',
-            },
-            visual_flags: [
-              'Large inflamed nodules or cysts',
-              'Diffuse redness and possible scarring',
-            ],
-          },
-        ],
-        decision_logic: {
-          description: 'Weighted scoring for lesion count, inflammation, and region distribution.',
-          steps: [
-            '1. Detect lesion types and counts per region from white and UV modes.',
-            '2. Calculate inflammatory_ratio = (papules + pustules + nodules) / total_lesions.',
-            '3. Compute region_score = Σ(lesion_count_region × region_weight).',
-            '4. Calculate weighted_grade_score = Σ(lesion_type_count × lesion_type_weight).',
-            '5. Aggregate region_score and weighted_grade_score → global_severity_index (0-1).',
-            '6. Map global_severity_index to final grade thresholds.',
-            '7. Output single final grade with confidence and region breakdown.',
-          ],
-          output_format: {
-            final_grade: 'integer (0-4)',
-          },
+          pigment_index: '0-100',
+          vascular_index: '0-100',
+          shadow_hollow_index: '0-100',
+          puffiness_index: '0-100',
+          texture_line_index: '0-100',
         },
       },
     },
   },
 }
 
-const texture_pores_criteria = {
-  analyze_texture_pores_grade: {
-    type: 'object',
-    description:
-      'Embedded texture and pores grading logic, weights, thresholds, and decision flow based on Bitmoji A5 Analyzer standard.',
-    default: {
-      texture_pores_grading: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['white', 'PPL', 'XPL'],
-          regions_analyzed: ['forehead', 'nose', 'cheeks', 'chin'],
-        },
-
-        parameter_weights: {
-          pore_diameter_ratio: 0.5,
-          texture_uniformity_index: 0.3,
-          light_reflection_evenness: 0.1,
-          roughness_variance: 0.1,
-        },
-
-        threshold_guidelines: {
-          pore_diameter_ratio: {
-            invisible: '<1.10',
-            fine: '1.10-1.25',
-            moderate: '1.25-1.45',
-            large: '1.45-1.75',
-            very_large: '>1.75',
-          },
-          texture_uniformity_index: {
-            smooth: '>0.80',
-            slightly_uneven: '0.65-0.80',
-            rough: '0.50-0.65',
-            coarse: '<0.50',
-          },
-          light_reflection_evenness: {
-            even: '>0.8',
-            minor_variation: '0.6-0.8',
-            mottled: '<0.6',
-          },
-        },
-
-        grades: [
-          {
-            grade: '0 - Clear / Smooth',
-            criteria: {
-              pore_diameter_ratio: '<1.1',
-              texture_uniformity_index: '>0.85',
-              light_reflection_evenness: '>0.8',
-            },
-            visual_flags: [
-              'Surface smooth under PPL and white modes',
-              'No pore visibility in central face',
-              'Uniform specular highlights',
-            ],
-          },
-          {
-            grade: '1 - Very Mild',
-            criteria: {
-              pore_diameter_ratio: '1.1-1.3',
-              texture_uniformity_index: '0.7-0.85',
-            },
-            visual_flags: [
-              'Fine pores on nose or medial cheeks only',
-              'Minor unevenness in polarized light',
-            ],
-          },
-          {
-            grade: '2 - Mild',
-            criteria: {
-              pore_diameter_ratio: '1.3-1.6',
-              texture_uniformity_index: '0.6-0.8',
-            },
-            visual_flags: [
-              'Visible pores extending laterally',
-              'Diffuse mild roughness or dullness',
-            ],
-          },
-          {
-            grade: '3 - Moderate',
-            criteria: {
-              pore_diameter_ratio: '1.6-2.0',
-              texture_uniformity_index: '0.5-0.7',
-            },
-            visual_flags: [
-              'Obvious, enlarged pores across central face',
-              'Coarse, non-uniform reflection pattern',
-            ],
-          },
-          {
-            grade: '4 - Severe',
-            criteria: {
-              pore_diameter_ratio: '>2.0',
-              texture_uniformity_index: '<0.5',
-            },
-            visual_flags: [
-              'Widespread large pores or atrophic pits',
-              'Marked roughness, irregular topography',
-            ],
-          },
-        ],
-
-        decision_logic: {
-          description:
-            'Compute pore and texture indices region-wise, then output the single global grade with confidence.',
-          steps: [
-            '1. Measure pore_diameter_ratio using PPL mode (FFT-based pore map vs baseline texture).',
-            '2. Compute texture_uniformity_index from XPL micro-contrast variance.',
-            '3. Derive light_reflection_evenness from white-mode specular map.',
-            '4. Apply parameter_weights to obtain weighted_region_score.',
-            '5. Combine all regions (weighted equally or per region_weights if defined) → global_texture_index (0-1).',
-            '6. Map global_texture_index to grade thresholds.',
-            '7. Select grade with highest confidence; output single final grade.',
-          ],
-          output_format: {
-            final_grade: 'integer (0-4)',
-          },
-          single_output_mode: true,
-        },
-      },
-    },
-  },
-}
-
-const superficial_wrinkles_criteria = {
-  analyze_wrinkles_grade: {
-    type: 'object',
-    description:
-      'Embedded wrinkle grading logic, weights, thresholds, and computation flow based on Bitmoji A5 Analyzer Wrinkles Grading standard.',
-    default: {
-      wrinkles_grading: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['PPL', 'XPL', 'white'],
-          regions_analyzed: ['forehead', 'peri-orbital', 'cheeks', 'nasolabial', 'chin'],
-        },
-        parameter_weights: {
-          wrinkle_depth_index: 0.4,
-          wrinkle_density_index: 0.35,
-          contrast_visibility_index: 0.15,
-          texture_coarseness_index: 0.1,
-        },
-        threshold_guidelines: {
-          wrinkle_depth_index: {
-            very_mild: '<0.25',
-            mild: '0.25-0.45',
-            moderate: '0.45-0.65',
-            severe: '>0.65',
-          },
-          wrinkle_density_index: {
-            very_mild: '<0.2',
-            mild: '0.2-0.4',
-            moderate: '0.4-0.6',
-            severe: '>0.6',
-          },
-          contrast_visibility_index: {
-            low: '>0.8',
-            moderate: '0.6-0.8',
-            high: '<0.6',
-          },
-        },
-        grades: [
-          {
-            grade: '1 - Very Mild',
-            criteria: {
-              wrinkle_depth_index: '<0.25',
-              wrinkle_density_index: '<0.2',
-            },
-            visual_flags: [
-              'Occasional faint lines visible only on zoomed or angled PPL images',
-              'Smooth reflection in white mode',
-            ],
-          },
-          {
-            grade: '2 - Mild',
-            criteria: {
-              wrinkle_depth_index: '0.25-0.45',
-              wrinkle_density_index: '0.2-0.4',
-            },
-            visual_flags: [
-              'Multiple fine superficial wrinkles visible at rest',
-              'Localized clusters on forehead or peri-orbital areas',
-            ],
-          },
-          {
-            grade: '3 - Moderate',
-            criteria: {
-              wrinkle_depth_index: '0.45-0.65',
-              wrinkle_density_index: '0.4-0.6',
-            },
-            visual_flags: [
-              'Clearly defined fine lines across multiple regions',
-              'Visible from conversational distance',
-            ],
-          },
-          {
-            grade: '4 - Severe',
-            criteria: {
-              wrinkle_depth_index: '>0.65',
-              wrinkle_density_index: '>0.6',
-            },
-            visual_flags: [
-              'Deep, etched lines with uneven texture',
-              'Prominent under PPL/XPL lighting',
-            ],
-          },
-        ],
-        decision_logic: {
-          description: 'Compute wrinkle indices per region, aggregate to a single overall grade.',
-          steps: [
-            '1. Use XPL mode to measure wrinkle_depth_index (pixel contrast slope and shadow gradient).',
-            '2. Use PPL mode to compute wrinkle_density_index (line count per cm²).',
-            '3. Derive contrast_visibility_index from white-mode luminance difference between wrinkle and background skin.',
-            '4. Combine all indices using parameter_weights to form a global_wrinkle_index (0-1).',
-            '5. Map global_wrinkle_index to grade thresholds (1-4).',
-            '6. Output only the highest-confidence single grade.',
-          ],
-          output_format: {
-            final_grade: 'integer (1-4)',
-          },
-          single_output_mode: true,
-        },
-      },
-    },
-  },
-}
-
-const jawline_sagging_criteria = {
-  analyze_jawline_sagging_grade: {
-    type: 'object',
-    description:
-      'Embedded jawline sagging grading logic, thresholds, and computation flow based on Bitmoji A5 Analyzer Jawline Sagging Grading standard.',
-    default: {
-      jawline_sagging_grading: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['white', 'PPL', 'XPL'],
-          regions_analyzed: ['mandibular_angle', 'submandibular_area', 'lower_cheek'],
-          version: '2.2',
-        },
-        parameter_weights: {
-          mandibular_angle_change: 0.4,
-          contour_smoothness_index: 0.3,
-          skin_laxity_index: 0.2,
-          shadow_intensity_ratio: 0.1,
-        },
-        threshold_guidelines: {
-          mandibular_angle_change_deg: {
-            very_mild: '<4°',
-            mild: '4-8°',
-            moderate: '8-12°',
-            severe: '>12°',
-          },
-          contour_smoothness_index: {
-            sharp: '>0.88',
-            slightly_blunted: '0.75-0.88',
-            moderate_blunting: '0.55-0.75',
-            severe_irregularity: '<0.55',
-          },
-          skin_laxity_index: {
-            firm: '<0.25',
-            mild: '0.25-0.45',
-            moderate: '0.45-0.65',
-            severe: '>0.65',
-          },
-          shadow_intensity_ratio: {
-            low: '<0.3',
-            moderate: '0.3-0.6',
-            high: '>0.6',
-          },
-        },
-        grades: [
-          {
-            grade: '1 - Very Mild',
-            criteria: {
-              mandibular_angle_change_deg: '<5',
-              contour_smoothness_index: '>0.85',
-              skin_laxity_index: '<0.25',
-            },
-            visual_flags: [
-              'Straight, sharp jawline contour under white and XPL modes',
-              'No visible jowl or submandibular shadow',
-            ],
-          },
-          {
-            grade: '2 - Mild',
-            criteria: {
-              mandibular_angle_change_deg: '5-10',
-              contour_smoothness_index: '0.7-0.85',
-              skin_laxity_index: '0.25-0.45',
-            },
-            visual_flags: [
-              'Slight blunting of jawline definition',
-              'Early jowl visibility at mandibular angle',
-            ],
-          },
-          {
-            grade: '3 - Moderate',
-            criteria: {
-              mandibular_angle_change_deg: '10-15',
-              contour_smoothness_index: '0.5-0.7',
-              skin_laxity_index: '0.45-0.65',
-            },
-            visual_flags: [
-              'Visible jowl formation with reduced jawline sharpness',
-              'Shadowing under submandibular region',
-            ],
-          },
-          {
-            grade: '4 - Severe',
-            criteria: {
-              mandibular_angle_change_deg: '>15',
-              contour_smoothness_index: '<0.5',
-              skin_laxity_index: '>0.65',
-            },
-            visual_flags: [
-              'Heavy sagging and pronounced jowls',
-              'Loss of contour continuity and deep submandibular shadow',
-            ],
-          },
-        ],
-        decision_logic: {
-          description:
-            'Calculate geometric and textural indicators of sagging, weight them, and output a single global grade.',
-          steps: [
-            '1. Detect mandibular edge curve using contour analysis on white light image.',
-            '2. Compute mandibular_angle_change_deg relative to baseline facial axis.',
-            '3. Calculate contour_smoothness_index using gradient variance from XPL mode.',
-            '4. Estimate skin_laxity_index via vertical pixel displacement of lower cheek contour under PPL lighting.',
-            '5. Measure shadow_intensity_ratio from luminance map beneath mandible.',
-            '6. Combine all parameters using defined weights to form global_sagging_index (0-1).',
-            '7. Map global_sagging_index to grade thresholds (1-4).',
-            '8. Output only the single grade with highest confidence.',
-          ],
-          output_format: {
-            final_grade: 'integer (1-4)',
-          },
-          single_output_mode: true,
-        },
-      },
-    },
-  },
-}
-
-const skin_hydration_criteria = {
-  analyze_skin_hydration: {
-    type: 'object',
-    description:
-      'Embedded skin hydration grading logic, parameter weights, thresholds, and computation flow based on Bitmoji A5 Analyzer Skin Hydration Grading standard.',
-    default: {
-      skin_hydration_grading: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['white', 'PPL', 'red'],
-          regions_analyzed: ['forehead', 'cheeks', 'chin'],
-          version: '2.3',
-        },
-        parameter_weights: {
-          surface_reflectance_index: 0.35,
-          microline_density_index: 0.3,
-          subsurface_diffusion_index: 0.25,
-          color_luminance_uniformity: 0.1,
-        },
-        threshold_guidelines: {
-          surface_reflectance_index: {
-            excellent: '0.65-0.80',
-            mildly_low: '0.50-0.65',
-            low: '0.35-0.50',
-            very_low: '<0.35',
-          },
-          microline_density_index: {
-            excellent: '<0.15',
-            mild: '0.15-0.25',
-            moderate: '0.25-0.35',
-            severe: '>0.35',
-          },
-          subsurface_diffusion_index: {
-            high: '>0.70',
-            moderate: '0.55-0.70',
-            low: '<0.55',
-          },
-          color_luminance_uniformity: {
-            even: '>0.8',
-            slightly_patchy: '0.6-0.8',
-            uneven: '<0.6',
-          },
-        },
-        scores: [
-          {
-            score: 0,
-            label: 'Excellent Hydration',
-            criteria: {
-              surface_reflectance_index: '≥0.65',
-              microline_density_index: '<0.15',
-              subsurface_diffusion_index: '>0.70',
-            },
-            visual_flags: [
-              'Plump, smooth, radiant appearance in white mode',
-              'Minimal micro-lines in PPL mode',
-              'Strong subsurface glow in red mode',
-            ],
-          },
-          {
-            score: 1,
-            label: 'Mild Dehydration',
-            criteria: {
-              surface_reflectance_index: '0.50-0.65',
-              microline_density_index: '0.15-0.25',
-            },
-            visual_flags: ['Slight dullness, reduced glow', 'Faint fine lines visible under PPL'],
-          },
-          {
-            score: 2,
-            label: 'Moderate Dehydration',
-            criteria: {
-              surface_reflectance_index: '0.35-0.50',
-              microline_density_index: '0.25-0.35',
-              subsurface_diffusion_index: '0.55-0.70',
-            },
-            visual_flags: [
-              'Noticeable dullness and uneven tone',
-              'Fine lines across multiple regions',
-              'Patchy reflectance under white light',
-            ],
-          },
-          {
-            score: 3,
-            label: 'Severe Dehydration',
-            criteria: {
-              surface_reflectance_index: '<0.35',
-              microline_density_index: '>0.35',
-              subsurface_diffusion_index: '<0.55',
-            },
-            visual_flags: [
-              'Crepey or flaky surface texture',
-              'Deep fine lines, poor elasticity',
-              'Lack of diffuse glow under red mode',
-            ],
-          },
-        ],
-        decision_logic: {
-          description:
-            'Calculate hydration indices across modes, combine with weights, and output a single hydration score.',
-          steps: [
-            '1. Extract surface_reflectance_index from white light image using specular highlight ratio.',
-            '2. Compute microline_density_index from PPL texture analysis (inverse of smoothness).',
-            '3. Derive subsurface_diffusion_index from red-mode light scatter intensity.',
-            '4. Calculate color_luminance_uniformity from full-face brightness variance.',
-            '5. Combine indices using parameter_weights → global_hydration_index (0-1).',
-            '6. Map global_hydration_index to score thresholds (0-3).',
-            '7. Output only the single score with highest confidence.',
-          ],
-          output_format: {
-            final_score: 'integer (0-3)',
-          },
-          single_output_mode: true,
-        },
-      },
-    },
-  },
-}
-
-const skin_sebum_content_criteria = {
-  sebum_content_grading: {
+const lip_pigmentation_scoring = {
+  lip_pigmentation_scoring_v4_0: {
     metadata: {
-      device: 'Bitmoji A5 Analyzer',
-      lighting_modes_used: ['white', 'UV', 'PPL'],
-      regions_analyzed: ['forehead', 'nose', 'cheeks', 'chin'],
-      version: '3.0',
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'blue', 'UV', 'woods', 'positive', 'negative'],
+      regions_analyzed: ['upper_lip', 'lower_lip', 'vermilion_border'],
+      version: '4.0',
+      notes:
+        'Built to detect melanin-based and vascular-based lip darkening even when lipstick or tint is present.',
     },
-    parameter_weights: {
-      shine_reflectance_index: 0.45,
-      porphyrin_fluorescence_index: 0.35,
-      regional_uniformity_index: 0.2,
+
+    mode_roles: {
+      white: 'Surface color tone, visible darkness, dryness exaggeration.',
+      positive: 'Enhances contour + reveals matte vs glossy areas (helps exclude lipstick).',
+      negative: 'Separates pigment layers; highlights intrinsic vs applied pigment.',
+      blue: 'Sebum/clogging around vermilion border (adjacent pigmentation causes).',
+      UV: 'Melanin absorption mapping; detects intrinsic pigmentation under lipstick.',
+      woods: 'Deep melanin fluorescence; subclinical pigmentation depth.',
     },
-    threshold_guidelines: {
-      shine_reflectance_index: {
-        very_low: '<0.3',
-        low_normal: '0.3-0.5',
-        moderate: '0.5-0.7',
-        high: '>0.7',
+
+    primary_metrics: {
+      intrinsic_melanin_index: {
+        description: 'UV + Woods composite showing true lip melanin unaffected by lipstick.',
+        range: '0-1',
+        bands: {
+          minimal: '<0.15',
+          mild: '0.15-0.30',
+          moderate: '0.30-0.50',
+          marked: '0.50-0.70',
+          severe: '>0.70',
+        },
       },
-      porphyrin_fluorescence_index: {
-        none: '<20',
-        few: '20-40',
-        moderate: '40-60',
-        dense: '>60',
+
+      surface_darkness_index: {
+        description: 'White + negative mode tone drop after lipstick subtraction.',
+        range: '0-1',
+        bands: {
+          none: '<0.10',
+          faint: '0.10-0.25',
+          visible: '0.25-0.45',
+          obvious: '0.45-0.65',
+          intense: '>0.65',
+        },
       },
-      regional_uniformity_index: {
-        balanced: '<0.2',
-        T_zone_dominant: '0.2-0.4',
-        generalized: '>0.4',
+
+      lipstick_mask_confidence: {
+        description: 'Classifier that measures whether visible color is cosmetic.',
+        values: ['true', 'false'],
+        confidence: '0-1',
+      },
+
+      vascular_congestion_index: {
+        description: 'Bluish-purple under-tone caused by vascular congestion (UV + negative).',
+        range: '0-1',
+        bands: {
+          none: '<0.10',
+          mild: '0.10-0.25',
+          moderate: '0.25-0.45',
+          pronounced: '>0.45',
+        },
+      },
+
+      perioral_shadow_index: {
+        description: 'Darkness around the lip margin contributing to perceived pigmentation.',
+        range: '0-1',
+        bands: {
+          minimal: '<0.15',
+          mild: '0.15-0.30',
+          moderate: '0.30-0.50',
+          marked: '>0.50',
+        },
       },
     },
-    sub_indices: {
-      sebum_quantity_index: {
-        description: 'Represents overall sebum output based on shine and porphyrin fluorescence.',
-        calculation: [
-          '1. Normalize shine_reflectance_index (white mode) to 0-1 scale.',
-          '2. Normalize porphyrin_fluorescence_index (UV mode) to 0-1 scale.',
-          '3. Compute sebum_quantity_index = (0.55 × shine_reflectance) + (0.45 × porphyrin_fluorescence).',
-        ],
-        output_range: '0 (dry) → 1 (oily)',
-      },
-      sebum_distribution_index: {
-        description: 'Represents how evenly sebum is spread across facial regions.',
-        calculation: [
-          '1. Measure sebum quantity per region (forehead, nose, cheeks, chin).',
-          '2. Compute mean absolute deviation from global mean.',
-          '3. Normalize to 0-1 range → higher = more uneven.',
-          '4. sebum_distribution_index = deviation_normalized × regional_uniformity_weight (0.2).',
-        ],
-        output_range: '0 (balanced) → 1 (diffuse / T-zone dominated)',
-      },
-    },
-    scores: [
-      {
-        score: 0,
-        label: 'Very Low Sebum / Dry',
-        criteria: {
-          sebum_quantity_index: '<0.3',
-          sebum_distribution_index: '<0.2',
-        },
-        visual_flags: ['Matte skin, no visible shine', 'No porphyrin fluorescence in UV mode'],
-      },
-      {
-        score: 1,
-        label: 'Low-Normal Sebum',
-        criteria: {
-          sebum_quantity_index: '0.3-0.5',
-          sebum_distribution_index: '<0.3',
-        },
-        visual_flags: ['Minimal T-zone shine', 'Few scattered porphyrins'],
-      },
-      {
-        score: 2,
-        label: 'Moderate / Normal-Oily',
-        criteria: {
-          sebum_quantity_index: '0.5-0.7',
-          sebum_distribution_index: '0.2-0.4',
-        },
-        visual_flags: [
-          'Healthy glow over T-zone and cheeks',
-          'Multiple porphyrins visible in UV mode',
-        ],
-      },
-      {
-        score: 3,
-        label: 'High Sebum / Oily',
-        criteria: {
-          sebum_quantity_index: '>0.7',
-          sebum_distribution_index: '>0.4',
-        },
-        visual_flags: ['Diffuse oily sheen across face', 'Dense UV porphyrins and enlarged pores'],
-      },
-    ],
-    decision_logic: {
-      description:
-        'Compute dual backend indices (quantity & distribution), merge into single visible score for report.',
+
+    lipstick_separation_logic: {
       steps: [
-        '1. Calculate sebum_quantity_index using shine_reflectance and porphyrin_fluorescence inputs.',
-        '2. Calculate sebum_distribution_index using per-region sebum variance.',
-        '3. Combine both: global_sebum_index = (0.8 × sebum_quantity_index) + (0.2 × sebum_distribution_index).',
-        '4. Map global_sebum_index to discrete patient-visible score thresholds (0-3).',
-        '5. Retain both sub-indices for backend analytics and treatment planning.',
-        '6. Output one visible score for the patient report.',
+        '1. Compare white vs positive highlight retention to detect gloss layer.',
+        '2. Use negative mode to estimate underlying tone independent of cosmetic layer.',
+        '3. UV + Woods cross-check: intrinsic melanin does NOT fluoresce as lipstick does.',
+        '4. If ≥3 indicators show cosmetic presence → lipstick_mask_confidence=true.',
+        '5. Replace surface tone readings with intrinsic melanin and negative-mode readings.',
+      ],
+    },
+
+    backend_indices: {
+      depth_profile_index: {
+        description: 'True depth of pigmentation: 0=surface, 1=deep dermal.',
+        formula: 'woods_intensity * 0.6 + UV_absorption * 0.4',
+        range: '0-1',
+      },
+
+      pigment_distribution_map: {
+        description: 'Heatmap showing unevenness across upper/lower lips.',
+        format: {
+          upper_lip: '0-1',
+          lower_lip: '0-1',
+          vermilion_border: '0-1',
+        },
+      },
+
+      pigment_classification: {
+        description: 'Etiology classification for treatment engine.',
+        values: [
+          'melanin_dominant',
+          'vascular_dominant',
+          'mixed_type',
+          'surface_staining_or_cosmetic',
+        ],
+      },
+
+      improvability_index: {
+        description: 'Expected responsiveness to one treatment session.',
+        formula: '(1 - depth_profile_index) * (1 - vascular_congestion_index)',
+        range: '0-1',
+      },
+    },
+
+    scoring_scale: {
+      1: {
+        label: 'No / Minimal Pigmentation',
+        clinical_features: ['Natural pink tone', 'No visible UV melanin', 'No vascular shadows'],
+      },
+      2: {
+        label: 'Mild Pigmentation',
+        clinical_features: [
+          'Slight darkness or uneven tone',
+          'Shallow melanin visible on UV',
+          'Minimal perioral shadowing',
+        ],
+      },
+      3: {
+        label: 'Moderate Pigmentation',
+        clinical_features: [
+          'Clearly visible brown / purple tone',
+          'Woods light shows defined melanin zones',
+          'Lipstick removal reveals same pattern',
+        ],
+      },
+      4: {
+        label: 'Marked Pigmentation',
+        clinical_features: [
+          'Deep melanin or vascular congestion',
+          'Uneven vermilion darkening',
+          'Subclinical pigmentation strongly visible on UV/Woods',
+        ],
+      },
+      5: {
+        label: 'Severe Lip Pigmentation',
+        clinical_features: [
+          'Dark brown / bluish tone',
+          'Deep dermal component',
+          'Extensive involvement of vermilion + border',
+        ],
+      },
+    },
+
+    decision_logic: {
+      steps: [
+        '1. Detect lipstick and apply correction if needed.',
+        '2. Compute intrinsic melanin, surface darkness, vascular congestion.',
+        '3. Assess distribution and depth.',
+        '4. Classify pigmentation type.',
+        '5. Combine metrics → global_lip_pigmentation_index (1-5).',
       ],
       output_format: {
-        final_score: 'integer (0-3)',
-        confidence_score: 'float (0-1)',
-        global_sebum_index: 'float (0-1)',
-        backend_details: {
-          sebum_quantity_index: 'float (0-1)',
-          sebum_distribution_index: 'float (0-1)',
-        },
+        final_score: 'integer (1-5)',
+        intrinsic_melanin_index: '0-1',
+        surface_darkness_index: '0-1',
+        vascular_congestion_index: '0-1',
+        perioral_shadow_index: '0-1',
+        depth_profile_index: '0-1',
+        pigment_distribution_map: 'dict',
+        lipstick_mask_confidence: '0-1',
+        pigment_classification: 'melanin_dominant | vascular_dominant | mixed_type | cosmetic',
+        improvability_index: '0-1',
       },
-      single_output_mode: true,
     },
   },
 }
 
-const skin_sensitivity_scoring_criteria = {
-  analyze_skin_sensitivity: {
-    type: 'object',
-    description:
-      'Embedded sensitivity grading logic, parameter thresholds, weight distribution, and scoring structure as per Bitmoji A5 Analyzer Skin Sensitivity Scoring standards.',
-    default: {
-      skin_sensitivity_scoring: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['red', 'white', 'PPL'],
-          regions_analyzed: ['forehead', 'cheeks', 'nose', 'chin'],
-          version: '2.3',
+const texture_pores_scoring = {
+  texture_pores_scoring_v6_1_spatial: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'positive', 'negative', 'blue', 'UV', 'woods'],
+      regions_analyzed: ['forehead', 'cheek_left', 'cheek_right', 'nose', 'chin'],
+      notes:
+        'Texture and pore severity (1-5). Fully spatial backend for targeted passes, spot treatments, peel layering, and pore-focused interventions.',
+    },
+
+    mode_roles: {
+      white: 'Surface smoothness, pore visibility, micro-roughness.',
+      positive: 'Pore-edge contrast and pore boundary detection.',
+      negative: 'Micro-topography, pits, coarse texture.',
+      blue: 'Sebum-filled/clogged pores.',
+      UV: 'Inflammation-linked texture, scars, chronicity.',
+      woods: 'Keratin debris fluorescence and early roughness patterns.',
+    },
+
+    primary_metrics: {
+      pore_diameter_ratio: {
+        description: 'Average pore diameter relative to microtexture baseline.',
+        range: '1.0-2.5',
+        bands: {
+          invisible: '<1.10',
+          fine: '1.10-1.30',
+          moderate: '1.30-1.55',
+          large: '1.55-1.85',
+          very_large: '>1.85',
         },
-        parameter_weights: {
-          erythema_intensity_index: 0.45,
-          vascular_pattern_index: 0.3,
-          barrier_uniformity_index: 0.15,
-          flaking_texture_index: 0.1,
+      },
+
+      pore_density_index: {
+        description: 'Visible pores per cm²; normalized 0-1.',
+        bands: {
+          sparse: '<0.20',
+          mild: '0.20-0.40',
+          moderate: '0.40-0.60',
+          dense: '>0.60',
         },
-        threshold_guidelines: {
-          erythema_intensity_index: {
-            none: '<0.25',
-            mild: '0.25-0.45',
-            moderate: '0.45-0.65',
-            severe: '>0.65',
-          },
-          vascular_pattern_index: {
-            none: '<0.2',
-            diffuse: '0.2-0.4',
-            telangiectatic: '0.4-0.6',
-            prominent: '>0.6',
-          },
-          barrier_uniformity_index: {
-            intact: '>0.8',
-            slightly_disrupted: '0.6-0.8',
-            disrupted: '<0.6',
-          },
-          flaking_texture_index: {
-            smooth: '<0.2',
-            fine_flakes: '0.2-0.4',
-            coarse_flakes: '0.4-0.6',
-            scaling: '>0.6',
-          },
+      },
+
+      texture_uniformity_index: {
+        description: 'White + negative mode smoothness. 1 = smooth.',
+        range: '0-1',
+        bands: {
+          smooth: '>0.80',
+          slightly_uneven: '0.65-0.80',
+          rough: '0.50-0.65',
+          coarse: '<0.50',
         },
-        scores: [
+      },
+
+      micro_roughness_variance: {
+        description: 'Variance in topographic height map (negative mode).',
+        range: '0-1',
+      },
+
+      shine_distribution_index: {
+        description: 'Sebum reflectivity unevenness (blue + white).',
+        range: '0-1',
+        bands: {
+          even: '<0.20',
+          slightly_uneven: '0.20-0.40',
+          uneven: '0.40-0.60',
+          patchy: '>0.60',
+        },
+      },
+    },
+
+    backend_indices: {
+      regional_pore_map: {
+        description: 'Region-wise pore severity from diameter + density.',
+        format: '{region: float 0-1}',
+      },
+
+      regional_texture_map: {
+        description: 'Region-wise roughness score from uniformity + micro-roughness.',
+        format: '{region: float 0-1}',
+      },
+
+      per_pore_coordinate_map: {
+        description: 'List of individual detected pores with attributes.',
+        format: [
           {
-            score: 0,
-            label: 'No Sensitivity',
-            criteria: {
-              erythema_intensity_index: '<0.25',
-              barrier_uniformity_index: '>0.8',
-            },
-            visual_flags: [
-              'Even tone under red and white light',
-              'No visible vascular enhancement',
-              'Texture smooth and uniform',
-            ],
-          },
-          {
-            score: 1,
-            label: 'Mild Sensitivity',
-            criteria: {
-              erythema_intensity_index: '0.25-0.45',
-              vascular_pattern_index: '<0.3',
-            },
-            visual_flags: [
-              'Occasional redness, transient after cleansing or treatment',
-              'Fine capillary visibility on cheeks',
-            ],
-          },
-          {
-            score: 2,
-            label: 'Moderate Sensitivity',
-            criteria: {
-              erythema_intensity_index: '0.45-0.65',
-              vascular_pattern_index: '0.3-0.6',
-              barrier_uniformity_index: '0.6-0.8',
-            },
-            visual_flags: [
-              'Persistent visible redness',
-              'Diffuse vascular pattern under red light',
-              'Mild surface dryness',
-            ],
-          },
-          {
-            score: 3,
-            label: 'Severe Sensitivity',
-            criteria: {
-              erythema_intensity_index: '>0.65',
-              vascular_pattern_index: '>0.6',
-              barrier_uniformity_index: '<0.6',
-              flaking_texture_index: '>0.4',
-            },
-            visual_flags: [
-              'Intense, patchy redness with visible telangiectasia',
-              'Flaking, discomfort, or reactive scaling',
-              'Reduced barrier integrity under PPL mode',
-            ],
+            id: 'string pore_id',
+            region: 'forehead | cheek_left | cheek_right | nose | chin',
+            x: '0-1 normalized coordinate',
+            y: '0-1 normalized coordinate',
+            diameter_px: 'float',
+            clogged_probability: '0-1 (blue fluorescence)',
+            depth_proxy: '0-1 (negative-mode shadow gradient)',
+            severity_weighted_value: 'float 0-1',
           },
         ],
-        backend_analysis: {
-          description: 'Provide detailed diagnostic indices for downstream treatment logic.',
-          sub_indices: {
-            erythema_intensity_index: {
-              description:
-                'Normalized redness value from red-channel histogram compared to neutral reference.',
-              formula: '(mean_red_intensity - baseline) / max_intensity',
-              output_range: '0-1',
-            },
-            vascular_pattern_index: {
-              description:
-                'Pattern detection of linear red features in PPL/white mode using morphological filtering.',
-              formula: 'vessel_pixel_density / total_skin_pixels',
-              output_range: '0-1',
-            },
-            barrier_uniformity_index: {
-              description:
-                'Variation in light reflection uniformity under PPL (inverse proxy for barrier integrity).',
-              formula: '1 - (stddev_reflectance / mean_reflectance)',
-              output_range: '0-1',
-            },
-            flaking_texture_index: {
-              description:
-                'Micro-texture variance in white-mode high-frequency channels indicating scaling or dryness.',
-              formula: 'variance_high_freq / normalization_factor',
-              output_range: '0-1',
-            },
-          },
-          output_interpretation: {
-            sensitivity_pattern: {
-              rules: [
-                {
-                  if: 'vascular_pattern_index> 0.5 and erythema_intensity_index> 0.45',
-                  then: 'Vascular-dominant',
-                },
-                {
-                  if: 'barrier_uniformity_index< 0.6 and flaking_texture_index> 0.4',
-                  then: 'Barrier-impaired',
-                },
-                {
-                  if: 'erythema_intensity_index< 0.45 and vascular_pattern_index< 0.3',
-                  then: 'Low-reactive / Normal',
-                },
+      },
+
+      roughness_patch_map: {
+        description: 'Cluster polygons for patchy roughness or micro-scar zones.',
+        format: {
+          patches: [
+            {
+              patch_id: 'string',
+              centroid: { x: '0-1', y: '0-1' },
+              polygon: [
+                [0.12, 0.3],
+                [0.14, 0.33],
+                [0.18, 0.28],
               ],
+              roughness_intensity: 'float 0-1',
             },
-          },
-        },
-        decision_logic: {
-          description:
-            'Quantify redness, vascular prominence, and barrier integrity, then output single score with backend detail.',
-          steps: [
-            '1. Compute erythema_intensity_index from red and white modes.',
-            '2. Detect vascular patterns via PPL edge filtering to derive vascular_pattern_index.',
-            '3. Assess barrier_uniformity_index from reflectance variance.',
-            '4. Evaluate flaking_texture_index from high-frequency white-mode texture.',
-            '5. Combine weighted indices to calculate global_sensitivity_index (0-1).',
-            '6. Map global_sensitivity_index to discrete score thresholds (0-3).',
-            '7. Determine sensitivity_pattern classification for backend treatment mapping.',
           ],
-          output_format: {
-            final_score: 'integer (0-3)',
-            backend_details: {
-              erythema_intensity_index: 'float (0-1)',
-              vascular_pattern_index: 'float (0-1)',
-              barrier_uniformity_index: 'float (0-1)',
-              flaking_texture_index: 'float (0-1)',
-              sensitivity_pattern: 'Vascular-dominant / Barrier-impaired / Low-reactive',
-            },
-          },
-          single_output_mode: true,
         },
       },
-    },
-  },
-}
 
-const barrier_health_criteria = {
-  analyze_barrier_health: {
-    type: 'object',
-    description:
-      'Embedded barrier grading logic, parameter thresholds, weights, and computation flow based on Bitmoji A5 Analyzer Barrier Health Grading standards.',
-    default: {
-      barrier_health_grading: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['white', 'PPL', 'UV'],
-          regions_analyzed: ['forehead', 'cheeks', 'nose', 'chin'],
-          version: '2.2',
+      clogging_hotspot_map: {
+        description: 'Blue-mode fluorescence clusters showing clogged pores.',
+        format: {
+          clusters: [
+            {
+              cluster_id: 'string',
+              pore_ids: ['P1', 'P2', 'P3'],
+              centroid: { x: '0-1', y: '0-1' },
+              fluorescence_intensity: 'float 0-1',
+            },
+          ],
         },
-        parameter_weights: {
-          surface_texture_uniformity: 0.35,
-          hydration_signal_index: 0.25,
-          redness_intensity_index: 0.25,
-          flaking_visibility_index: 0.15,
-        },
-        threshold_guidelines: {
-          surface_texture_uniformity: {
-            excellent: '>0.85',
-            mild_roughness: '0.7-0.85',
-            moderate_roughness: '0.55-0.7',
-            poor: '<0.55',
+      },
+
+      texture_pores_grid_map: {
+        description:
+          '4×6 grid matching pigmentation/acne spatial layout for fluence/pass-level treatment.',
+        components: {
+          grid_size: [4, 6],
+          grid_values: [
+            ['0-1', '0-1', '0-1', '0-1', '0-1', '0-1'],
+            ['0-1', '0-1', '0-1', '0-1', '0-1', '0-1'],
+            ['0-1', '0-1', '0-1', '0-1', '0-1', '0-1'],
+            ['0-1', '0-1', '0-1', '0-1', '0-1', '0-1'],
+          ],
+
+          grid_column_map: {
+            0: 'left_temporal',
+            1: 'left_malar',
+            2: 'central_nose_glabella',
+            3: 'right_malar',
+            4: 'right_temporal',
+            5: 'central_chin_perioral',
           },
-          hydration_signal_index: {
-            well_hydrated: '>0.65',
-            slightly_low: '0.45-0.65',
-            low: '<0.45',
-          },
-          redness_intensity_index: {
-            none: '<0.25',
-            mild: '0.25-0.45',
-            moderate: '0.45-0.65',
-            severe: '>0.65',
-          },
-          flaking_visibility_index: {
-            none: '<0.2',
-            fine_flakes: '0.2-0.4',
-            coarse_flakes: '0.4-0.6',
-            scaling: '>0.6',
+
+          grid_row_map: {
+            0: 'upper_forehead_hairline',
+            1: 'mid_forehead_browline',
+            2: 'malar_nose_zone',
+            3: 'chin_jawline_zone',
           },
         },
-        grades: [
-          {
-            score: 0,
-            label: 'Strong / Healthy Barrier',
-            criteria: {
-              surface_texture_uniformity: '>0.85',
-              hydration_signal_index: '>0.65',
-              redness_intensity_index: '<0.25',
-              flaking_visibility_index: '<0.2',
-            },
-            visual_flags: [
-              'Smooth, even surface under PPL and white light',
-              'Uniform tone with no micro-flaking',
-              'Hydrated, resilient appearance',
-            ],
-          },
-          {
-            score: 1,
-            label: 'Mildly Compromised Barrier',
-            criteria: {
-              surface_texture_uniformity: '0.7-0.85',
-              hydration_signal_index: '0.45-0.65',
-              redness_intensity_index: '0.25-0.45',
-            },
-            visual_flags: [
-              'Slight dryness or faint redness in cheeks or nose',
-              'Minimal dullness, fine flakes in isolated areas',
-            ],
-          },
-          {
-            score: 2,
-            label: 'Moderately Compromised Barrier',
-            criteria: {
-              surface_texture_uniformity: '0.55-0.7',
-              hydration_signal_index: '<0.45',
-              redness_intensity_index: '0.45-0.65',
-              flaking_visibility_index: '0.3-0.5',
-            },
-            visual_flags: [
-              'Visible patchy redness and rough texture',
-              'Diffuse flaking, uneven tone under PPL mode',
-            ],
-          },
-          {
-            score: 3,
-            label: 'Severely Compromised Barrier',
-            criteria: {
-              surface_texture_uniformity: '<0.55',
-              hydration_signal_index: '<0.4',
-              redness_intensity_index: '>0.65',
-              flaking_visibility_index: '>0.5',
-            },
-            visual_flags: [
-              'Scaling or cracking visible on multiple regions',
-              'Loss of uniform tone, irritation and discomfort',
-              'Poor reflectance indicating severe dehydration',
-            ],
-          },
+
+        usage_notes: [
+          'Cells >0.6 = pore/texture hotspots.',
+          'Useful for selective peel layering, RF microneedling passes, and pore-focused lasers.',
+          'Harmonized with pigmentation v6.1 and acne v5.1 for unified treatment planning.',
         ],
-        decision_logic: {
-          description:
-            'Combine texture, hydration, redness, and flaking parameters into one barrier score.',
-          steps: [
-            '1. Measure surface_texture_uniformity from PPL gradient variance.',
-            '2. Compute hydration_signal_index from white-mode reflectance ratio.',
-            '3. Quantify redness_intensity_index from red-channel analysis in white mode.',
-            '4. Detect flaking_visibility_index using micro-texture variance.',
-            '5. Combine all weighted indices → global_barrier_index (0-1).',
-            '6. Map to discrete barrier score (0-3).',
-          ],
-          output_format: {
-            final_score: 'integer (0-3)',
-          },
-          single_output_mode: true,
-        },
+      },
+
+      roughness_directionality_index: {
+        description: 'Directional roughness vs random roughness.',
+        range: '0-1',
+      },
+
+      clogging_load_index: {
+        description: 'Global clogged-pore load from blue-mode intensity.',
+        range: '0-1',
+      },
+
+      texture_recovery_potential_index: {
+        description: 'Predicts improvement potential (shallower + more superficial = higher).',
+        formula: '(1 - depth_component) * (1 - micro_roughness_variance)',
+        range: '0-1',
       },
     },
-  },
-}
 
-const periorbital_health_criteria = {
-  analyze_periorbital_health: {
-    type: 'object',
-    description:
-      'Embedded peri-orbital health grading logic, parameters, and severity scales used for analyzing under-eye region.',
-    default: {
-      peri_orbital_health: [
-        {
-          parameter: 'Puffiness',
-          grading: ['None', 'Mild', 'Moderate', 'Severe'],
-        },
-        {
-          parameter: 'Hollowness',
-          grading: ['None', 'Mild', 'Moderate', 'Severe'],
-        },
-        {
-          parameter: 'Pigmentation',
-          grading: ['None', 'Mild', 'Moderate', 'Severe'],
-        },
-        {
-          parameter: 'Vascularity',
-          grading: ['None', 'Mild', 'Moderate', 'Severe'],
-        },
+    normalization_logic: {
+      pore_diameter_normalized: {
+        method: 'Linear scaling: 0 at 1.0, 1 at 2.2',
+        equation: 'clip((pore_diameter_ratio - 1.0) / (2.2 - 1.0), 0, 1)',
+      },
+      pore_density_normalized: { method: 'Use pore_density_index directly' },
+      texture_roughness_normalized: { method: '1 - texture_uniformity_index' },
+      shine_variation_normalized: { method: 'Use shine_distribution_index directly' },
+    },
+
+    texture_pore_burden_equation: {
+      description: 'Continuous severity index (0-1).',
+      equation:
+        'TPB = 0.45*pore_diameter_normalized + 0.20*pore_density_normalized + 0.20*texture_roughness_normalized + 0.10*shine_variation_normalized + 0.05*micro_roughness_variance',
+    },
+
+    score_bins: {
+      1: { range: '<0.20', label: 'Smooth / Minimal pores' },
+      2: { range: '0.20-0.35', label: 'Mild pores / mild roughness' },
+      3: { range: '0.35-0.55', label: 'Moderate pores + texture' },
+      4: { range: '0.55-0.75', label: 'Marked pores / rough texture' },
+      5: { range: '>0.75', label: 'Severe pores + coarse texture' },
+    },
+
+    decision_logic: {
+      steps: [
+        '1. Detect pores using white + positive; extract coordinates + diameters.',
+        '2. Detect roughness patches using negative + UV.',
+        '3. Build per-pore map and roughness patch polygons.',
+        '4. Compute region-level pore + texture burdens.',
+        '5. Construct the 4×6 grid map.',
+        '6. Normalize metrics.',
+        '7. Calculate TPB and map to 1-5.',
+        '8. Output all backend indices for treatment engine.',
       ],
     },
-  },
-}
 
-const lip_pigmentation_criteria = {
-  analyze_lip_pigmentation: {
-    type: 'object',
-    description:
-      'Embedded lip pigmentation logic including detection status and feature descriptors for pigmentation pattern analysis.',
-    default: {
-      lip_pigmentation: {
-        status: ['Present'],
-        features: [
-          'Darkening compared to surrounding skin',
-          'May be uniform or patchy',
-          'Causes: sun exposure, smoking, genetics, PIH, dehydration',
-        ],
+    output_format: {
+      final_score: '1-5',
+      TPB_continuous: '0-1',
+      pore_diameter_ratio: 'float',
+      pore_density_index: '0-1',
+      texture_uniformity_index: '0-1',
+      micro_roughness_variance: '0-1',
+      shine_distribution_index: '0-1',
+
+      backend_details: {
+        pore_diameter_normalized: '0-1',
+        pore_density_normalized: '0-1',
+        texture_roughness_normalized: '0-1',
+        shine_variation_normalized: '0-1',
+        regional_pore_map: 'dict',
+        regional_texture_map: 'dict',
+        per_pore_coordinate_map: 'array',
+        roughness_patch_map: 'object',
+        clogging_hotspot_map: 'object',
+        texture_pores_grid_map: 'object',
+        roughness_directionality_index: '0-1',
+        clogging_load_index: '0-1',
+        texture_recovery_potential_index: '0-1',
       },
     },
   },
 }
 
-const vascularity_redness_profiling_criteria = {
-  analyze_vascularity_redness_grading: {
-    type: 'object',
-    description:
-      'Embedded vascularity and redness grading logic, including metadata, weighted parameters, thresholds, grading matrix, and computation steps.',
-    default: {
-      vascularity_redness_grading: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['red', 'white', 'PPL'],
-          regions_analyzed: ['forehead', 'cheeks', 'nose', 'chin'],
-          version: '2.3',
+const superficial_wrinkles_scoring = {
+  superficial_wrinkles_scoring_v6_0: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'positive', 'negative', 'UV', 'blue', 'woods'],
+      regions_analyzed: ['forehead', 'glabella', 'peri_orbital', 'cheeks', 'nasolabial', 'chin'],
+      notes:
+        'Scores real-world visible wrinkles + micro-lines + dehydration lines using multimodal extraction. Includes deep backend indices for targeted wrinkle reduction.',
+    },
+
+    mode_roles: {
+      white: 'Visible wrinkles at conversational distance; patient perception anchor.',
+      positive: 'Enhances wrinkle edge contrast and depth—best for segmentation.',
+      negative: 'Reveals micro-lines, dehydration lines, surface roughness.',
+      UV: 'Highlights chronicity: collagen depletion, persistent etched furrows.',
+      blue: 'Sebum/shine contribution to perceived wrinkles (dehydration vs structural).',
+      woods: 'Detects pigment-wrinkle overlap (PIH in lines).',
+    },
+
+    primary_metrics: {
+      wrinkle_line_count: {
+        description:
+          'Total distinct wrinkle detections across all regions (positive + negative modes).',
+        range: '0-150',
+        bands: {
+          very_low: '<10',
+          low: '10-25',
+          moderate: '25-50',
+          high: '50-90',
+          very_high: '>90',
         },
-        parameter_weights: {
-          erythema_intensity_index: 0.45,
-          vascular_pattern_density: 0.3,
-          distribution_symmetry_index: 0.15,
-          color_uniformity_index: 0.1,
+      },
+
+      wrinkle_depth_index: {
+        description: 'Contrast-derived depth score from positive mode; normalized 0-1.',
+        bands: {
+          very_mild: '<0.20',
+          mild: '0.20-0.40',
+          moderate: '0.40-0.60',
+          deep: '0.60-0.80',
+          etched: '>0.80',
         },
-        threshold_guidelines: {
-          erythema_intensity_index: {
-            none: '<0.25',
-            mild: '0.25-0.45',
-            moderate: '0.45-0.65',
-            severe: '>0.65',
-          },
-          vascular_pattern_density: {
-            none: '<0.2',
-            mild_capillary: '0.2-0.4',
-            moderate_diffuse: '0.4-0.6',
-            dense_telangiectatic: '>0.6',
-          },
-          distribution_symmetry_index: {
-            balanced: '<0.25',
-            slightly_asymmetric: '0.25-0.45',
-            marked_asymmetry: '>0.45',
-          },
-          color_uniformity_index: {
-            even: '>0.8',
-            patchy: '0.6-0.8',
-            uneven: '<0.6',
-          },
+      },
+
+      microline_density_index: {
+        description: 'Micro-lines + dehydration lines from negative mode; normalized 0-1.',
+        bands: {
+          minimal: '<0.15',
+          mild: '0.15-0.30',
+          moderate: '0.30-0.50',
+          high: '0.50-0.70',
+          very_high: '>0.70',
         },
-        grades: [
-          {
-            score: 0,
-            label: 'No Vascularity / Redness',
-            criteria: {
-              erythema_intensity_index: '<0.25',
-              vascular_pattern_density: '<0.2',
-            },
-            visual_flags: [
-              'No visible erythema under red light',
-              'Even tone with no vessel enhancement',
-              'Uniform color distribution',
-            ],
-          },
-          {
-            score: 1,
-            label: 'Mild Vascularity / Redness',
-            criteria: {
-              erythema_intensity_index: '0.25-0.45',
-              vascular_pattern_density: '0.2-0.4',
-            },
-            visual_flags: [
-              'Faint redness over cheeks or nose',
-              'Capillaries visible on high zoom only',
-              'Transient or reactive erythema',
-            ],
-          },
-          {
-            score: 2,
-            label: 'Moderate Vascularity / Redness',
-            criteria: {
-              erythema_intensity_index: '0.45-0.65',
-              vascular_pattern_density: '0.4-0.6',
-              color_uniformity_index: '0.6-0.8',
-            },
-            visual_flags: [
-              'Diffuse redness across cheeks and nose',
-              'Telangiectatic pattern partially visible',
-              'Persistent but non-inflamed erythema',
-            ],
-          },
-          {
-            score: 3,
-            label: 'Severe Vascularity / Redness',
-            criteria: {
-              erythema_intensity_index: '>0.65',
-              vascular_pattern_density: '>0.6',
-              color_uniformity_index: '<0.6',
-            },
-            visual_flags: [
-              'Intense, generalized erythema resembling rosacea',
-              'Dense telangiectatic networks under red/PPL mode',
-              'Possible flushing or chronic vascular dilation',
-            ],
-          },
-        ],
-        backend_analysis: {
-          description: 'Indices to support downstream treatment logic.',
-          sub_indices: {
-            erythema_intensity_index: {
-              description: 'Normalized red-channel intensity relative to neutral skin baseline.',
-              formula: '(mean_red_intensity - baseline) / max_intensity',
-              output_range: '0-1',
-            },
-            vascular_pattern_density: {
-              description: 'Ratio of vessel-like linear structures to total area in red/PPL mode.',
-              formula: 'vessel_pixels / total_skin_pixels',
-              output_range: '0-1',
-            },
-            distribution_symmetry_index: {
-              description: 'Left-right asymmetry of redness distribution.',
-              formula: '|left_intensity - right_intensity| / mean_intensity',
-              output_range: '0-1',
-            },
-            color_uniformity_index: {
-              description: 'Homogeneity of hue across skin; lower = more patchy.',
-              formula: '1 - (stddev_hue / mean_hue)',
-              output_range: '0-1',
-            },
-          },
-          output_interpretation: {
-            vascular_pattern_type: {
-              rules: [
-                { if: 'vascular_pattern_density< 0.3', then: 'Minimal / Reactive' },
-                { if: '0.3-0.6', then: 'Diffuse Capillary' },
-                { if: '>0.6', then: 'Telangiectatic / Rosacea-like' },
-              ],
-            },
-          },
-        },
-        decision_logic: {
-          description: 'Quantify redness and vascular prominence to assign a 0-3 grade.',
-          steps: [
-            '1. Analyze red and white mode histograms to compute erythema_intensity_index.',
-            '2. Detect linear vascular features in PPL/red modes → vascular_pattern_density.',
-            '3. Compute symmetry and color uniformity indices.',
-            '4. Combine weighted indices into global_vascularity_index (0-1).',
-            '5. Map to discrete score thresholds (0-3).',
-          ],
-          output_format: {
-            final_score: 'integer (0-3)',
-            confidence_score: 'float (0-1)',
-            global_vascularity_index: 'float (0-1)',
-            backend_details: {
-              erythema_intensity_index: 'float (0-1)',
-              vascular_pattern_density: 'float (0-1)',
-              distribution_symmetry_index: 'float (0-1)',
-              color_uniformity_index: 'float (0-1)',
-              vascular_pattern_type: 'Minimal / Diffuse / Telangiectatic',
-            },
-          },
-          single_output_mode: true,
+      },
+
+      regional_uniformity_index: {
+        description:
+          'Variability of wrinkle severity across regions (forehead vs peri-orbital, etc.).',
+        range: '0-1',
+        note: 'Higher = many localised problem zones.',
+      },
+
+      chronicity_uv_index: {
+        description: 'UV-derived chronicity (persistent collagen-poor etched lines).',
+        range: '0-1',
+        bands: {
+          fresh: '<0.25',
+          developing: '0.25-0.50',
+          chronic: '0.50-0.75',
+          long_standing: '>0.75',
         },
       },
     },
-  },
-}
 
-const under_eye_vascularity_vs_structural_shadows_criteria = {
-  analyze_under_eye_vascularity_structural_shadows: {
-    type: 'object',
-    description:
-      'Embedded logic for grading under-eye darkness, vascular visibility, and structural hollowness severity with multi-light assessment.',
-    default: {
-      under_eye_vascularity_structural_shadows: [
-        {
-          score: 'Score 0 - None',
-          scoring_parameters: ['Even tone', 'No shadows'],
+    backend_indices: {
+      regional_wrinkle_map: {
+        description: 'Per-region wrinkle burden for targeted treatments.',
+        format: {
+          forehead: { line_count: 'int', depth: '0-1', microline: '0-1', regional_index: '0-1' },
+          glabella: { line_count: 'int', depth: '0-1', microline: '0-1', regional_index: '0-1' },
+          peri_orbital: {
+            line_count: 'int',
+            depth: '0-1',
+            microline: '0-1',
+            regional_index: '0-1',
+          },
+          cheeks: { line_count: 'int', depth: '0-1', microline: '0-1', regional_index: '0-1' },
+          nasolabial: { line_count: 'int', depth: '0-1', microline: '0-1', regional_index: '0-1' },
+          chin: { line_count: 'int', depth: '0-1', microline: '0-1', regional_index: '0-1' },
         },
-        {
-          score: 'Score 1 - Mild',
-          scoring_parameters: ['Faint vascular pigmentation', 'Mild shadowing'],
+      },
+
+      wrinkle_grid_map: {
+        description: '4×6 anatomical grid (same grid as pigmentation engine).',
+        components: {
+          grid_size: [4, 6],
+          grid_values: 'float 0-1 per cell = wrinkle burden',
+          hotspot_threshold: '>0.55',
         },
-        {
-          score: 'Score 2 - Moderate',
-          scoring_parameters: ['Bluish/purple tone', 'Notable under UV'],
-        },
-        {
-          score: 'Score 3 - Severe',
-          scoring_parameters: ['Dark circles', 'Vascular pigmentation + hollowing'],
-        },
+      },
+
+      structural_vs_dehydration_index: {
+        description: 'Separates etched (structural) wrinkles vs dehydration lines.',
+        formula:
+          'structural_component = wrinkle_depth_index; dehydration_component = microline_density_index',
+        output_range: '0-1',
+      },
+
+      improvability_index: {
+        description: 'Treatment responsiveness score.',
+        formula:
+          '(1 - chronicity_uv_index) * (1 - wrinkle_depth_index) * (1 - structural_component)',
+        range: '0-1',
+      },
+    },
+
+    normalization_logic: {
+      line_count_normalized: {
+        method: '0 at <10 lines, 1 at >100 lines',
+        equation: 'clip((wrinkle_line_count - 10) / (100 - 10), 0, 1)',
+      },
+      depth_normalized: {
+        method: 'Use wrinkle_depth_index directly',
+      },
+      microline_normalized: {
+        method: 'Use microline_density_index directly',
+      },
+    },
+
+    wrinkle_burden_equation: {
+      description: 'Continuous severity index (0-1).',
+      equation:
+        'WBI = 0.35*line_count_normalized + 0.35*wrinkle_depth_index + 0.20*microline_density_index + 0.10*regional_uniformity_index',
+    },
+
+    score_bins: {
+      1: {
+        range: '<0.20',
+        label: 'Minimal Wrinkles',
+        anchor: 'Smooth skin, barely visible lines, excellent hydration.',
+      },
+      2: {
+        range: '0.20-0.35',
+        label: 'Mild Wrinkles',
+        anchor: 'Fine lines visible on close inspection; mild dehydration lines.',
+      },
+      3: {
+        range: '0.35-0.55',
+        label: 'Moderate Wrinkles',
+        anchor: 'Visible lines at conversational distance; early etched lines.',
+      },
+      4: {
+        range: '0.55-0.75',
+        label: 'Marked Wrinkles',
+        anchor: 'Multiple deep lines, peri-orbital creasing, textural folding.',
+      },
+      5: {
+        range: '>0.75',
+        label: 'Severe Wrinkles',
+        anchor: 'Deep etched furrows, structural collapse, widespread chronic lines.',
+      },
+    },
+
+    decision_logic: {
+      steps: [
+        '1. Detect wrinkles using positive + negative modes.',
+        '2. Compute line_count, depth_index, microline_density_index.',
+        '3. Calculate region_pigment_loads for 6 facial zones.',
+        '4. Construct wrinkle_grid_map (4×6).',
+        '5. Normalize metrics and compute WBI.',
+        '6. Map WBI to 1-5 score bins.',
+        '7. Compute backend indices (structural_vs_dehydration, improvability, regional_maps).',
       ],
     },
-  },
-}
 
-const skin_luminosity_glow_index_criteria = {
-  analyze_skin_luminosity_glow_index: {
-    type: 'object',
-    description:
-      'Embedded luminosity analysis logic defining parameter weights, thresholds, grading scales, and computational flow for Bitmoji A5 Analyzer Glow Index module.',
-    default: {
-      skin_luminosity_glow_index: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['white', 'PPL', 'brown'],
-          regions_analyzed: ['forehead', 'cheeks', 'nose', 'chin'],
-          version: '2.4',
-        },
-        parameter_weights: {
-          surface_reflectance_uniformity: 0.4,
-          color_luminance_index: 0.3,
-          subsurface_diffusion_index: 0.2,
-          shadow_contrast_index: 0.1,
-        },
-        threshold_guidelines: {
-          surface_reflectance_uniformity: {
-            low: '<0.5',
-            moderate: '0.5-0.7',
-            high: '0.7-0.85',
-            very_high: '>0.85',
-          },
-          color_luminance_index: {
-            dull: '<0.4',
-            mild: '0.4-0.6',
-            bright: '0.6-0.75',
-            radiant: '>0.75',
-          },
-          subsurface_diffusion_index: {
-            low: '<0.5',
-            moderate: '0.5-0.7',
-            high: '>0.7',
-          },
-          shadow_contrast_index: {
-            harsh: '>0.5',
-            moderate: '0.3-0.5',
-            soft: '<0.3',
-          },
-        },
-        grades: [
-          {
-            score: 0,
-            label: 'Dull / Lackluster',
-            criteria: {
-              surface_reflectance_uniformity: '<0.5',
-              color_luminance_index: '<0.4',
-              subsurface_diffusion_index: '<0.5',
-            },
-            visual_flags: [
-              'Patchy reflection and uneven tone in white mode',
-              'Minimal light diffusion from deeper skin layers',
-              'Shadowed and tired appearance',
-            ],
-          },
-          {
-            score: 1,
-            label: 'Mild Glow',
-            criteria: {
-              surface_reflectance_uniformity: '0.5-0.7',
-              color_luminance_index: '0.4-0.6',
-            },
-            visual_flags: [
-              'Slight uneven glow, moderate reflection',
-              'Improved tone but limited radiance under PPL mode',
-            ],
-          },
-          {
-            score: 2,
-            label: 'Healthy Glow / Moderate Luminosity',
-            criteria: {
-              surface_reflectance_uniformity: '0.7-0.85',
-              color_luminance_index: '0.6-0.75',
-              subsurface_diffusion_index: '0.5-0.7',
-            },
-            visual_flags: [
-              'Even, healthy light reflection across T-zone and cheeks',
-              'Balanced brightness and translucency',
-              'Soft diffuse highlights',
-            ],
-          },
-          {
-            score: 3,
-            label: 'Radiant / Luminous Skin',
-            criteria: {
-              surface_reflectance_uniformity: '>0.85',
-              color_luminance_index: '>0.75',
-              subsurface_diffusion_index: '>0.7',
-              shadow_contrast_index: '<0.3',
-            },
-            visual_flags: [
-              'Bright, even glow visible across all lighting modes',
-              'Soft facial contours with natural radiance',
-              'Strong, even subsurface light diffusion',
-            ],
-          },
-        ],
-        backend_analysis: {
-          description: 'Provide sub-indices for AI-based treatment optimization.',
-          sub_indices: {
-            surface_reflectance_uniformity: {
-              description: 'Measure of evenness of surface brightness under white mode.',
-              formula: '1 - (stddev_reflectance / mean_reflectance)',
-              output_range: '0-1',
-            },
-            color_luminance_index: {
-              description: 'Perceived brightness from LAB color space (L channel normalized).',
-              formula: 'mean_L_value / max_L_reference',
-              output_range: '0-1',
-            },
-            subsurface_diffusion_index: {
-              description:
-                'Red-channel light spread variance in brown/PPL mode (proxy for translucency).',
-              formula: 'diffuse_reflection / total_reflection',
-              output_range: '0-1',
-            },
-            shadow_contrast_index: {
-              description: 'Ratio of shadow edge contrast to mean brightness (inverse of glow).',
-              formula: 'edge_contrast / mean_reflectance',
-              output_range: '0-1',
-            },
-          },
-          output_interpretation: {
-            luminosity_pattern: {
-              rules: [
-                {
-                  if: 'subsurface_diffusion_index> 0.7 and color_luminance_index> 0.7',
-                  then: 'Deep Radiance',
-                },
-                {
-                  if: 'surface_reflectance_uniformity> 0.75 and shadow_contrast_index< 0.3',
-                  then: 'Surface Radiance',
-                },
-                {
-                  if: 'surface_reflectance_uniformity< 0.6 and color_luminance_index< 0.5',
-                  then: 'Dull / Uneven',
-                },
-              ],
-            },
-          },
-        },
-        decision_logic: {
-          description:
-            'Combine reflectance, luminance, diffusion, and contrast indices into one glow score.',
-          steps: [
-            '1. Compute surface_reflectance_uniformity from white mode brightness map.',
-            '2. Extract color_luminance_index from LAB L-channel normalization.',
-            '3. Derive subsurface_diffusion_index from brown/PPL red-channel spread.',
-            '4. Calculate shadow_contrast_index from brightness edge variance.',
-            '5. Combine weighted indices into global_luminosity_index (0-1).',
-            '6. Map to discrete glow score (0-3).',
-          ],
-          output_format: {
-            final_score: 'integer (0-3)',
-            backend_details: {
-              surface_reflectance_uniformity: 'float (0-1)',
-              color_luminance_index: 'float (0-1)',
-              subsurface_diffusion_index: 'float (0-1)',
-              shadow_contrast_index: 'float (0-1)',
-              luminosity_pattern: 'Deep Radiance / Surface Radiance / Dull',
-            },
-          },
-          single_output_mode: true,
-        },
+    output_format: {
+      final_score: 'integer 1-5',
+      backend_details: {
+        WBI_continuous: 'float 0-1',
+        wrinkle_line_count: 'int',
+        wrinkle_depth_index: 'float',
+        microline_density_index: 'float',
+        regional_uniformity_index: 'float',
+        chronicity_uv_index: 'float',
+        structural_vs_dehydration_index: 'float',
+        improvability_index: 'float',
+        regional_wrinkle_map: 'object',
+        wrinkle_grid_map: 'object',
       },
     },
   },
 }
 
-const comedonal_density_criteria = {
-  analyze_comedonal_density_grading: {
-    type: 'object',
-    description:
-      'Embedded logic structure defining thresholds, weights, grading scales, and decision flow for comedonal density assessment using Bitmoji A5 Analyzer.',
-    default: {
-      comedonal_density_grading: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['PPL', 'UV', 'white'],
-          regions_analyzed: ['forehead', 'nose', 'cheeks', 'chin'],
-          version: '2.4',
-        },
+const jawline_sagging_scoring = {
+  jawline_sagging_scoring_v6_0: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'positive', 'negative', 'blue', 'UV', 'woods'],
+      regions_analyzed: ['left_jawline', 'right_jawline', 'submental'],
+      notes:
+        'Measures lower-face contour integrity, soft-tissue descent, pre-jowl sulcus depth, and submental heaviness. Designed for patient perception relevance + treatment responsiveness.',
+    },
 
-        parameter_weights: {
-          comedone_count_density: 0.5,
-          comedone_cluster_index: 0.3,
-          porphyrin_overlap_index: 0.15,
-          texture_contrast_index: 0.05,
-        },
+    mode_roles: {
+      white: 'Visible contour shape, sag visibility, jowl prominence.',
+      positive: 'Shadow-edge mapping for sag depth and angle deflection.',
+      negative: 'Highlighting soft-tissue descent through micro-contrast.',
+      blue: 'Sebum-related reflectivity showing laxity-related bulges.',
+      UV: 'Chronicity-related dermal thinning, collagen-poor zones.',
+      woods: 'Fibrosis or structural pattern irregularity (chronic sagging).',
+    },
 
-        threshold_guidelines: {
-          comedone_count_density: {
-            none: '<0.05 (≤1 lesion / cm²)',
-            mild: '0.05-0.15 (2-5 lesions / cm²)',
-            moderate: '0.15-0.3 (6-10 lesions / cm²)',
-            severe: '>0.3 (>10 lesions / cm²)',
-          },
-          comedone_cluster_index: {
-            isolated: '<0.2',
-            scattered: '0.2-0.4',
-            localized_clusters: '0.4-0.6',
-            confluent_clusters: '>0.6',
-          },
-          porphyrin_overlap_index: {
-            none: '<0.2',
-            partial: '0.2-0.5',
-            strong: '>0.5',
-          },
-          texture_contrast_index: {
-            smooth: '<0.3',
-            mild_irregularity: '0.3-0.5',
-            coarse: '>0.5',
-          },
+    primary_metrics: {
+      mandibular_line_deflection_angle: {
+        description:
+          'Deviation (in degrees) of the lower jawline from an ideal straight mandibular contour.',
+        range: '0-12 degrees',
+        bands: {
+          excellent: '<2',
+          mild: '2-4',
+          moderate: '4-7',
+          marked: '7-10',
+          severe: '>10',
         },
+      },
 
-        grades: [
-          {
-            score: 0,
-            label: 'No Comedones',
-            criteria: {
-              comedone_count_density: '<0.05',
-              comedone_cluster_index: '<0.2',
-            },
-            visual_flags: [
-              'No visible blackheads or whiteheads under PPL or UV mode',
-              'Uniform skin texture and pore distribution',
-            ],
+      pre_jowl_sulcus_depth_index: {
+        description: 'Depth of depression anterior to jowl prominence (positive-mode gradient).',
+        range: '0-1',
+        bands: {
+          minimal: '<0.20',
+          mild: '0.20-0.35',
+          moderate: '0.35-0.55',
+          marked: '0.55-0.75',
+          severe: '>0.75',
+        },
+      },
+
+      jowl_bulge_prominence_index: {
+        description: 'Lateral soft-tissue descent measured by negative-mode protrusion mapping.',
+        range: '0-1',
+      },
+
+      submental_fullness_index: {
+        description: 'Degree of double-chin / fat-pad visibility (white + positive modes).',
+        range: '0-1',
+        bands: {
+          minimal: '<0.20',
+          mild: '0.20-0.40',
+          moderate: '0.40-0.60',
+          marked: '0.60-0.75',
+          severe: '>0.75',
+        },
+      },
+
+      dermal_collagen_thinning_index: {
+        description:
+          'Measured through UV + woods micro-pattern irregularity (proxy for chronic sagging).',
+        range: '0-1',
+      },
+    },
+
+    backend_indices: {
+      left_right_asymmetry_index: {
+        description: 'Difference in sagging severity between left & right jawline.',
+        formula: 'abs(left_score - right_score) / (mean_score + 0.001)',
+        range: '0-1',
+      },
+
+      contour_continuity_break_index: {
+        description: 'Degree of jawline shape interruption from chin to angle of mandible.',
+        range: '0-1',
+      },
+
+      sagging_chronicity_index: {
+        description: 'Based on UV collagen-poor zones × woods fibrosis pattern.',
+        formula: 'UV_low_density * woods_irregularity',
+        range: '0-1',
+      },
+
+      fat_vs_laxity_component_split: {
+        description: 'Helps treatment engine differentiate lifting vs fat reduction.',
+        components: {
+          laxity_component: 'jowl_bulge_prominence_index × dermal_collagen_thinning_index',
+          fat_component: 'submental_fullness_index',
+        },
+      },
+
+      regional_sagging_map: {
+        description: 'Per-region sagging severity for spot-targeted treatments.',
+        format: {
+          left_jawline: '0-1',
+          right_jawline: '0-1',
+          submental: '0-1',
+        },
+      },
+
+      jawline_grid_map: {
+        description: '3×4 anatomical grid for precision HIFU/RF tightening.',
+        components: {
+          grid_size: [3, 4],
+          grid_values: '3x4 matrix, each cell 0-1 severity',
+          column_map: {
+            0: 'left_angle',
+            1: 'left_mid_jaw',
+            2: 'right_mid_jaw',
+            3: 'right_angle',
           },
-          {
-            score: 1,
-            label: 'Mild Comedonal Activity',
-            criteria: {
-              comedone_count_density: '0.05-0.15',
-              comedone_cluster_index: '0.2-0.4',
-            },
-            visual_flags: [
-              'Few scattered comedones mainly on T-zone',
-              'Isolated open pores visible under polarized light',
-            ],
-          },
-          {
-            score: 2,
-            label: 'Moderate Comedonal Activity',
-            criteria: {
-              comedone_count_density: '0.15-0.3',
-              comedone_cluster_index: '0.4-0.6',
-              porphyrin_overlap_index: '0.2-0.5',
-            },
-            visual_flags: [
-              'Multiple clustered comedones across forehead and cheeks',
-              'UV mode shows moderate porphyrin fluorescence',
-              'Mild texture coarseness visible in PPL',
-            ],
-          },
-          {
-            score: 3,
-            label: 'Severe / Confluent Comedones',
-            criteria: {
-              comedone_count_density: '>0.3',
-              comedone_cluster_index: '>0.6',
-              porphyrin_overlap_index: '>0.5',
-            },
-            visual_flags: [
-              'Dense, confluent comedones covering large regions',
-              'Strong porphyrin fluorescence in UV mode',
-              'Coarse, irregular skin texture',
-            ],
-          },
-        ],
-        backend_analysis: {
-          description: 'Provide detailed indices for AI-based acne treatment logic.',
-          sub_indices: {
-            comedone_count_density: {
-              description: 'Ratio of detected comedonal lesions per cm² in PPL/white mode.',
-              formula: 'number_of_comedones / analyzed_area_cm²',
-              output_range: '0-1',
-            },
-            comedone_cluster_index: {
-              description:
-                'Normalized measure of comedone spatial grouping using cluster variance.',
-              formula: 'mean_interlesion_distance_variance / total_area',
-              output_range: '0-1',
-            },
-            porphyrin_overlap_index: {
-              description: 'Fraction of comedone pixels overlapping UV porphyrin fluorescence.',
-              formula: 'overlapping_pixels / total_comedone_pixels',
-              output_range: '0-1',
-            },
-            texture_contrast_index: {
-              description:
-                'Local contrast ratio around comedone regions indicating pore edge definition.',
-              formula: 'local_contrast / mean_texture_value',
-              output_range: '0-1',
-            },
-          },
-          output_interpretation: {
-            comedonal_pattern_type: {
-              rules: [
-                { if: 'comedone_cluster_index< 0.3', then: 'Scattered' },
-                { if: 'comedone_cluster_index 0.3-0.6', then: 'Clustered' },
-                { if: 'comedone_cluster_index> 0.6', then: 'Confluent' },
-              ],
-            },
-            comedone_type_tendency: {
-              rules: [
-                { if: 'porphyrin_overlap_index> 0.5', then: 'Closed / Inflammatory-prone' },
-                { if: 'porphyrin_overlap_index< 0.2', then: 'Open / Non-inflammatory' },
-              ],
-            },
+          row_map: {
+            0: 'mandibular_border_upper',
+            1: 'mid_lower_face',
+            2: 'submental_zone',
           },
         },
-        decision_logic: {
-          description: 'Quantify comedone density and clustering to produce a 0-3 score.',
-          steps: [
-            '1. Detect and count comedones using brightness contrast and circular pattern filters in PPL/white mode.',
-            '2. Compute comedone_count_density per region (lesions/cm²).',
-            '3. Calculate comedone_cluster_index from inter-lesion proximity mapping.',
-            '4. Measure porphyrin_overlap_index from UV fluorescence overlay.',
-            '5. Compute weighted average to form global_comedonal_index (0-1).',
-            '6. Map global_comedonal_index to discrete severity score (0-3).',
-          ],
-          output_format: {
-            final_score: 'integer (0-3)',
-            backend_details: {
-              comedone_count_density: 'float (0-1)',
-              comedone_cluster_index: 'float (0-1)',
-              porphyrin_overlap_index: 'float (0-1)',
-              texture_contrast_index: 'float (0-1)',
-              comedonal_pattern_type: 'Scattered / Clustered / Confluent',
-              comedone_type_tendency: 'Open / Closed',
-            },
-          },
-          single_output_mode: true,
-        },
+      },
+    },
+
+    weighting_logic: {
+      mandibular_line_deflection_angle: 0.3,
+      pre_jowl_sulcus_depth_index: 0.25,
+      jowl_bulge_prominence_index: 0.2,
+      submental_fullness_index: 0.15,
+      dermal_collagen_thinning_index: 0.1,
+    },
+
+    continuous_severity_equation: {
+      description: 'Generates global sagging score 0-1.',
+      equation: 'JSI = 0.30*A + 0.25*B + 0.20*C + 0.15*D + 0.10*E',
+    },
+
+    score_bins: {
+      1: {
+        range: '<0.20',
+        anchor: 'Taut jawline, minimal sagging.',
+      },
+      2: {
+        range: '0.20-0.35',
+        anchor: 'Mild early sagging; slight pre-jowl or minimal submental fullness.',
+      },
+      3: {
+        range: '0.35-0.55',
+        anchor: 'Moderate sagging; visible jowls or reduced contour sharpness.',
+      },
+      4: {
+        range: '0.55-0.75',
+        anchor: 'Marked sagging; clear loss of jawline definition.',
+      },
+      5: {
+        range: '>0.75',
+        anchor: 'Severe sagging; heavy jowls, deep pre-jowl sulcus, significant submental laxity.',
+      },
+    },
+
+    decision_logic: {
+      steps: [
+        '1. Measure mandibular deflection line in white + positive mode.',
+        '2. Quantify pre-jowl depth using positive mode gradient mapping.',
+        '3. Analyze jowl bulge prominence in negative mode.',
+        '4. Assess submental fullness in white + positive modes.',
+        '5. Evaluate dermal thinning from UV + woods modes.',
+        '6. Compute JSI using weighted severity equation.',
+        '7. Assign 1-5 sagging score based on score_bins.',
+        '8. Generate regional_sagging_map and jawline_grid_map.',
+        '9. Output backend data for treatment planning.',
+      ],
+    },
+
+    output_format: {
+      final_score: 'integer 1-5',
+      JSI_continuous: 'float 0-1',
+      backend_details: {
+        mandibular_line_deflection_angle: 'float',
+        pre_jowl_sulcus_depth_index: '0-1',
+        jowl_bulge_prominence_index: '0-1',
+        submental_fullness_index: '0-1',
+        dermal_collagen_thinning_index: '0-1',
+        left_right_asymmetry_index: '0-1',
+        contour_continuity_break_index: '0-1',
+        sagging_chronicity_index: '0-1',
+        fat_vs_laxity_component_split: 'object',
+        regional_sagging_map: 'object',
+        jawline_grid_map: 'object',
       },
     },
   },
 }
 
-const texture_irregularities_beyond_pores_criteria = {
-  analyze_texture_irregularities_beyond_pores: {
-    type: 'object',
-    description:
-      'Embedded texture irregularity analysis logic defining parameter weights, thresholds, grading, and computational sequence for Bitmoji A5 Analyzer surface uniformity module.',
-    default: {
-      texture_irregularities_beyond_pores: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['PPL', 'white', 'brown'],
-          regions_analyzed: ['forehead', 'cheeks', 'chin', 'nose'],
-          version: '2.3',
-        },
+const skin_firmness_elasticity_index = {
+  skin_firmness_elasticity_index_v1_0: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'positive', 'negative', 'woods'],
+      regions_analyzed: ['cheeks', 'jawline', 'peri-oral', 'lower face'],
+      version: '1.0',
+    },
 
-        parameter_weights: {
-          microtexture_variance_index: 0.4,
-          surface_gradient_irregularity: 0.3,
-          shadow_depth_index: 0.2,
-          diffuse_reflection_loss_index: 0.1,
+    core_metrics: {
+      micro_laxity_pattern_index: {
+        description: 'Subtle sag/crepe patterns detected via negative-mode microtexture mapping.',
+        range: '0-1',
+        bands: {
+          tight: '<0.20',
+          mild_laxity: '0.20-0.35',
+          moderate: '0.35-0.55',
+          marked: '0.55-0.75',
+          severe: '>0.75',
         },
+      },
 
-        threshold_guidelines: {
-          microtexture_variance_index: {
-            smooth: '<0.3',
-            mild: '0.3-0.5',
-            moderate: '0.5-0.7',
-            severe: '>0.7',
-          },
-          surface_gradient_irregularity: {
-            flat: '<0.25',
-            slightly_undulated: '0.25-0.45',
-            moderately_undulated: '0.45-0.65',
-            deeply_undulated: '>0.65',
-          },
-          shadow_depth_index: {
-            none: '<0.2',
-            shallow: '0.2-0.4',
-            moderate: '0.4-0.6',
-            deep: '>0.6',
-          },
-          diffuse_reflection_loss_index: {
-            minimal: '<0.25',
-            moderate: '0.25-0.45',
-            high: '>0.45',
-          },
+      collagen_reflectance_uniformity: {
+        description: 'Uniformity of collagen-linked reflectance under white and woods mode.',
+        range: '0-1',
+        bands: {
+          excellent: '>0.80',
+          good: '0.65-0.80',
+          fair: '0.50-0.65',
+          poor: '<0.50',
         },
+      },
 
-        grades: [
-          {
-            score: 0,
-            label: 'Smooth / Even Texture',
-            criteria: {
-              microtexture_variance_index: '<0.3',
-              surface_gradient_irregularity: '<0.25',
-            },
-            visual_flags: [
-              'Even light reflection in PPL mode',
-              'No visible micro-shadows or undulation',
-              'Smooth surface contour',
-            ],
-          },
-          {
-            score: 1,
-            label: 'Mild Textural Irregularities',
-            criteria: {
-              microtexture_variance_index: '0.3-0.5',
-              surface_gradient_irregularity: '0.25-0.45',
-            },
-            visual_flags: [
-              'Fine surface roughness and minor dullness',
-              'Occasional uneven reflection on cheeks or forehead',
-            ],
-          },
-          {
-            score: 2,
-            label: 'Moderate Textural Irregularities',
-            criteria: {
-              microtexture_variance_index: '0.5-0.7',
-              surface_gradient_irregularity: '0.45-0.65',
-              shadow_depth_index: '0.3-0.5',
-            },
-            visual_flags: [
-              'Micro-roughness and patchy surface light distribution',
-              'Subtle shadowing along previous acne sites or dehydration patches',
-              'Surface appears uneven under PPL or oblique white light',
-            ],
-          },
-          {
-            score: 3,
-            label: 'Severe Textural Irregularities / Scarring',
-            criteria: {
-              microtexture_variance_index: '>0.7',
-              surface_gradient_irregularity: '>0.65',
-              shadow_depth_index: '>0.6',
-              diffuse_reflection_loss_index: '>0.45',
-            },
-            visual_flags: [
-              'Widespread undulation and deep textural pits',
-              'Rolling or atrophic scars casting micro-shadows',
-              'Loss of light diffusion and dull, uneven skin tone',
-            ],
-          },
+      elastic_recoil_proxy_index: {
+        description:
+          'Edge-sharpness + shadow-response ratio from positive-mode (proxy for snap-back).',
+        range: '0-1',
+        bands: {
+          strong: '>0.75',
+          mild_drop: '0.55-0.75',
+          moderate_drop: '0.35-0.55',
+          weak: '<0.35',
+        },
+      },
+    },
+
+    backend_indices: {
+      regional_firmness_map: {
+        description: 'Firmness score per region (0-1).',
+        format: '{cheeks:0-1, jawline:0-1, peri_oral:0-1}',
+      },
+
+      collagen_loss_pattern_type: {
+        description: 'Qualitative classification to guide treatment engine.',
+        values: [
+          'early_diffuse',
+          'lower_face_predominant',
+          'cheek_predominant',
+          'global_mild',
+          'global_severe',
         ],
-        backend_analysis: {
-          description:
-            'Backend indices to characterize surface roughness and structural texture loss.',
-          sub_indices: {
-            microtexture_variance_index: {
-              description: 'Pixel-level brightness variance over 3x3 to 7x7 window in PPL mode.',
-              formula: 'stddev_local_intensity / mean_intensity',
-              output_range: '0-1',
-            },
-            surface_gradient_irregularity: {
-              description:
-                'Standard deviation of surface gradients from 3D texture map approximation.',
-              formula: 'stddev(surface_normals)',
-              output_range: '0-1',
-            },
-            shadow_depth_index: {
-              description:
-                'Contrast ratio between highlight and adjacent shadow under directional light.',
-              formula: '(mean_highlight - mean_shadow) / mean_reflectance',
-              output_range: '0-1',
-            },
-            diffuse_reflection_loss_index: {
-              description: 'Loss of reflected light spread under PPL mode (inverse glow metric).',
-              formula: '1 - (diffuse_reflection / total_reflection)',
-              output_range: '0-1',
-            },
-          },
-          output_interpretation: {
-            texture_pattern_type: {
-              rules: [
-                {
-                  if: 'shadow_depth_index< 0.3 and surface_gradient_irregularity< 0.45',
-                  then: 'Superficial Roughness',
-                },
-                {
-                  if: 'shadow_depth_index>= 0.3 and surface_gradient_irregularity>= 0.45',
-                  then: 'Deep Undulation / Scarring',
-                },
-              ],
-            },
-          },
-        },
-        decision_logic: {
-          description: 'Quantify and classify textural irregularities beyond pore size.',
-          steps: [
-            '1. Compute microtexture_variance_index from PPL variance map.',
-            '2. Compute surface_gradient_irregularity from gradient-normal field.',
-            '3. Measure shadow_depth_index using oblique white-mode contrast analysis.',
-            '4. Calculate diffuse_reflection_loss_index from PPL reflectance data.',
-            '5. Combine all indices using parameter_weights → global_texture_irregularity_index (0-1).',
-            '6. Map to discrete severity score (0-3).',
-          ],
-          output_format: {
-            final_score: 'integer (0-3)',
-            backend_details: {
-              microtexture_variance_index: 'float (0-1)',
-              surface_gradient_irregularity: 'float (0-1)',
-              shadow_depth_index: 'float (0-1)',
-              diffuse_reflection_loss_index: 'float (0-1)',
-              texture_pattern_type: 'Superficial Roughness / Deep Undulation',
-            },
-          },
-          single_output_mode: true,
-        },
+      },
+
+      improvability_index: {
+        description: 'Likelihood of short-term improvement with non-invasive tightening.',
+        formula: '(1 - micro_laxity_pattern_index) * collagen_reflectance_uniformity',
+        range: '0-1',
+      },
+    },
+
+    scoring_scale: {
+      1: 'High firmness, excellent recoil',
+      2: 'Mild laxity; early collagen softening',
+      3: 'Moderate decline in elasticity; visible on lower face',
+      4: 'Marked laxity; collagen breakdown evident',
+      5: 'Severe laxity; poor elasticity, diffuse collagen loss',
+    },
+
+    decision_logic: {
+      steps: [
+        '1. Extract micro_laxity_pattern_index via negative-mode microtexture mapping.',
+        '2. Measure collagen_reflectance_uniformity using white+woods.',
+        '3. Compute elastic_recoil_proxy_index via positive-mode contrast analysis.',
+        '4. Compute continuous firmness index: FI = (0.40*micro_laxity + 0.35*(1-collagen_uniformity) + 0.25*(1-elastic_recoil))',
+        '5. Map FI to 1-5 scale.',
+        '6. Populate backend indices.',
+      ],
+    },
+
+    output_format: {
+      final_score: '1-5',
+      continuous_firmness_index: '0-1',
+      backend_details: {
+        micro_laxity_pattern_index: '0-1',
+        collagen_reflectance_uniformity: '0-1',
+        elastic_recoil_proxy_index: '0-1',
+        regional_firmness_map: 'dict',
+        collagen_loss_pattern_type: 'string',
+        improvability_index: '0-1',
       },
     },
   },
 }
 
-const regional_oil_distribution_criteria = {
-  analyze_regional_oil_distribution: {
-    type: 'object',
-    description:
-      'Embedded computation logic defining parameter weights, thresholds, grading scales, and step-by-step analysis for the Bitmoji A5 Analyzer Oil Distribution.',
-    default: {
-      regional_oil_distribution: {
-        metadata: {
-          device: 'Bitmoji A5 Analyzer',
-          lighting_modes_used: ['white', 'UV', 'PPL'],
-          regions_analyzed: ['forehead', 'nose', 'cheeks', 'chin'],
-          version: '2.3',
+const textural_radiance_index = {
+  textural_radiance_index_v1_0: {
+    metadata: {
+      device: 'Bitmoji A5 (6-Mode Imaging)',
+      lighting_modes_used: ['white', 'negative', 'positive', 'woods'],
+      regions_analyzed: ['forehead', 'cheeks', 'nose', 'chin'],
+      version: '1.0',
+    },
+
+    core_metrics: {
+      micro_clarity_index: {
+        description: 'How clean/clear the skin surface appears (absence of haze, film, residue).',
+        source_modes: ['white', 'positive'],
+        range: '0-1',
+        bands: {
+          crisp: '>0.80',
+          good: '0.65-0.80',
+          fair: '0.45-0.65',
+          hazy: '<0.45',
         },
-        parameter_weights: {
-          regional_variance_index: 0.5,
-          porphyrin_distribution_index: 0.3,
-          shine_symmetry_index: 0.2,
+      },
+
+      surface_smooth_scatter_index: {
+        description: 'Light scatter uniformity due to smoothness (inverse of micro-roughness).',
+        source_modes: ['negative'],
+        range: '0-1',
+        bands: {
+          excellent: '>0.80',
+          good: '0.65-0.80',
+          moderate: '0.45-0.65',
+          coarse: '<0.45',
         },
-        threshold_guidelines: {
-          regional_variance_index: {
-            even: '<0.2',
-            T_zone_predominant: '0.2-0.4',
-            mixed: '0.4-0.6',
-            global: '>0.6',
-          },
-          porphyrin_distribution_index: {
-            uniform: '<0.25',
-            T_zone_focused: '0.25-0.45',
-            mixed: '0.45-0.65',
-            diffuse: '>0.65',
-          },
-          shine_symmetry_index: {
-            balanced: '<0.25',
-            slightly_asymmetric: '0.25-0.45',
-            marked_asymmetry: '>0.45',
-          },
+      },
+
+      keratin_shadow_index: {
+        description: 'Subclinical keratin/oil film detected in woods mode affecting radiance.',
+        range: '0-1',
+        bands: {
+          minimal: '<0.20',
+          mild: '0.20-0.40',
+          moderate: '0.40-0.60',
+          marked: '>0.60',
         },
-        grades: [
-          {
-            score: 0,
-            label: 'Even / Balanced Oil Distribution',
-            criteria: {
-              regional_variance_index: '<0.2',
-              porphyrin_distribution_index: '<0.25',
-            },
-            visual_flags: [
-              'Uniform reflectance across all regions in white light',
-              'Even porphyrin fluorescence in UV mode',
-              'No localized shine or patchiness',
-            ],
-          },
-          {
-            score: 1,
-            label: 'T-zone Predominant',
-            criteria: {
-              regional_variance_index: '0.2-0.4',
-              porphyrin_distribution_index: '0.25-0.45',
-            },
-            visual_flags: [
-              'Shine and porphyrins localized to forehead, nose, and chin',
-              'Cheeks appear matte or balanced',
-              'Clear T-zone contrast in UV and white modes',
-            ],
-          },
-          {
-            score: 2,
-            label: 'Mixed Distribution',
-            criteria: {
-              regional_variance_index: '0.4-0.6',
-              porphyrin_distribution_index: '0.45-0.65',
-              shine_symmetry_index: '<0.4',
-            },
-            visual_flags: [
-              'Oily shine on T-zone plus parts of cheeks',
-              'Visible porphyrin fluorescence beyond T-zone',
-              'Partial extension of oil pattern toward periphery',
-            ],
-          },
-          {
-            score: 3,
-            label: 'Global Oily / Diffuse Shine',
-            criteria: {
-              regional_variance_index: '>0.6',
-              porphyrin_distribution_index: '>0.65',
-            },
-            visual_flags: [
-              'Diffuse shine over full face in white light',
-              'Generalized orange-red fluorescence in UV',
-              'Oily appearance even on lateral cheeks and jawline',
-            ],
-          },
+      },
+    },
+
+    backend_indices: {
+      radiance_loss_pattern: {
+        description: 'Guides treatment type selection.',
+        values: [
+          'surface_smoothness_deficit',
+          'clarity_haze_deficit',
+          'keratin_congestion_deficit',
+          'mixed',
         ],
-        backend_analysis: {
-          description: 'Compute regional indices for oil distribution uniformity and symmetry.',
-          sub_indices: {
-            regional_variance_index: {
-              description: 'Normalized variance of sebum reflectance between T-zone and cheeks.',
-              formula: 'stddev(region_reflectance) / mean_reflectance',
-              output_range: '0-1',
-            },
-            porphyrin_distribution_index: {
-              description:
-                'Ratio of UV porphyrin fluorescence intensity between T-zone and other regions.',
-              formula: '|mean_T_zone_UV - mean_cheeks_UV| / total_mean_UV',
-              output_range: '0-1',
-            },
-            shine_symmetry_index: {
-              description: 'Left-right reflectance asymmetry within same region type.',
-              formula: '|left_reflectance - right_reflectance| / mean_reflectance',
-              output_range: '0-1',
-            },
-          },
-          output_interpretation: {
-            distribution_pattern_type: {
-              rules: [
-                { if: 'regional_variance_index< 0.2', then: 'Even / Balanced' },
-                { if: '0.2-0.4', then: 'T-zone Predominant' },
-                { if: '0.4-0.6', then: 'Mixed' },
-                { if: '>0.6', then: 'Global / Diffuse' },
-              ],
-            },
-          },
-        },
-        decision_logic: {
-          description: 'Quantify oil distribution pattern and assign 0-3 score.',
-          steps: [
-            '1. Measure regional reflectance ratios from white light images (forehead, nose, cheeks, chin).',
-            '2. Compute regional_variance_index across regions.',
-            '3. Derive porphyrin_distribution_index from UV fluorescence map.',
-            '4. Calculate shine_symmetry_index across bilateral facial halves.',
-            '5. Combine all using parameter_weights → global_oil_distribution_index (0-1).',
-            '6. Map to discrete severity score (0-3).',
-          ],
-          output_format: {
-            final_score: 'integer (0-3)',
-            backend_details: {
-              regional_variance_index: 'float (0-1)',
-              porphyrin_distribution_index: 'float (0-1)',
-              shine_symmetry_index: 'float (0-1)',
-              distribution_pattern_type: 'Even / T-zone / Mixed / Global',
-            },
-          },
-          single_output_mode: true,
-        },
+      },
+
+      regional_radiance_map: {
+        description: '0-1 radiance values per region.',
+        format: '{forehead:0-1, cheeks:0-1, nose:0-1, chin:0-1}',
+      },
+
+      improvability_index: {
+        description: 'Short-term radiance improvement potential.',
+        formula:
+          '(micro_clarity_index + surface_smooth_scatter_index)/2 * (1 - keratin_shadow_index)',
+        range: '0-1',
+      },
+    },
+
+    scoring_scale: {
+      1: 'High radiance, smooth, clear, minimal scattering',
+      2: 'Good radiance, mild clarity loss',
+      3: 'Moderate radiance loss, mild haze or scatter',
+      4: 'Low radiance, uneven texture, visible dullness',
+      5: 'Very dull, hazy, coarse: surface scatter + keratin buildup',
+    },
+
+    decision_logic: {
+      steps: [
+        '1. Compute micro_clarity_index from white+positive.',
+        '2. Compute surface_smooth_scatter_index from negative mode.',
+        '3. Compute keratin_shadow_index from woods mode.',
+        '4. Continuous TRI = 0.40*(1-micro_clarity) + 0.35*(1-surface_scatter) + 0.25*(keratin_shadow).',
+        '5. Map TRI to 1-5.',
+        '6. Fill backend indices.',
+      ],
+    },
+
+    output_format: {
+      final_score: '1-5',
+      continuous_TRI: '0-1',
+      backend_details: {
+        micro_clarity_index: '0-1',
+        surface_smooth_scatter_index: '0-1',
+        keratin_shadow_index: '0-1',
+        regional_radiance_map: 'dict',
+        radiance_loss_pattern: 'string',
+        improvability_index: '0-1',
       },
     },
   },
 }
 
-const images_criteria = {
+const affected_area_image_selector = {
   affected_area_image_selector: {
     selection_logic: {
       rules: [
         {
-          parameter: 'skin_type',
+          parameter: 'skin_type_classification',
           preferred_lighting_mode: 'white',
-          fallback_mode: 'PPL',
+          fallback_mode: 'negative',
         },
         {
-          parameter: 'superficial_pigmentation',
-          preferred_lighting_mode: 'brown',
+          parameter: 'barrier_health_sensitivity',
+          preferred_lighting_mode: 'negative',
+          fallback_mode: 'white',
+        },
+        {
+          parameter: 'visual_acne_grading',
+          preferred_lighting_mode: 'white',
           fallback_mode: 'UV',
         },
         {
-          parameter: 'Visual_acne_grading',
+          parameter: 'skin_sebum_index',
+          preferred_lighting_mode: 'blue',
+          fallback_mode: 'white',
+        },
+        {
+          parameter: 'vascularity_redness_score',
+          preferred_lighting_mode: 'positive',
+          fallback_mode: 'white',
+        },
+        {
+          parameter: 'skin_hydration_score',
           preferred_lighting_mode: 'white',
+          fallback_mode: 'negative',
+        },
+        {
+          parameter: 'skin_luminosity_glow_index',
+          preferred_lighting_mode: 'white',
+          fallback_mode: 'positive',
+        },
+        {
+          parameter: 'superficial_pigmentation_score',
+          preferred_lighting_mode: 'woods',
           fallback_mode: 'UV',
         },
         {
-          parameter: 'texture_open_pores',
-          preferred_lighting_mode: 'PPL',
+          parameter: 'peri_orbital_health_score',
+          preferred_lighting_mode: 'negative',
           fallback_mode: 'white',
         },
         {
-          parameter: 'superficial_wrinkles',
-          preferred_lighting_mode: 'PPL',
+          parameter: 'lip_pigmentation_score',
+          preferred_lighting_mode: 'woods',
           fallback_mode: 'white',
         },
         {
-          parameter: 'jawline_sagging',
+          parameter: 'texture_open_pores_scoring',
+          preferred_lighting_mode: 'positive',
+          fallback_mode: 'white',
+        },
+        {
+          parameter: 'superficial_wrinkles_scoring',
+          preferred_lighting_mode: 'negative',
+          fallback_mode: 'positive',
+        },
+        {
+          parameter: 'jawline_sagging_score',
           preferred_lighting_mode: 'white',
-          fallback_mode: 'PPL',
+          fallback_mode: 'negative',
         },
         {
-          parameter: 'skin_hydration',
+          parameter: 'skin_firmness_elasticity_index',
           preferred_lighting_mode: 'white',
-          fallback_mode: 'PPL',
+          fallback_mode: 'negative',
         },
         {
-          parameter: 'sebum_content',
-          preferred_lighting_mode: 'white',
-          fallback_mode: 'PPL',
-        },
-        {
-          parameter: 'skin_sensitivity',
-          preferred_lighting_mode: 'red',
-          fallback_mode: 'white',
-        },
-        {
-          parameter: 'barrier_health',
-          preferred_lighting_mode: 'PPL',
-          fallback_mode: 'white',
-        },
-        {
-          parameter: 'peri_orbital_health',
-          preferred_lighting_mode: 'XPL',
-          fallback_mode: 'White',
-        },
-        {
-          parameter: 'lip_pigmentation',
-          preferred_lighting_mode: 'Brown',
-          fallback_mode: 'XPL',
-        },
-        {
-          parameter: 'vascularity_redness',
-          preferred_lighting_mode: 'red',
-          fallback_mode: 'PPL',
-        },
-        {
-          parameter: 'under_eye_vascularity_vs_structural_shadows',
-          preferred_lighting_mode: 'XPL',
-          fallback_mode: 'White',
-        },
-        {
-          parameter: 'skin_luminosity_glow',
-          preferred_lighting_mode: 'white',
-          fallback_mode: 'brown',
-        },
-        {
-          parameter: 'comedonal_density',
-          preferred_lighting_mode: 'UV',
-          fallback_mode: 'PPL',
-        },
-        {
-          parameter: 'texture_irregularities_beyond_pores',
-          preferred_lighting_mode: 'PPL',
-          fallback_mode: 'brown',
-        },
-        {
-          parameter: 'regional_oil_distribution',
-          preferred_lighting_mode: 'UV',
-          fallback_mode: 'white',
+          parameter: 'textural_radiance_index',
+          preferred_lighting_mode: 'positive',
+          fallback_mode: 'negative',
         },
       ],
     },
@@ -2320,183 +2798,153 @@ const images_criteria = {
 const diagnosis_json_structure = {
   diagnosis_report: {
     skin_type: {
-      parameter_name: 'Skin Type',
+      parameter_name: 'Skin Type Classification',
       description:
-        'This parameter identifies the primary characteristics of your skin, which can be oily, dry, combination, or normal. Understanding your skin type is the foundation for a proper skincare routine.',
+        'Classifies your skin into oily, dry, combination, or normal based on sebum distribution, shine patterns, pore visibility, and hydration cues across the 6 imaging modes.',
       score_or_label: '<Skin Type>',
-      score_explanation: '<Why this type was chosen>',
-      affected_area_image:
-        'Return the image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+      score_explanation: '<Why this skin type was chosen>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    superficial_pigmentation_score: {
-      parameter_name: 'Superficial Pigmentation Score',
+
+    barrier_health_sensitivity: {
+      parameter_name: 'Barrier Health + Sensitivity (Combined Score)',
       description:
-        "This parameter measures the amount of superficial pigmentation, such as sun spots, age spots, and post-inflammatory hyperpigmentation (PIH), on the skin's surface.",
-      score_or_label: '<1 to 5 + Label>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Evaluates redness, flaking, micro-irritation, hydration integrity, and overall resilience of the skin barrier using white, Woods, negative-mode, and PPL cues.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Dominant barrier + sensitivity findings and why this score was chosen>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
+
     visual_acne_grading: {
-      parameter_name: 'Visual Acne Grading',
+      parameter_name: 'Visual Acne Grading (v5.1 Spatial)',
       description:
-        'This parameter assesses the severity of acne based on the number and type of lesions, such as blackheads, whiteheads, papules, and pustules.',
-      score_or_label: '<Grade 0-4>',
-      score_explanation: '<Why this grade was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Assesses acne severity by counting, classifying, and mapping lesions (comedones, papules, pustules, nodules) across the face using white, UV, Woods, blue, and contrast modes.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Key lesion patterns, clusters, inflammation signatures>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    texture_open_pores_grading: {
-      parameter_name: 'Texture + Open Pores Grading',
+
+    skin_sebum_index: {
+      parameter_name: 'Skin Sebum Index (v6.0)',
       description:
-        "This parameter evaluates the skin's texture, including the visibility of open pores.",
-      score_or_label: '<Grade 0-4>',
-      score_explanation: '<Why this grade was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Quantifies visible shine, blue-mode fluorescence, porphyrin load, and subclinical congestion to assess overall sebum production and distribution.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Shine patterns, fluorescence, congestion indicators>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    superficial_wrinkles: {
-      parameter_name: 'Superficial Wrinkles',
+
+    vascularity_redness_score: {
+      parameter_name: 'Vascularity / Redness Scoring (v6)',
       description:
-        'This parameter assesses the presence and depth of superficial wrinkles and fine lines, which are early signs of aging. ',
-      score_or_label: '<Grade 1-4>',
-      score_explanation: '<Why this grade was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Evaluates visible erythema, vascular prominence, diffuse redness, and inflammatory hotspots using white, PPL-positive, XPL-negative, UV, and Woods imaging.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Which component—vascular, inflammatory, diffuse—dominated>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    jawline_sagging: {
-      parameter_name: 'Jawline Sagging',
+
+    skin_hydration_score: {
+      parameter_name: 'Skin Hydration Score',
       description:
-        'This parameter evaluates the firmness and definition of the jawline, which can be affected by loss of skin elasticity and gravity.',
-      score_or_label: '<Grade 1-4>',
-      score_explanation: '<Why this grade was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Assesses hydration level by analyzing surface reflectance, smoothness, scattering patterns, and dryness cues in white and negative lighting.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Hydration markers and dryness indicators>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    skin_hydration: {
-      parameter_name: 'Skin Hydration',
+
+    skin_luminosity_glow: {
+      parameter_name: 'Skin Luminosity / Glow Index',
       description:
-        'This parameter measures the water content in the skin, which is crucial for maintaining a healthy skin barrier and a plump, youthful appearance.',
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Measures radiance, evenness of reflectance, and overall surface optical quality under white and positive-mode lighting.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<What improved or reduced luminosity>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    skin_sebum_content: {
-      parameter_name: 'Skin Sebum Content',
+
+    superficial_pigmentation_scoring: {
+      parameter_name: 'Superficial Pigmentation Scoring',
       description:
-        'This parameter measures the amount of sebum (oil) produced by the sebaceous glands in the skin.',
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Identifies freckles, tanning, PIH, and pigmentation clusters using Woods and UV imaging plus white-light clinical cues.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Cluster intensity, distribution, detectability>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    skin_sensitivity_scoring: {
-      parameter_name: 'Skin Sensitivity Scoring',
+
+    peri_orbital_health_score: {
+      parameter_name: 'Peri-Orbital Health Score',
       description:
-        "This parameter assesses the skin's reactivity to external stimuli, such as skincare products, environmental factors, and touch.",
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Combined assessment of under-eye pigmentation, vascularity, hollowness, and puffiness using multi-light analysis including negative and white mode.',
+      score_or_label: '<Score 1-5>',
+      score_explanation:
+        '<Which factor (pigmentation, vascularity, hollowness, puffiness) most influenced the score>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    barrier_health: {
-      parameter_name: 'Barrier Health',
+
+    lip_pigmentation_score: {
+      parameter_name: 'Lip Pigmentation Score',
       description:
-        "This parameter evaluates the health of the skin's protective barrier, which is essential for retaining moisture and protecting against external aggressors.",
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Evaluates natural lip pigmentation using Woods, UV, and white modes even when lipstick partially obscures color.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Why this pigmentation severity was chosen>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    periorbital_health: {
-      parameter_name: 'PeriOrbital Health',
+
+    texture_open_pores_scoring: {
+      parameter_name: 'Texture & Open Pores Score',
       description:
-        'This parameter assesses the health of the skin around the eyes, including puffiness, hollowness, pigmentation, and vascularity.',
-      score_or_label: '<None / Mild / Moderate / Severe>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Assesses pore size, distribution, and surface irregularity using positive-mode and white-light contrast.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Texture and pore pattern characteristics>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    lip_pigmentation: {
-      parameter_name: 'Lip Pigmentation',
+
+    superficial_wrinkles_scoring: {
+      parameter_name: 'Superficial Wrinkles Score',
       description:
-        'This parameter assesses the presence of discoloration or dark spots on the lips.',
-      score_or_label: '<Present / Absent>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Measures fine lines, etched lines, and early wrinkle patterns using negative-mode shadow mapping and white-light visibility.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Depth, density, and visibility factors>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    vascularity_redness_profiling: {
-      parameter_name: 'Vascularity / Redness Profiling (XPL / Red Light)',
+
+    jawline_sagging_score: {
+      parameter_name: 'Jawline Sagging Score',
       description:
-        'Mapping of visible and sub-dermal redness, capillary dilation, and vascular congestion using cross-polarized or red light imaging.',
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Assesses jawline definition, tissue descent, and contour smoothness using white & negative-mode structural cues.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Which structural findings determined the score>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    under_eye_vascularity_vs_structural_shadows: {
-      parameter_name: 'Under-Eye Vascularity vs Structural Shadows (Peri-orbital Detail)',
+
+    skin_firmness_elasticity_index: {
+      parameter_name: 'Skin Firmness & Elasticity Index',
       description:
-        'Differentiation between pigmentation, vascular congestion, and anatomical shadowing under the eyes.',
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Evaluates collagen integrity, recoil patterns, and micro-tension in the skin using positive- and white-mode mapping.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Elasticity, firmness, micro-ptosis indicators>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
-    skin_luminosity_glow_index: {
-      parameter_name: 'Skin Luminosity / Glow Index (White / PPL)',
+
+    textural_radiance_index: {
+      parameter_name: 'Textural Radiance Index',
       description:
-        'Quantitative evaluation of skin radiance and uniformity under white and parallel polarized light.',
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
-      possible_causes: ['<Cause 1>', '<Cause 2>'],
-    },
-    comedonal_density: {
-      parameter_name: 'Comedonal Density (PPL / UV)',
-      description:
-        'Detection of open and closed comedones visible in polarized or UV imaging modes.',
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
-      possible_causes: ['<Cause 1>', '<Cause 2>'],
-    },
-    texture_irregularities_beyond_pores: {
-      parameter_name: 'Texture Irregularities Beyond Pores (PPL / Brown)',
-      description:
-        'Identification of micro-surface irregularities, roughness, and post-inflammatory marks beyond pore-related texture.',
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
-      possible_causes: ['<Cause 1>', '<Cause 2>'],
-    },
-    regional_oil_distribution: {
-      parameter_name: 'Regional Oil Distribution (White / UV)',
-      description:
-        'Distribution mapping of oil secretion across facial zones, highlighting T-zone vs U-zone differences.',
-      score_or_label: '<Score 0-3>',
-      score_explanation: '<Why this score was chosen>',
-      affected_area_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter.',
+        'Measures optical smoothness, microtexture brightness, and light-scatter harmony across the face.',
+      score_or_label: '<Score 1-5>',
+      score_explanation: '<Microtexture + radiance harmony explanation>',
+      affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
   },
@@ -2670,142 +3118,168 @@ const reassessment_json_structure = {
 }
 
 export const SYSTEM_PROMPT_DIAGNOSIS = `Act as an expert AI Skin Diagnostic Assistant.
-You analyze 8 high-resolution facial scan images captured under different lighting conditions
-(Blue,Brown, PPL, Red, UV, White, Woods, XPL).
 
-Your purpose is to generate a **structured diagnostic JSON report** based on observed visual characteristics of skin, following the given schema.
+You analyze 6 high-resolution facial scan images captured under standardized lighting modes:
+(white, positive, negative, blue, uv, woods).
+
+Each lighting mode provides distinct diagnostic information:
+- white  → baseline tone, texture, wrinkles, pores, color uniformity
+- positive → gloss patterns, hydration markers, barrier integrity, oil distribution
+- negative → enhanced contrast for pores, wrinkles, micro-texture
+- blue → porphyrins, acne activity, inflammation, clogged follicles
+- uv → deep pigmentation, melasma, dermal changes, fluorescence
+- woods → superficial pigmentation, oil fluorescence, bacterial fluorescence, early tone irregularities
+
+Your purpose is to generate a **structured diagnostic JSON report** based on observed visual characteristics of skin, strictly following the given scoring schema.
+
+You must use only the information that is visible in the provided images.
+If key diagnostic signals for a parameter are not visible in any of the 6 lighting modes, return "insufficient_data" for that parameter, never hallucinate.
+
+Ensure all scores, descriptions, and interpretations remain aligned with real-world dermatological behavior.
 
 ---
 
-### 1. Skin Type  Criteria
+### 1. Skin Type Criteria:
 ${encode(skin_type_criteria)}
 ---
 
-### 2. Superficial Pigmentation Scoring Criteria
-${encode(superficial_pigmentation_score_criteria)}
+###2. BARRIER HEALTH AND SENSITIVITY SCORE:
+${encode(combined_barrier_sensitivity)}
 ---
 
-### 3. Visual Acne Grading
-${encode(visual_acne_grading_criteria)}
-
----
-
-### 4. Texture + Open Pores Grading
-${encode(texture_pores_criteria)}
----
-
-### 5. Superficial Wrinkles
-${encode(superficial_wrinkles_criteria)}
+###3. VISUAL ACNE GRADING:
+${encode(visual_acne_scoring)}
 
 ---
 
-### 6. Jawline Sagging
-${encode(jawline_sagging_criteria)}
+###4. SKIN SEBUM INDEX:
+${encode(sebum_content_scoring)}
+---
+
+###5. VASCULARITY/REDNESS SCORING:
+${encode(vascularity_redness_scoring)}
 
 ---
 
-### 7. Skin Hydration
-${encode(skin_hydration_criteria)}
+###6. SKIN HYDRATION SCORE:
+${encode(skin_hydration_scoring)}
 
 ---
 
-### 8. Skin Sebum Content
-${encode(skin_sebum_content_criteria)}
+###7. SKIN LUMINOSITY INDEX:
+${encode(skin_luminosity_index)}
 
 ---
 
-### 9. Skin Sensitivity Scoring
-${encode(skin_sensitivity_scoring_criteria)}
+###8. SUPERFICIAL PIGMENTATION SCORING:
+${encode(superficial_pigmentation_scoring)}
 
 ---
 
-### 10. Barrier Health
-${encode(barrier_health_criteria)}
+###9. PERI-ORBITAL HEALTH SCORE:
+${encode(peri_orbital_skin_health_scoring)}
 
 ---
 
-### 11. PeriOrbital Health
-${encode(periorbital_health_criteria)}
+###10. LIP PIGMENTATION SCORE:
+${encode(lip_pigmentation_scoring)}
 
 ---
 
-### 12. Lip Pigmentation
-${encode(lip_pigmentation_criteria)}
+###11. TEXTURE AND OPEN PORES SCORING:
+${encode(texture_pores_scoring)}
 
 ---
 
-### 13. Vascularity / Redness Profiling
-${encode(vascularity_redness_profiling_criteria)}
+###12. SUPERFICIAL WRINKLES SCORING:
+${encode(superficial_wrinkles_scoring)}
 
 ---
 
-### 14. Under-Eye Vascularity vs Structural Shadows
-${encode(under_eye_vascularity_vs_structural_shadows_criteria)}
+###13. JAWLINE SAGGING SCORE
+${encode(jawline_sagging_scoring)}
 
 ---
 
-### 15. Skin Luminosity / Glow Index
-${encode(skin_luminosity_glow_index_criteria)}
+###14. SKIN FIRMNESS AND ELASTICITY INDEX:
+${encode(skin_firmness_elasticity_index)}
 
 ---
 
-### 16. Comedonal Density
-${encode(comedonal_density_criteria)}
+###15. TEXTURAL RADIANCE INDEX:
+${encode(textural_radiance_index)}
 
 ---
 
-### 17. Texture Irregularities Beyond Pores
-${encode(texture_irregularities_beyond_pores_criteria)}
-
----
-
-### 18. Regional Oil Distribution
-${encode(regional_oil_distribution_criteria)}
-
----
-
-###19. Images
-To provide the affected area image of various parameters follow this json strictly and If preferred lighting mode is unavailable, use fallback_mode.
-${encode(images_criteria)}
+###16. Images To provide the affected area image of various parameters follow this json strictly and If preferred lighting mode is unavailable, use fallback_mode.
+${encode(affected_area_image_selector)}
 
 ---
 
 ### Task Instructions:
-1. Analyze the 8 provided facial scan images.
-2. Identify relevant visual patterns/features for each of the 18 diagnostic parameters.
+
+1. Analyze the **6 provided facial scan images** across the lighting modes:
+   - White
+   - Blue
+   - UV
+   - Woods
+   - Positive (PPL)
+   - Negative (XPL)
+
+2. For each of the **15 diagnostic parameters**, identify the visual features and patterns that determine the score as per the scoring frameworks defined in this document.
+
+3. For the "affected_area_image" field:
+   - **Do NOT choose lighting modes manually.**
+   - Use the **image-mapping rules defined in Section 16 (Images)**.
+   - Return only the **image number (1-6)** whose lighting corresponds to the parameter’s **preferred_lighting_mode**.
+   - If the preferred mode is unavailable, use the **fallback_mode** defined in Section
 4. Return the result strictly in valid JSON with the following structure:
 ${JSON.stringify(diagnosis_json_structure)}
 
-⚠️ Rules:
-- All reasoning must be reflected only inside 'score_explanation' fields.
-- Do not output any extra text outside JSON.
+### Rules:
+- ALL diagnostic reasoning must remain *inside* “score_explanation”.
+- Do NOT output anything outside the JSON.
 - If multiple features appear, select the dominant grading pattern.
+- Follow the parameter order exactly as defined:
+
+1. Skin Type Classification
+2. Barrier Health + Sensitivity
+3. Visual Acne Grading
+4. Skin Sebum Index
+5. Vascularity / Redness
+6. Skin Hydration
+7. Skin Luminosity / Glow
+8. Superficial Pigmentation
+9. Peri-Orbital Health
+10. Lip Pigmentation
+11. Texture + Open Pores
+12. Superficial Wrinkles
+13. Jawline Sagging
+14. Skin Firmness & Elasticity
+15. Textural Radiance
 
 
-### 🆕 20. Treatable Concerns Summary (Auto-generated from Diagnosis)
-
-After generating the complete "diagnosis_report", analyze all parameter scores and identify those that **deviate from normal or ideal values** (e.g., higher grades or non-zero scores).
-List only the parameters that **can be improved or treated** toward normal skin condition through skincare or clinical treatments.
-
-Append this section **after the diagnosis_report** as a new JSON object named "treatable_concerns_summary".
+###17. Treatable Concerns Summary (Auto-generated from Diagnosis)
+After generating the full "diagnosis_report", the LLM must:
+1.	Identify parameters whose scores indicate non-ideal or clinically improvable conditions.
+2.	For each such parameter, estimate a realistic “single-session achievable score” based on clinical responsiveness of that parameter (you already defined improvability metrics in acne, sebum, pigmentation etc.).
+3.	Flag the most clinically meaningful problems as primary concerns.
+Append this section after the diagnosis_report asa new JSON object named "treatable_concerns_summary".
 
 **Expected JSON structure:**
 
 "treatable_concerns_summary": {
-  "description": "Parameters showing deviations that can be treated or improved with appropriate interventions.",
+  "description": "Parameters showing measurable deviations and their expected improvement after a single treatment session.",
   "parameters_with_abnormal_scores": [
     {
       "parameter": "<Parameter Name>",
       "current_score": "<Score or Label>",
-      "target_score": "<Expected Normal Range or Label>",
-      "is_primary_concern": false
+      "target_single_session_score": "<Realistically Achievable Score or Label>",
+      "is_primary_concern": false,
+      "reason_for_selection": "<Short explanation based on diagnosis backend data>"
     }
   ]
 }
-
-IMPORTANT RULE:
-The field "is_primary_concern" is a FIXED BOOLEAN CONSTANT.
-Its value must ALWAYS be: false
 `
 
 export const D_REPORT_USER_PROMPT = `
@@ -2836,20 +3310,19 @@ Analyze these images to determine all **18 diagnostic parameters**:
 Return the output strictly in the **diagnosis_report JSON format** described in the system prompt.
 Do not include any extra explanations, text, or formatting outside the JSON.`
 
-export const SYSTEM_TREATEMENT_PLAN_PROMPT = `Act as an expert Clinical Aesthetics Treatment Planning Assistant.
-🎯 Your task:
-Generate a **realistic and personalized treatment plan** based on:
-- The **diagnosis report** generated earlier in this conversation.
-- The **patient’s history and profile** provided in the user input.
-- The **treatable_concerns** and **treatment_plan_type** provided in the user input.
-- The **machines, products, and clinical constraints** defined by Dr. Aakriti Mehra.
-
-You must think and act like a **qualified dermatologist** while designing a practical, clinic-ready treatment plan.
-
----
-
-### ⚙️ INPUTS YOU WILL RECEIVE
-\`\`\`json
+export const SYSTEM_TREATEMENT_PLAN_PROMPT = `
+🧠 ROLE & OBJECTIVE
+You are an expert Clinical Aesthetics Treatment Planning Assistant, trained to think and act EXACTLY like a highly experienced dermatologist.
+Your job is to generate a hyper-intelligent, outcome-optimized treatment plan using:
+•	The diagnosis_report (15-parameter scoring engine)
+•	The full backend scoring data (weights, sub-features, region-wise severity, indices, lighting confidence)
+•	The constraints JSON defined by Dr.Aakriti Mehra
+•	The treatable_concerns_summary
+•	The patient's history & profile
+•	The selected treatment_plan_type
+Your output must be clinically accurate, customized zone-wise, and optimized for BEST POSSIBLE RESULTS in the given session or across multiple sessions.
+________________________________________
+⚙️ INPUT FORMAT YOU WILL RECEIVE
 {
   "treatable_concerns": {
     "description": "Parameters showing deviations that can be treated or improved with appropriate interventions.",
@@ -2857,7 +3330,7 @@ You must think and act like a **qualified dermatologist** while designing a prac
       {
         "parameter": "<Parameter Name>",
         "current_score": "<Score or Label>",
-        "target_score": "<Expected Normal Range or Label>",
+        "target_score": "<Expected Normal Single-Session Score or Label>",
         "is_primary_concern": "<true or false>"
       }
     ]
@@ -2865,124 +3338,122 @@ You must think and act like a **qualified dermatologist** while designing a prac
   "treatment_plan_type": "single" | "multiple",
   "patient_data": "<patient data>"
 }
-\`\`\`
----
 
-### 🧠 INTELLIGENT PLANNING LOGIC
-
-If treatable_concerns has any parameters_with_abnormal_scores that are tagged is_primary_concern true then more focus to be given to those parameters while generating treatment plan.
-
-Always use all backend diagnostic values generated by the scoring JSON
-(sub-features, weights, region-severity, lighting-confidence, numerical indices)
-to decide modality choice, treatment strength, session sequencing, and safety.
-
-Rule: avoid low-impact steps unless time leftover
-Rule: prioritize highest-impact modalities over time
-Rule: avoid modality duplication (e.g., peel + mask + hydrafacial)
-
-1. **If "treatment_plan_type" = "single":**
-   - Patient has chosen a one-time session focused on limited, top-priority concerns.
-   - Combine the most **effective** modalities for visible improvement in one visit.
-   - End every facial with **Serum + Moisturizer + Sunscreen**.
-
-2. **If "treatment_plan_type" = "multiple":**
-   - Create a multi-session plan addressing **all treatable concerns**.
-   - Duration and session frequency should be realistic and derived from number & severity of concerns.
-   - Include **progressive improvements** (e.g., exfoliation → rejuvenation → tightening → maintenance).
-   - Maintain safe intervals between advanced procedures (e.g., peels, lasers).
-
-3. **For both types:**
-   - Respect all **clinical_constraints**.
-   - Use only listed machines, products, and peels.
-   - Use only the minimum number of modalities required for maximum clinical improvement.Choose the highest-impact modality for each concern and avoid redundancy.
-   - Always add a **lymphatic drainage massage step** where appropriate.
-   - Time Constraint Rule : Use a standard session duration of 60 ± 15 minutes as a guideline, but do NOT exclude clinically superior modalities (e.g., Q-switch, Carbon Facial, HIFU, Microdermabrasion, RF, advanced peels) only because they may increase session time. If a high-efficacy modality is indicated by the diagnosis and clinically safe under the constraints, it should be prioritized even if the total estimated duration exceeds the standard range. In such cases, include the recommended modality and provide an adjusted session time that realistically accommodates the treatment while keeping patient outcomes and practicality in mind.
-   - Always use all backend diagnostic values generated by the scoring JSON (sub-features, weights,region-severity, lighting-confidence, numerical indices) to decide modality choice, treatment strength, session sequencing, and contraindications.
-
----
-
-### 💼 THERAPIST GUIDELINES FOR EACH SESSION
-
-Every session in the treatment plan must include two key therapist-focused sections:
-
-#### 1. preparations_checklist_for_therapist
-A concise list (8-12 points) of all items and actions the therapist must prepare **before starting the treatment**.
-Each item should be clear, actionable, and modality-specific, covering:
-
-- Room & hygiene setup (sanitization, disposables, towels)
-- Patient verification (consent, allergies, pregnancy, blood thinners, last peel/laser)
-- Device readiness (machine on, cartridge/tip selection, preset loading)
-- Consumables & products (serums, peels, neutralizers, masks, sunscreen)
-- Safety checks (eye shields, neutralizer, cold pack, timer)
-- Environment readiness (lighting, temperature, patient comfort)
-
-
-#### 2️⃣ steps → how_to_do
-Each step describes a single action or treatment phase within the treatment session.
-The **how_to_do** must contain detailed therapist instructions for only that step, not the whole session.
-
-Each **how_to_do** should include:
-- Step sequence or method (e.g., “Apply cleanser evenly and massage 2 mins in circular motion”)
-- Device or product usage parameters (energy, duration, passes, contact time, area)
-- Safety instructions or contraindications specific to that step
-- End criteria or transition cue (e.g., “Continue until mild erythema appears, then move to next step”)
-
-Ensure both fields are **complete, clear, and safe** for professional clinical use.
-
-### ✅ OUTPUT FORMAT (STRICT JSON ONLY)
-
-json
+🧠 CORE INTELLIGENCE LOGIC—READ CAREFULLY
+1. Always use the FULL backend scoring data
+This includes:
+•	Region-level severity
+•	Sub-indices
+•	Confidence values
+•	Cross-parameter correlations
+•	Weighted severity across 15 parameters
+This is REQUIRED to choose:
+•	The right modality
+•	The right strength
+•	The right probe
+•	The right facial zones
+•	The right number of passes
+•	When to avoid a modality
+•	Whether the benefit outweighs the risk
+________________________________________
+2. FULL FREEDOM FOR STEP ORDER & FACIAL ZONE CUSTOMIZATION
+Per constraints JSON:
+⚡ There is NO fixed sequence.
+⚡ You may use different treatments on different zones of the face.
+⚡ You may combine modalities intelligently based on scoring outcomes.
+You must only respect two mandatory rules:
+1.	Treatment must include lymphatic drainage if possible.
+2.	Treatment must finish with Serum + Moisturizer + Sunscreen.
+Everything else is FULLY flexible.
+________________________________________
+3. Choose treatment strategy based on 3 scenarios
+A) If patient selects a PRIMARY CONCERN
+•	The engine must MAXIMIZE improvement for that single parameter in the session.
+•	All choices must optimize for that parameter above everything else.
+•	Time usage must favor the highest-efficacy modalities for this concern.
+B) If treatment_plan_type = "single":
+•	Create the most powerful, highest-impact one-time treatment, within:
+o	Default 60 minutes (±15 minutes)
+o	Expand to 75 minutes if outcomes dramatically improve
+o	Shrink to 45 minutes if extra steps have no incremental gain
+•	Use no redundancy (e.g., do NOT add a peel + peel + peel unless clinically justified).
+C) If treatment_plan_type = "multiple":
+•	Build a realistic multi-session plan with:
+o	Proper spacing of peels, lasers, RF, etc.
+o	Escalation & de-escalation logic
+o	Session-by-session progression
+o	Maintenance & follow-up
+•	First session must begin immediately (today).
+________________________________________
+4. General Clinical Rules
+•	Respect all clinical constraints (pregnancy, photosensitivity, allergies, recent peels, etc.).
+•	Use only available machines, consumables, tools, serums, peels from constraints JSON.
+•	Avoid low-impact steps unless time allows.
+•	Never duplicate modalities unless clinically required.
+•	Always choose outcome-maximizing modalities.
+•	Never exclude high-efficacy modalities just because they increase time.
+________________________________________
+🧰 THERAPIST-FACING REQUIREMENTS
+For every session, provide two structured sections:
+________________________________________
+1. preparations_checklist_for_therapist
+A clear 8-12 item checklist specifying:
+•	Room setup
+•	Tools & consumables needed
+•	Machine settings to preload
+•	Safety items
+•	Allergy checks
+•	Patient comfort preparations
+________________________________________
+2. steps → how_to_do (CRITICAL FORMAT)
+Each step must include:
+•	step_number
+•	duration
+•	ingredients_equipments (exact tools/products/machines)
+•	how_to_do = clear, zone-wise, clinically safe, step-by-step instructions
+Your instructions must include:
+•	Angles of lifts
+•	Passes
+•	Contact times
+•	Energy levels
+•	Safety signals to monitor
+•	Stopping criteria
+•	Transition cues
+No vague instructions allowed.
+________________________________________
+📤 OUTPUT FORMAT (STRICT JSON)
 {
   "treatment_plan": {
-    "total_time": "e.g. 3 months",
+    "total_time": "<weeks or months>",
     "treatments": [
       {
-        "session_number": <session number>,
+        "session_number": <number>,
         "title": "<Session Title>",
-        "treatment_time": "<in mins>",
+        "treatment_time": "<minutes>",
         "week": <Week Number>,
-        "preparations_checklist_for_therapist": ["<Preparation Task>", "<Preparation Task>"],
+        "preparations_checklist_for_therapist": [
+          "<prep step>",
+          "<prep step>"
+        ],
         "concerns_addressed": [
           {
-            "concern": "<Concern>",
-            "current_value": "<Score or Label>",
-            "target_value": "<Expected Normal Range or Label>"
+            "concern": "<Parameter>",
+            "current_value": "<Score>",
+            "target_value": "<Single-session achievable score>"
           }
         ],
         "steps": [
           {
-            "step_number": <Step Number>,
-            "duration": "<in mins>",
-            "ingredients_equipments": ["<Device>", "<Products>"],
-            "how_to_do": "<Step-by-step clinical technique for therapist>"
+            "step_number": <number>,
+            "duration": "<minutes>",
+            "ingredients_equipments": ["<device>", "<serum>", "<peel>"],
+            "how_to_do": "<clear zone-wise technique>"
           }
         ]
       }
     ]
   }
 }
-'
-
----
-
-### 🚫 MUST FOLLOW THESE CORE PRINCIPLES
-
-"core_principles": [
-  "When multiple modalities can treat a concern, prefer the one with the highest expected clinical effectiveness unless contraindicated.",
-  "You are free to choose any available machine, product, jet_infusion_solutions, peelOffMasks, ivInfusions, chemicalPeels, special ingredients for facials type to maximize visible improvement.",
-  "Modalities may be combined if clinically compatible.",
-  "Always respect all doctor-defined clinical constraints.",
-  "Always prioritize clinical effectiveness over completeness.Use your full dermatology knowledge and reasoning to select the optimal treatment modalities.",
-  "Never combine multiple exfoliation techniques in the same session.Choose only one: Microdermabrasion OR Hydrafacial OR a chemical peel."
-]
-
-### 🚫 OUTPUT RULES
-- Output **only valid JSON** (no extra text).
-- All sessions must respect contraindications & sequencing logic.
-- Include realistic procedural flow.
-- Combine modalities **only if clinically compatible**.
-- Never exceed available machines or listed products.
-- Do not mention any unlisted devices, products, or techniques.
 `
 
 export const USER_TREATMENT_PLAN_PROMPT = `Based on previous analysis, generate a structured JSON treatment plan including: primary_focus, in_clinic_sessions (name, frequency, sessions), homecare (product, usage), contraindications, and follow_up. Consider patient's age, skin type, and allergies.`

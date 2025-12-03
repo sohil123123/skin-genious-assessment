@@ -64,6 +64,7 @@ import { storeToRefs } from 'pinia'
 import { Loading } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { onMounted, ref, watch } from 'vue'
+import config from 'src/config.js'
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
@@ -87,11 +88,9 @@ watch(
     if (val) {
       diagnosis.value = val.diagnosis
 
-      const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
-
-      const desiredImages = desiredOrder
-        .map((name) => val.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)))
-        .filter(Boolean)
+      const desiredImages = config.IMAGES_ORDER.map((name) =>
+        val.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
+      ).filter(Boolean)
 
       faceImages.value = desiredImages.map((img) => img.url)
     }
@@ -103,13 +102,9 @@ onMounted(async () => {
   if (!diagnosis.value) {
     diagnosis.value = assessmentData.value.diagnosis
 
-    const desiredOrder = ['white', 'ppl', 'xpl', 'uv', 'woods', 'blue', 'brown', 'red']
-
-    const desiredImages = desiredOrder
-      .map((name) =>
-        assessmentData.value.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
-      )
-      .filter(Boolean)
+    const desiredImages = config.IMAGES_ORDER.map((name) =>
+      assessmentData.value.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
+    ).filter(Boolean)
 
     faceImages.value = desiredImages.map((img) => img.url)
   }
