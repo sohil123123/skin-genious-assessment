@@ -2956,163 +2956,136 @@ const reassessment_json_structure = {
       parameter_name: 'Skin Type',
       before_treatment_score_or_label: '<Enter Skin Type>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
       post_treatment_score_or_label: '<Enter Post-Treatment Skin Type>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-    },
-    superficial_pigmentation_score: {
-      parameter_name: 'Superficial Pigmentation Score',
-      before_treatment_score_or_label: '<Enter Pigmentation Score>',
-      before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Pigmentation Score>',
-      post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-    },
-    visual_acne_grading: {
-      parameter_name: 'Visual Acne Grading',
-      before_treatment_score_or_label: '<Enter Acne Grade>',
-      before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Acne Grade>',
-      post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-    },
-    texture_open_pores_grading: {
-      parameter_name: 'Texture / Open Pores Grading',
-      before_treatment_score_or_label: '<Enter Texture or Pores Grade>',
-      before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Texture or Pores Grade>',
-      post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-    },
-    superficial_wrinkles: {
-      parameter_name: 'Superficial Wrinkles',
-      before_treatment_score_or_label: '<Enter Wrinkle Score>',
-      before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Wrinkle Score>',
-      post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-    },
-    jawline_sagging: {
-      parameter_name: 'Jawline Sagging',
-      before_treatment_score_or_label: '<Enter Sagging Level>',
-      before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Sagging Level>',
-      post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-    },
-    skin_hydration: {
-      parameter_name: 'Skin Hydration',
-      before_treatment_score_or_label: '<Enter Hydration Level>',
-      before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Hydration Level>',
-      post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-    },
-    skin_sebum_content: {
-      parameter_name: 'Skin Sebum Content',
-      before_treatment_score_or_label: '<Enter Sebum Level>',
-      before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Sebum Level>',
-      post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-    },
-    skin_sensitivity_scoring: {
-      parameter_name: 'Skin Sensitivity Scoring',
-      before_treatment_score_or_label: '<Enter Sensitivity Score>',
-      before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Sensitivity Score>',
-      post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
     barrier_health: {
       parameter_name: 'Barrier Health',
       before_treatment_score_or_label: '<Enter Barrier Health Status>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
       post_treatment_score_or_label: '<Enter Post-Treatment Barrier Health Status>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
-    periorbital_health: {
-      parameter_name: 'Periorbital Health',
-      before_treatment_score_or_label: '<Enter Periorbital Score>',
+    visual_acne_grading: {
+      parameter_name: 'Visual Acne Grading',
+      before_treatment_score_or_label: '<Enter Acne Grade>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Periorbital Score>',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Acne Grade>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
-    lip_pigmentation: {
-      parameter_name: 'Lip Pigmentation',
-      before_treatment_score_or_label: '<Enter Lip Pigmentation Level>',
+    skin_sebum_content: {
+      parameter_name: 'Skin Sebum Content',
+      before_treatment_score_or_label: '<Enter Sebum Level>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Lip Pigmentation Level>',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Sebum Level>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
     vascularity_redness_profiling: {
       parameter_name: 'Vascularity / Redness Profiling',
       before_treatment_score_or_label: '<Enter Redness or Vascularity Score>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
       post_treatment_score_or_label: '<Enter Post-Treatment Redness or Vascularity Score>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
-    under_eye_vascularity_vs_structural_shadows: {
-      parameter_name: 'Under Eye Vascularity vs Structural Shadows',
-      before_treatment_score_or_label: '<Enter Under Eye Assessment>',
+    skin_hydration: {
+      parameter_name: 'Skin Hydration',
+      before_treatment_score_or_label: '<Enter Hydration Level>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Under Eye Assessment>',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Hydration Level>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
     skin_luminosity_glow_index: {
       parameter_name: 'Skin Luminosity / Glow Index',
       before_treatment_score_or_label: '<Enter Glow Index>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
       post_treatment_score_or_label: '<Enter Post-Treatment Glow Index>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
-    comedonal_density: {
-      parameter_name: 'Comedonal Density',
-      before_treatment_score_or_label: '<Enter Comedonal Density>',
+    superficial_pigmentation_score: {
+      parameter_name: 'Superficial Pigmentation Score',
+      before_treatment_score_or_label: '<Enter Pigmentation Score>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Comedonal Density>',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Pigmentation Score>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
-    texture_irregularities_beyond_pores: {
-      parameter_name: 'Texture Irregularities Beyond Pores',
-      before_treatment_score_or_label: '<Enter Texture Irregularity Score>',
+    periorbital_health: {
+      parameter_name: 'Periorbital Health',
+      before_treatment_score_or_label: '<Enter Periorbital Score>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Texture Irregularity Score>',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Periorbital Score>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
-    regional_oil_distribution: {
-      parameter_name: 'Regional Oil Distribution',
-      before_treatment_score_or_label: '<Enter Oil Distribution Pattern>',
+    lip_pigmentation: {
+      parameter_name: 'Lip Pigmentation',
+      before_treatment_score_or_label: '<Enter Lip Pigmentation Level>',
       before_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
-      post_treatment_score_or_label: '<Enter Post-Treatment Oil Distribution Pattern>',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Lip Pigmentation Level>',
       post_treatment_image:
-        'Return the  image number (1-8) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+    },
+    texture_open_pores_grading: {
+      parameter_name: 'Texture / Open Pores Grading',
+      before_treatment_score_or_label: '<Enter Texture or Pores Grade>',
+      before_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Texture or Pores Grade>',
+      post_treatment_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+    },
+    superficial_wrinkles: {
+      parameter_name: 'Superficial Wrinkles',
+      before_treatment_score_or_label: '<Enter Wrinkle Score>',
+      before_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Wrinkle Score>',
+      post_treatment_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+    },
+    jawline_sagging: {
+      parameter_name: 'Jawline Sagging',
+      before_treatment_score_or_label: '<Enter Sagging Level>',
+      before_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Sagging Level>',
+      post_treatment_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+    },
+    skin_firmness_elasticity_index: {
+      parameter_name: 'Skin Firmness Elasticity Index',
+      before_treatment_score_or_label: '<Enter Skin Firmness Elasticity Range>',
+      before_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Skin Firmness Elasticity Range>',
+      post_treatment_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+    },
+    textural_radiance_index: {
+      parameter_name: 'Textural Readiance Index',
+      before_treatment_score_or_label: '<Enter Textural Readiance Range>',
+      before_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from previously generated baseline (before-treatment) results stored in this conversation memory.',
+      post_treatment_score_or_label: '<Enter Post-Treatment Textural Readiance Range>',
+      post_treatment_image:
+        'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
     },
   },
 }
@@ -3283,29 +3256,26 @@ Append this section after the diagnosis_report asa new JSON object named "treata
 `
 
 export const D_REPORT_USER_PROMPT = `
-You are given 8 facial scan images of the same person captured under different light modes
-(Blue,Brown, PPL, Red, UV, White, Woods, XPL).
+You are given 6 facial scan images of the same person captured under different light modes
+(white, positive, negative, blue, uv, woods).
 
-Analyze these images to determine all **18 diagnostic parameters**:
+Analyze these images to determine all **15 diagnostic parameters**:
 
 1. Skin Type
-2. Superficial Pigmentation Score
+2. Barrier Health
 3. Visual Acne Grading
-4. Texture + Open Pores Grading
-5. Superficial Wrinkles
-6. Jawline Sagging
-7. Skin Hydration
-8. Skin Sebum Content
-9. Skin Sensitivity Scoring
-10. Barrier Health
-11. PeriOrbital Health
-12. Lip Pigmentation
-13. Vascularity / Redness Profiling
-14. Under-Eye Vascularity vs Structural Shadows
-15. Skin Luminosity / Glow Index
-16. Comedonal Density
-17. Texture Irregularities Beyond Pores
-18. Regional Oil Distribution
+4. Skin Sebum Content
+5. Vascularity / Redness Profiling
+6. Skin Hydration
+7. Skin Luminosity / Glow Index
+8. Superficial Pigmentation Score
+9. PeriOrbital Health
+10. Lip Pigmentation
+11. Texture + Open Pores Grading
+12. Superficial Wrinkles
+13. Jawline Sagging
+14. Skin firmness and elasticity index
+15. Textual radiance index
 
 Return the output strictly in the **diagnosis_report JSON format** described in the system prompt.
 Do not include any extra explanations, text, or formatting outside the JSON.`
@@ -3459,8 +3429,6 @@ ________________________________________
 export const USER_TREATMENT_PLAN_PROMPT = `Based on previous analysis, generate a structured JSON treatment plan including: primary_focus, in_clinic_sessions (name, frequency, sessions), homecare (product, usage), contraindications, and follow_up. Consider patient's age, skin type, and allergies.`
 
 export const POST_DIAGNOSIS_USER_PROMPT = `
-Session {{session_number}} - Reassessment
-
 Analyze the new set of post-treatment facial scan images for the same patient whose baseline assessment was already performed in this conversation.
 Use the same diagnostic logic, criteria, and parameter definitions that were applied earlier while generating the initial diagnosis report.
 Do not change any interpretation methods, scales, or thresholds used earlier.
@@ -3497,7 +3465,7 @@ post_treatment_image MUST ALWAYS BE IDENTICAL TO before_image for the same param
 
 If before_image was:
 - an empty string → post_treatment_image must also be an empty string
-- a number 1-8 → post_treatment_image must be that exact same number
+- a number 1-6 → post_treatment_image must be that exact same number
 
 Do NOT invent, modify, reinterpret, or newly select any image number under any circumstances.
 
