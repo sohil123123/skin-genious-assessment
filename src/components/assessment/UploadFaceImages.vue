@@ -91,9 +91,8 @@
 
   <div v-if="startProcessingStep">
     <div class="container" id="scan-animation">
-      <h6 class="heading">Processing Scans...</h6>
+      <h6 class="heading">{{ processingMessage }}</h6>
       <div class="scanner"></div>
-      <p>Please wait while we analyze your images...</p>
     </div>
   </div>
 
@@ -149,6 +148,10 @@ const props = defineProps({
   startProcessingStep: {
     type: Boolean,
     default: false,
+  },
+  processingMessage: {
+    type: String,
+    default: 'Processing scanned images...',
   },
 })
 

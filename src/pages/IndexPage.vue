@@ -18,6 +18,7 @@
         <UploadFaceImages
           v-if="currentStep === 'step-2'"
           v-model:startProcessingStep="startProcessingStep"
+          :processingMessage="processingMessage"
           @process="handleProcess"
         />
         <DiagnosisComponent
@@ -104,7 +105,7 @@ import fullTreatmentJson from 'src/info/fullTreatmentPlan.json'
 import reassessment from 'src/info/reassessment.json'
 
 const $q = useQuasar()
-const { getOrCreateConversation, runResponse } = useOpenAI()
+const { getOrCreateConversation, runResponse, uploadToOpenAIFiles } = useOpenAI()
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
@@ -117,6 +118,7 @@ const faceImages = ref([])
 const postTreatmentImages = ref([])
 const startProcessingStep = ref(false)
 const isPostAssessment = ref(false)
+const processingMessage = ref('')
 
 // const diagnosis = ref(null)
 // const recommendedFullPlan = ref(null)
@@ -256,7 +258,7 @@ async function handleDiagnosis(files) {
     submit(['diagnosis', 'parameters_with_abnormal_scores'])
     goNext()
   } else {
-    const apiResponse = await callApiForDiagnosis(assessmentData.value, faceImages.value)
+    const apiResponse = await callApiForDiagnosis(assessmentData.value, files)
 
     if (apiResponse.error) {
       startProcessingStep.value = false
@@ -386,10 +388,14 @@ async function imageToBase64(url) {
 // Placeholder API functions - replace with actual implementations
 async function callApiForDiagnosis(data, images) {
   // Convert all images to base64
-  const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
+
+  // const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
 
   const convId = await getOrCreateConversation(`${data.user_id}`)
 
+  processingMessage.value = 'Uploading images to OpenAI...'
+  const fileArrar = await uploadImageFileToOpenAI(images)
+  console.log(fileArrar)
   const input = [
     {
       role: 'system',
@@ -399,15 +405,16 @@ async function callApiForDiagnosis(data, images) {
       role: 'user',
       content: [
         // INFO: This is for Base64 Images
-        ...base64Images.map((b64) => ({
-          type: 'input_image',
-          image_url: b64,
-        })),
+        // ...base64Images.map((b64) => ({
+        //   type: 'input_image',
+        //   image_url: b64,
+        // })),
         // // INFO: This is used when images stored in server
         // ...images.map((img_url) => ({
         //   type: 'input_image',
         //   image_url: img_url,
         // })),
+        ...fileArrar,
         {
           type: 'input_text',
           text: D_REPORT_USER_PROMPT,
@@ -415,11 +422,23 @@ async function callApiForDiagnosis(data, images) {
       ],
     },
   ]
+  processingMessage.value = 'Processing scanned images...'
   console.log('Conv ID:', convId)
   console.log('Diagnosis Input:', input)
   const result = await runResponse(convId, input)
   console.log('✅ Diagnosis:', result)
   return result
+}
+
+async function uploadImageFileToOpenAI(files) {
+  const uploaded = []
+
+  for (const f of files) {
+    const fileId = await uploadToOpenAIFiles(f)
+    uploaded.push({ type: 'input_image', file_id: fileId })
+  }
+
+  return uploaded
 }
 
 async function callApiForTreatmentPlan(selected, treatmentType) {

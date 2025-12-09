@@ -105,8 +105,30 @@ export function useOpenAI() {
     }
   }
 
+  // 3. Upload Images
+  const uploadToOpenAIFiles = async (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('purpose', 'vision')
+
+    const res = await fetch(`${BASE_URL}/files`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${API_KEY}` },
+      body: form,
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      throw new Error(data.error?.message || 'Upload failed')
+    }
+
+    return data.id
+  }
+
   return {
     getOrCreateConversation,
     runResponse,
+    uploadToOpenAIFiles,
   }
 }
