@@ -286,19 +286,17 @@ const downloadVisualReport = async () => {
 
   const comparisonTitles = [
     'White Light',
-    'PPL Light',
-    'XPL Light',
+    'Positive',
+    'Negative',
+    'Blue Light',
     'UV Light',
     'Woods Light',
-    'Blue Light',
-    'Brown Light',
-    'Red Light',
   ]
 
   // const sectionGap = 18
   const cardPadding = 10
   const cardWidth = (contentWidth - 24) / 2
-  const cardHeight = 400
+  const cardHeight = 300
 
   // ----------------------------
   // COVER PAGE (Style D)
@@ -347,7 +345,7 @@ const downloadVisualReport = async () => {
   // ----------------------------
   // MAIN PAGES — 1 COMPARISON PER PAGE
   // ----------------------------
-  for (let idx = 0; idx < 8; idx++) {
+  for (let idx = 0; idx < 6; idx++) {
     // Start new page for every comparison (except first content page)
     if (idx !== 0) {
       doc.addPage()

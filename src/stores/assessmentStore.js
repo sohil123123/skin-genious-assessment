@@ -162,15 +162,16 @@ export const useAssessmentStore = defineStore('assessment', {
     setData(data) {
       this.assessmentData = { ...this.assessmentData, ...data }
     },
-    async storeFaceImages(files, assessment_type) {
+    async storeFaceImages(file, fileId, assessment_type) {
       const formData = new FormData()
-      files.forEach((file) => {
-        // check if real file exists
-        const raw = file.__file || file
-        if (raw instanceof File) {
-          formData.append('images[]', raw)
-        }
-      })
+      // files.forEach((file) => {
+      // check if real file exists
+      const raw = file.__file || file
+      if (raw instanceof File) {
+        formData.append('images[]', raw)
+      }
+      // })
+      formData.append('openai_file_id', fileId)
       formData.append('assessment_type', assessment_type)
 
       const response = await api

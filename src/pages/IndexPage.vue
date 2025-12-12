@@ -241,10 +241,10 @@ const handleProcess = async (files) => {
 
 async function handleDiagnosis(files) {
   faceImages.value = assessmentData.value.images.map((img) => img.url)
-  if (files.length > 0) {
-    const uploadedImages = await store.storeFaceImages(files, 'pre')
-    faceImages.value.push(...uploadedImages)
-  }
+  // if (files.length > 0) {
+  //   const uploadedImages = await store.storeFaceImages(files, 'pre')
+  //   faceImages.value.push(...uploadedImages)
+  // }
 
   faceImages.value = config.IMAGES_ORDER.map((name) =>
     faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
@@ -287,10 +287,10 @@ async function handleDiagnosis(files) {
 
 async function handlePostAssessment(files) {
   postTreatmentImages.value = assessmentData.value.post_images.map((img) => img.url)
-  if (files.length > 0) {
-    const uploadedImages = await store.storeFaceImages(files, 'post')
-    postTreatmentImages.value.push(...uploadedImages)
-  }
+  // if (files.length > 0) {
+  //   const uploadedImages = await store.storeFaceImages(files, 'post')
+  //   postTreatmentImages.value.push(...uploadedImages)
+  // }
 
   postTreatmentImages.value = config.IMAGES_ORDER.map((name) =>
     postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
@@ -364,6 +364,18 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
   }
 }
 
+async function uploadImageFileToOpenAI(files, type) {
+  const uploaded = []
+
+  for (const f of files) {
+    const fileId = await uploadToOpenAIFiles(f)
+    await store.storeFaceImages(f, fileId, type)
+    uploaded.push({ type: 'input_image', file_id: fileId })
+  }
+
+  return uploaded
+}
+
 // Utility: convert image URL → base64
 // async function imageToBase64(url) {
 //   return new Promise((resolve, reject) => {
@@ -391,8 +403,17 @@ async function callApiForDiagnosis(data, images) {
   const convId = await getOrCreateConversation(`${data.user_id}`)
 
   processingMessage.value = 'Uploading images to OpenAI...'
-  const fileArrar = await uploadImageFileToOpenAI(images)
-  console.log(fileArrar)
+  const fileArrar = await uploadImageFileToOpenAI(images, 'pre')
+  const storedFiles = await Promise.all(
+    data.media
+      .filter((item) => item.collection_name === 'assessment_images')
+      .map((item) => ({
+        type: 'input_image',
+        file_id: item.custom_properties?.openai_file_id ?? null,
+      })),
+  )
+  let finalFileIdArray = [...fileArrar, ...storedFiles]
+
   const input = [
     {
       role: 'system',
@@ -411,7 +432,7 @@ async function callApiForDiagnosis(data, images) {
         //   type: 'input_image',
         //   image_url: img_url,
         // })),
-        ...fileArrar,
+        ...finalFileIdArray,
         {
           type: 'input_text',
           text: D_REPORT_USER_PROMPT,
@@ -425,17 +446,6 @@ async function callApiForDiagnosis(data, images) {
   const result = await runResponse(convId, input)
   console.log('✅ Diagnosis:', result)
   return result
-}
-
-async function uploadImageFileToOpenAI(files) {
-  const uploaded = []
-
-  for (const f of files) {
-    const fileId = await uploadToOpenAIFiles(f)
-    uploaded.push({ type: 'input_image', file_id: fileId })
-  }
-
-  return uploaded
 }
 
 async function callApiForTreatmentPlan(selected, treatmentType) {
@@ -514,7 +524,16 @@ async function callApiForPostDiagnosis(data, images) {
   // const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
 
   processingMessage.value = 'Uploading images to OpenAI...'
-  const fileArrar = await uploadImageFileToOpenAI(images)
+  const fileArrar = await uploadImageFileToOpenAI(images, 'post')
+  const storedFiles = await Promise.all(
+    data.media
+      .filter((item) => item.collection_name === 'post_assessment_images')
+      .map((item) => ({
+        type: 'input_image',
+        file_id: item.custom_properties?.openai_file_id ?? null,
+      })),
+  )
+  let finalFileIdArray = [...fileArrar, ...storedFiles]
 
   const input = [
     {
@@ -530,7 +549,7 @@ async function callApiForPostDiagnosis(data, images) {
         //   type: 'input_image',
         //   image_url: img_url,
         // })),
-        ...fileArrar,
+        ...finalFileIdArray,
         {
           type: 'input_text',
           text: POST_DIAGNOSIS_USER_PROMPT,
