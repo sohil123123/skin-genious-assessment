@@ -358,7 +358,8 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
     } else {
       assessmentData.value.treatment_plans = apiResponse
       assessmentData.value.treatment_sessions = apiResponse.treatment_plan
-      submit(['treatment_plans'])
+      await submit(['treatment_plans'])
+      await store.updateTreatmentSessionId(route.params.appointment_id)
       goNext()
     }
   }

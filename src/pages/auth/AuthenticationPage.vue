@@ -35,12 +35,16 @@ const $q = useQuasar()
 
 const token = route.query.token
 const userId = route.query.user_id
+const appointment_id = route.query.appointment_id
+const assessment_id = route.query.assessment_id ?? null
+const session_id = route.query.session_id ?? null
+const type = route.query.type ?? null
 const isValid = ref(false)
 
 onMounted(async () => {
   if (!token || !userId) {
     $q.notify({ type: 'negative', message: 'Invalid access. Redirecting...' })
-    window.location.href = `${process.env.CRM_URL}/users`
+    // window.location.href = `${process.env.CRM_URL}/users`
   }
 
   try {
@@ -53,9 +57,24 @@ onMounted(async () => {
       store.token_id = token
       store.user_id = userId
       api.defaults.headers.common.Authorization = 'Bearer ' + token
-      // setTimeout(() => {
-      router.push({ name: 'index', params: { user_id: userId, step: 'step-1' } })
-      // }, 2000)
+      setTimeout(() => {
+        if (type == 'assessment') {
+          router.push({
+            name: 'index',
+            params: { user_id: userId, appointment_id: appointment_id, step: 'step-1' },
+          })
+        } else if (type == 'treatment') {
+          router.push({
+            name: 'TreatmentPrep',
+            params: {
+              user_id: userId,
+              appointment_id: appointment_id,
+              assessment_id: assessment_id,
+              session_id: session_id,
+            },
+          })
+        }
+      }, 2000)
     } else {
       throw new Error('Invalid token')
     }

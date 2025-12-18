@@ -10,17 +10,22 @@ export const useTreatmentFlowStore = defineStore('treatmentFlow', {
   state: () => ({
     treatmentPlan: null, // entire API JSON
     loadedAt: null,
-    // zero-based indexes internally but routes use 1-based session and step numbers
-    currentSessionIndex: 0, // index into treatmentPlan.treatments
-    currentStepIndex: 0, // index into session.steps
+    // NEW (ID based)
+    currentSessionId: null,
+    // KEEP step index (no step id yet)
+    currentStepIndex: 0,
     status: 'idle', // 'idle'|'preparing'|'in_treatment'|'completed'
   }),
   getters: {
     sessions(state) {
       return state.treatmentPlan?.treatments ?? []
     },
+    currentSessionIndex() {
+      if (!this.currentSessionId) return 0
+      return this.sessions.findIndex((s) => s.id === this.currentSessionId)
+    },
     currentSession() {
-      return this.sessions[this.currentSessionIndex] ?? null
+      return this.sessions.find((s) => s.id === this.currentSessionId) ?? null
     },
     currentStep() {
       return this.currentSession?.steps?.[this.currentStepIndex] ?? null
@@ -34,7 +39,7 @@ export const useTreatmentFlowStore = defineStore('treatmentFlow', {
       const payload = {
         treatmentPlan: this.treatmentPlan,
         loadedAt: this.loadedAt,
-        currentSessionIndex: this.currentSessionIndex,
+        currentSessionId: this.currentSessionId,
         currentStepIndex: this.currentStepIndex,
         status: this.status,
       }
@@ -46,11 +51,21 @@ export const useTreatmentFlowStore = defineStore('treatmentFlow', {
     loadFromLocal() {
       const raw = localStorage.getItem(`${STORAGE_KEY}_${assessmentStore.assessmentData.id}`)
       if (!raw) return false
+
       try {
         const p = JSON.parse(raw)
+
         this.treatmentPlan = p.treatmentPlan
         this.loadedAt = p.loadedAt
-        this.currentSessionIndex = p.currentSessionIndex ?? 0
+
+        // NEW
+        this.currentSessionId = p.currentSessionId ?? null
+
+        // BACKWARD SUPPORT
+        if (!this.currentSessionId && typeof p.currentSessionIndex === 'number') {
+          this.currentSessionId = this.sessions[p.currentSessionIndex]?.id ?? null
+        }
+
         this.currentStepIndex = p.currentStepIndex ?? 0
         this.status = p.status ?? 'idle'
         return true
@@ -60,15 +75,33 @@ export const useTreatmentFlowStore = defineStore('treatmentFlow', {
       }
     },
     setSessionByNumber(sessionNumber) {
-      // sessionNumber is 1-based from API (session_number)
-      const idx = this.sessions.findIndex((s) => s.session_number === Number(sessionNumber))
-      if (idx >= 0) this.currentSessionIndex = idx
-      else this.currentSessionIndex = Math.max(0, Number(sessionNumber) - 1) // fallback
+      const session = this.sessions.find((s) => s.session_number === Number(sessionNumber))
+
+      if (session) {
+        this.currentSessionId = session.id
+      } else {
+        // fallback to position
+        const idx = Math.max(0, Number(sessionNumber) - 1)
+        this.currentSessionId = this.sessions[idx]?.id ?? null
+      }
+
       this.currentStepIndex = 0
       this.status = 'preparing'
       this.saveToLocal()
     },
+    setSessionById(sessionId) {
+      const session = this.sessions.find((s) => s.id === Number(sessionId))
 
+      if (!session) {
+        console.warn('Invalid sessionId:', sessionId)
+        return
+      }
+
+      this.currentSessionId = session.id
+      this.currentStepIndex = 0
+      this.status = 'preparing'
+      this.saveToLocal()
+    },
     setStepByNumber(stepNumber) {
       this.currentStepIndex = Math.max(0, Number(stepNumber) - 1)
       this.status = 'in_treatment'
@@ -99,10 +132,9 @@ export const useTreatmentFlowStore = defineStore('treatmentFlow', {
     },
 
     resetFlow() {
-      this.currentSessionIndex = 0
+      this.currentSessionId = this.sessions[0]?.id ?? null
       this.currentStepIndex = 0
       this.status = 'idle'
-      // keep plan
       this.saveToLocal()
     },
   },

@@ -262,7 +262,8 @@
   height: 20px;
 }
 
-.gredient {
+.gredient,
+.gradient-default {
   background: linear-gradient(90deg, #6366f1, #a855f7);
 }
 
@@ -514,4 +515,38 @@ h6.heading {
   .treatment-container {
     grid-template-columns: 1fr;
   }
+}
+
+.custom-card .q-stepper__header {
+  display: none;
+}
+
+.custom-card .header-container {
+  margin-top: -30px;
+  height: 55px;
+  color: #fff;
+  border-radius: 0.25rem;
+  -webkit-box-shadow:
+    0 5px 11px 0 rgba(0, 0, 0, 0.18),
+    0 4px 15px 0 rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 5px 11px 0 rgba(0, 0, 0, 0.18),
+    0 4px 15px 0 rgba(0, 0, 0, 0.15);
+  position: relative;
+}
+
+.custom-card .header-container .title {
+  position: absolute;
+  flex: 0 1 auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.custom-card .header-container .title {
+  position: absolute;
+  flex: 0 1 auto;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 0;
+  font-size: 22px;
 }

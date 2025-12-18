@@ -48,6 +48,8 @@ export const useAssessmentStore = defineStore('assessment', {
       therapist_notes: null,
       status: 'in_progress',
     },
+    treatment_session_id: null,
+    showDialog: false,
   }),
 
   actions: {
@@ -140,10 +142,16 @@ export const useAssessmentStore = defineStore('assessment', {
             'Content-Type': 'multipart/form-data',
           },
         })
-        .then((response) => {
+        .then(async (response) => {
           this.assessmentData.images = response.data.results.images
           this.assessmentData.post_images = response.data.results.post_images
           this.assessmentData.conversation_id = response.data.results.conversation_id
+          if (
+            response.data.results.treatment_sessions &&
+            response.data.results.treatment_sessions.treatments.length > 0
+          ) {
+            this.treatment_session_id = response.data.results.treatment_sessions.treatments[0].id
+          }
         })
         .catch((e) => {
           console.log(e.response.data)
@@ -197,6 +205,70 @@ export const useAssessmentStore = defineStore('assessment', {
       const images = response.results.images
       const urls = images.map((file) => file.url)
       return urls
+    },
+    async updateTreatmentSessionId(appointmentId) {
+      try {
+        await api.post(`/appointments/update-treatment-session-id/${appointmentId}`, {
+          assessment_id: this.assessmentData.id,
+          treatment_session_id: this.treatment_session_id,
+        })
+        return true
+      } catch (e) {
+        console.log(e)
+        return false
+      }
+    },
+    initiateDialog() {
+      this.showDialog = true
+    },
+    async bookNextAppointment(data, nextSessionId) {
+      let payload = {
+        type: 'treatment',
+        clinic_id: this.assessmentData.clinic_id,
+        user_id: this.assessmentData.user_id,
+        therapist_id: this.assessmentData.therapist_id ?? 2,
+        assessment_id: this.assessmentData.id,
+        treatment_session_id: nextSessionId,
+        appointment_datetime: data.datetime,
+        notes: data.notes,
+      }
+      this.loading = true
+      await api
+        .post(`/appointments`, payload)
+        .then((response) => {
+          this.showDialog = false
+          Notify.create({
+            type: 'positive',
+            message: response.data.message,
+          })
+        })
+        .catch((e) => {
+          console.log(e)
+          Notify.create({
+            type: 'negative',
+            message: e.response.data.message,
+          })
+        })
+        .finally(() => {
+          this.loading = false
+        })
+    },
+    async updateStatus(appointment_id) {
+      await api
+        .post(`/appointments/status/${appointment_id}`, {
+          status: 'completed',
+        })
+        .then((response) => {
+          this.showDialog = false
+          console.log(response.data.message)
+        })
+        .catch((e) => {
+          console.log(e)
+          Notify.create({
+            type: 'negative',
+            message: e.response.data.message,
+          })
+        })
     },
   },
 })

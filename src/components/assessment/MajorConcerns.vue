@@ -33,7 +33,7 @@
                 </div>
                 <div class="text-grey-8">
                   <span class="text-weight-medium text-positive">Target:</span>
-                  {{ param.target_score }}
+                  {{ param.target_single_session_score }}
                 </div>
               </q-item-label>
             </q-item-section>

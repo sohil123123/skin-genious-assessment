@@ -14,7 +14,7 @@
           </div>
 
           <div class="text-weight-bold">
-            Session {{ sessionNumber }} — Step {{ stepNumber }} of {{ totalSteps }}
+            Session {{ sessionID }} — Step {{ stepNumber }} of {{ totalSteps }}
           </div>
         </div>
 
@@ -25,6 +25,7 @@
             <!-- Instructions -->
             <q-card class="section-card soft-bg q-pa-lg">
               <div class="title">{{ session?.title }}</div>
+              <div class="title text-grey-6">Step {{ stepNumber }}</div>
               <div class="desc">{{ step.how_to_do }}</div>
               <div class="q-mt-md">
                 <div class="info-main">Ingredients</div>
@@ -154,7 +155,7 @@ const assessmentStore = useAssessmentStore()
 /* -------------------------------------------
    PARAMS
 --------------------------------------------*/
-const sessionNumber = Number(route.params.session)
+const sessionID = Number(route.params.session_id)
 const stepNumber = ref(Number(route.params.step))
 
 /* -------------------------------------------
@@ -181,7 +182,7 @@ onMounted(async () => {
   await assessmentStore.getSingleAssessment(route.params.assessment_id)
 
   store.treatmentPlan = assessmentStore.assessmentData.treatment_sessions
-  store.setSessionByNumber(sessionNumber)
+  store.setSessionById(sessionID)
   store.setStepByNumber(stepNumber.value)
 
   resetTimer()
@@ -246,7 +247,7 @@ function next() {
   if (store.status === 'completed') {
     router.push({
       name: 'TreatmentComplete',
-      params: { session: sessionNumber },
+      params: { session_id: sessionID },
     })
     return
   }
@@ -254,7 +255,7 @@ function next() {
   const nextStepNum = store.currentStepIndex + 1
   router.push({
     name: 'TreatmentSteps',
-    params: { session: sessionNumber, step: nextStepNum },
+    params: { session_id: sessionID, step: nextStepNum },
   })
 }
 
@@ -262,7 +263,7 @@ function prev() {
   store.prevStep()
   router.push({
     name: 'TreatmentSteps',
-    params: { session: sessionNumber, step: store.currentStepIndex + 1 },
+    params: { session_id: sessionID, step: store.currentStepIndex + 1 },
   })
 }
 
@@ -288,7 +289,7 @@ function abort() {
       store.resetFlow()
       router.push({
         name: 'TreatmentPrep',
-        params: { assessment_id: assessmentStore.assessmentData.id, session: sessionNumber },
+        params: { assessment_id: assessmentStore.assessmentData.id, session_id: sessionID },
       })
     })
     .onCancel(() => {

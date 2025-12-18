@@ -122,11 +122,9 @@ const route = useRoute()
 const router = useRouter()
 const store = useTreatmentFlowStore()
 
-const sessionParam = route.params.session
+const sessionParam = route.params.session_id
 
-const sessionNumber = sessionParam
-  ? Number(sessionParam)
-  : (store.currentSession?.session_number ?? 1)
+const sessionID = sessionParam ? Number(sessionParam) : (store.currentSession?.id ?? 1)
 
 onMounted(async () => {
   await assessmentStore.getSingleAssessment(route.params.assessment_id)
@@ -135,7 +133,7 @@ onMounted(async () => {
 })
 
 const session = computed(() =>
-  store.treatmentPlan ? store.treatmentPlan.treatments[sessionNumber - 1] : null,
+  store.treatmentPlan ? store.treatmentPlan.treatments.find((s) => s.id === sessionID) : null,
 )
 const concerns_addressed = computed(() => session.value?.concerns_addressed ?? [])
 const prepList = computed(() => session.value?.preparations_checklist_for_therapist ?? [])
@@ -149,7 +147,7 @@ function startSteps() {
   // go to first step (steps are 1-based in route)
   router.push({
     name: 'TreatmentSteps',
-    params: { user_id: route.params.user_id, session: sessionNumber, step: 1 },
+    params: { user_id: route.params.user_id, session: sessionID, step: 1 },
   })
 }
 

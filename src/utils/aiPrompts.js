@@ -3415,7 +3415,7 @@ ________________________________________
         "steps": [
           {
             "step_number": <number>,
-            "duration": "<minutes>",
+            "duration": "<minutes in number no extra text>",
             "ingredients_equipments": ["<device>", "<serum>", "<peel>"],
             "how_to_do": "<clear zone-wise technique>"
           }

@@ -46,12 +46,12 @@ export function useOpenAI() {
   const runResponse = async (convId, input) => {
     try {
       const body = {
-        model: 'gpt-5',
+        model: 'gpt-4o-mini',
         // temperature: 2.0,
         conversation: convId,
         input,
-        prompt_cache_retention: '24h',
-        prompt_cache_key: 'ai-aesthetics-assessment-key-v1-ai',
+        // prompt_cache_retention: '24h',
+        // prompt_cache_key: 'ai-aesthetics-assessment-key-v1-ai',
       }
 
       const res = await fetch(`${BASE_URL}/responses`, {
