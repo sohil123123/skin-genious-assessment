@@ -46,12 +46,12 @@ export function useOpenAI() {
   const runResponse = async (convId, input) => {
     try {
       const body = {
-        model: 'gpt-4o-mini',
+        model: 'gpt-5.2',
         // temperature: 2.0,
         conversation: convId,
         input,
-        // prompt_cache_retention: '24h',
-        // prompt_cache_key: 'ai-aesthetics-assessment-key-v1-ai',
+        prompt_cache_retention: '24h',
+        prompt_cache_key: 'ai-aesthetics-assessment-key-v1-ai',
       }
 
       const res = await fetch(`${BASE_URL}/responses`, {
@@ -105,30 +105,8 @@ export function useOpenAI() {
     }
   }
 
-  // 3. Upload Images
-  const uploadToOpenAIFiles = async (file) => {
-    const form = new FormData()
-    form.append('file', file)
-    form.append('purpose', 'vision')
-
-    const res = await fetch(`${BASE_URL}/files`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${API_KEY}` },
-      body: form,
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      throw new Error(data.error?.message || 'Upload failed')
-    }
-
-    return data.id
-  }
-
   return {
     getOrCreateConversation,
     runResponse,
-    uploadToOpenAIFiles,
   }
 }

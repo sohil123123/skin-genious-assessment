@@ -105,7 +105,7 @@ import fullTreatmentJson from 'src/info/fullTreatmentPlan.json'
 import reassessment from 'src/info/reassessment.json'
 
 const $q = useQuasar()
-const { getOrCreateConversation, runResponse, uploadToOpenAIFiles } = useOpenAI()
+const { getOrCreateConversation, runResponse } = useOpenAI()
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
@@ -369,8 +369,7 @@ async function uploadImageFileToOpenAI(files, type) {
   const uploaded = []
 
   for (const f of files) {
-    const fileId = await uploadToOpenAIFiles(f)
-    await store.storeFaceImages(f, fileId, type)
+    const fileId = await store.storeFaceImages(f, type)
     uploaded.push({ type: 'input_image', file_id: fileId })
   }
 
