@@ -27,6 +27,12 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       {
+        path: 'test-page',
+        name: 'test-page',
+        component: () => import('pages/TestPage.vue'),
+        props: true,
+      },
+      {
         path: ':user_id/:appointment_id/treatment-prep/:assessment_id/:session_id',
         name: 'TreatmentPrep',
         component: () => import('pages/PreparationStep.vue'),
