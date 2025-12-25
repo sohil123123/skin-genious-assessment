@@ -50,7 +50,9 @@
 import { ref } from 'vue'
 import v from '../assets/version.json'
 import { Loading } from 'quasar'
+import { useAuthStore } from 'src/stores/authStore'
 
+const authStore = useAuthStore()
 const version = v.version
 const leftDrawerOpen = ref(false)
 
@@ -58,13 +60,11 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
 }
 
-function logout() {
+async function logout() {
   Loading.show({
     message: 'Logging out...',
   })
-  setTimeout(() => {
-    // LocalStorage.clear()
-    window.location.href = `${process.env.CRM_URL}/users`
-  }, 3000)
+  await authStore.logout()
+  window.location.href = `${process.env.CRM_URL}`
 }
 </script>

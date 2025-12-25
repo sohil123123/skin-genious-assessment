@@ -26,7 +26,7 @@ export default boot(async ({ router, store }) => {
 
     // ✅ If route requires authentication but token missing → redirect
     if (requiresAuth && !token) {
-      // return next('/authenticate')
+      return next('/authenticate')
     }
 
     // ✅ If token exists, set Axios header

@@ -39,12 +39,14 @@ const appointment_id = route.query.appointment_id
 const assessment_id = route.query.assessment_id ?? null
 const session_id = route.query.session_id ?? null
 const type = route.query.type ?? null
+const clinic_id = route.query.clinic_id ?? null
+const therapist_id = route.query.therapist_id ?? null
 const isValid = ref(false)
 
 onMounted(async () => {
-  if (!token || !userId) {
+  if (!token) {
     $q.notify({ type: 'negative', message: 'Invalid access. Redirecting...' })
-    // window.location.href = `${process.env.CRM_URL}/users`
+    window.location.href = `${process.env.CRM_URL}/users`
   }
 
   try {
@@ -73,6 +75,27 @@ onMounted(async () => {
               session_id: session_id,
             },
           })
+        } else if (type == 'appointment') {
+          if (clinic_id && therapist_id) {
+            router.push({
+              name: 'test-page',
+              params: {
+                clinic_id: clinic_id,
+                therapist_id: therapist_id,
+              },
+            })
+          } else if (clinic_id && !therapist_id) {
+            router.push({
+              name: 'test-page',
+              params: {
+                clinic_id: clinic_id,
+              },
+            })
+          } else {
+            router.push({
+              name: 'test-page',
+            })
+          }
         }
       }, 2000)
     } else {

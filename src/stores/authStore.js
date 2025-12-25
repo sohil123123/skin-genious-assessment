@@ -75,23 +75,15 @@ export const useAuthStore = defineStore('backend_auth', {
     resetServerError() {
       this.serverError = null
     },
-    logout() {
-      api
-        .get('logout', this.loginData)
+    async logout() {
+      await api
+        .get('logout')
         .then((response) => {
-          this.resetAction()
           LocalStorage.clear()
           Notify.create({
             type: 'positive',
             message: response.data.message,
           })
-          this.pushWithPromise(this.router, '/login')
-            .then(() => {
-              this.resetAction()
-            })
-            .catch((e) => {
-              console.log(e)
-            })
         })
         .catch((e) => {
           Loading.hide()

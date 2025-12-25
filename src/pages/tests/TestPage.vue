@@ -3,7 +3,7 @@
     <div class="min-h-screen bg-grey-2 p-6">
       <q-card bordered>
         <q-toolbar class="text-primary calander-toolbar">
-          <div class="col-12 col-md-4">
+          <div class="col-md-4">
             <q-btn color="grey" outline square icon="arrow_back_ios" @click="onPrev" />
             <q-btn color="grey" outline square label="Today" @click="onToday" />
             <q-btn color="grey" outline square icon="arrow_forward_ios" @click="onNext" />
@@ -11,7 +11,7 @@
           <div class="col-md-4 text-h4" style="text-align: center">
             {{ title }}
           </div>
-          <div flat class="col-12 col-md-4 q-pa-md q-gutter-sm flex justify-end">
+          <div flat class="col-md-4 q-pa-md q-gutter-sm flex justify-end">
             <q-tabs v-model="view" class="text-teal">
               <q-tab
                 name="month"
@@ -35,8 +35,39 @@
           </div>
         </q-toolbar>
         <q-card-section>
+          <div class="row q-col-gutter-sm">
+            <div v-if="!clinicId" class="col-md-3 col-sm-6 col-xs-12">
+              <q-select
+                label="Select Clinic"
+                outlined
+                v-model="clinic_id"
+                :options="clinics"
+                emit-value
+                map-options
+                options-dense
+                dense
+                @update:model-value="getTherapiests"
+              />
+            </div>
+            <div v-if="!therapistId" class="col-md-3 col-sm-6 col-xs-12">
+              <q-select
+                label="Select Threapist"
+                outlined
+                v-model="therapist_id"
+                :options="therapiests"
+                emit-value
+                map-options
+                options-dense
+                dense
+                @update:model-value="getAppointments"
+              />
+            </div>
+          </div>
+        </q-card-section>
+        <q-card-section>
           <div class="row justify-center q-mt-lg">
             <q-calendar-day
+              :key="calendarKey"
               ref="calendar"
               v-model="selectedDate"
               :mode="mode"
@@ -45,6 +76,7 @@
               :interval-start="32"
               :interval-count="44"
               :interval-height="15"
+              :interval-style="intervalStyle"
               time-clicks-clamped
               :selected-start-end-dates="startEndDates"
               animated
@@ -107,10 +139,18 @@
                     class="my-event"
                     :class="badgeClasses(event, 'body')"
                     :style="badgeStyles(event, 'body', timeStartPos, timeDurationHeight)"
+                    @click="selectEvent(event)"
                   >
                     <span class="event-title q-calendar__ellipsis">
                       {{ event.title }}
-                      <q-tooltip>{{ event.therapist }} - {{ event.bed }}</q-tooltip>
+                      <q-tooltip>
+                        <div v-if="event.isGroup">
+                          <div v-for="(ev, idx) in event.events" :key="idx">
+                            {{ ev.therapist }} - {{ ev.bed }} ({{ ev.time }})
+                          </div>
+                        </div>
+                        <div v-else>{{ event.therapist }} - {{ event.bed }}</div>
+                      </q-tooltip>
                     </span>
                   </div>
                 </template>
@@ -196,18 +236,35 @@ import {
   parseDate,
   addToDate,
   parseTimestamp,
-  parseTime,
-  parsed,
-  isBetweenDates,
+  // parseTime,
+  // parsed,
+  // isBetweenDates,
 } from '@quasar/quasar-ui-qcalendar'
 import '@quasar/quasar-ui-qcalendar/index.css'
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-// import CreateUpdateModal from 'src/components/appointment/CreateUpdateModal.vue'
+import { storeToRefs } from 'pinia'
+import { Dialog } from 'quasar'
+import { useAppointmentStore } from 'src/stores/appointmentStore'
+import { useCommonStore } from 'src/stores/commonStore'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 /* ---------------- STATE ---------------- */
 
+const appointmentStore = useAppointmentStore()
+const { appointments, INTERVAL_MINUTES } = storeToRefs(appointmentStore)
+
+const route = useRoute()
+const commonStore = useCommonStore()
+const { clinics, therapiests } = storeToRefs(commonStore)
+
+const clinicId = route.params.clinic_id
+const therapistId = route.params.therapist_id
+
+const clinic_id = ref(route.params.clinic_id)
+const therapist_id = ref(route.params.therapist_id)
+
 const mode = ref('day')
-const view = ref('week')
+const view = ref('day')
 
 const calendar = ref(null)
 const selectedDate = ref(today())
@@ -226,6 +283,8 @@ const activeSlot = ref({
   therapist_id: null,
   bed_id: null,
 })
+
+const calendarKey = ref(0)
 
 const therapists = ref([
   {
@@ -254,52 +313,6 @@ const beds = ref([
   {
     label: 'Bed 3',
     value: 3,
-  },
-])
-
-const CURRENT_DAY = new Date()
-const INTERVAL_MINUTES = 15
-
-const appointments = ref([
-  {
-    id: 3,
-    title: 'Client',
-    therapist: 'Therapiest 1',
-    bed: 'Bed 1',
-    date: getCurrentDay(22),
-    time: '10:00',
-    duration: 60,
-    bgcolor: 'teal',
-  },
-  {
-    id: 4,
-    title: 'Client',
-    therapist: 'Therapiest 2',
-    bed: 'Bed 2',
-    date: getCurrentDay(25),
-    time: '11:30',
-    duration: 90,
-    bgcolor: 'teal',
-  },
-  {
-    id: 4,
-    title: 'Client',
-    therapist: 'Therapiest 2',
-    bed: 'Bed 2',
-    date: getCurrentDay(25),
-    time: '11:30',
-    duration: 90,
-    bgcolor: 'teal',
-  },
-  {
-    id: 4,
-    title: 'Client',
-    therapist: 'Therapiest 2',
-    bed: 'Bed 2',
-    date: getCurrentDay(25),
-    time: '11:30',
-    duration: 90,
-    bgcolor: 'teal',
   },
 ])
 
@@ -352,7 +365,7 @@ const startEndDates = computed(() => {
 const eventsMap = computed(() => {
   const map = {}
 
-  appointments.value.forEach((event) => {
+  appointments.value?.forEach((event) => {
     const addEventToMap = (date) => {
       if (!map[date]) {
         map[date] = []
@@ -376,11 +389,43 @@ const eventsMap = computed(() => {
   return map
 })
 
+const disabledSlots = computed(() => {
+  return appointments.value
+    .filter((a) => a.isDisabled)
+    .map((a) => ({
+      date: a.start.split(' ')[0], // YYYY-MM-DD
+      start: a.start.split(' ')[1], // HH:mm
+      end: a.end.split(' ')[1], // HH:mm
+    }))
+})
+
+const mergedDisabledSlots = computed(() => {
+  const slots = [...disabledSlots.value].sort((a, b) => a.start.localeCompare(b.start))
+
+  const merged = []
+
+  for (const slot of slots) {
+    const last = merged[merged.length - 1]
+
+    if (last && last.date === slot.date && last.end === slot.start) {
+      last.end = slot.end
+    } else {
+      merged.push({ ...slot })
+    }
+  }
+
+  return merged
+})
+
 /* ---------------- LIFECYCLE ---------------- */
 
 onMounted(() => {
   adjustCurrentTime()
+  if (!route.params.clinic_id) commonStore.getClinics()
 
+  if (route.params.clinic_id) {
+    commonStore.getTherapiests(route.params.clinic_id)
+  }
   // update current time every minute
   intervalId = setInterval(() => {
     adjustCurrentTime()
@@ -391,6 +436,10 @@ onBeforeUnmount(() => {
   if (intervalId) {
     clearInterval(intervalId)
   }
+})
+
+watch(selectedDate, () => {
+  calendarKey.value++
 })
 
 /* ---------------- MOUSE EVENTS ---------------- */
@@ -430,23 +479,28 @@ function onMouseMoveTime({ scope }) {
 
 /* ---------------- NAVIGATION ---------------- */
 
-function onToday() {
-  calendar.value && calendar.value.moveToToday()
+async function onToday() {
+  if (calendar.value) {
+    await calendar.value.moveToToday()
+  }
+  await getAppointments()
 }
 
-function onPrev() {
-  calendar.value && calendar.value.prev()
+async function onPrev() {
+  if (calendar.value) {
+    await calendar.value.prev()
+  }
+  await getAppointments()
 }
 
-function onNext() {
-  calendar.value && calendar.value.next()
+async function onNext() {
+  if (calendar.value) {
+    await calendar.value.next()
+  }
+  await getAppointments()
 }
 
 /* ---------------- CALENDAR EVENTS ---------------- */
-
-// function onClickTime (data) {
-//   console.info('onClickTime', data)
-// }
 
 function onClickInterval(data) {
   console.info('onClickInterval', data)
@@ -481,16 +535,21 @@ function monthFormatter() {
   }
 }
 
-function getCurrentDay(day) {
-  const newDay = new Date(CURRENT_DAY)
-  newDay.setDate(day)
-  const tm = parseDate(newDay)
-  return tm ? tm.date : null
+// function getCurrentDay(day) {
+//   const newDay = new Date(CURRENT_DAY)
+//   newDay.setDate(day)
+//   const tm = parseDate(newDay)
+//   return tm ? tm.date : null
+// }
+
+async function getAppointments() {
+  appointments.value = []
+  appointmentStore.getAppointments(clinic_id.value, therapist_id.value, selectedDate.value)
 }
 
 function addMinutes(dateTime) {
   const d = new Date(dateTime)
-  d.setMinutes(d.getMinutes() + INTERVAL_MINUTES)
+  d.setMinutes(d.getMinutes() + INTERVAL_MINUTES.value)
   return (
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ` +
     `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -541,42 +600,92 @@ function adjustCurrentTime() {
   }
 }
 
+function selectEvent(event) {
+  console.log('event selected', event)
+
+  Dialog.create({
+    title: `Appointments at ${event.time}`,
+    message: `${event.therapist} - ${event.bed}: ${event.duration} minutes`,
+    html: true,
+  })
+}
+
+function getTherapiests(val) {
+  activeSlot.value.therapist_id = null
+  commonStore.getTherapiests(val)
+}
+
+function isIntervalDisabled(date, time) {
+  const toMinutes = (t) => {
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + m
+  }
+
+  const current = toMinutes(time)
+
+  return mergedDisabledSlots.value.some((slot) => {
+    if (slot.date !== date) return false
+
+    return current >= toMinutes(slot.start) && current < toMinutes(slot.end)
+  })
+}
+
+function intervalStyle({ scope }) {
+  if (!scope?.timestamp) return
+
+  const { date, time } = scope.timestamp
+
+  if (isIntervalDisabled(date, time)) {
+    return {
+      backgroundColor: 'rgb(255 207 207 / 35%)',
+      pointerEvents: 'none',
+      cursor: 'not-allowed !important',
+    }
+  }
+}
+
 /* ---------------- EVENT LOGIC ---------------- */
 
 function getEvents(dt) {
   const evts = eventsMap.value[dt] || []
 
-  if (evts.length === 1) {
-    evts[0].side = 'full'
-  } else if (evts.length === 2) {
-    const parsedDate1 = parsed(evts[0].date)
-    const startTime1 =
-      parsedDate1 && evts[0].time
-        ? addToDate(parsedDate1, { minute: parseTime(evts[0].time) })
-        : null
+  if (evts.length === 0) return []
 
-    const parsedDate2 = parsed(evts[1].date)
-    const startTime2 =
-      parsedDate2 && evts[1].time
-        ? addToDate(parsedDate2, { minute: parseTime(evts[1].time) })
-        : null
+  // Group events by time slot and assign positions
+  const timeSlots = {}
 
-    if (startTime1 && startTime2) {
-      const endTime1 = addToDate(startTime1, { minute: evts[0].duration || 0 })
-      const endTime2 = addToDate(startTime2, { minute: evts[1].duration || 0 })
+  evts.forEach((event) => {
+    if (!event.time) return
 
-      if (
-        isBetweenDates(startTime2, startTime1, endTime1, true) ||
-        isBetweenDates(endTime2, startTime1, endTime1, true)
-      ) {
-        evts[0].side = 'left'
-        evts[1].side = 'right'
-      } else {
-        evts[0].side = 'full'
-        evts[1].side = 'full'
-      }
+    const timeKey = event.time // Use time as key for grouping
+
+    if (!timeSlots[timeKey]) {
+      timeSlots[timeKey] = []
     }
-  }
+    timeSlots[timeKey].push(event)
+  })
+
+  // Process each time slot to assign positions
+  Object.keys(timeSlots).forEach((timeKey) => {
+    const eventsInSlot = timeSlots[timeKey]
+
+    // Sort events by duration (optional)
+    eventsInSlot.sort((a, b) => (b.duration || 0) - (a.duration || 0))
+
+    // Assign column positions
+    const maxColumns = 4 // Maximum number of columns to divide into
+    const columns = Array(maxColumns)
+      .fill(null)
+      .map(() => [])
+
+    // Simple column assignment based on index
+    eventsInSlot.forEach((event, index) => {
+      const column = Math.min(index, maxColumns - 1)
+      event.column = column
+      event.totalColumns = Math.min(eventsInSlot.length, maxColumns)
+      columns[column].push(event)
+    })
+  })
 
   return evts
 }
@@ -594,7 +703,7 @@ function badgeClasses(event, type) {
 
   return {
     [`text-white bg-${event.bgcolor}`]: true,
-    'full-width': !isHeader && (!event.side || event.side === 'full'),
+    // 'full-width': !isHeader && (!event.side || event.side === 'full'),
     'left-side': !isHeader && event.side === 'left',
     'right-side': !isHeader && event.side === 'right',
     'rounded-border': true,
@@ -607,6 +716,14 @@ function badgeStyles(event, type, timeStartPos, timeDurationHeight) {
   if (timeStartPos && timeDurationHeight && event.time && event.duration) {
     s.top = `${timeStartPos(event.time)}px`
     s.height = `${timeDurationHeight(event.duration)}px`
+
+    // Add width and left positioning for overlapping events
+    if (type === 'body' && event.column !== undefined && event.totalColumns !== undefined) {
+      const columnWidth = 100 / event.totalColumns
+      s.left = `${event.column * columnWidth}%`
+      s.width = `calc(${columnWidth}% - 15px)` // Subtracting margin
+      s.zIndex = 1000 + event.column // Ensure proper stacking
+    }
   }
 
   s['align-items'] = 'flex-start'
@@ -614,16 +731,25 @@ function badgeStyles(event, type, timeStartPos, timeDurationHeight) {
 }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .my-event {
   position: absolute;
   font-size: 12px;
   justify-content: center;
-  margin: 0 1px;
+  margin: 0 2px;
   text-overflow: ellipsis;
   overflow: hidden;
   cursor: pointer;
-  opacity: 0.7;
+  opacity: 0.9;
+  transition: all 0.2s ease;
+  border-left: 3px solid rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+}
+
+.my-event:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .event-title {
@@ -632,41 +758,72 @@ function badgeStyles(event, type, timeStartPos, timeDurationHeight) {
   justify-content: center;
   align-items: center;
   height: 100%;
-}
-
-.full-width {
-  left: 0;
-  width: calc(100% - 2px);
-}
-
-.left-side {
-  left: 0;
-  width: calc(50% - 3px);
-}
-
-.right-side {
-  left: 50%;
-  width: calc(50% - 3px);
+  padding: 2px 4px;
+  font-weight: 500;
 }
 
 .rounded-border {
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
+/* For better visibility of overlapping events */
+.my-event:nth-child(4n + 1) {
+  background: linear-gradient(to right, var(--q-primary), #1976d2);
+}
+
+.my-event:nth-child(4n + 2) {
+  background: linear-gradient(to right, var(--q-secondary), #7b1fa2);
+}
+
+.my-event:nth-child(4n + 3) {
+  background: linear-gradient(to right, var(--q-accent), #c2185b);
+}
+
+.my-event:nth-child(4n + 4) {
+  background: linear-gradient(to right, #388e3c, #2e7d32);
+}
+
+/* Time indicator styles */
 .day-view-current-time-indicator {
   position: absolute;
   left: -5px;
   height: 10px;
   width: 10px;
   margin-top: -4px;
-  background-color: rgba(0, 0, 255, 0.5);
+  background-color: rgba(255, 0, 0, 0.8);
   border-radius: 50%;
+  z-index: 2000;
 }
 
 .day-view-current-time-line {
   position: absolute;
   left: 5px;
-  border-top: rgba(0, 0, 255, 0.5) 2px solid;
+  border-top: rgba(255, 0, 0, 0.8) 2px solid;
   width: calc(100% - 5px);
+  z-index: 2000;
+}
+
+/* For header badges */
+.q-badge.header-event {
+  margin: 1px;
+  min-width: 20px;
+  height: 12px;
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure events don't overflow their containers */
+.my-event .event-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:deep(.q-calendar__interval.q-calendar-disabled-slot) {
+  background-color: rgba(255, 0, 0, 0.35) !important;
+  pointer-events: none !important;
+  cursor: not-allowed;
 }
 </style>
