@@ -96,6 +96,12 @@ export default defineConfig((/* ctx */) => {
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
     devServer: {
       // https: true,
+      host: '0.0.0.0', // REQUIRED for another PC
+      port: 9000,
+      strictPort: true,
+
+      // 👇 This is the important part
+      allowedHosts: ['skin-genious-assessment.test'],
       open: true, // opens browser window automatically
     },
 

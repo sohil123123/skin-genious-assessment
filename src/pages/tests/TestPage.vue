@@ -42,11 +42,12 @@
                 outlined
                 v-model="clinic_id"
                 :options="clinics"
-                emit-value
+                option-value="id"
+                option-label="name"
                 map-options
                 options-dense
                 dense
-                @update:model-value="getTherapiests"
+                @update:model-value="getSelectedVal"
               />
             </div>
             <div v-if="!therapistId" class="col-md-3 col-sm-6 col-xs-12">
@@ -64,7 +65,7 @@
             </div>
           </div>
         </q-card-section>
-        <q-card-section>
+        <q-card-section v-if="clinic_id && therapist_id">
           <div class="row justify-center q-mt-lg">
             <q-calendar-day
               :key="calendarKey"
@@ -72,9 +73,10 @@
               v-model="selectedDate"
               :mode="mode"
               :view="view"
+              :disabled-days="leaveFullDayDates"
               :interval-minutes="15"
-              :interval-start="32"
-              :interval-count="44"
+              :interval-start="intervalStart"
+              :interval-count="intervalCount"
               :interval-height="15"
               :interval-style="intervalStyle"
               time-clicks-clamped
@@ -87,6 +89,7 @@
               @click-interval="onClickInterval"
               @click-head-intervals="onClickHeadIntervals"
               @click-head-day="onClickHeadDay"
+              @change="onChange"
             >
               <template #day-container="{ scope: { days } }">
                 <template v-if="hasDate(days)">
@@ -97,133 +100,113 @@
               <template #head-day-event="{ scope: { timestamp } }">
                 <div style="display: flex; justify-content: center; flex-wrap: wrap; padding: 2px">
                   <template v-for="event in eventsMap[timestamp.date]" :key="event.id">
-                    <q-badge
-                      v-if="!event.time"
-                      :class="badgeClasses(event, 'header')"
-                      :style="badgeStyles(event, 'header')"
-                      style="
-                        width: 100%;
-                        cursor: pointer;
-                        height: 12px;
-                        font-size: 10px;
-                        margin: 1px;
-                      "
-                    >
-                      <span class="event-title q-calendar__ellipsis">
-                        {{ event.title }}
-                        <q-tooltip>{{ event.details }}</q-tooltip>
-                      </span>
-                    </q-badge>
-                    <q-badge
-                      v-else
-                      :class="badgeClasses(event, 'header')"
-                      :style="badgeStyles(event, 'header')"
-                      style="
-                        margin: 1px;
-                        width: 10px;
-                        max-width: 10px;
-                        height: 10px;
-                        max-height: 10px;
-                      "
-                      @click="scrollToEvent(event)"
-                    >
-                      <q-tooltip>{{ event.time + ' - ' + event.details }}</q-tooltip>
-                    </q-badge>
+                    <div v-if="event.type === 'appointment' && event.type !== undefined">
+                      <q-badge
+                        v-if="!event.time"
+                        :class="badgeClasses(event, 'header')"
+                        :style="[
+                          badgeStyles(event, 'header'),
+                          'background-color: ' + event.bgcolor,
+                        ]"
+                        style="
+                          width: 100%;
+                          cursor: pointer;
+                          height: 12px;
+                          font-size: 10px;
+                          margin: 1px;
+                        "
+                      >
+                        <span class="event-title q-calendar__ellipsis">
+                          {{ event.title }}
+                          <q-tooltip>{{ event.details }}</q-tooltip>
+                        </span>
+                      </q-badge>
+                      <q-badge
+                        v-else
+                        :class="badgeClasses(event, 'header')"
+                        :style="[
+                          badgeStyles(event, 'header'),
+                          'background-color: ' + event.bgcolor,
+                        ]"
+                        style="
+                          margin: 1px;
+                          width: 10px;
+                          max-width: 10px;
+                          height: 10px;
+                          max-height: 10px;
+                        "
+                        @click="scrollToEvent(event)"
+                      >
+                        <q-tooltip>{{ event.time + ' - ' + event.title }}</q-tooltip>
+                      </q-badge>
+                    </div>
                   </template>
                 </div>
               </template>
               <template #day-body="{ scope: { timestamp, timeStartPos, timeDurationHeight } }">
                 <template v-for="event in getEvents(timestamp.date)" :key="event.id">
+                  <!-- ONLY appointments render -->
                   <div
-                    v-if="event.time !== undefined"
+                    v-if="event.type === 'appointment' && event.time !== undefined"
                     class="my-event"
                     :class="badgeClasses(event, 'body')"
-                    :style="badgeStyles(event, 'body', timeStartPos, timeDurationHeight)"
+                    :style="[
+                      badgeStyles(event, 'body', timeStartPos, timeDurationHeight),
+                      'background-color: ' + event.bgcolor,
+                    ]"
                     @click="selectEvent(event)"
+                    @mousedown.stop="startDrag(event)"
                   >
                     <span class="event-title q-calendar__ellipsis">
                       {{ event.title }}
-                      <q-tooltip>
-                        <div v-if="event.isGroup">
-                          <div v-for="(ev, idx) in event.events" :key="idx">
-                            {{ ev.therapist }} - {{ ev.bed }} ({{ ev.time }})
-                          </div>
-                        </div>
-                        <div v-else>{{ event.therapist }} - {{ event.bed }}</div>
-                      </q-tooltip>
                     </span>
+                    <q-tooltip>
+                      {{
+                        event.time + ' - ' + event.meta.client + ' (' + event.duration + ' mins)'
+                      }}
+                    </q-tooltip>
                   </div>
                 </template>
+
+                <!-- ghost preview -->
+                <div
+                  v-if="
+                    ghostEvent &&
+                    ghostEvent.date === timestamp.date &&
+                    ghostEvent.time === timestamp.time
+                  "
+                  class="calendar-event ghost"
+                  :style="badgeStyles(ghostEvent, timeStartPos, timeDurationHeight)"
+                >
+                  {{ ghostEvent.title }}
+                </div>
+              </template>
+              <template #day-interval="{ scope }">
+                <q-tooltip v-if="isIntervalDisabled(scope.timestamp.date, scope.timestamp.time)">
+                  {{ getDisabledEvent(scope.timestamp.date, scope.timestamp.time)?.title }}
+                </q-tooltip>
               </template>
             </q-calendar-day>
+          </div>
+        </q-card-section>
+        <q-card-section v-else>
+          <div class="text-center q-py-xl">
+            <q-icon name="calendar_month" size="xl" color="grey-4" class="q-mb-md" />
+            <div class="text-h6 text-grey-6 q-mb-sm">No Clinic & Therapist Selected</div>
+            <div class="text-grey-7">Start by selecting a clinic and therapist</div>
           </div>
         </q-card-section>
       </q-card>
     </div>
     <q-dialog v-model="bookSlotModal">
-      <div style="min-width: 400px; max-width: 90vw">
-        <q-card class="custom-card" style="margin-top: 20px">
-          <q-toolbar>
-            <q-toolbar-title
-              class="text-white header-container gradient-default flex justify-end items-center"
-            >
-              <div class="title">Book Appointment</div>
-              <q-btn class="flex-end q-mr-sm" icon="close" round outline dense v-close-popup />
-            </q-toolbar-title>
-          </q-toolbar>
-          <q-card-section class="q-pt-none">
-            <div class="q-pa-md">
-              <div class="q-pa-md">
-                <div class="q-gutter-sm">
-                  <q-chip square color="teal" text-color="white" class="q-ma-md">
-                    {{ startEndDates[0] }}
-                  </q-chip>
-                  TO
-                  <q-chip color="teal" text-color="white" class="q-ma-md">
-                    {{ addMinutes(startEndDates[1]) }}
-                  </q-chip>
-                </div>
-
-                <div class="q-gutter-md row items-start">
-                  <div class="col-md-12">
-                    <q-select
-                      v-model="activeSlot.therapist_id"
-                      :options="therapists"
-                      emit-value
-                      map-options
-                      label="Select Therapist"
-                      outlined
-                      dense
-                    />
-                  </div>
-                  <div class="col-md-12">
-                    <q-select
-                      v-model="activeSlot.bed_id"
-                      :options="beds"
-                      emit-value
-                      map-options
-                      label="Select Bed"
-                      outlined
-                      dense
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </q-card-section>
-
-          <q-card-actions align="right">
-            <q-btn label="Cancel" color="negative" icon="close" outline v-close-popup />
-            <q-btn
-              label="Confirm"
-              color="positive"
-              icon="check"
-              :loading="loading"
-              @click="confirmBooking"
-            />
-          </q-card-actions>
-        </q-card>
-      </div>
+      <CreateUpdateModal
+        :appointment-types="appointmentTypes"
+        :status-options="statusOptions"
+        :clients="clients"
+        :startEndDates="startEndDates"
+        v-model:activeSlot="activeSlot"
+        @submit="handleSubmit"
+      />
     </q-dialog>
   </q-page>
 </template>
@@ -242,7 +225,8 @@ import {
 } from '@quasar/quasar-ui-qcalendar'
 import '@quasar/quasar-ui-qcalendar/index.css'
 import { storeToRefs } from 'pinia'
-import { Dialog } from 'quasar'
+import { Dialog, Loading, Notify } from 'quasar'
+import CreateUpdateModal from 'src/components/appointment/CreateUpdateModal.vue'
 import { useAppointmentStore } from 'src/stores/appointmentStore'
 import { useCommonStore } from 'src/stores/commonStore'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
@@ -251,11 +235,19 @@ import { useRoute } from 'vue-router'
 /* ---------------- STATE ---------------- */
 
 const appointmentStore = useAppointmentStore()
-const { appointments, INTERVAL_MINUTES } = storeToRefs(appointmentStore)
+const {
+  otherEvents,
+  leaveFullDayDates,
+  appointmentTypes,
+  statusOptions,
+  intervalStart,
+  intervalCount,
+  INTERVAL_MINUTES,
+} = storeToRefs(appointmentStore)
 
 const route = useRoute()
 const commonStore = useCommonStore()
-const { clinics, therapiests } = storeToRefs(commonStore)
+const { clinics, therapiests, clients } = storeToRefs(commonStore)
 
 const clinicId = route.params.clinic_id
 const therapistId = route.params.therapist_id
@@ -264,7 +256,9 @@ const clinic_id = ref(route.params.clinic_id)
 const therapist_id = ref(route.params.therapist_id)
 
 const mode = ref('day')
-const view = ref('day')
+const view = ref('week')
+const startDate = ref(null)
+const endDate = ref(null)
 
 const calendar = ref(null)
 const selectedDate = ref(today())
@@ -274,47 +268,23 @@ const otherTimestamp = ref(null)
 
 const mouseDown = ref(false)
 const mobile = ref(false)
-
-const loading = ref(false)
+const draggingEvent = ref(null)
+const ghostEvent = ref(null)
 
 const bookSlotModal = ref(false)
 const activeSlot = ref({
   id: null,
+  type: null,
+  clinic_id: null,
   therapist_id: null,
-  bed_id: null,
+  user_id: null,
+  start_datetime: null,
+  end_datetime: null,
+  notes: '',
+  status: 'confirmed',
 })
 
 const calendarKey = ref(0)
-
-const therapists = ref([
-  {
-    label: 'Therapist 1',
-    value: 1,
-  },
-  {
-    label: 'Therapist 2',
-    value: 2,
-  },
-  {
-    label: 'Therapist 3',
-    value: 3,
-  },
-])
-
-const beds = ref([
-  {
-    label: 'Bed 1',
-    value: 1,
-  },
-  {
-    label: 'Bed 2',
-    value: 2,
-  },
-  {
-    label: 'Bed 3',
-    value: 3,
-  },
-])
 
 const timeStartPos = ref(0)
 const currentDate = ref(null)
@@ -365,7 +335,7 @@ const startEndDates = computed(() => {
 const eventsMap = computed(() => {
   const map = {}
 
-  appointments.value?.forEach((event) => {
+  otherEvents.value?.forEach((event) => {
     const addEventToMap = (date) => {
       if (!map[date]) {
         map[date] = []
@@ -390,13 +360,24 @@ const eventsMap = computed(() => {
 })
 
 const disabledSlots = computed(() => {
-  return appointments.value
-    .filter((a) => a.isDisabled)
-    .map((a) => ({
-      date: a.start.split(' ')[0], // YYYY-MM-DD
-      start: a.start.split(' ')[1], // HH:mm
-      end: a.end.split(' ')[1], // HH:mm
-    }))
+  return otherEvents.value
+    .filter((e) => e.type !== 'appointment')
+    .map((e) => {
+      const [h, m] = e.time.split(':').map(Number)
+      const startMinutes = h * 60 + m
+      const endMinutes = startMinutes + e.duration
+
+      const toTime = (mins) =>
+        `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
+
+      return {
+        date: e.date, // YYYY-MM-DD
+        start: toTime(startMinutes), // HH:mm
+        end: toTime(endMinutes), // HH:mm
+        title: e.title, // ✅ IMPORTANT
+        type: e.type,
+      }
+    })
 })
 
 const mergedDisabledSlots = computed(() => {
@@ -425,6 +406,7 @@ onMounted(() => {
 
   if (route.params.clinic_id) {
     commonStore.getTherapiests(route.params.clinic_id)
+    commonStore.getClients(route.params.clinic_id)
   }
   // update current time every minute
   intervalId = setInterval(() => {
@@ -444,7 +426,14 @@ watch(selectedDate, () => {
 
 /* ---------------- MOUSE EVENTS ---------------- */
 
+function startDrag(event) {
+  draggingEvent.value = event
+}
+
 function onMouseDownTime({ scope, event }) {
+  if (isIntervalDisabled(scope.timestamp.date, scope.timestamp.time)) {
+    return // ❌ block drag
+  }
   if (leftClick(event)) {
     if (
       mobile.value === true &&
@@ -464,16 +453,51 @@ function onMouseDownTime({ scope, event }) {
 }
 
 function onMouseUpTime({ scope, event }) {
+  if (isIntervalDisabled(scope.timestamp.date, scope.timestamp.time)) {
+    return // ❌ block drag
+  }
+  resetActiveSlot()
+  if (!clinic_id.value && !therapist_id.value) {
+    Notify.create({
+      type: 'warning',
+      message: 'Please select a clinic and therapist',
+    })
+    mouseDown.value = false
+    return
+  }
   if (mobile.value !== true && leftClick(event)) {
     otherTimestamp.value = scope.timestamp
     mouseDown.value = false
     bookSlotModal.value = true
+
+    // ----------------------------------
+
+    if (!draggingEvent.value) return
+
+    console.log(draggingEvent.value.id, scope.timestamp.date, scope.timestamp.time)
+
+    draggingEvent.value = null
+    ghostEvent.value = null
   }
 }
 
 function onMouseMoveTime({ scope }) {
   if (mobile.value !== true && mouseDown.value === true) {
     otherTimestamp.value = scope.timestamp
+
+    // ----------------------------------
+    if (!draggingEvent.value) return
+
+    const { date, time } = scope.timestamp
+
+    // prevent ghost on disabled slots
+    if (isIntervalDisabled(date, time)) return
+
+    ghostEvent.value = {
+      ...draggingEvent.value,
+      date,
+      time,
+    }
   }
 }
 
@@ -483,21 +507,18 @@ async function onToday() {
   if (calendar.value) {
     await calendar.value.moveToToday()
   }
-  await getAppointments()
 }
 
 async function onPrev() {
   if (calendar.value) {
     await calendar.value.prev()
   }
-  await getAppointments()
 }
 
 async function onNext() {
   if (calendar.value) {
     await calendar.value.next()
   }
-  await getAppointments()
 }
 
 /* ---------------- CALENDAR EVENTS ---------------- */
@@ -543,16 +564,12 @@ function monthFormatter() {
 // }
 
 async function getAppointments() {
-  appointments.value = []
-  appointmentStore.getAppointments(clinic_id.value, therapist_id.value, selectedDate.value)
-}
-
-function addMinutes(dateTime) {
-  const d = new Date(dateTime)
-  d.setMinutes(d.getMinutes() + INTERVAL_MINUTES.value)
-  return (
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ` +
-    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  // otherEvents.value = []
+  appointmentStore.getAppointments(
+    clinic_id.value,
+    therapist_id.value,
+    startDate.value,
+    endDate.value,
   )
 }
 
@@ -560,26 +577,56 @@ function getDurationInMinutes(start, end) {
   return (new Date(end) - new Date(start)) / 60000
 }
 
-function confirmBooking() {
+function resetActiveSlot() {
+  activeSlot.value = {
+    id: null,
+    type: null,
+    clinic_id: clinic_id.value,
+    therapist_id: therapist_id.value,
+    user_id: null,
+    start_datetime: null,
+    end_datetime: null,
+    notes: '',
+    status: 'confirmed',
+  }
+}
+
+async function handleSubmit() {
+  if (!activeSlot.value.type) {
+    Notify.create({
+      type: 'negative',
+      message: 'Please select an appointment type',
+    })
+    return
+  }
+
   const start = startEndDates.value[0]
-  const end = addMinutes(startEndDates.value[1])
+  const end = commonStore.addMinutes(startEndDates.value[1])
 
   const date = start.split(' ')[0]
   const time = start.split(' ')[1]
   const duration = getDurationInMinutes(start, end)
-
-  appointments.value.push({
-    id: null,
-    title: 'Client',
-    therapist: `Therapiest ${activeSlot.value.therapist_id}`,
-    bed: `Bed ${activeSlot.value.bed_id}`,
-    date: date,
-    time: time,
-    duration: duration,
-    bgcolor: 'teal',
+  Loading.show({
+    message: 'Booking Appointment...',
   })
-  console.log('appointments', appointments.value)
-
+  await appointmentStore.addAppointment({
+    id: Date.now(), // safe unique id
+    title: 'Booked',
+    date,
+    time,
+    duration,
+    type: activeSlot.value.type,
+    status: activeSlot.value.status,
+    bgcolor: 'teal',
+    notes: activeSlot.value.notes,
+    meta: {
+      clinic: clinic_id.value,
+      therapist: therapist_id.value,
+      client: activeSlot.value.client_id,
+    },
+  })
+  getAppointments()
+  Loading.hide()
   bookSlotModal.value = false
 }
 
@@ -601,18 +648,104 @@ function adjustCurrentTime() {
 }
 
 function selectEvent(event) {
-  console.log('event selected', event)
+  const { id, title, date, time, duration, meta = {} } = event
 
   Dialog.create({
-    title: `Appointments at ${event.time}`,
-    message: `${event.therapist} - ${event.bed}: ${event.duration} minutes`,
+    title: 'Appointment Details',
+    message: `
+      <div style="line-height:1.7;font-size:14px">
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <strong>${title}</strong>
+        </div>
+
+        <div><i class="q-icon material-icons">event</i>
+          <strong>Date:</strong> ${date}
+        </div>
+
+        <div><i class="q-icon material-icons">schedule</i>
+          <strong>Time:</strong> ${time}
+        </div>
+
+        <div><i class="q-icon material-icons">timer</i>
+          <strong>Duration:</strong> ${duration} minutes
+        </div>
+
+        <hr>
+
+        <div><i class="q-icon material-icons">person</i>
+          <strong>Therapist:</strong> ${meta.therapist ?? '-'}
+        </div>
+
+        <div><i class="q-icon material-icons">local_hospital</i>
+          <strong>Clinic:</strong> ${meta.clinic ?? '-'}
+        </div>
+
+        <div><i class="q-icon material-icons">face</i>
+          <strong>Client:</strong> ${meta.client ?? '-'}
+        </div>
+
+      </div>
+    `,
     html: true,
+
+    cancel: {
+      label: 'Close',
+      flat: true,
+    },
+
+    ok:
+      status === 'completed'
+        ? false
+        : {
+            label: 'Delete',
+            color: 'negative',
+          },
+  }).onOk(() => {
+    deleteEvent(id)
   })
 }
 
-function getTherapiests(val) {
-  activeSlot.value.therapist_id = null
-  commonStore.getTherapiests(val)
+function deleteEvent(eventId) {
+  Dialog.create({
+    title: 'Delete Appointment',
+    message: 'Are you sure?',
+    cancel: true,
+    ok: {
+      label: 'Delete',
+      color: 'negative',
+    },
+  }).onOk(() => {
+    appointmentStore.deleteAppointment(eventId)
+  })
+}
+
+function getSelectedVal(val) {
+  setStartEndTime(val)
+  therapist_id.value = null
+  activeSlot.value.client_id = null
+  clinic_id.value = val.id
+  commonStore.getTherapiests(val.id)
+  commonStore.getClients(val.id)
+}
+
+function setStartEndTime(clinic) {
+  const openingTime = clinic.start_time || '08:00'
+  const closingTime = clinic.end_time || '18:00'
+
+  const [openHour, openMinute] = openingTime.split(':').map(Number)
+  const [closeHour, closeMinute = 0] = closingTime.split(':').map(Number)
+
+  // set selected date
+  const today = new Date()
+  today.setHours(openHour, openMinute, 0, 0)
+  selectedDate.value = today.toISOString().slice(0, 10)
+
+  const startMinutes = openHour * 60 + openMinute
+  const endMinutes = closeHour * 60 + closeMinute
+
+  intervalStart.value = startMinutes / INTERVAL_MINUTES.value
+  intervalCount.value = (endMinutes - startMinutes) / INTERVAL_MINUTES.value
 }
 
 function isIntervalDisabled(date, time) {
@@ -637,14 +770,36 @@ function intervalStyle({ scope }) {
 
   if (isIntervalDisabled(date, time)) {
     return {
-      backgroundColor: 'rgb(255 207 207 / 35%)',
-      pointerEvents: 'none',
-      cursor: 'not-allowed !important',
+      background: '#e9e9e966',
+      // pointerEvents: 'none',
+      cursor: 'not-allowed',
     }
   }
+
+  return {}
+}
+
+function getDisabledEvent(date, time) {
+  const toMinutes = (t) => {
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + m
+  }
+
+  const current = toMinutes(time)
+
+  return mergedDisabledSlots.value.find((slot) => {
+    if (slot.date !== date) return false
+    return current >= toMinutes(slot.start) && current < toMinutes(slot.end)
+  })
 }
 
 /* ---------------- EVENT LOGIC ---------------- */
+
+function onChange(dt) {
+  startDate.value = dt.start
+  endDate.value = dt.end
+  appointmentStore.getAppointments(clinic_id.value, therapist_id.value, dt.start, dt.end)
+}
 
 function getEvents(dt) {
   const evts = eventsMap.value[dt] || []
@@ -766,23 +921,6 @@ function badgeStyles(event, type, timeStartPos, timeDurationHeight) {
   border-radius: 3px;
 }
 
-/* For better visibility of overlapping events */
-.my-event:nth-child(4n + 1) {
-  background: linear-gradient(to right, var(--q-primary), #1976d2);
-}
-
-.my-event:nth-child(4n + 2) {
-  background: linear-gradient(to right, var(--q-secondary), #7b1fa2);
-}
-
-.my-event:nth-child(4n + 3) {
-  background: linear-gradient(to right, var(--q-accent), #c2185b);
-}
-
-.my-event:nth-child(4n + 4) {
-  background: linear-gradient(to right, #388e3c, #2e7d32);
-}
-
 /* Time indicator styles */
 .day-view-current-time-indicator {
   position: absolute;
@@ -825,5 +963,32 @@ function badgeStyles(event, type, timeStartPos, timeDurationHeight) {
   background-color: rgba(255, 0, 0, 0.35) !important;
   pointer-events: none !important;
   cursor: not-allowed;
+}
+
+.q-calendar .disabled {
+  position: relative;
+  cursor: not-allowed !important;
+}
+
+.q-calendar .disabled::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.my-event {
+  cursor: grab;
+}
+
+.my-event:active {
+  cursor: grabbing;
+}
+
+.calendar-event.ghost {
+  opacity: 0.4;
+  pointer-events: none;
+  border: 2px dashed #666;
 }
 </style>
