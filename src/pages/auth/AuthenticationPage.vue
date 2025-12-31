@@ -78,7 +78,7 @@ onMounted(async () => {
         } else if (type == 'appointment') {
           if (clinic_id && therapist_id) {
             router.push({
-              name: 'test-page',
+              name: 'appointments',
               params: {
                 clinic_id: clinic_id,
                 therapist_id: therapist_id,
@@ -86,14 +86,14 @@ onMounted(async () => {
             })
           } else if (clinic_id && !therapist_id) {
             router.push({
-              name: 'test-page',
+              name: 'appointments',
               params: {
                 clinic_id: clinic_id,
               },
             })
           } else {
             router.push({
-              name: 'test-page',
+              name: 'appointments',
             })
           }
         }

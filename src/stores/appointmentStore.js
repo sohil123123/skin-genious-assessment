@@ -13,6 +13,7 @@ export const useAppointmentStore = defineStore('appointment', {
     selectedDate: null,
     loading: false,
     error: null,
+    warning: null,
     appointmentTypes: [
       { label: 'Consult', value: 'consult' },
       { label: 'Treatment', value: 'treatment' },
@@ -90,6 +91,8 @@ export const useAppointmentStore = defineStore('appointment', {
         clinic_id: event.meta.clinic,
         therapist_id: event.meta.therapist,
         user_id: event.meta.client,
+        assessment_id: event.assessment_id,
+        treatment_session_id: event.treatment_session_id,
         start_datetime: `${event.date} ${event.time}`,
         end_datetime: `${event.date} ${this.addMinutesToTime(event.time, event.duration)}`,
         notes: event.notes || '',
@@ -98,6 +101,7 @@ export const useAppointmentStore = defineStore('appointment', {
 
       try {
         await api.post('appointments', payload).then((res) => {
+          this.warning = res.data.results || null
           Notify.create({
             type: 'positive',
             message: res.data.message || 'Appointment booked successfully',
@@ -117,6 +121,8 @@ export const useAppointmentStore = defineStore('appointment', {
         end_time: this.addMinutesToTime(event.time, event.duration),
         duration: event.duration,
         type: event.type,
+        assessment_id: event.assessment_id,
+        treatment_session_id: event.treatment_session_id,
         status: event.status,
         bgcolor: event.bgcolor,
         meta: event.meta,
@@ -125,7 +131,25 @@ export const useAppointmentStore = defineStore('appointment', {
       await this.storeAppointments(event)
     },
     deleteAppointment(eventId) {
-      this.rawEvents = this.rawEvents.filter((e) => e.id !== eventId)
+      Loading.show({
+        message: 'Deleting appointment...',
+      })
+      api
+        .delete(`appointments/${eventId}`)
+        .then((res) => {
+          this.rawEvents = this.rawEvents.filter((e) => e.id !== eventId)
+          Notify.create({
+            type: 'positive',
+            message: res.data.message || 'Appointment deleted successfully',
+          })
+          this.rawEvents = this.rawEvents.filter((e) => e.id !== eventId)
+        })
+        .catch((error) => {
+          this.error = error
+        })
+        .finally(() => {
+          Loading.hide()
+        })
     },
     addMinutesToTime(time, minutes) {
       const [h, m] = time.split(':').map(Number)

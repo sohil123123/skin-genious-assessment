@@ -1,5 +1,5 @@
 <template>
-  <div style="min-width: 400px; max-width: 90vw">
+  <div style="min-width: 500px; max-width: 90vw">
     <q-card class="custom-card" style="margin-top: 20px">
       <q-toolbar>
         <q-toolbar-title
@@ -51,6 +51,51 @@
                   @filter="commonStore.filterClients"
                   :rules="[(val) => !!val || 'Please select a client']"
                   style="max-width: 100%"
+                  @update:model-value="getAssessments"
+                />
+              </div>
+              <div
+                v-if="
+                  activeSlot.type == 'treatment' && activeSlot.client_id && assessments.length > 0
+                "
+                class="col-md-12"
+              >
+                <q-select
+                  v-model="activeSlot.assessment_id"
+                  :options="assessments"
+                  emit-value
+                  map-options
+                  use-input
+                  label="Select Assessment"
+                  outlined
+                  dense
+                  clearable
+                  :rules="[(val) => !!val || 'Please select an assessment']"
+                  style="max-width: 100%"
+                  @update:model-value="getTreatmentSessions"
+                />
+              </div>
+              <div
+                v-if="
+                  activeSlot.type == 'treatment' &&
+                  activeSlot.client_id &&
+                  activeSlot.assessment_id &&
+                  treatmentSessionsOptions.length > 0
+                "
+                class="col-md-12"
+              >
+                <q-select
+                  v-model="activeSlot.treatment_session_id"
+                  :options="treatmentSessionsOptions"
+                  emit-value
+                  map-options
+                  use-input
+                  label="Select Treatment Session"
+                  outlined
+                  dense
+                  clearable
+                  :rules="[(val) => !!val || 'Please select a treatment session']"
+                  style="max-width: 100%"
                 />
               </div>
               <div class="col-md-12">
@@ -91,8 +136,10 @@
   </div>
 </template>
 <script setup>
+import { Notify } from 'quasar'
+import { api } from 'src/boot/axios'
 import { useCommonStore } from 'src/stores/commonStore'
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const commonStore = useCommonStore()
 
@@ -126,7 +173,72 @@ const activeSlot = computed({
   set: (value) => emit('update:modelValue', value),
 })
 
+const assessments = ref([])
+const treatmentSessionsOptions = ref([])
+
 function handleSubmit() {
   emit('submit', activeSlot.value)
+}
+
+function getAssessments() {
+  if (activeSlot.value.type == 'treatment' && activeSlot.value.client_id) {
+    let url = `get-assessments?is_dropdown=1`
+    let filterArray = [
+      {
+        column: 'user_id',
+        condition: '=',
+        value: activeSlot.value.client_id,
+      },
+    ]
+    url += `&filterArray=${encodeURIComponent(JSON.stringify(filterArray))}`
+    api
+      .get(url)
+      .then((response) => {
+        assessments.value = response.data.results
+        if (assessments.value.length === 0) {
+          Notify.create({
+            type: 'warning',
+            message: 'No assessments found for the selected client',
+          })
+        }
+      })
+      .catch((error) => {
+        Notify.create({
+          type: 'negative',
+          message: error.response?.data?.message || 'Failed to fetch assessments',
+        })
+      })
+  }
+}
+
+function getTreatmentSessions() {
+  if (activeSlot.value.type == 'treatment' && activeSlot.value.client_id) {
+    let url = `get-treatment-sessions?is_dropdown=1`
+    let filterArray = [
+      {
+        column: 'assessment_id',
+        condition: '=',
+        value: activeSlot.value.assessment_id,
+      },
+    ]
+    url += `&filterArray=${encodeURIComponent(JSON.stringify(filterArray))}`
+    api
+      .get(url)
+      .then((response) => {
+        treatmentSessionsOptions.value = response.data.results
+        if (treatmentSessionsOptions.value.length === 0) {
+          Notify.create({
+            type: 'warning',
+            message: 'No treatment sessions found for the selected assessment',
+          })
+        }
+      })
+      .catch((error) => {
+        Notify.create({
+          type: 'negative',
+          message: error.response?.data?.message || 'Failed to fetch assessments',
+        })
+      })
+  }
 }
 </script>

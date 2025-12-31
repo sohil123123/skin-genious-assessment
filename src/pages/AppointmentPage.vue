@@ -66,6 +66,7 @@
           </div>
         </q-card-section>
         <q-card-section v-if="clinic_id && therapist_id">
+          <EmergencyWarning :response="warning" />
           <div class="row justify-center q-mt-lg">
             <q-calendar-day
               :key="calendarKey"
@@ -231,6 +232,7 @@ import { useAppointmentStore } from 'src/stores/appointmentStore'
 import { useCommonStore } from 'src/stores/commonStore'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import EmergencyWarning from 'src/components/common/EmergencyWarning.vue'
 
 /* ---------------- STATE ---------------- */
 
@@ -243,6 +245,7 @@ const {
   intervalStart,
   intervalCount,
   INTERVAL_MINUTES,
+  warning,
 } = storeToRefs(appointmentStore)
 
 const route = useRoute()

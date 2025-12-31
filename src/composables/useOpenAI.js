@@ -63,7 +63,6 @@ export function useOpenAI() {
         body: JSON.stringify(body),
       })
       const data = await res.json()
-      console.log('AI Response: ', data)
       if (!res.ok) {
         return data
       }
@@ -85,6 +84,7 @@ export function useOpenAI() {
       // }
       try {
         const parsed = JSON.parse(extractedText)
+        console.log('AI Response: ', parsed)
         return parsed
       } catch (e) {
         return {

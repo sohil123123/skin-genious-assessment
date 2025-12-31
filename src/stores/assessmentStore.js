@@ -176,7 +176,7 @@ export const useAssessmentStore = defineStore('assessment', {
       // check if real file exists
       const raw = file.__file || file
       if (raw instanceof File) {
-        formData.append('images[]', raw)
+        formData.append('image', raw)
       }
       // })
       formData.append('openai_file_id', fileId)
