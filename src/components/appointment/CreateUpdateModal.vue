@@ -12,17 +12,49 @@
       <q-form @submit="handleSubmit" class="q-gutter-md">
         <q-card-section class="q-pt-none">
           <div class="q-pa-md">
-            <div class="q-gutter-sm row flex items-center justify-center">
+            <!-- <div class="q-gutter-sm row flex items-center justify-center">
               <q-chip square color="teal" text-color="white" class="q-ma-md">
-                {{ startEndDates[0] }}
+                {{ activeSlot.start_datetime }}
               </q-chip>
               TO
               <q-chip square color="teal" text-color="white" class="q-ma-md">
-                {{ commonStore.addMinutes(startEndDates[1]) }}
+                {{ activeSlot.end_datetime }}
               </q-chip>
-            </div>
+            </div> -->
 
             <div class="row q-gutter-md">
+              <div class="col-md-12">
+                <DatePicker
+                  :model="activeSlot.start_datetime"
+                  :label="'Select Start Date & Time'"
+                  :field="'start_datetime'"
+                  :min-date="new Date()"
+                  :read-only="false"
+                  :outlined="true"
+                  :dense="true"
+                  @update="
+                    (val) => {
+                      activeSlot.start_datetime = val
+                    }
+                  "
+                />
+              </div>
+              <div class="col-md-12">
+                <DatePicker
+                  :model="activeSlot.end_datetime"
+                  :label="'Select End Date & Time'"
+                  :field="'end_datetime'"
+                  :min-date="new Date()"
+                  :read-only="false"
+                  :outlined="true"
+                  :dense="true"
+                  @update="
+                    (val) => {
+                      activeSlot.end_datetime = val
+                    }
+                  "
+                />
+              </div>
               <div class="col-md-12">
                 <q-chip
                   v-for="type in appointmentTypes"
@@ -114,7 +146,7 @@
                   style="width: 100%"
                 />
               </div>
-              <div class="col-md-12">
+              <div v-if="!activeSlot.id" class="col-md-12">
                 <q-chip
                   v-for="status in statusOptions"
                   :key="status.value"
@@ -146,6 +178,7 @@ import { Notify } from 'quasar'
 import { api } from 'src/boot/axios'
 import { useCommonStore } from 'src/stores/commonStore'
 import { ref, computed } from 'vue'
+import DatePicker from 'src/components/common/DatePicker.vue'
 
 const commonStore = useCommonStore()
 
@@ -163,10 +196,6 @@ const props = defineProps({
     required: true,
   },
   clients: {
-    type: Array,
-    required: true,
-  },
-  startEndDates: {
     type: Array,
     required: true,
   },

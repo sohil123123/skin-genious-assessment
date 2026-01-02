@@ -204,13 +204,17 @@
         :appointment-types="appointmentTypes"
         :status-options="statusOptions"
         :clients="clients"
-        :startEndDates="startEndDates"
         v-model:activeSlot="activeSlot"
         @submit="handleSubmit"
       />
     </q-dialog>
 
-    <AppointmentDetailsDialog v-model="showDialog" :event="selectedEvent" @delete="handleDelete" />
+    <AppointmentDetailsDialog
+      v-model="showDetailDialog"
+      :event="selectedEvent"
+      @edit="handleEdit"
+      @delete="handleDelete"
+    />
   </q-page>
 </template>
 <script setup>
@@ -299,7 +303,7 @@ const currentDate = ref(null)
 const currentTime = ref(null)
 let intervalId = null
 
-const showDialog = ref(false)
+const showDetailDialog = ref(false)
 const selectedEvent = ref(null)
 
 /* ---------------- COMPUTED ---------------- */
@@ -479,6 +483,10 @@ function onMouseUpTime({ scope, event }) {
   if (mobile.value !== true && leftClick(event)) {
     otherTimestamp.value = scope.timestamp
     mouseDown.value = false
+
+    activeSlot.value.start_datetime = startEndDates.value[0]
+    activeSlot.value.end_datetime = commonStore.addMinutes(startEndDates.value[1])
+
     bookSlotModal.value = true
 
     // ----------------------------------
@@ -614,8 +622,8 @@ async function handleSubmit() {
     return
   }
 
-  const start = startEndDates.value[0]
-  const end = commonStore.addMinutes(startEndDates.value[1])
+  const start = activeSlot.value.start_datetime
+  const end = activeSlot.value.end_datetime
 
   const date = start.split(' ')[0]
   const time = start.split(' ')[1]
@@ -623,27 +631,50 @@ async function handleSubmit() {
   Loading.show({
     message: 'Booking Appointment...',
   })
-  await appointmentStore.addAppointment({
-    id: Date.now(), // safe unique id
-    title: 'Booked',
-    date,
-    time,
-    duration,
-    type: activeSlot.value.type,
-    status: activeSlot.value.status,
-    assessment_id: activeSlot.value.assessment_id,
-    treatment_session_id: activeSlot.value.treatment_session_id,
-    bgcolor: 'teal',
-    notes: activeSlot.value.notes,
-    meta: {
-      clinic: clinic_id.value,
-      therapist: therapist_id.value,
-      client: activeSlot.value.client_id,
-    },
-  })
+  if (!activeSlot.value.id) {
+    await appointmentStore.addAppointment({
+      id: Date.now(), // safe unique id
+      title: 'Booked',
+      date,
+      time,
+      duration,
+      type: activeSlot.value.type,
+      status: activeSlot.value.status,
+      assessment_id: activeSlot.value.assessment_id,
+      treatment_session_id: activeSlot.value.treatment_session_id,
+      bgcolor: 'teal',
+      notes: activeSlot.value.notes,
+      meta: {
+        clinic: clinic_id.value,
+        therapist: therapist_id.value,
+        client: activeSlot.value.client_id,
+      },
+    })
+  } else {
+    await appointmentStore.updateAppointment({
+      id: activeSlot.value.id,
+      title: 'Booked',
+      date,
+      time,
+      duration,
+      type: activeSlot.value.type,
+      status: activeSlot.value.status,
+      assessment_id: activeSlot.value.assessment_id,
+      treatment_session_id: activeSlot.value.treatment_session_id,
+      bgcolor: 'teal',
+      notes: activeSlot.value.notes,
+      meta: {
+        clinic: clinic_id.value,
+        therapist: therapist_id.value,
+        client: activeSlot.value.client_id,
+      },
+    })
+  }
   getAppointments()
   Loading.hide()
   bookSlotModal.value = false
+  showDetailDialog.value = false
+  resetActiveSlot()
 }
 
 function hasDate(days) {
@@ -665,7 +696,12 @@ function adjustCurrentTime() {
 
 function openEventDetails(event) {
   selectedEvent.value = event
-  showDialog.value = true
+  showDetailDialog.value = true
+}
+
+async function handleEdit(eventId) {
+  await getAppointmentById(eventId)
+  bookSlotModal.value = true
 }
 
 function handleDelete(eventId) {
@@ -679,8 +715,27 @@ function handleDelete(eventId) {
     },
   }).onOk(() => {
     appointmentStore.deleteAppointment(eventId)
-    showDialog.value = false
+    showDetailDialog.value = false
   })
+}
+
+async function getAppointmentById(id) {
+  const appointment = await appointmentStore.getAppointmentById(id)
+  if (appointment) {
+    activeSlot.value = {
+      id: appointment.id,
+      type: appointment.type,
+      clinic_id: clinic_id.value,
+      therapist_id: therapist_id.value,
+      client_id: appointment.user_id || null,
+      assessment_id: appointment.assessment_id || null,
+      treatment_session_id: appointment.treatment_session_id || null,
+      start_datetime: appointmentStore.convertToIST(appointment.start_datetime),
+      end_datetime: appointmentStore.convertToIST(appointment.end_datetime),
+      notes: appointment.notes || '',
+      status: appointment.status || 'confirmed',
+    }
+  }
 }
 
 function getSelectedVal(val) {

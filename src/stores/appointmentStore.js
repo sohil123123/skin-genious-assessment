@@ -111,30 +111,7 @@ export const useAppointmentStore = defineStore('appointment', {
       } catch (error) {
         this.error = error
         this.serverError = error.response.data.results
-
-        if (Object.prototype.hasOwnProperty.call(this.serverError, 'start_datetime')) {
-          Notify.create({
-            type: 'negative',
-            message: this.serverError.start_datetime.join(' '),
-            position: 'top-right',
-          })
-        }
-
-        if (Object.prototype.hasOwnProperty.call(this.serverError, 'assessment_id')) {
-          Notify.create({
-            type: 'negative',
-            message: this.serverError.assessment_id.join(' '),
-            position: 'top-right',
-          })
-        }
-
-        if (Object.prototype.hasOwnProperty.call(this.serverError, 'treatment_session_id')) {
-          Notify.create({
-            type: 'negative',
-            message: this.serverError.treatment_session_id.join(' '),
-            position: 'top-right',
-          })
-        }
+        this.showServerErrors(this.serverError)
       }
     },
     async addAppointment(event) {
@@ -155,6 +132,49 @@ export const useAppointmentStore = defineStore('appointment', {
       })
 
       await this.storeAppointments(event)
+    },
+    async getAppointmentById(eventId) {
+      this.loading = true
+      Loading.show({
+        spinner: QSpinnerClock,
+        message: 'Getting appointment details...',
+      })
+      try {
+        const res = await api.get(`appointments/${eventId}`)
+        return res.data.results
+      } catch (error) {
+        this.error = error
+      } finally {
+        this.loading = false
+        Loading.hide()
+      }
+    },
+    async updateAppointment(event) {
+      let payload = {
+        type: event.type,
+        clinic_id: event.meta.clinic,
+        therapist_id: event.meta.therapist,
+        user_id: event.meta.client,
+        assessment_id: event.assessment_id,
+        treatment_session_id: event.treatment_session_id,
+        start_datetime: `${event.date} ${event.time}`,
+        end_datetime: `${event.date} ${this.addMinutesToTime(event.time, event.duration)}`,
+        notes: event.notes || '',
+        status: event.status,
+      }
+
+      try {
+        await api.put(`appointments/${event.id}`, payload).then((res) => {
+          Notify.create({
+            type: 'positive',
+            message: res.data.message || 'Appointment updated successfully',
+          })
+        })
+      } catch (error) {
+        this.error = error
+        this.serverError = error.response.data.results
+        this.showServerErrors(this.serverError)
+      }
     },
     deleteAppointment(eventId) {
       Loading.show({
@@ -181,6 +201,35 @@ export const useAppointmentStore = defineStore('appointment', {
       const [h, m] = time.split(':').map(Number)
       const total = h * 60 + m + minutes
       return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+    },
+    convertToIST(utcString) {
+      const date = new Date(utcString)
+
+      return date
+        .toLocaleString('sv-SE', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })
+        .replace('T', ' ')
+    },
+    showServerErrors(errors) {
+      Object.entries(errors).forEach(([field, messages]) => {
+        if (!Array.isArray(messages)) return
+
+        Notify.create({
+          type: 'negative',
+          position: 'top-right',
+          message: `<b>${field.replace('_', ' ')}</b>: ${messages.join(' ')}`,
+          html: true,
+          timeout: 6000,
+          actions: [{ icon: 'close', color: 'white', round: true }],
+        })
+      })
     },
   },
 })

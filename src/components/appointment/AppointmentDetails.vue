@@ -121,7 +121,7 @@
             color="primary"
             icon="edit"
             label="Edit Appointment"
-            @click="$emit('edit', event)"
+            @click="$emit('edit', event.id)"
           />
         </div>
       </q-card-actions>
