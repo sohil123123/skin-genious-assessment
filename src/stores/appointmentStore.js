@@ -13,7 +13,7 @@ export const useAppointmentStore = defineStore('appointment', {
     selectedDate: null,
     loading: false,
     error: null,
-    warning: null,
+    warning: {},
     appointmentTypes: [
       { label: 'Consult', value: 'consult' },
       { label: 'Treatment', value: 'treatment' },
@@ -23,6 +23,7 @@ export const useAppointmentStore = defineStore('appointment', {
       { label: 'Pending', value: 'pending' },
       { label: 'Confirmed', value: 'confirmed' },
     ],
+    serverError: null,
   }),
   getters: {
     /* ----------------------------------
@@ -101,7 +102,7 @@ export const useAppointmentStore = defineStore('appointment', {
 
       try {
         await api.post('appointments', payload).then((res) => {
-          this.warning = res.data.results || null
+          this.warning = res.data.results.warning || null
           Notify.create({
             type: 'positive',
             message: res.data.message || 'Appointment booked successfully',
@@ -109,6 +110,31 @@ export const useAppointmentStore = defineStore('appointment', {
         })
       } catch (error) {
         this.error = error
+        this.serverError = error.response.data.results
+
+        if (Object.prototype.hasOwnProperty.call(this.serverError, 'start_datetime')) {
+          Notify.create({
+            type: 'negative',
+            message: this.serverError.start_datetime.join(' '),
+            position: 'top-right',
+          })
+        }
+
+        if (Object.prototype.hasOwnProperty.call(this.serverError, 'assessment_id')) {
+          Notify.create({
+            type: 'negative',
+            message: this.serverError.assessment_id.join(' '),
+            position: 'top-right',
+          })
+        }
+
+        if (Object.prototype.hasOwnProperty.call(this.serverError, 'treatment_session_id')) {
+          Notify.create({
+            type: 'negative',
+            message: this.serverError.treatment_session_id.join(' '),
+            position: 'top-right',
+          })
+        }
       }
     },
     async addAppointment(event) {

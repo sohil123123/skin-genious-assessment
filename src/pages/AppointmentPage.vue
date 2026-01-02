@@ -66,7 +66,7 @@
           </div>
         </q-card-section>
         <q-card-section v-if="clinic_id && therapist_id">
-          <EmergencyWarning :response="warning" />
+          <EmergencyWarning :warning="warning" />
           <div class="row justify-center q-mt-lg">
             <q-calendar-day
               :key="calendarKey"
@@ -155,7 +155,7 @@
                       badgeStyles(event, 'body', timeStartPos, timeDurationHeight),
                       'background-color: ' + event.bgcolor,
                     ]"
-                    @click="selectEvent(event)"
+                    @click="openEventDetails(event)"
                     @mousedown.stop="startDrag(event)"
                   >
                     <span class="event-title q-calendar__ellipsis">
@@ -209,6 +209,8 @@
         @submit="handleSubmit"
       />
     </q-dialog>
+
+    <AppointmentDetailsDialog v-model="showDialog" :event="selectedEvent" @delete="handleDelete" />
   </q-page>
 </template>
 <script setup>
@@ -233,6 +235,7 @@ import { useCommonStore } from 'src/stores/commonStore'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import EmergencyWarning from 'src/components/common/EmergencyWarning.vue'
+import AppointmentDetailsDialog from 'src/components/appointment/AppointmentDetails.vue'
 
 /* ---------------- STATE ---------------- */
 
@@ -295,6 +298,9 @@ const timeStartPos = ref(0)
 const currentDate = ref(null)
 const currentTime = ref(null)
 let intervalId = null
+
+const showDialog = ref(false)
+const selectedEvent = ref(null)
 
 /* ---------------- COMPUTED ---------------- */
 
@@ -479,7 +485,7 @@ function onMouseUpTime({ scope, event }) {
 
     if (!draggingEvent.value) return
 
-    console.log(draggingEvent.value.id, scope.timestamp.date, scope.timestamp.time)
+    // console.log(draggingEvent.value.id, scope.timestamp.date, scope.timestamp.time)
 
     draggingEvent.value = null
     ghostEvent.value = null
@@ -570,12 +576,13 @@ function monthFormatter() {
 
 async function getAppointments() {
   // otherEvents.value = []
-  appointmentStore.getAppointments(
-    clinic_id.value,
-    therapist_id.value,
-    startDate.value,
-    endDate.value,
-  )
+  if (clinic_id.value && therapist_id.value && startDate.value && endDate.value)
+    appointmentStore.getAppointments(
+      clinic_id.value,
+      therapist_id.value,
+      startDate.value,
+      endDate.value,
+    )
 }
 
 function getDurationInMinutes(start, end) {
@@ -656,66 +663,12 @@ function adjustCurrentTime() {
   }
 }
 
-function selectEvent(event) {
-  const { id, title, date, time, duration, meta = {} } = event
-
-  Dialog.create({
-    title: 'Appointment Details',
-    message: `
-      <div style="line-height:1.7;font-size:14px">
-
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <strong>${title}</strong>
-        </div>
-
-        <div><i class="q-icon material-icons">event</i>
-          <strong>Date:</strong> ${date}
-        </div>
-
-        <div><i class="q-icon material-icons">schedule</i>
-          <strong>Time:</strong> ${time}
-        </div>
-
-        <div><i class="q-icon material-icons">timer</i>
-          <strong>Duration:</strong> ${duration} minutes
-        </div>
-
-        <hr>
-
-        <div><i class="q-icon material-icons">person</i>
-          <strong>Therapist:</strong> ${meta.therapist ?? '-'}
-        </div>
-
-        <div><i class="q-icon material-icons">local_hospital</i>
-          <strong>Clinic:</strong> ${meta.clinic ?? '-'}
-        </div>
-
-        <div><i class="q-icon material-icons">face</i>
-          <strong>Client:</strong> ${meta.client ?? '-'}
-        </div>
-
-      </div>
-    `,
-    html: true,
-
-    cancel: {
-      label: 'Close',
-      flat: true,
-    },
-
-    ok:
-      status === 'completed'
-        ? false
-        : {
-            label: 'Delete',
-            color: 'negative',
-          },
-  }).onOk(() => {
-    deleteEvent(id)
-  })
+function openEventDetails(event) {
+  selectedEvent.value = event
+  showDialog.value = true
 }
 
-function deleteEvent(eventId) {
+function handleDelete(eventId) {
   Dialog.create({
     title: 'Delete Appointment',
     message: 'Are you sure?',
@@ -726,6 +679,7 @@ function deleteEvent(eventId) {
     },
   }).onOk(() => {
     appointmentStore.deleteAppointment(eventId)
+    showDialog.value = false
   })
 }
 
@@ -987,13 +941,13 @@ function badgeStyles(event, type, timeStartPos, timeDurationHeight) {
   cursor: not-allowed;
 }
 
-.my-event {
+/* .my-event {
   cursor: grab;
 }
 
 .my-event:active {
   cursor: grabbing;
-}
+} */
 
 .calendar-event.ghost {
   opacity: 0.4;

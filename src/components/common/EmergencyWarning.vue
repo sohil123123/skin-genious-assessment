@@ -1,6 +1,6 @@
 <template>
   <!-- Warning Banner -->
-  <q-banner v-if="warning" rounded class="bg-orange-1 text-orange-10 q-mt-md" inline-actions>
+  <!-- <q-banner v-if="warning" rounded class="bg-orange-1 text-orange-10 q-mt-md" inline-actions>
     <template #avatar>
       <q-icon name="warning_amber" color="orange-9" size="md" />
     </template>
@@ -12,7 +12,7 @@
     <template #action>
       <q-btn flat dense color="orange-9" label="View details" @click="showDetails = true" />
     </template>
-  </q-banner>
+  </q-banner> -->
 
   <!-- Details Dialog -->
   <q-dialog v-model="showDetails">
@@ -57,21 +57,25 @@
   </q-dialog>
 </template>
 <script setup>
-import { watch } from 'vue'
+import { watch, computed, ref } from 'vue'
 import { Notify } from 'quasar'
 
 const props = defineProps({
-  response: {
+  warning: {
     type: Object,
     required: true,
   },
 })
 
+const warning = computed(() => props.warning || {})
+const showDetails = ref(false)
+
 watch(
-  () => props.response,
+  () => props.warning,
   (val) => {
-    const warning = val?.warning
-    if (!warning) return
+    const warning = val
+
+    if (Object.keys(warning).length == 0) return
 
     Notify.create({
       type: 'warning',
@@ -99,7 +103,7 @@ watch(
 )
 
 function buildCaption(warning) {
-  return `Capacity: ${warning.details.capacity} • Confirmed: ${warning.details.confirmed}`
+  return `Capacity: ${warning.details?.capacity} • Confirmed: ${warning.details?.confirmed}`
 }
 
 function showDetailsDialog(warning) {

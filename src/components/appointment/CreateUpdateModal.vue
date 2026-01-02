@@ -34,7 +34,7 @@
                   text-color="white"
                   class="q-ma-xs"
                   clickable
-                  @click="activeSlot.type = type.value"
+                  @click="setType(type.value)"
                 />
               </div>
               <div class="col-md-12">
@@ -53,6 +53,9 @@
                   style="max-width: 100%"
                   @update:model-value="getAssessments"
                 />
+              </div>
+              <div v-if="loadingAssessments" class="col-md-12">
+                <q-skeleton type="QInput" />
               </div>
               <div
                 v-if="
@@ -74,6 +77,9 @@
                   style="max-width: 100%"
                   @update:model-value="getTreatmentSessions"
                 />
+              </div>
+              <div v-if="loadingTreatmentSessions" class="col-md-12">
+                <q-skeleton type="QInput" />
               </div>
               <div
                 v-if="
@@ -175,13 +181,31 @@ const activeSlot = computed({
 
 const assessments = ref([])
 const treatmentSessionsOptions = ref([])
+const loadingAssessments = ref(false)
+const loadingTreatmentSessions = ref(false)
 
 function handleSubmit() {
   emit('submit', activeSlot.value)
 }
 
+function setType(type) {
+  activeSlot.value.type = type
+  // Reset dependent fields when type changes
+  if (type !== 'treatment') {
+    activeSlot.value.assessment_id = null
+    activeSlot.value.treatment_session_id = null
+  }
+  if (type == 'treatment' && assessments.value.length === 0) {
+    getAssessments()
+  }
+}
+
 function getAssessments() {
   if (activeSlot.value.type == 'treatment' && activeSlot.value.client_id) {
+    activeSlot.value.assessment_id = null
+    activeSlot.value.treatment_session_id = null
+
+    loadingAssessments.value = true
     let url = `get-assessments?is_dropdown=1`
     let filterArray = [
       {
@@ -208,11 +232,15 @@ function getAssessments() {
           message: error.response?.data?.message || 'Failed to fetch assessments',
         })
       })
+      .finally(() => {
+        loadingAssessments.value = false
+      })
   }
 }
 
 function getTreatmentSessions() {
   if (activeSlot.value.type == 'treatment' && activeSlot.value.client_id) {
+    loadingTreatmentSessions.value = true
     let url = `get-treatment-sessions?is_dropdown=1`
     let filterArray = [
       {
@@ -238,6 +266,9 @@ function getTreatmentSessions() {
           type: 'negative',
           message: error.response?.data?.message || 'Failed to fetch assessments',
         })
+      })
+      .finally(() => {
+        loadingTreatmentSessions.value = false
       })
   }
 }
