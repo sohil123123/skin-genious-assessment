@@ -3,13 +3,11 @@
     <q-card flat class="q-pa-md shadow-2 rounded-borders">
       <div class="row items-center justify-between q-mb-md">
         <div>
-          <div class="text-h5 text-primary text-weight-bold">
-            Reassessment Report — {{ post_diagnosis?.metadata.treatment_session }}
-          </div>
-          <div class="text-subtitle2 text-grey-8">
-            Evaluation Type: {{ post_diagnosis?.metadata.evaluation_type }} | Phase:
-            {{ post_diagnosis?.metadata.phase }}
-          </div>
+          <div class="text-h5 text-primary text-weight-bold">Reassessment Report</div>
+          <!-- <div class="text-subtitle2 text-grey-8">
+            Evaluation Type: {{ post_diagnosis?.metadata?.evaluation_type }} | Phase:
+            {{ post_diagnosis?.metadata?.phase }}
+          </div> -->
         </div>
 
         <div class="q-gutter-sm">
@@ -187,7 +185,7 @@ const downloadReport = () => {
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   doc.text(
-    `${assessmentData.value.name} - Baseline vs Post-Treatment (${metadata.treatment_session}) Comparative Score Report`,
+    `${assessmentData.value.name} - Baseline vs Post-Treatment (${metadata?.treatment_session}) Comparative Score Report`,
     doc.internal.pageSize.getWidth() / 2,
     60,
     { align: 'center' },
@@ -206,14 +204,7 @@ const downloadReport = () => {
   Object.values(reassessment).forEach((param) => {
     const before = param.before_treatment_score_or_label
     const after = param.post_treatment_score_or_label
-
-    let change = 'Stable'
-    if (before !== after) {
-      // crude example of detecting improvement
-      const isImproved = typeof before === 'string' && typeof after === 'string' && after < before
-      change = isImproved ? 'Improved' : 'Deteriorated'
-    }
-
+    const change = param.result
     rows.push([param.parameter_name, before || '-', after || '-', change])
   })
 
@@ -260,7 +251,7 @@ const downloadReport = () => {
   )
 
   // Save file
-  const filename = `${assessmentData.value.name} Reassessment_Report_${metadata.treatment_session.replace(/\s+/g, '_')}.pdf`
+  const filename = `${assessmentData.value.name} Reassessment_Report_${metadata?.treatment_session.replace(/\s+/g, '_')}.pdf`
   doc.save(filename)
 }
 
@@ -332,7 +323,7 @@ const downloadVisualReport = async () => {
     })
 
     doc.text(
-      `Treatment Session: ${post_diagnosis.value.metadata.treatment_session}`,
+      `Treatment Session: ${post_diagnosis.value.metadata?.treatment_session}`,
       pageWidth / 2,
       pageHeight * 0.5,
       { align: 'center' },
@@ -442,7 +433,7 @@ const downloadVisualReport = async () => {
   }
 
   Loading.hide()
-  const filename = `${assessmentData.value.name}_Visual_Comparison_Report_${post_diagnosis.value.metadata.treatment_session.replace(/\s+/g, '_')}.pdf`
+  const filename = `${assessmentData.value.name}_Visual_Comparison_Report_${post_diagnosis.value.metadata?.treatment_session.replace(/\s+/g, '_')}.pdf`
   doc.save(filename)
 }
 

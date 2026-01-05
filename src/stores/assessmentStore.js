@@ -136,7 +136,7 @@ export const useAssessmentStore = defineStore('assessment', {
 
       const formData = serialize(payload, config)
 
-      api
+      await api
         .post(`assessments/${this.assessmentData.id}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -170,7 +170,7 @@ export const useAssessmentStore = defineStore('assessment', {
     setData(data) {
       this.assessmentData = { ...this.assessmentData, ...data }
     },
-    async storeFaceImages(file, fileId, assessment_type) {
+    async storeFaceImages(file, assessment_type) {
       const formData = new FormData()
       // files.forEach((file) => {
       // check if real file exists
@@ -179,7 +179,6 @@ export const useAssessmentStore = defineStore('assessment', {
         formData.append('image', raw)
       }
       // })
-      formData.append('openai_file_id', fileId)
       formData.append('assessment_type', assessment_type)
 
       const response = await api
@@ -202,9 +201,8 @@ export const useAssessmentStore = defineStore('assessment', {
           })
           return null
         })
-      const images = response.results.images
-      const urls = images.map((file) => file.url)
-      return urls
+      const file_id = response.results.file_id
+      return file_id
     },
     async updateTreatmentSessionId(appointmentId) {
       try {

@@ -2960,6 +2960,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Skin Type>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     barrier_health: {
       parameter_name: 'Barrier Health',
@@ -2969,6 +2970,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Barrier Health Status>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     visual_acne_grading: {
       parameter_name: 'Visual Acne Grading',
@@ -2978,6 +2980,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Acne Grade>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     skin_sebum_content: {
       parameter_name: 'Skin Sebum Content',
@@ -2987,6 +2990,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Sebum Level>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     vascularity_redness_profiling: {
       parameter_name: 'Vascularity / Redness Profiling',
@@ -2996,6 +3000,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Redness or Vascularity Score>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     skin_hydration: {
       parameter_name: 'Skin Hydration',
@@ -3005,6 +3010,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Hydration Level>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     skin_luminosity_glow_index: {
       parameter_name: 'Skin Luminosity / Glow Index',
@@ -3014,6 +3020,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Glow Index>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     superficial_pigmentation_score: {
       parameter_name: 'Superficial Pigmentation Score',
@@ -3023,6 +3030,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Pigmentation Score>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     periorbital_health: {
       parameter_name: 'Periorbital Health',
@@ -3032,6 +3040,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Periorbital Score>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     lip_pigmentation: {
       parameter_name: 'Lip Pigmentation',
@@ -3041,6 +3050,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Lip Pigmentation Level>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     texture_open_pores_grading: {
       parameter_name: 'Texture / Open Pores Grading',
@@ -3050,6 +3060,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Texture or Pores Grade>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     superficial_wrinkles: {
       parameter_name: 'Superficial Wrinkles',
@@ -3059,6 +3070,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Wrinkle Score>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     jawline_sagging: {
       parameter_name: 'Jawline Sagging',
@@ -3068,6 +3080,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Sagging Level>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     skin_firmness_elasticity_index: {
       parameter_name: 'Skin Firmness Elasticity Index',
@@ -3077,6 +3090,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Skin Firmness Elasticity Range>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
     textural_radiance_index: {
       parameter_name: 'Textural Readiance Index',
@@ -3086,6 +3100,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Textural Readiance Range>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
+      result: '< improved or declined or stable>',
     },
   },
 }
@@ -3442,6 +3457,22 @@ Strictly follow the predefined JSON structure below and fill all fields:
 
 ---
 ${JSON.stringify(reassessment_json_structure)}
+
+For all reassessment parameters:
+* The result field MUST be one of: improved, declined, or stable.
+* The determination of result MUST be based on dermatological and clinical skin-health knowledge, not on numeric direction alone.
+* An improvement means the post-treatment state is closer to an ideal, healthy, balanced skin condition for that parameter.
+* A decline means the post-treatment state is clinically worse or further from healthy norms.
+* Stable means no clinically meaningful change.
+* Higher values do NOT universally mean improvement, and lower values do NOT universally mean decline.
+* The model must decide directionality per parameter using standard dermatology principles.
+* When numeric or labeled values are ambiguous, the model must infer whether movement represents improvement or decline based on standard dermatology outcomes for that parameter.
+* The result value must always be exactly one of:
+  - improved
+  - declined
+  - stable
+
+* No explanations, no additional text, no null values
 
 IMPORTANT — IMAGE NUMBER CONSISTENCY RULE:
 
