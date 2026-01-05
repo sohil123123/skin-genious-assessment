@@ -1,6 +1,6 @@
 <template>
   <q-dialog v-model="modelValue" @hide="onDialogHide">
-    <q-card class="rounded-borders" style="min-width: 520px; max-width: 95vw">
+    <q-card class="rounded-borders" style="min-width: 520px; max-width: 520px">
       <!-- Header -->
       <q-card-section class="row items-center q-pb-sm bg-grey-1">
         <q-avatar color="primary" text-color="white" icon="event" size="md" />
@@ -25,15 +25,20 @@
       <!-- Content -->
       <q-card-section v-if="event" class="q-gutter-md">
         <!-- Title -->
-        <!-- <q-card flat bordered class="q-pa-sm bg-grey-2">
+        <q-card v-if="event.meta.type == 'treatment'" flat bordered class="q-pa-sm bg-grey-2">
           <div class="text-subtitle1 text-weight-bold">
-            {{ event.title }}
+            {{ event.meta.session_title }}
           </div>
-        </q-card> -->
+        </q-card>
+        <q-card v-else flat bordered class="q-pa-sm bg-grey-2">
+          <div class="text-subtitle1 text-weight-bold text-capitalize">
+            Type: {{ event.meta.type }}
+          </div>
+        </q-card>
 
         <!-- Time Info -->
         <q-card flat bordered>
-          <q-list dense>
+          <q-list>
             <q-item>
               <q-item-section avatar>
                 <q-icon name="schedule" color="primary" />
@@ -48,10 +53,10 @@
 
         <!-- People & Place -->
         <q-card flat bordered>
-          <q-list dense>
+          <q-list bordered separator>
             <q-item>
               <q-item-section avatar>
-                <q-avatar color="primary" icon="person" text-color="white" />
+                <q-avatar color="primary" icon="person" text-color="white" size="sm" />
               </q-item-section>
               <q-item-section>
                 <q-item-label>Therapist</q-item-label>
@@ -63,7 +68,7 @@
 
             <q-item>
               <q-item-section avatar>
-                <q-avatar color="teal" icon="local_hospital" text-color="white" />
+                <q-avatar color="teal" icon="local_hospital" text-color="white" size="sm" />
               </q-item-section>
               <q-item-section>
                 <q-item-label>Clinic</q-item-label>
@@ -75,7 +80,7 @@
 
             <q-item>
               <q-item-section avatar>
-                <q-avatar color="orange" icon="face" text-color="white" />
+                <q-avatar color="orange" icon="face" text-color="white" size="sm" />
               </q-item-section>
               <q-item-section>
                 <q-item-label>Client</q-item-label>
@@ -101,7 +106,7 @@
       <q-separator />
 
       <!-- Actions -->
-      <q-card-actions align="between" class="q-pa-md">
+      <q-card-actions :align="event?.status !== 'completed' ? 'between' : 'right'" class="q-pa-md">
         <!-- Left (Danger) -->
         <q-btn
           v-if="event?.status !== 'completed'"
@@ -117,6 +122,7 @@
           <q-btn flat label="Close" color="grey-7" v-close-popup />
 
           <q-btn
+            v-if="event?.status !== 'completed'"
             unelevated
             color="primary"
             icon="edit"

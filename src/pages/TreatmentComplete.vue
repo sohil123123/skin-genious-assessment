@@ -54,7 +54,7 @@
                       label="Book Next Appointment"
                       no-caps=""
                       icon="event"
-                      @click="loadAppointmentDialog"
+                      @click="bookNextAppointment"
                     />
                   </div>
                 </div>
@@ -221,8 +221,10 @@ function toPostAssessment() {
   router.push({ name: 'index', params: { user_id: route.params.user_id, step: 'step-6' } })
 }
 
-function loadAppointmentDialog() {
-  assessmentStore.initiateDialog()
+function bookNextAppointment() {
+  router.push({
+    name: 'appointments',
+  })
 }
 
 // Allow only future dates (today + future)

@@ -171,7 +171,7 @@
 
         <q-card-actions align="right">
           <q-btn label="Cancel" color="negative" icon="close" outline v-close-popup />
-          <q-btn label="Confirm" color="positive" type="submit" />
+          <q-btn label="Save" color="positive" type="submit" />
         </q-card-actions>
       </q-form>
     </q-card>
