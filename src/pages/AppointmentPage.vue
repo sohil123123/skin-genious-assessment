@@ -204,6 +204,7 @@
         :appointment-types="appointmentTypes"
         :status-options="statusOptions"
         :clients="clients"
+        :clinic="clinic"
         v-model:activeSlot="activeSlot"
         @submit="handleSubmit"
       />
@@ -240,6 +241,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import EmergencyWarning from 'src/components/common/EmergencyWarning.vue'
 import AppointmentDetailsDialog from 'src/components/appointment/AppointmentDetails.vue'
+import { api } from 'src/boot/axios'
 
 /* ---------------- STATE ---------------- */
 
@@ -262,6 +264,7 @@ const { clinics, therapiests, clients } = storeToRefs(commonStore)
 const clinicId = route.params.clinic_id
 const therapistId = route.params.therapist_id
 
+const clinic = ref({})
 const clinic_id = ref(route.params.clinic_id)
 const therapist_id = ref(route.params.therapist_id)
 
@@ -420,6 +423,7 @@ onMounted(() => {
   if (!route.params.clinic_id) commonStore.getClinics()
 
   if (route.params.clinic_id) {
+    getClinicById(route.params.clinic_id)
     commonStore.getTherapiests(route.params.clinic_id)
     commonStore.getClients(route.params.clinic_id)
   }
@@ -738,6 +742,20 @@ async function getAppointmentById(id) {
   }
 }
 
+function getClinicById(id) {
+  api
+    .get(`get-clinics?id=${id}&is_first=1`)
+    .then((res) => {
+      setStartEndTime(res.data.results)
+    })
+    .catch((error) => {
+      Notify.create({
+        type: 'negative',
+        message: error.response.data.message,
+      })
+    })
+}
+
 function getSelectedVal(val) {
   setStartEndTime(val)
   therapist_id.value = null
@@ -747,9 +765,10 @@ function getSelectedVal(val) {
   commonStore.getClients(val.id)
 }
 
-function setStartEndTime(clinic) {
-  const openingTime = clinic.start_time || '08:00'
-  const closingTime = clinic.end_time || '18:00'
+function setStartEndTime(c) {
+  clinic.value = c
+  const openingTime = c.start_time || '08:00'
+  const closingTime = c.end_time || '18:00'
 
   const [openHour, openMinute] = openingTime.split(':').map(Number)
   const [closeHour, closeMinute = 0] = closingTime.split(':').map(Number)

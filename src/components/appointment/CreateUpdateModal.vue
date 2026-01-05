@@ -29,6 +29,8 @@
                   :label="'Select Start Date & Time'"
                   :field="'start_datetime'"
                   :min-date="new Date()"
+                  :min-time="clinic.start_time"
+                  :max-time="clinic.end_time"
                   :read-only="false"
                   :outlined="true"
                   :dense="true"
@@ -45,6 +47,8 @@
                   :label="'Select End Date & Time'"
                   :field="'end_datetime'"
                   :min-date="new Date()"
+                  :min-time="clinic.start_time"
+                  :max-time="clinic.end_time"
                   :read-only="false"
                   :outlined="true"
                   :dense="true"
@@ -197,6 +201,10 @@ const props = defineProps({
   },
   clients: {
     type: Array,
+    required: true,
+  },
+  clinic: {
+    type: Object,
     required: true,
   },
 })

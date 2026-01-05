@@ -103,21 +103,31 @@ const props = defineProps({
     required: false,
     default: true,
   },
+  minTime: {
+    type: String,
+    required: false,
+    default: '08:00:00',
+  },
+  maxTime: {
+    type: String,
+    required: false,
+    default: '21:00:00',
+  },
 })
 
 const filedRef = ref(null)
 
-function adjustToNext15MinuteInterval(date) {
-  const currentMinutes = date.getMinutes()
-  const additionalMinutes = currentMinutes <= 15 ? 15 - currentMinutes : 60 - currentMinutes
+// function adjustToNext15MinuteInterval(date) {
+//   const currentMinutes = date.getMinutes()
+//   const additionalMinutes = currentMinutes <= 15 ? 15 - currentMinutes : 60 - currentMinutes
 
-  // Adjust the date object by adding the calculated additional minutes
-  date.setMinutes(currentMinutes + additionalMinutes, 0, 0) // Reset seconds and milliseconds to 0
+//   // Adjust the date object by adding the calculated additional minutes
+//   date.setMinutes(currentMinutes + additionalMinutes, 0, 0) // Reset seconds and milliseconds to 0
 
-  return date
-}
-const currentDate = new Date()
-const updatedDate = adjustToNext15MinuteInterval(currentDate)
+//   return date
+// }
+// const currentDate = new Date()
+// const updatedDate = adjustToNext15MinuteInterval(currentDate)
 
 const date = ref(null)
 const flag = ref(true)
@@ -134,14 +144,24 @@ const dateConfig = ref({
   clearable: props.clearable,
   enableTime: true,
   defaultHour: 10,
-  minDate: updatedDate,
+  // minDate: updatedDate,
   minuteIncrement: 15,
-  minTime: '8:00',
-  maxTime: '21:00',
+  minTime: props.minTime || '08:00:00',
+  maxTime: props.maxTime || '20:00:00',
   errorHandler: () => {
     // isError.value = true
   },
   onReady: (selectedDates, dateStr, instance) => {
+    // Disable typing in time inputs
+    const timeInputs = instance.calendarContainer.querySelectorAll(
+      '.flatpickr-hour, .flatpickr-minute',
+    )
+
+    timeInputs.forEach((input) => {
+      input.setAttribute('readonly', 'readonly')
+      input.setAttribute('tabindex', '-1')
+    })
+
     // Add an "OK" button to the Flatpickr calendar
     const okButton = document.createElement('button')
     okButton.innerText = 'OK'
