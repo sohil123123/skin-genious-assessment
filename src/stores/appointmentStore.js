@@ -134,7 +134,8 @@ export const useAppointmentStore = defineStore('appointment', {
         meta: event.meta,
       })
 
-      await this.storeAppointments(event)
+      const res = await this.storeAppointments(event)
+      return res
     },
     async getAppointmentById(eventId) {
       this.loading = true

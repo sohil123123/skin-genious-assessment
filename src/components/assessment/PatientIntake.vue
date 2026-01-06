@@ -62,6 +62,34 @@
             </div>
           </div>
 
+          <section class="q-mt-lg">
+            <h2 class="text-sm font-semibold tracking-wider mb-4">SKIN TEMPERATURE (°C)</h2>
+
+            <div class="row q-col-gutter-md">
+              <div class="col-6">
+                <q-select
+                  outlined
+                  label="Head (°C)"
+                  v-model="assessmentData.skin_temp_for_head"
+                  :options="skinTempOptions"
+                  clearable
+                  @update:model-value="saveData(['skin_temp_for_head'])"
+                />
+              </div>
+
+              <div class="col-6">
+                <q-select
+                  outlined
+                  label="Cheeks (°C)"
+                  v-model="assessmentData.skin_temp_for_cheeks"
+                  :options="skinTempOptions"
+                  clearable
+                  @update:model-value="saveData(['skin_temp_for_cheeks'])"
+                />
+              </div>
+            </div>
+          </section>
+
           <div class="q-mt-lg">
             <span class="text-sm text-weight-bold">Upcoming Travel (7 days)</span>
             <div class="flex items-center q-gutter-sm q-mt-sm">
@@ -130,6 +158,60 @@
               @update:model-value="updateMedicalHistory"
             />
           </template>
+        </div>
+      </section>
+
+      <section class="q-mt-lg">
+        <span class="text-sm text-weight-bold">Recent chemical peel or laser treatment?</span>
+        <div class="flex items-center q-gutter-sm q-mt-xs">
+          <q-btn
+            :flat="assessmentData.recent_peel_or_laser == 'yes'"
+            rounded
+            :class="
+              assessmentData.recent_peel_or_laser == 'yes' ? 'btn-custom' : 'bg-white text-grey-7'
+            "
+            @click="updateField('recent_peel_or_laser', 'yes')"
+            label="Yes"
+            :outline="assessmentData.recent_peel_or_laser == 'no'"
+          />
+          <q-btn
+            :flat="assessmentData.recent_peel_or_laser == 'no'"
+            rounded
+            :class="
+              assessmentData.recent_peel_or_laser == 'no' ? 'btn-custom' : 'bg-white text-grey-7'
+            "
+            @click="updateField('recent_peel_or_laser', 'no')"
+            label="No"
+            :outline="assessmentData.recent_peel_or_laser == 'yes'"
+          />
+        </div>
+      </section>
+
+      <section class="q-mt-md">
+        <span class="text-sm text-weight-bold">Retinol or retinoid used last night?</span>
+        <div class="flex items-center q-gutter-sm q-mt-xs">
+          <q-btn
+            :flat="assessmentData.retinol_used_last_night == 'yes'"
+            rounded
+            :class="
+              assessmentData.retinol_used_last_night == 'yes'
+                ? 'btn-custom'
+                : 'bg-white text-grey-7'
+            "
+            @click="updateField('retinol_used_last_night', 'yes')"
+            label="Yes"
+            :outline="assessmentData.retinol_used_last_night == 'no'"
+          />
+          <q-btn
+            :flat="assessmentData.retinol_used_last_night == 'no'"
+            rounded
+            :class="
+              assessmentData.retinol_used_last_night == 'no' ? 'btn-custom' : 'bg-white text-grey-7'
+            "
+            @click="updateField('retinol_used_last_night', 'no')"
+            label="No"
+            :outline="assessmentData.retinol_used_last_night == 'yes'"
+          />
         </div>
       </section>
 
@@ -224,6 +306,8 @@ const props = defineProps({
 })
 
 const startProcessingStep = ref(props.startProcessingStep)
+
+const skinTempOptions = Array.from({ length: 11 }, (_, i) => 32 + i)
 
 // Keep it in sync with parent changes
 watch(
