@@ -61,7 +61,7 @@
                   "
                 />
               </div>
-              <div class="col-md-12">
+              <div v-if="!activeSlot.id" class="col-md-12">
                 <q-chip
                   v-for="type in appointmentTypes"
                   :key="type.value"
@@ -75,6 +75,14 @@
                   @click="setType(type.value)"
                 />
               </div>
+              <div v-else class="col-md-12">
+                <q-chip
+                  :label="activeSlot.type"
+                  color="positive"
+                  text-color="white"
+                  class="q-ma-xs text-capitalize"
+                />
+              </div>
               <div class="col-md-12">
                 <q-select
                   v-model="activeSlot.client_id"
@@ -86,6 +94,7 @@
                   outlined
                   dense
                   clearable
+                  :readonly="activeSlot.id ? true : false"
                   @filter="commonStore.filterClients"
                   :rules="[(val) => !!val || 'Please select a client']"
                   style="max-width: 100%"
@@ -183,7 +192,7 @@
 import { Notify } from 'quasar'
 import { api } from 'src/boot/axios'
 import { useCommonStore } from 'src/stores/commonStore'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import DatePicker from 'src/components/common/DatePicker.vue'
 
 const commonStore = useCommonStore()
@@ -228,6 +237,11 @@ function handleSubmit() {
   emit('submit', activeSlot.value)
 }
 
+onMounted(async () => {
+  await getAssessments()
+  getTreatmentSessions()
+})
+
 watch(
   () => activeSlot.value.start_datetime,
   (newStart) => {
@@ -251,18 +265,20 @@ function setType(type) {
   activeSlot.value.type = type
   // Reset dependent fields when type changes
   if (type !== 'treatment') {
-    activeSlot.value.assessment_id = null
-    activeSlot.value.treatment_session_id = null
+    // activeSlot.value.assessment_id = null
+    // activeSlot.value.treatment_session_id = null
   }
   if (type == 'treatment' && assessments.value.length === 0) {
     getAssessments()
   }
 }
 
-function getAssessments() {
+async function getAssessments() {
   if (activeSlot.value.type == 'treatment' && activeSlot.value.client_id) {
-    activeSlot.value.assessment_id = null
-    activeSlot.value.treatment_session_id = null
+    if (!activeSlot.value.id) {
+      activeSlot.value.assessment_id = null
+      activeSlot.value.treatment_session_id = null
+    }
 
     loadingAssessments.value = true
     let url = `get-assessments?is_dropdown=1`
@@ -274,7 +290,7 @@ function getAssessments() {
       },
     ]
     url += `&filterArray=${encodeURIComponent(JSON.stringify(filterArray))}`
-    api
+    await api
       .get(url)
       .then((response) => {
         assessments.value = response.data.results

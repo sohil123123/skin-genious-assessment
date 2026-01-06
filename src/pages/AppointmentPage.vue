@@ -160,11 +160,18 @@
                     @mousedown.stop="startDrag(event)"
                   >
                     <span class="event-title q-calendar__ellipsis">
-                      {{ event.title }}
+                      {{ event.meta.client }}
                     </span>
-                    <q-tooltip>
+                    <q-tooltip class="text-body2">
                       {{
-                        event.time + ' - ' + event.meta.client + ' (' + event.duration + ' mins)'
+                        event.title +
+                        ' - ' +
+                        event.time +
+                        ' - ' +
+                        event.meta.client +
+                        ' (' +
+                        event.duration +
+                        ' mins)'
                       }}
                     </q-tooltip>
                   </div>
@@ -737,6 +744,7 @@ function handleDelete(eventId) {
 }
 
 async function getAppointmentById(id) {
+  console.log(selectedEvent.value)
   const appointment = await appointmentStore.getAppointmentById(id)
   if (appointment) {
     activeSlot.value = {
@@ -744,9 +752,9 @@ async function getAppointmentById(id) {
       type: appointment.type,
       clinic_id: clinic_id.value,
       therapist_id: therapist_id.value,
-      client_id: appointment.user_id || null,
-      assessment_id: appointment.assessment_id || null,
-      treatment_session_id: appointment.treatment_session_id || null,
+      client_id: selectedEvent.value.meta.client_id || null,
+      assessment_id: selectedEvent.value.meta.assessment_id || null,
+      treatment_session_id: selectedEvent.value.meta.treatment_session_id || null,
       start_datetime: appointmentStore.convertToIST(appointment.start_datetime),
       end_datetime: appointmentStore.convertToIST(appointment.end_datetime),
       notes: appointment.notes || '',

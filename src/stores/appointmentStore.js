@@ -101,17 +101,20 @@ export const useAppointmentStore = defineStore('appointment', {
       }
 
       try {
-        await api.post('appointments', payload).then((res) => {
-          this.warning = res.data.results.warning || null
-          Notify.create({
-            type: 'positive',
-            message: res.data.message || 'Appointment booked successfully',
-          })
+        const res = await api.post(`appointments`, payload)
+
+        Notify.create({
+          type: 'positive',
+          message: res.data.message || 'Appointment updated successfully',
         })
+
+        return true // ✅ SUCCESS
       } catch (error) {
         this.error = error
-        this.serverError = error.response.data.results
+        this.serverError = error?.response?.data?.results || null
         this.showServerErrors(this.serverError)
+
+        return false // ❌ FAILURE
       }
     },
     async addAppointment(event) {
