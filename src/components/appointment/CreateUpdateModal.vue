@@ -43,13 +43,15 @@
               </div>
               <div class="col-md-12">
                 <DatePicker
+                  :key="endPickerKey"
                   :model="activeSlot.end_datetime"
                   :label="'Select End Date & Time'"
                   :field="'end_datetime'"
                   :min-date="new Date()"
                   :min-time="clinic.start_time"
                   :max-time="clinic.end_time"
-                  :read-only="false"
+                  :read-only="true"
+                  :disable="true"
                   :outlined="true"
                   :dense="true"
                   @update="
@@ -181,7 +183,7 @@
 import { Notify } from 'quasar'
 import { api } from 'src/boot/axios'
 import { useCommonStore } from 'src/stores/commonStore'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import DatePicker from 'src/components/common/DatePicker.vue'
 
 const commonStore = useCommonStore()
@@ -220,10 +222,30 @@ const assessments = ref([])
 const treatmentSessionsOptions = ref([])
 const loadingAssessments = ref(false)
 const loadingTreatmentSessions = ref(false)
+const endPickerKey = ref(0)
 
 function handleSubmit() {
   emit('submit', activeSlot.value)
 }
+
+watch(
+  () => activeSlot.value.start_datetime,
+  (newStart) => {
+    if (!newStart) return
+
+    const [startDate] = newStart.split(' ')
+
+    if (activeSlot.value.end_datetime) {
+      const [, endTime] = activeSlot.value.end_datetime.split(' ')
+      activeSlot.value.end_datetime = `${startDate} ${endTime || '00:00'}`
+    } else {
+      activeSlot.value.end_datetime = `${startDate} 00:00`
+    }
+
+    // 🔥 force End DatePicker UI refresh
+    endPickerKey.value++
+  },
+)
 
 function setType(type) {
   activeSlot.value.type = type

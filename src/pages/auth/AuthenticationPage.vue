@@ -63,7 +63,7 @@ onMounted(async () => {
         if (type == 'assessment') {
           router.push({
             name: 'index',
-            params: { user_id: userId, appointment_id: appointment_id, step: 'step-1' },
+            params: { user_id: userId, step: 'step-1' },
           })
         } else if (type == 'treatment') {
           router.push({

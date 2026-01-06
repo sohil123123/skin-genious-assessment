@@ -1,214 +1,149 @@
 <template>
-  <q-input
-    v-model="date"
-    v-flatpickr:date="dateConfig"
-    @update:model-value="update"
-    ref="filedRef"
-    :error="props.hasError"
-    :borderless="borderless"
-    :outlined="outlined"
-    :dense="dense"
-    :label-slot="label == '' ? false : true"
-    :key="sequence"
-    :disable="disable"
-    :bottom-slots="bottom_slots"
-    :class="class_name"
-    no-error-icon
-    readonly
-  >
-    <template v-slot:prepend>
-      <q-icon name="schedule" />
-    </template>
-    <template v-if="clearable && date" v-slot:append>
-      <q-btn icon="cancel" color="grey-6" flat round dense @click="clearFlatpickr"></q-btn>
-    </template>
+  <div class="row q-col-gutter-sm">
+    <!-- Date -->
+    <div class="col-12 col-md-6">
+      <q-input
+        v-model="date"
+        v-flatpickr:date="dateConfig"
+        @update:model-value="onDateChange"
+        ref="filedRef"
+        :error="props.hasError"
+        :borderless="borderless"
+        :outlined="outlined"
+        :dense="dense"
+        :disable="disable"
+        :class="class_name"
+        no-error-icon
+        readonly
+      >
+        <template v-slot:prepend>
+          <q-icon name="event" />
+        </template>
 
-    <template v-if="label !== null" v-slot:label>
-      {{ label }}
-    </template>
-    <template v-slot:error> Please provide Valid Date </template>
-  </q-input>
+        <template v-if="label !== null" v-slot:label>
+          {{ label }}
+        </template>
+
+        <template v-slot:error> Please provide Valid Date </template>
+      </q-input>
+    </div>
+
+    <!-- Hour -->
+    <div class="col-6 col-md-3">
+      <q-select
+        v-model="hour"
+        :options="hourOptions"
+        label="Hour"
+        dense
+        outlined
+        emit-value
+        map-options
+        :disable="!date"
+      />
+    </div>
+
+    <!-- Minute -->
+    <div class="col-6 col-md-3">
+      <q-select
+        v-model="minute"
+        :options="minuteOptions"
+        label="Minute"
+        dense
+        outlined
+        emit-value
+        map-options
+        :disable="!date"
+      />
+    </div>
+  </div>
 </template>
+
 <script setup>
-import { watch, ref } from 'vue'
-// import 'flatpickr/dist/themes/dark.css';
+import { ref, watch, computed } from 'vue'
 
 const emit = defineEmits(['update', 'clear'])
+
 const props = defineProps({
-  model: {
-    required: true,
-  },
-  borderless: {
-    required: false,
-    default: true,
-  },
-  field: {
-    required: true,
-  },
-  id: {
-    default: '',
-  },
-  label: {
-    required: true,
-    default: null,
-  },
-  minDate: {
-    required: false,
-    default: null,
-  },
-  hasError: {
-    type: Boolean,
-    required: false,
-    default: false,
-  },
-  clickOpens: {
-    type: Boolean,
-    required: false,
-  },
-  inline: {
-    type: Boolean,
-    required: false,
-  },
-  readOnly: {
-    type: Boolean,
-    default: false,
-  },
-  outlined: {
-    type: Boolean,
-    default: false,
-  },
-  dense: {
-    type: Boolean,
-    default: false,
-  },
-  clearable: {
-    type: Boolean,
-    default: false,
-  },
-  errorMessage: {
-    type: String,
-    default: null,
-  },
-  disable: {
-    type: Boolean,
-    default: false,
-  },
-  class_name: {
-    type: String,
-    required: false,
-    default: null,
-  },
-  bottom_slots: {
-    type: Boolean,
-    required: false,
-    default: true,
-  },
-  minTime: {
-    type: String,
-    required: false,
-    default: '08:00:00',
-  },
-  maxTime: {
-    type: String,
-    required: false,
-    default: '21:00:00',
-  },
+  model: { required: true },
+  label: { default: null },
+  minTime: { default: '08:00:00' },
+  maxTime: { default: '21:00:00' },
+  disable: Boolean,
+  outlined: Boolean,
+  dense: Boolean,
+  borderless: { default: true },
+  hasError: Boolean,
+  class_name: String,
 })
 
 const filedRef = ref(null)
-
-// function adjustToNext15MinuteInterval(date) {
-//   const currentMinutes = date.getMinutes()
-//   const additionalMinutes = currentMinutes <= 15 ? 15 - currentMinutes : 60 - currentMinutes
-
-//   // Adjust the date object by adding the calculated additional minutes
-//   date.setMinutes(currentMinutes + additionalMinutes, 0, 0) // Reset seconds and milliseconds to 0
-
-//   return date
-// }
-// const currentDate = new Date()
-// const updatedDate = adjustToNext15MinuteInterval(currentDate)
-
 const date = ref(null)
-const flag = ref(true)
-const dateConfig = ref({
-  altFormat: 'd-m-Y H:i', // Display format
-  dateFormat: 'Y-m-d H:i', // Actual value format
+const hour = ref(null)
+const minute = ref(null)
+
+/* ------------------------------
+   Flatpickr (Date Only)
+--------------------------------*/
+const dateConfig = {
+  altFormat: 'd-m-Y',
+  dateFormat: 'Y-m-d',
   altInput: true,
   allowInput: false,
   disableMobile: true,
-  inline: false,
-  clickOpens: !props.readOnly,
-  flatpickrError: false,
-  dense: props.dense,
-  clearable: props.clearable,
-  enableTime: true,
-  defaultHour: 10,
-  // minDate: updatedDate,
-  minuteIncrement: 15,
-  minTime: props.minTime || '08:00:00',
-  maxTime: props.maxTime || '20:00:00',
-  errorHandler: () => {
-    // isError.value = true
-  },
-  onReady: (selectedDates, dateStr, instance) => {
-    // Disable typing in time inputs
-    const timeInputs = instance.calendarContainer.querySelectorAll(
-      '.flatpickr-hour, .flatpickr-minute',
-    )
+  enableTime: false, // ⛔ remove time picker
+  clickOpens: true,
+}
 
-    timeInputs.forEach((input) => {
-      input.setAttribute('readonly', 'readonly')
-      input.setAttribute('tabindex', '-1')
-    })
+/* ------------------------------
+   Time Logic
+--------------------------------*/
+const minHour = Number(props.minTime.split(':')[0])
+const maxHour = Number(props.maxTime.split(':')[0])
 
-    // Add an "OK" button to the Flatpickr calendar
-    const okButton = document.createElement('button')
-    okButton.innerText = 'OK'
-    okButton.classList.add('flatpickr-ok-button')
-    okButton.addEventListener('click', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      instance.close()
-    })
-
-    // Append the button to the calendar
-    instance.calendarContainer.appendChild(okButton)
-  },
+const hourOptions = computed(() => {
+  return Array.from({ length: maxHour - minHour + 1 }, (_, i) => {
+    const h = minHour + i
+    return { label: String(h).padStart(2, '0'), value: h }
+  })
 })
-const sequence = ref(1)
 
-function update(d) {
-  if (d !== '' && d !== null) {
-    emit('update', d)
-  }
-}
+const minuteOptions = [
+  { label: '00', value: 0 },
+  { label: '15', value: 15 },
+  { label: '30', value: 30 },
+  { label: '45', value: 45 },
+]
 
-// function handleInput(event) {
-//   const d = event.target.value
-//   if (flag.value && props.model !== null && d === '') {
-//     dateConfig.value.flatpickrError = false
-//     flag.value = false
-//     emit('update', d)
-//   }
-// }
+/* ------------------------------
+   Emit Combined DateTime
+--------------------------------*/
+watch([date, hour, minute], () => {
+  if (!date.value || hour.value === null || minute.value === null) return
 
-function clearFlatpickr() {
-  emit('clear')
-}
+  const h = String(hour.value).padStart(2, '0')
+  const m = String(minute.value).padStart(2, '0')
+
+  emit('update', `${date.value} ${h}:${m}`)
+})
 
 watch(
   () => props.model,
-  (newVal, oldVal) => {
-    date.value = props.model
-    // NOTE: Below code to remount with sequence key when clear value.
-    if (newVal === null && oldVal !== undefined && oldVal !== null) {
-      flag.value = true
-      sequence.value++
+  (val) => {
+    if (!val) return
+
+    const [d, t] = val.split(' ')
+    date.value = d
+
+    if (t) {
+      const [h, m] = t.split(':')
+      hour.value = Number(h)
+      minute.value = Number(m)
     }
   },
-  {
-    immediate: true,
-  },
+  { immediate: true },
 )
+
+function onDateChange(val) {
+  date.value = val
+}
 </script>

@@ -359,7 +359,8 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
       assessmentData.value.treatment_plans = apiResponse
       assessmentData.value.treatment_sessions = apiResponse.treatment_plan
       await submit(['treatment_plans'])
-      await store.updateTreatmentSessionId(route.params.appointment_id)
+      if (route.params.appointment_id)
+        await store.updateTreatmentSessionId(route.params.appointment_id)
       goNext()
     }
   }
@@ -403,17 +404,17 @@ async function callApiForDiagnosis(data, images) {
   const convId = await getOrCreateConversation(`${data.user_id}`)
 
   processingMessage.value = 'Uploading images to OpenAI...'
-  const fileArrar = await uploadImageFileToOpenAI(images, 'pre')
+  await uploadImageFileToOpenAI(images, 'pre')
+  // console.log(fileArrar)
   const storedFiles = await Promise.all(
-    data.media
-      .filter((item) => item.collection_name === 'assessment_images')
-      .map((item) => ({
-        type: 'input_image',
-        file_id: item.custom_properties?.openai_file_id ?? null,
-      })),
+    data.images.map((item) => ({
+      type: 'input_image',
+      file_id: item.custom_properties?.openai_file_id ?? null,
+    })),
   )
-  let finalFileIdArray = [...fileArrar, ...storedFiles]
-
+  console.log(storedFiles)
+  // let finalFileIdArray = [...fileArrar, ...storedFiles]
+  // console.log(finalFileIdArray)
   const input = [
     {
       role: 'system',
@@ -432,7 +433,7 @@ async function callApiForDiagnosis(data, images) {
         //   type: 'input_image',
         //   image_url: img_url,
         // })),
-        ...finalFileIdArray,
+        ...storedFiles,
         {
           type: 'input_text',
           text: D_REPORT_USER_PROMPT,
@@ -524,16 +525,14 @@ async function callApiForPostDiagnosis(data, images) {
   // const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
 
   processingMessage.value = 'Uploading images to OpenAI...'
-  const fileArrar = await uploadImageFileToOpenAI(images, 'post')
+  await uploadImageFileToOpenAI(images, 'post')
   const storedFiles = await Promise.all(
-    data.media
-      .filter((item) => item.collection_name === 'post_assessment_images')
-      .map((item) => ({
-        type: 'input_image',
-        file_id: item.custom_properties?.openai_file_id ?? null,
-      })),
+    data.post_images.map((item) => ({
+      type: 'input_image',
+      file_id: item.custom_properties?.openai_file_id ?? null,
+    })),
   )
-  let finalFileIdArray = [...fileArrar, ...storedFiles]
+  // let finalFileIdArray = [...fileArrar, ...storedFiles]
 
   const input = [
     {
@@ -549,7 +548,7 @@ async function callApiForPostDiagnosis(data, images) {
         //   type: 'input_image',
         //   image_url: img_url,
         // })),
-        ...finalFileIdArray,
+        ...storedFiles,
         {
           type: 'input_text',
           text: POST_DIAGNOSIS_USER_PROMPT,

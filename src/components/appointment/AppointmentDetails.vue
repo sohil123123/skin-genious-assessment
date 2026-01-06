@@ -14,7 +14,7 @@
 
         <q-chip v-if="event?.status" outline text-color="grey-8" class="text-capitalize">
           <q-icon name="circle" size="14px" class="q-mr-xs" :style="{ color: statusColor }" />
-          {{ event.status }}
+          {{ event?.status }}
         </q-chip>
 
         <q-btn icon="close" flat round dense v-close-popup />
@@ -103,6 +103,44 @@
         </q-card>
       </q-card-section>
 
+      <q-card-actions v-if="event?.id && event?.status !== 'completed'" align="right">
+        <!-- Pending -->
+        <q-chip
+          clickable
+          @click="updateStatus('pending')"
+          color="amber"
+          :text-color="status === 'pending' ? 'white' : 'amber'"
+          :outline="status !== 'pending'"
+        >
+          <q-icon v-if="status === 'pending'" name="check" class="q-mr-xs" />
+          Pending
+        </q-chip>
+
+        <!-- Confirm -->
+        <q-chip
+          clickable
+          @click="updateStatus('confirmed')"
+          color="positive"
+          :text-color="status === 'confirmed' ? 'white' : 'positive'"
+          :outline="status !== 'confirmed'"
+        >
+          <q-icon v-if="status === 'confirmed'" name="check" class="q-mr-xs" />
+          Confirmed
+        </q-chip>
+
+        <!-- Cancel -->
+        <q-chip
+          clickable
+          @click="updateStatus('cancelled')"
+          color="negative"
+          :text-color="status === 'cancelled' ? 'white' : 'negative'"
+          :outline="status !== 'cancelled'"
+        >
+          <q-icon v-if="status === 'cancelled'" name="check" class="q-mr-xs" />
+          Cancelled
+        </q-chip>
+      </q-card-actions>
+
       <q-separator />
 
       <!-- Actions -->
@@ -136,19 +174,32 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { Notify, useQuasar } from 'quasar'
+import { computed, ref, watch } from 'vue'
+import { api } from 'boot/axios'
+
+const $q = useQuasar()
 
 const props = defineProps({
   modelValue: Boolean,
   event: Object,
 })
 
-const emit = defineEmits(['update:modelValue', 'delete', 'edit'])
+const status = ref(null)
+
+const emit = defineEmits(['update:modelValue', 'delete', 'edit', 'getAppointments'])
 
 const modelValue = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v),
 })
+
+watch(
+  () => props.event,
+  (v) => {
+    status.value = v.status
+  },
+)
 
 function onDialogHide() {
   emit('update:modelValue', false)
@@ -157,4 +208,51 @@ function onDialogHide() {
 const statusColor = computed(() => {
   return props.event?.bgcolor
 })
+
+function updateStatus(s) {
+  $q.dialog({
+    title: 'Confirm',
+    message: 'Are you sure you want to update the status?',
+    persistent: true,
+
+    ok: {
+      label: 'Yes',
+      color: 'positive',
+      icon: 'check_circle',
+      unelevated: true,
+    },
+    cancel: {
+      label: 'No',
+      color: 'negative',
+      flat: true,
+      icon: 'close',
+    },
+  })
+    .onOk(() => {
+      status.value = s
+      api
+        .post(`/appointments/status/${props.event.id}`, { status: s })
+        .then((res) => {
+          emit('getAppointments')
+          onDialogHide()
+          Notify.create({
+            type: 'positive',
+            message: res.data.message || 'Status updated successfully',
+          })
+        })
+        .catch((e) => {
+          console.log(e)
+          Notify.create({
+            type: 'negative',
+            message: e.response.data.message,
+          })
+        })
+    })
+    .onCancel(() => {
+      console.log('User cancelled')
+    })
+    .onDismiss(() => {
+      console.log('Dialog closed (OK or Cancel)')
+    })
+}
 </script>

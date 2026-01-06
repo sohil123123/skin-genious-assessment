@@ -71,5 +71,29 @@ export const useCommonStore = defineStore('common', {
         `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
       )
     },
+    /**
+     * Get age in years from date of birth
+     * @param {string} dob - Date string in YYYY-MM-DD format
+     * @returns {number|null} age in years or null if invalid
+     */
+    getAgeFromDate(dob) {
+      if (!dob) return null
+
+      const birthDate = new Date(dob)
+      if (isNaN(birthDate.getTime())) return null
+
+      const today = new Date()
+      let age = today.getFullYear() - birthDate.getFullYear()
+
+      const hasBirthdayPassed =
+        today.getMonth() > birthDate.getMonth() ||
+        (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate())
+
+      if (!hasBirthdayPassed) {
+        age--
+      }
+
+      return age
+    },
   },
 })

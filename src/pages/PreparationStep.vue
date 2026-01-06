@@ -147,7 +147,7 @@ function startSteps() {
   // go to first step (steps are 1-based in route)
   router.push({
     name: 'TreatmentSteps',
-    params: { user_id: route.params.user_id, session: sessionID, step: 1 },
+    params: { user_id: route.params.user_id, session_id: sessionID, step: 1 },
   })
 }
 

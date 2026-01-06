@@ -12,7 +12,7 @@
       </div>
 
       <!-- Right button -->
-      <q-btn
+      <!-- <q-btn
         color="primary"
         label="Start Treatment"
         icon-right="arrow_forward"
@@ -20,7 +20,7 @@
         unelevated
         rounded
         @click="startSession(1)"
-      />
+      /> -->
     </div>
   </q-card>
 
@@ -119,7 +119,7 @@
           unelevated
           rounded
           no-caps
-          @click="startSession(session.session_number)"
+          @click="startSession(session)"
         />
       </q-card-actions>
     </q-card>
@@ -148,19 +148,19 @@ watch(
       treatmentPlan.value = val.treatment_sessions
     }
   },
-  { immediate: true },
+  { deep: true, immediate: true },
 )
 
-const startSession = (sessionNumber) => {
-  if (!sessionNumber) return
-  treatmentStore.setSessionByNumber(sessionNumber)
+const startSession = (session) => {
+  if (!session) return
+  treatmentStore.setSessionByNumber(session.id)
   // route to preparation for that session
   router.push({
     name: 'TreatmentPrep',
     params: {
       user_id: route.params.user_id,
       assessment_id: assessmentData.value.id,
-      session: sessionNumber,
+      session_id: session.id,
     },
   })
 }

@@ -216,6 +216,7 @@
       :event="selectedEvent"
       @edit="handleEdit"
       @delete="handleDelete"
+      @getAppointments="getAppointments"
     />
   </q-page>
 </template>
@@ -633,53 +634,64 @@ async function handleSubmit() {
   const date = start.split(' ')[0]
   const time = start.split(' ')[1]
   const duration = getDurationInMinutes(start, end)
-  Loading.show({
-    message: 'Booking Appointment...',
-  })
-  if (!activeSlot.value.id) {
-    await appointmentStore.addAppointment({
-      id: Date.now(), // safe unique id
-      title: 'Booked',
-      date,
-      time,
-      duration,
-      type: activeSlot.value.type,
-      status: activeSlot.value.status,
-      assessment_id: activeSlot.value.assessment_id,
-      treatment_session_id: activeSlot.value.treatment_session_id,
-      bgcolor: 'teal',
-      notes: activeSlot.value.notes,
-      meta: {
-        clinic: clinic_id.value,
-        therapist: therapist_id.value,
-        client: activeSlot.value.client_id,
-      },
-    })
-  } else {
-    await appointmentStore.updateAppointment({
-      id: activeSlot.value.id,
-      title: 'Booked',
-      date,
-      time,
-      duration,
-      type: activeSlot.value.type,
-      status: activeSlot.value.status,
-      assessment_id: activeSlot.value.assessment_id,
-      treatment_session_id: activeSlot.value.treatment_session_id,
-      bgcolor: 'teal',
-      notes: activeSlot.value.notes,
-      meta: {
-        clinic: clinic_id.value,
-        therapist: therapist_id.value,
-        client: activeSlot.value.client_id,
-      },
-    })
+
+  Loading.show({ message: 'Booking Appointment...' })
+
+  let success = false
+
+  try {
+    if (!activeSlot.value.id) {
+      success = await appointmentStore.addAppointment({
+        id: Date.now(),
+        title: 'Booked',
+        date,
+        time,
+        duration,
+        type: activeSlot.value.type,
+        status: activeSlot.value.status,
+        assessment_id: activeSlot.value.assessment_id,
+        treatment_session_id: activeSlot.value.treatment_session_id,
+        bgcolor: 'teal',
+        notes: activeSlot.value.notes,
+        meta: {
+          clinic: clinic_id.value,
+          therapist: therapist_id.value,
+          client: activeSlot.value.client_id,
+        },
+      })
+    } else {
+      success = await appointmentStore.updateAppointment({
+        id: activeSlot.value.id,
+        title: 'Booked',
+        date,
+        time,
+        duration,
+        type: activeSlot.value.type,
+        status: activeSlot.value.status,
+        assessment_id: activeSlot.value.assessment_id,
+        treatment_session_id: activeSlot.value.treatment_session_id,
+        bgcolor: 'teal',
+        notes: activeSlot.value.notes,
+        meta: {
+          clinic: clinic_id.value,
+          therapist: therapist_id.value,
+          client: activeSlot.value.client_id,
+        },
+      })
+    }
+
+    // ❌ Stop here if API failed
+    if (!success) return
+
+    // ✅ Success flow only
+    await getAppointments()
+    bookSlotModal.value = false
+    showDetailDialog.value = false
+    resetActiveSlot()
+  } finally {
+    // 🔒 Always hide loader
+    Loading.hide()
   }
-  getAppointments()
-  Loading.hide()
-  bookSlotModal.value = false
-  showDetailDialog.value = false
-  resetActiveSlot()
 }
 
 function hasDate(days) {

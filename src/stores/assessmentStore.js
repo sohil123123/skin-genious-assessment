@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { Loading, Notify } from 'quasar'
 import { api } from 'src/boot/axios'
 import { serialize } from 'object-to-formdata'
+import { useCommonStore } from './commonStore'
 
 // let user_id = LocalStorage.getItem('user_id') ? LocalStorage.getItem('user_id') : null
 
@@ -148,13 +149,14 @@ export const useAssessmentStore = defineStore('assessment', {
           this.assessmentData.conversation_id = response.data.results.conversation_id
           if (
             response.data.results.treatment_sessions &&
-            response.data.results.treatment_sessions.treatments.length > 0
+            response.data.results.treatment_sessions.treatments?.length > 0
           ) {
             this.treatment_session_id = response.data.results.treatment_sessions.treatments[0].id
+            this.assessmentData.treatment_sessions = response.data.results.treatment_sessions
           }
         })
         .catch((e) => {
-          console.log(e.response.data)
+          console.log(e)
           // Notify.create({
           //   type: 'negative',
           //   message: e.response.data.message,
@@ -166,6 +168,7 @@ export const useAssessmentStore = defineStore('assessment', {
       this.assessmentData.user_id = data.id
       this.assessmentData.name = data.first_name + ' ' + data.last_name
       this.assessmentData.gender = data.gender
+      this.assessmentData.age = useCommonStore().getAgeFromDate(data.date_of_birth)
     },
     setData(data) {
       this.assessmentData = { ...this.assessmentData, ...data }

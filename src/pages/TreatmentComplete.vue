@@ -182,7 +182,7 @@ import { storeToRefs } from 'pinia'
 
 const $q = useQuasar()
 const assessmentStore = useAssessmentStore()
-const { showDialog } = storeToRefs(assessmentStore)
+const { showDialog, assessmentData } = storeToRefs(assessmentStore)
 const loading = computed(() => assessmentStore.loading)
 
 const route = useRoute()
@@ -224,6 +224,9 @@ function toPostAssessment() {
 function bookNextAppointment() {
   router.push({
     name: 'appointments',
+    params: {
+      clinic_id: assessmentData.value.clinic_id,
+    },
   })
 }
 

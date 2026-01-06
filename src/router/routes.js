@@ -50,7 +50,7 @@ const routes = [
         props: true,
       },
       {
-        path: ':user_id/:appointment_id/:step',
+        path: ':user_id/:step/:appointment_id?',
         name: 'index',
         component: () => import('pages/IndexPage.vue'),
       },

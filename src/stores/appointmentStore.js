@@ -150,7 +150,7 @@ export const useAppointmentStore = defineStore('appointment', {
       }
     },
     async updateAppointment(event) {
-      let payload = {
+      const payload = {
         type: event.type,
         clinic_id: event.meta.clinic,
         therapist_id: event.meta.therapist,
@@ -164,16 +164,20 @@ export const useAppointmentStore = defineStore('appointment', {
       }
 
       try {
-        await api.put(`appointments/${event.id}`, payload).then((res) => {
-          Notify.create({
-            type: 'positive',
-            message: res.data.message || 'Appointment updated successfully',
-          })
+        const res = await api.put(`appointments/${event.id}`, payload)
+
+        Notify.create({
+          type: 'positive',
+          message: res.data.message || 'Appointment updated successfully',
         })
+
+        return true // ✅ SUCCESS
       } catch (error) {
         this.error = error
-        this.serverError = error.response.data.results
+        this.serverError = error?.response?.data?.results || null
         this.showServerErrors(this.serverError)
+
+        return false // ❌ FAILURE
       }
     },
     deleteAppointment(eventId) {

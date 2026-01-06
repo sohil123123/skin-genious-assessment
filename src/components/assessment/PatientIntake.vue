@@ -153,7 +153,7 @@
         </div>
       </section>
 
-      <section class="q-mt-md">
+      <section v-if="assessmentData.gender == 'Female'" class="q-mt-md">
         <span class="text-sm text-weight-bold">Is Patient Pregnant</span>
         <div class="flex items-center q-gutter-sm q-mt-xs">
           <q-btn
@@ -175,7 +175,7 @@
         </div>
       </section>
 
-      <section class="q-mt-md">
+      <section v-if="assessmentData.gender == 'Female'" class="q-mt-md">
         <span class="text-sm text-weight-bold">Breast Feeding?</span>
         <div class="flex items-center q-gutter-sm q-mt-xs">
           <q-btn
