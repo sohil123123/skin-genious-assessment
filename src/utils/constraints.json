@@ -63,9 +63,149 @@
       {
         "condition": "breastfeeding",
         "rule": "If the patient is breastfeeding, avoid retinol-based peels and products."
+      },
+      {
+        "condition": "used_retinol_last_24_hours",
+        "rule": "If retinol was used within the last 24 hours, avoid medium/deep chemical peels, Q-switch laser, and aggressive exfoliation. Energy-based devices may still be used at low, non-ablative settings only if barrier and erythema proxy scores are stable."
+      },
+      {
+        "condition": "laser_within_last_7_days",
+        "rule": "If any laser or high-heat energy treatment was performed within the last 7 days, avoid all laser-based and high-heat energy modalities in the current session. Allow only non-ablative RF, LED, hydrafacial, or barrier-repair treatments if otherwise safe."
       }
     ],
+    "energy_device_policy": {
+      "intent": "maximize_outcomes_by_default",
+      "default_permission": "allowed",
 
+      "policy_statement": "Energy-based treatments (laser/RF/HiFU/carbon laser protocols) are permitted by default and should be considered normally when they are the highest-efficacy option for the primary concern. Deny only when (1) an explicit patient-history contraindication triggers OR (2) numeric proxy safety gates are met. If proxies are borderline but not denied, proceed with energy modalities with appropriate caution rather than excluding them.",
+
+      "explicit_denial_conditions": {
+        "patient_history_rules": [
+          "If any patient_history_rule explicitly prohibits a modality, that prohibition overrides this policy."
+        ],
+
+        "deny_if_any_true": [
+          "combined_barrier_sensitivity.BSI_continuous >= 0.75",
+          "combined_barrier_sensitivity.BSI_continuous >= 0.55",
+          "combined_barrier_sensitivity.backend_details.barrier_uniformity_index < 0.55",
+          "combined_barrier_sensitivity.backend_details.flaking_texture_index >= 0.60",
+          "combined_barrier_sensitivity.backend_details.erythema_intensity_index >= 0.75",
+          "combined_barrier_sensitivity.backend_details.hydration_signal_index < 0.30"
+        ],
+
+        "notes": "BSI_continuous bands already defined in scoring spec: >=0.55 is severely compromised, >0.75 barrier breakdown. Denial gates are intentionally strict only at clearly unsafe levels."
+      },
+
+      "caution_conditions": {
+        "result": "allowed_with_caution",
+
+        "trigger_if_any_true": [
+          "combined_barrier_sensitivity.BSI_continuous >= 0.45 AND combined_barrier_sensitivity.BSI_continuous < 0.55",
+          "combined_barrier_sensitivity.backend_details.erythema_intensity_index >= 0.62 AND combined_barrier_sensitivity.backend_details.erythema_intensity_index < 0.75",
+          "(combined_barrier_sensitivity.backend_details.hydration_signal_index >= 0.30 AND combined_barrier_sensitivity.backend_details.hydration_signal_index < 0.40) AND (combined_barrier_sensitivity.BSI_continuous >= 0.40 OR combined_barrier_sensitivity.backend_details.erythema_intensity_index >= 0.55)"
+        ],
+
+        "behavior_when_caution": [
+          "Energy devices remain allowed; prefer non-ablative / low-downtime options first.",
+          "Use lower initial settings and fewer passes; escalate only if tolerated and clinically appropriate.",
+          "Avoid stacking multiple aggressive modalities in the same session; sequence across sessions instead."
+        ],
+
+        "notes": "Caution bands are deliberately tightened to keep 'allowed_with_caution' prevalence below ~50% in typical clinic populations while preserving safety. Hydration alone does not trigger caution unless paired with elevated BSI or erythema."
+      },
+
+      "data_completeness_handling": {
+        "principle": "Do NOT deny energy devices due to vague 'low confidence'. Only deny if numeric denial gates are met or patient-history rules explicitly prohibit. If required proxy indices are missing, default to 'allowed_with_caution' (not 'denied') unless patient-history rules deny.",
+        "required_proxy_fields_for_full_allow": [
+          "combined_barrier_sensitivity.BSI_continuous",
+          "combined_barrier_sensitivity.backend_details.erythema_intensity_index",
+          "combined_barrier_sensitivity.backend_details.hydration_signal_index"
+        ]
+      },
+
+      "override_hierarchy": {
+        "highest_priority": "patient_history_rules",
+        "secondary_priority": "explicit_denial_conditions.deny_if_any_true",
+        "tertiary_priority": "caution_conditions.trigger_if_any_true",
+        "lowest_priority": "treatment_efficacy_optimization"
+      },
+
+      "behavioral_directive": "Do NOT avoid energy-based modalities out of conservatism alone. If no denial condition is met, evaluate energy devices normally and select the highest-efficacy modality for the primary concern; if caution is triggered, still use energy devices but with conservative parameters and reduced stacking."
+    },
+    "regional_skin_temperature_policy": {
+      "intent": "maximize_customization_and_tolerance",
+      "measurement_points": ["forehead_c", "left_cheek_c", "right_cheek_c"],
+
+      "derived_metrics": {
+        "avg_facial_temp_c": "(forehead_c + left_cheek_c + right_cheek_c) / 3",
+        "cheek_avg_temp_c": "(left_cheek_c + right_cheek_c) / 2",
+        "tzone_cheek_delta_c": "forehead_c - ((left_cheek_c + right_cheek_c) / 2)",
+        "left_right_delta_c": "ABS(left_cheek_c - right_cheek_c)"
+      },
+
+      "global_session_modifiers": {
+        "deny_if_any_true": ["avg_facial_temp_c >= 37.8"],
+        "caution_if_any_true": ["avg_facial_temp_c >= 37.2 AND avg_facial_temp_c < 37.8"],
+        "behavior_when_caution": [
+          "Avoid stacking multiple heat-based energy modalities in the same session.",
+          "Prefer cooling, calming, or non-ablative modalities before heat-based escalation.",
+          "Reduce initial energy settings and number of passes."
+        ]
+      },
+
+      "regional_modulation_rules": {
+        "tzone_dominant_heat": {
+          "condition": "tzone_cheek_delta_c >= 0.40",
+          "interpretation": "Sebum-driven or T-zone–dominant activity with acceptable cheek tolerance.",
+          "allowed_actions": [
+            "Energy-based treatments (including carbon laser/peel) may be used preferentially on the forehead/T-zone.",
+            "Cheek regions should be treated conservatively unless other proxies explicitly support escalation."
+          ]
+        },
+
+        "cheek_dominant_heat": {
+          "condition": "tzone_cheek_delta_c <= -0.40",
+          "interpretation": "Cheek-dominant inflammatory or barrier-related activation.",
+          "required_actions": [
+            "Avoid heat-based energy modalities on cheek regions.",
+            "Prefer barrier-repair, calming, LED, or cooling treatments on cheeks.",
+            "If energy devices are used, restrict them to non-cheek regions only."
+          ]
+        },
+
+        "balanced_distribution": {
+          "condition": "tzone_cheek_delta_c > -0.40 AND tzone_cheek_delta_c < 0.40",
+          "interpretation": "Uniform facial thermal distribution.",
+          "allowed_actions": [
+            "Energy-based treatments may be applied uniformly if not otherwise contraindicated.",
+            "Use standard protocol settings appropriate to overall proxy scores."
+          ]
+        }
+      },
+
+      "lateral_asymmetry_rules": {
+        "mild_asymmetry": {
+          "condition": "left_right_delta_c >= 0.30 AND left_right_delta_c < 0.60",
+          "behavior": [
+            "Reduce energy intensity and number of passes on the warmer side.",
+            "Avoid initiating new aggressive modalities on the warmer side in the same session."
+          ]
+        },
+
+        "significant_asymmetry": {
+          "condition": "left_right_delta_c >= 0.60",
+          "required_actions": [
+            "Exclude the warmer side from heat-based energy modalities for this session.",
+            "Treat the warmer side with calming, barrier-supportive, or cooling approaches only."
+          ]
+        }
+      },
+
+      "integration_directive": {
+        "priority": "regional_temperature_modulates_intensity_not_permission",
+        "instruction": "Regional skin temperature should refine WHERE and HOW energy devices are used, not WHETHER they are used, unless global temperature denial conditions are met."
+      }
+    },
     "general_treatment_rules": [
       {
         "rule": "Every facial treatment must finish (last step of treatment) with Serum + Moisturizer + Sunscreen."

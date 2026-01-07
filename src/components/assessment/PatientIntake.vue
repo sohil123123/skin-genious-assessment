@@ -66,7 +66,7 @@
             <h2 class="text-sm font-semibold tracking-wider mb-4">SKIN TEMPERATURE (°C)</h2>
 
             <div class="row q-col-gutter-md">
-              <div class="col-6">
+              <div class="col-4">
                 <q-select
                   outlined
                   label="Head (°C)"
@@ -77,14 +77,25 @@
                 />
               </div>
 
-              <div class="col-6">
+              <div class="col-4">
                 <q-select
                   outlined
-                  label="Cheeks (°C)"
-                  v-model="assessmentData.skin_temp_for_cheeks"
+                  label="Left Cheek (°C)"
+                  v-model="assessmentData.left_cheek_temp"
                   :options="skinTempOptions"
                   clearable
-                  @update:model-value="saveData(['skin_temp_for_cheeks'])"
+                  @update:model-value="saveData(['left_cheek_temp'])"
+                />
+              </div>
+
+              <div class="col-4">
+                <q-select
+                  outlined
+                  label="Right Cheek (°C)"
+                  v-model="assessmentData.right_cheek_temp"
+                  :options="skinTempOptions"
+                  clearable
+                  @update:model-value="saveData(['right_cheek_temp'])"
                 />
               </div>
             </div>
@@ -162,7 +173,7 @@
       </section>
 
       <section class="q-mt-lg">
-        <span class="text-sm text-weight-bold">Recent chemical peel or laser treatment?</span>
+        <span class="text-sm text-weight-bold">Used laser within 7 days?</span>
         <div class="flex items-center q-gutter-sm q-mt-xs">
           <q-btn
             :flat="assessmentData.recent_peel_or_laser == 'yes'"
@@ -188,7 +199,7 @@
       </section>
 
       <section class="q-mt-md">
-        <span class="text-sm text-weight-bold">Retinol or retinoid used last night?</span>
+        <span class="text-sm text-weight-bold">Used retinol in last 24 hours?</span>
         <div class="flex items-center q-gutter-sm q-mt-xs">
           <q-btn
             :flat="assessmentData.retinol_used_last_night == 'yes'"

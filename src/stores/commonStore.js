@@ -60,7 +60,7 @@ export const useCommonStore = defineStore('common', {
       }
       update(() => {
         const needle = val.toLowerCase()
-        this.clients = this.initialClients.filter((v) => v.toLowerCase().indexOf(needle) > -1)
+        this.clients = this.initialClients.filter((v) => v.label.toLowerCase().indexOf(needle) > -1)
       })
     },
     addMinutes(dateTime) {
