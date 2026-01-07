@@ -147,11 +147,24 @@ function startSteps() {
   // go to first step (steps are 1-based in route)
   router.push({
     name: 'TreatmentSteps',
-    params: { user_id: route.params.user_id, session_id: sessionID, step: 1 },
+    params: {
+      user_id: route.params.user_id,
+      assessment_id: assessmentStore.assessmentData.id,
+      session_id: sessionID,
+      step: 1,
+      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+    },
   })
 }
 
 function backToPlan() {
-  router.push({ name: 'index', params: { user_id: route.params.user_id, step: 'step-5' } })
+  router.push({
+    name: 'index',
+    params: {
+      user_id: route.params.user_id,
+      step: 'step-5',
+      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+    },
+  })
 }
 </script>

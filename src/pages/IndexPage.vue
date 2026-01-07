@@ -174,8 +174,10 @@ function navigateToStep(step) {
   router.push({
     name: route.name,
     params: {
+      user_id: route.params.user_id,
       step,
-      assessment_id: route.params.assessment_id || undefined,
+      ...(route.params.assessment_id && { assessment_id: route.params.assessment_id }),
+      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
     },
   })
 }
@@ -475,6 +477,10 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     allergies: assessmentData.value.allergies,
     is_pregnant: assessmentData.value.is_pregnant,
     breastfeeding: assessmentData.value.breastfeeding,
+    skin_temp_for_head: assessmentData.value.skin_temp_for_head,
+    skin_temp_for_cheeks: assessmentData.value.skin_temp_for_cheeks,
+    recent_peel_or_laser: assessmentData.value.recent_peel_or_laser,
+    retinol_used_last_night: assessmentData.value.retinol_used_last_night,
   }
 
   const input = [

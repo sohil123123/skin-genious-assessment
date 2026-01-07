@@ -161,6 +161,7 @@ const startSession = (session) => {
       user_id: route.params.user_id,
       assessment_id: assessmentData.value.id,
       session_id: session.id,
+      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
     },
   })
 }

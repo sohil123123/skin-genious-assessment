@@ -207,7 +207,7 @@ onMounted(async () => {
   // mark completed if not yet
   store.markCompleted()
   // INFO: Update Treatment Session Status and Appointment Status to "completed"
-  await assessmentStore.updateStatus(route.params.appointment_id)
+  if (route.params.appointment_id) await assessmentStore.updateStatus(route.params.appointment_id)
 })
 
 const session = computed(() => store.currentSession)
@@ -218,7 +218,14 @@ const nextSession = computed(() => {
 
 function toPostAssessment() {
   // route to your post assessment page (step-7)
-  router.push({ name: 'index', params: { user_id: route.params.user_id, step: 'step-6' } })
+  router.push({
+    name: 'index',
+    params: {
+      user_id: route.params.user_id,
+      step: 'step-6',
+      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+    },
+  })
 }
 
 function bookNextAppointment() {

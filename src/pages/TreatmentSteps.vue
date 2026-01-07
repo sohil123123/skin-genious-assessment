@@ -247,7 +247,12 @@ function next() {
   if (store.status === 'completed') {
     router.push({
       name: 'TreatmentComplete',
-      params: { session_id: sessionID },
+      params: {
+        user_id: route.params.user_id,
+        assessment_id: assessmentStore.assessmentData.id,
+        session_id: sessionID,
+        ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+      },
     })
     return
   }
@@ -255,7 +260,13 @@ function next() {
   const nextStepNum = store.currentStepIndex + 1
   router.push({
     name: 'TreatmentSteps',
-    params: { session_id: sessionID, step: nextStepNum },
+    params: {
+      user_id: route.params.user_id,
+      assessment_id: assessmentStore.assessmentData.id,
+      session_id: sessionID,
+      step: nextStepNum,
+      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+    },
   })
 }
 
@@ -263,7 +274,13 @@ function prev() {
   store.prevStep()
   router.push({
     name: 'TreatmentSteps',
-    params: { session_id: sessionID, step: store.currentStepIndex + 1 },
+    params: {
+      user_id: route.params.user_id,
+      assessment_id: assessmentStore.assessmentData.id,
+      session_id: sessionID,
+      step: store.currentStepIndex + 1,
+      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+    },
   })
 }
 
@@ -289,7 +306,12 @@ function abort() {
       store.resetFlow()
       router.push({
         name: 'TreatmentPrep',
-        params: { assessment_id: assessmentStore.assessmentData.id, session_id: sessionID },
+        params: {
+          user_id: route.params.user_id,
+          assessment_id: assessmentStore.assessmentData.id,
+          session_id: sessionID,
+          ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+        },
       })
     })
     .onCancel(() => {

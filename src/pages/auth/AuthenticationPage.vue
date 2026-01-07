@@ -35,7 +35,7 @@ const $q = useQuasar()
 
 const token = route.query.token
 const userId = route.query.user_id
-const appointment_id = route.query.appointment_id
+const appointmentId = route.query.appointment_id
 const assessment_id = route.query.assessment_id ?? null
 const session_id = route.query.session_id ?? null
 const type = route.query.type ?? null
@@ -63,16 +63,20 @@ onMounted(async () => {
         if (type == 'assessment') {
           router.push({
             name: 'index',
-            params: { user_id: userId, step: 'step-1' },
+            params: {
+              user_id: userId,
+              step: 'step-1',
+              ...(appointmentId && { appointment_id: appointmentId }),
+            },
           })
         } else if (type == 'treatment') {
           router.push({
             name: 'TreatmentPrep',
             params: {
               user_id: userId,
-              appointment_id: appointment_id,
               assessment_id: assessment_id,
               session_id: session_id,
+              ...(appointmentId && { appointment_id: appointmentId }),
             },
           })
         } else if (type == 'appointment') {
