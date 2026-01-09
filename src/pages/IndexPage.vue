@@ -477,9 +477,9 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     allergies: assessmentData.value.allergies,
     is_pregnant: assessmentData.value.is_pregnant,
     breastfeeding: assessmentData.value.breastfeeding,
-    forehead_temp: assessmentData.value.skin_temp_for_head + '°C',
-    left_cheek_temp: assessmentData.value.left_cheek_temp + '°C',
-    right_cheek_temp: assessmentData.value.right_cheek_temp + '°C',
+    forehead_surface_c: assessmentData.value.skin_temp_for_head + '°C',
+    left_cheek_surface_c: assessmentData.value.left_cheek_temp + '°C',
+    right_cheek_surface_c: assessmentData.value.right_cheek_temp + '°C',
     laser_within_last_7_days: assessmentData.value.recent_peel_or_laser,
     used_retinol_last_24_hours: assessmentData.value.retinol_used_last_night,
   }

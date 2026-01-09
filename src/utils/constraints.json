@@ -121,70 +121,98 @@
       "behavioral_directive": "Do NOT avoid energy-based modalities out of conservatism alone. If no denial condition is met, evaluate energy devices normally and select the highest-efficacy modality for the primary concern; if caution is triggered, still use energy devices but with conservative parameters and reduced stacking."
     },
     "regional_skin_temperature_policy": {
-      "intent": "maximize_customization_and_tolerance",
-      "measurement_points": ["forehead_c", "left_cheek_c", "right_cheek_c"],
+      "measurement_mode": "surface",
+
+      "inputs": {
+        "forehead_surface_c": "number",
+        "left_cheek_surface_c": "number",
+        "right_cheek_surface_c": "number"
+      },
+
       "derived_metrics": {
-        "avg_facial_temp_c": "(forehead_c + left_cheek_c + right_cheek_c) / 3",
-        "cheek_avg_temp_c": "(left_cheek_c + right_cheek_c) / 2",
-        "tzone_cheek_delta_c": "forehead_c - ((left_cheek_c + right_cheek_c) / 2)",
-        "left_right_delta_c": "ABS(left_cheek_c - right_cheek_c)"
+        "avg_facial_surface_temp_c": {
+          "formula": "(forehead_surface_c + left_cheek_surface_c + right_cheek_surface_c) / 3"
+        },
+        "avg_cheek_surface_temp_c": {
+          "formula": "(left_cheek_surface_c + right_cheek_surface_c) / 2"
+        },
+        "left_right_delta_c": {
+          "formula": "abs(left_cheek_surface_c - right_cheek_surface_c)"
+        },
+        "forehead_minus_avg_cheek_delta_c": {
+          "formula": "forehead_surface_c - avg_cheek_surface_temp_c"
+        }
       },
+
       "global_session_modifiers": {
-        "deny_if_any_true": ["avg_facial_temp_c>= 37.8"],
-        "caution_if_any_true": ["avg_facial_temp_c>= 37.2 AND avg_facial_temp_c< 37.8"],
-        "behavior_when_caution": [
-          "Avoid stacking multiple heat-based energy modalities in the same session.",
-          "Prefer cooling, calming, or non-ablative modalities before heat-based escalation.",
-          "Reduce initial energy settings and number of passes."
-        ]
-      },
-      "regional_modulation_rules": {
-        "tzone_dominant_heat": {
-          "condition": "tzone_cheek_delta_c>= 0.40",
-          "interpretation": "Sebum-driven or T-zone–dominant activity with acceptable cheek tolerance.",
-          "allowed_actions": [
-            "Energy-based treatments (including carbon laser/peel) may be used preferentially on the forehead/T-zone.",
-            "Cheek regions should be treated conservatively unless other proxies explicitly support escalation."
-          ]
+        "deny_aggressive": {
+          "condition": "avg_facial_surface_temp_c >= 36.9",
+          "actions": [
+            "block_heat_based_devices",
+            "block_strong_exfoliation",
+            "block_high_intensity_actives",
+            "allow_only_soothing_and_barrier_repair"
+          ],
+          "reason": "Surface facial temperature extremely elevated, indicating active inflammation or high reactivity risk"
         },
-        "cheek_dominant_heat": {
-          "condition": "tzone_cheek_delta_c<= -0.40",
-          "interpretation": "Cheek-dominant inflammatory or barrier-related activation.",
-          "required_actions": [
-            "Avoid heat-based energy modalities on cheek regions.",
-            "Prefer barrier-repair, calming, LED, or cooling treatments on cheeks.",
-            "If energy devices are used, restrict them to non-cheek regions only."
-          ]
-        },
-        "balanced_distribution": {
-          "condition": "tzone_cheek_delta_c> -0.40 AND tzone_cheek_delta_c< 0.40",
-          "interpretation": "Uniform facial thermal distribution.",
-          "allowed_actions": [
-            "Energy-based treatments may be applied uniformly if not otherwise contraindicated.",
-            "Use standard protocol settings appropriate to overall proxy scores."
-          ]
+
+        "caution": {
+          "condition": "avg_facial_surface_temp_c >= 36.4 AND avg_facial_surface_temp_c < 36.9",
+          "actions": [
+            "reduce_energy_device_intensity",
+            "shorten_exfoliation_duration",
+            "prefer_soothing_over_stimulating_actives",
+            "monitor_skin_response_during_session"
+          ],
+          "reason": "Surface facial temperature elevated, suggesting increased inflammatory reactivity"
         }
       },
-      "lateral_asymmetry_rules": {
-        "mild_asymmetry": {
-          "condition": "left_right_delta_c>= 0.30 AND left_right_delta_c< 0.60",
-          "behavior": [
-            "Reduce energy intensity and number of passes on the warmer side.",
-            "Avoid initiating new aggressive modalities on the warmer side in the same session."
-          ]
+
+      "regional_modifiers": {
+        "cheek_asymmetry": {
+          "condition": "left_right_delta_c >= 0.4",
+          "actions": [
+            "treat_hotter_cheek_as_reactive_zone",
+            "reduce_local_intensity_on_hotter_side",
+            "avoid_aggressive_passes_on_hotter_side"
+          ],
+          "reason": "Significant unilateral surface temperature difference suggests localized irritation or inflammation"
         },
-        "significant_asymmetry": {
-          "condition": "left_right_delta_c>= 0.60",
-          "required_actions": [
-            "Exclude the warmer side from heat-based energy modalities for this session.",
-            "Treat the warmer side with calming, barrier-supportive, or cooling approaches only."
-          ]
+
+        "cheek_moderate_asymmetry": {
+          "condition": "left_right_delta_c >= 0.3 AND left_right_delta_c < 0.4",
+          "actions": [
+            "apply_mild_intensity_adjustment_on_hotter_cheek",
+            "increase_soothing_steps_on_hotter_side"
+          ],
+          "reason": "Moderate unilateral temperature difference indicating early localized reactivity"
+        },
+
+        "tzone_relative_heat": {
+          "condition": "forehead_minus_avg_cheek_delta_c >= 0.4",
+          "actions": [
+            "focus_on_sebum_and_congestion_management_in_tzone",
+            "avoid_overheating_forehead"
+          ],
+          "reason": "Forehead significantly hotter than cheeks, suggesting sebaceous congestion or metabolic heat"
+        },
+
+        "cheek_relative_heat": {
+          "condition": "forehead_minus_avg_cheek_delta_c <= -0.4",
+          "actions": [
+            "prioritize_barrier_repair_and_anti_inflammatory_steps_on_cheeks",
+            "avoid_aggressive_exfoliation_on_cheeks"
+          ],
+          "reason": "Cheeks hotter than forehead, indicating inflammatory or rosacea-prone behavior"
         }
       },
-      "integration_directive": {
-        "priority": "regional_temperature_modulates_intensity_not_permission",
-        "instruction": "Regional skin temperature should refine WHERE and HOW energy devices are used, not WHETHER they are used, unless global temperature denial conditions are met."
-      }
+
+      "operational_notes": [
+        "All temperatures must be measured using surface mode only",
+        "Measurements should be taken after 5 minutes seated indoors",
+        "Avoid face washing or wiping for 10 minutes prior to measurement",
+        "Use median of two readings per point if possible"
+      ]
     },
     "general_treatment_rules": [
       {
