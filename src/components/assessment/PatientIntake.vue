@@ -67,33 +67,33 @@
 
             <div class="row q-col-gutter-md">
               <div class="col-4">
-                <q-select
+                <q-input
                   outlined
                   label="Head (°C)"
                   v-model="assessmentData.skin_temp_for_head"
-                  :options="skinTempOptions"
+                  type="number"
                   clearable
                   @update:model-value="saveData(['skin_temp_for_head'])"
                 />
               </div>
 
               <div class="col-4">
-                <q-select
+                <q-input
                   outlined
                   label="Left Cheek (°C)"
                   v-model="assessmentData.left_cheek_temp"
-                  :options="skinTempOptions"
+                  type="number"
                   clearable
                   @update:model-value="saveData(['left_cheek_temp'])"
                 />
               </div>
 
               <div class="col-4">
-                <q-select
+                <q-input
                   outlined
                   label="Right Cheek (°C)"
                   v-model="assessmentData.right_cheek_temp"
-                  :options="skinTempOptions"
+                  type="number"
                   clearable
                   @update:model-value="saveData(['right_cheek_temp'])"
                 />
@@ -317,8 +317,6 @@ const props = defineProps({
 })
 
 const startProcessingStep = ref(props.startProcessingStep)
-
-const skinTempOptions = Array.from({ length: 11 }, (_, i) => 32 + i)
 
 // Keep it in sync with parent changes
 watch(
