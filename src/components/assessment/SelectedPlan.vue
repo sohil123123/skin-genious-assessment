@@ -12,15 +12,15 @@
       </div>
 
       <!-- Right button -->
-      <!-- <q-btn
-        color="primary"
-        label="Start Treatment"
-        icon-right="arrow_forward"
+      <q-btn
+        color="positive"
+        label="Download Treatment Plan"
+        icon="download"
         glossy
         unelevated
         rounded
-        @click="startSession(1)"
-      /> -->
+        @click="$emit('download-pdf')"
+      />
     </div>
   </q-card>
 
@@ -140,6 +140,8 @@ const route = useRoute()
 const treatmentStore = useTreatmentFlowStore()
 
 const treatmentPlan = ref(null)
+
+defineEmits(['download-pdf'])
 
 watch(
   () => assessmentData.value,

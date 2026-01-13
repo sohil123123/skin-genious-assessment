@@ -129,7 +129,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { storeToRefs } from 'pinia'
-import { useQuasar, Loading, LocalStorage } from 'quasar'
+import { useQuasar, Loading, LocalStorage, Notify } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { ref, watch } from 'vue'
 import config from 'src/config.js'
@@ -257,184 +257,196 @@ const downloadReport = () => {
 
 const downloadVisualReport = async () => {
   Loading.show({ message: 'Generating PDF report...' })
-  await new Promise((r) => setTimeout(r, 1000))
+  try {
+    await new Promise((r) => setTimeout(r, 1000))
 
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'pt',
-    format: 'a4',
-  })
-
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-
-  const marginX = 48
-  const topPadding = 32
-  // const bottomPadding = 40
-  const contentWidth = pageWidth - marginX * 2
-
-  const primaryRgb = [25, 118, 210]
-
-  const comparisonTitles = [
-    'White Light',
-    'Positive',
-    'Negative',
-    'Blue Light',
-    'UV Light',
-    'Woods Light',
-  ]
-
-  // const sectionGap = 18
-  const cardPadding = 10
-  const cardWidth = (contentWidth - 24) / 2
-  const cardHeight = 300
-
-  // ----------------------------
-  // COVER PAGE (Style D)
-  // ----------------------------
-  ;(() => {
-    // Title
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(28)
-    doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2])
-    doc.text('AI AESTHETICS', pageWidth / 2, pageHeight * 0.23, { align: 'center' })
-
-    doc.setFontSize(20)
-    doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2])
-    doc.text('BEFORE vs AFTER', pageWidth / 2, pageHeight * 0.28, { align: 'center' })
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(18)
-    doc.text('VISUAL COMPARISON REPORT', pageWidth / 2, pageHeight * 0.32, { align: 'center' })
-
-    // Patient Info
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(12)
-    doc.setTextColor(50)
-
-    const patientName = assessmentData.value.name || ''
-    const patientAge = assessmentData.value.age || ''
-    const patientGender = assessmentData.value.gender || ''
-
-    doc.text(`Patient: ${patientName}`, pageWidth / 2, pageHeight * 0.42, { align: 'center' })
-
-    doc.text(`Age / Gender: ${patientAge} ${patientGender}`, pageWidth / 2, pageHeight * 0.46, {
-      align: 'center',
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4',
     })
 
-    doc.text(
-      `Treatment Session: ${post_diagnosis.value.metadata?.treatment_session}`,
-      pageWidth / 2,
-      pageHeight * 0.5,
-      { align: 'center' },
-    )
-  })()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
 
-  // Add page for content
-  doc.addPage()
+    const marginX = 48
+    const topPadding = 32
+    // const bottomPadding = 40
+    const contentWidth = pageWidth - marginX * 2
 
-  // ----------------------------
-  // MAIN PAGES — 1 COMPARISON PER PAGE
-  // ----------------------------
-  for (let idx = 0; idx < 6; idx++) {
-    // Start new page for every comparison (except first content page)
-    if (idx !== 0) {
-      doc.addPage()
-    }
+    const primaryRgb = [25, 118, 210]
 
-    let cursorY = topPadding
+    const comparisonTitles = [
+      'White Light',
+      'Positive',
+      'Negative',
+      'Blue Light',
+      'UV Light',
+      'Woods Light',
+    ]
 
-    // Section title
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(14)
-    doc.setTextColor(22, 63, 120)
-    doc.text(comparisonTitles[idx], marginX, cursorY)
+    // const sectionGap = 18
+    const cardPadding = 10
+    const cardWidth = (contentWidth - 24) / 2
+    const cardHeight = 300
 
-    doc.setDrawColor(200)
-    doc.line(marginX, cursorY + 4, marginX + 180, cursorY + 4)
+    // ----------------------------
+    // COVER PAGE (Style D)
+    // ----------------------------
+    ;(() => {
+      // Title
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(28)
+      doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2])
+      doc.text('AI AESTHETICS', pageWidth / 2, pageHeight * 0.23, { align: 'center' })
 
-    cursorY += 18
+      doc.setFontSize(20)
+      doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2])
+      doc.text('BEFORE vs AFTER', pageWidth / 2, pageHeight * 0.28, { align: 'center' })
 
-    // Labels
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.setTextColor(100)
-    doc.text('Before (Baseline)', marginX, cursorY)
-    doc.text('After (Post)', marginX + cardWidth + 24, cursorY)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(18)
+      doc.text('VISUAL COMPARISON REPORT', pageWidth / 2, pageHeight * 0.32, { align: 'center' })
 
-    cursorY += 8
+      // Patient Info
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(12)
+      doc.setTextColor(50)
 
-    // Card positions
-    const leftCardX = marginX
-    const rightCardX = marginX + cardWidth + 24
-    const topY = cursorY
+      const patientName = assessmentData.value.name || ''
+      const patientAge = assessmentData.value.age || ''
+      const patientGender = assessmentData.value.gender || ''
 
-    // LEFT card
-    doc.setFillColor(240, 240, 240)
-    doc.rect(leftCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
-    doc.setFillColor(255, 255, 255)
-    doc.rect(leftCardX, topY, cardWidth, cardHeight, 'F')
-    doc.setDrawColor(220)
-    doc.rect(leftCardX, topY, cardWidth, cardHeight, 'S')
+      doc.text(`Patient: ${patientName}`, pageWidth / 2, pageHeight * 0.42, { align: 'center' })
 
-    // RIGHT card
-    doc.setFillColor(240, 240, 240)
-    doc.rect(rightCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
-    doc.setFillColor(255, 255, 255)
-    doc.rect(rightCardX, topY, cardWidth, cardHeight, 'F')
-    doc.setDrawColor(220)
-    doc.rect(rightCardX, topY, cardWidth, cardHeight, 'S')
+      doc.text(`Age / Gender: ${patientAge} ${patientGender}`, pageWidth / 2, pageHeight * 0.46, {
+        align: 'center',
+      })
 
-    // Images
-    const imgW = cardWidth - cardPadding * 2
-    const imgH = cardHeight - cardPadding * 2
-    const imgY = topY + cardPadding
+      doc.text(
+        `Treatment Session: ${post_diagnosis.value.metadata?.treatment_session}`,
+        pageWidth / 2,
+        pageHeight * 0.5,
+        { align: 'center' },
+      )
+    })()
 
-    const beforeImg = faceImages.value[idx]
-    const afterImg = postTreatmentImages.value[idx]
+    // Add page for content
+    doc.addPage()
 
-    const addImage = (img, x, y) => {
-      if (!img) return
-      try {
-        doc.addImage(img, 'PNG', x, y, imgW, imgH)
-      } catch {
+    // ----------------------------
+    // MAIN PAGES — 1 COMPARISON PER PAGE
+    // ----------------------------
+    for (let idx = 0; idx < 6; idx++) {
+      // Start new page for every comparison (except first content page)
+      if (idx !== 0) {
+        doc.addPage()
+      }
+
+      let cursorY = topPadding
+
+      // Section title
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.setTextColor(22, 63, 120)
+      doc.text(comparisonTitles[idx], marginX, cursorY)
+
+      doc.setDrawColor(200)
+      doc.line(marginX, cursorY + 4, marginX + 180, cursorY + 4)
+
+      cursorY += 18
+
+      // Labels
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(100)
+      doc.text('Before (Baseline)', marginX, cursorY)
+      doc.text('After (Post)', marginX + cardWidth + 24, cursorY)
+
+      cursorY += 8
+
+      // Card positions
+      const leftCardX = marginX
+      const rightCardX = marginX + cardWidth + 24
+      const topY = cursorY
+
+      // LEFT card
+      doc.setFillColor(240, 240, 240)
+      doc.rect(leftCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
+      doc.setFillColor(255, 255, 255)
+      doc.rect(leftCardX, topY, cardWidth, cardHeight, 'F')
+      doc.setDrawColor(220)
+      doc.rect(leftCardX, topY, cardWidth, cardHeight, 'S')
+
+      // RIGHT card
+      doc.setFillColor(240, 240, 240)
+      doc.rect(rightCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
+      doc.setFillColor(255, 255, 255)
+      doc.rect(rightCardX, topY, cardWidth, cardHeight, 'F')
+      doc.setDrawColor(220)
+      doc.rect(rightCardX, topY, cardWidth, cardHeight, 'S')
+
+      // Images
+      const imgW = cardWidth - cardPadding * 2
+      const imgH = cardHeight - cardPadding * 2
+      const imgY = topY + cardPadding
+
+      const beforeImg = faceImages.value[idx]
+      const afterImg = postTreatmentImages.value[idx]
+
+      const addImage = (img, x, y) => {
+        if (!img) return
         try {
-          doc.addImage(img, 'JPEG', x, y, imgW, imgH)
-        } catch (e) {
-          console.log(e)
+          doc.addImage(img, 'PNG', x, y, imgW, imgH)
+        } catch {
+          try {
+            doc.addImage(img, 'JPEG', x, y, imgW, imgH)
+          } catch (e) {
+            console.log(e)
+          }
         }
       }
+
+      addImage(beforeImg, leftCardX + cardPadding, imgY)
+      addImage(afterImg, rightCardX + cardPadding, imgY)
+
+      // Divider
+      let dividerY = topY + cardHeight + 42
+      doc.setDrawColor(225)
+      doc.line(marginX, dividerY, pageWidth - marginX, dividerY)
     }
 
-    addImage(beforeImg, leftCardX + cardPadding, imgY)
-    addImage(afterImg, rightCardX + cardPadding, imgY)
+    // ----------------------------
+    // FOOTER (Except Cover Page)
+    // ----------------------------
+    const pageCount = doc.internal.getNumberOfPages()
+    for (let p = 2; p <= pageCount; p++) {
+      doc.setPage(p)
 
-    // Divider
-    let dividerY = topY + cardHeight + 42
-    doc.setDrawColor(225)
-    doc.line(marginX, dividerY, pageWidth - marginX, dividerY)
+      const footerY = pageHeight - 24
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(140)
+      doc.text('AI AESTHETICS — Generated Report', marginX, footerY)
+
+      doc.text(`Page ${p - 1} of ${pageCount - 1}`, pageWidth / 2, footerY, { align: 'center' })
+    }
+
+    Loading.hide()
+    const filename = `${assessmentData.value.name}_Visual_Comparison_Report_${post_diagnosis.value.metadata?.treatment_session.replace(/\s+/g, '_')}.pdf`
+    doc.save(filename)
+  } catch (error) {
+    console.error('PDF generation failed:', error)
+
+    Notify.create({
+      type: 'negative',
+      message: error?.message || 'Failed to generate PDF. Please try again.',
+    })
+  } finally {
+    // 🔥 ALWAYS hide loader
+    Loading.hide()
   }
-
-  // ----------------------------
-  // FOOTER (Except Cover Page)
-  // ----------------------------
-  const pageCount = doc.internal.getNumberOfPages()
-  for (let p = 2; p <= pageCount; p++) {
-    doc.setPage(p)
-
-    const footerY = pageHeight - 24
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.setTextColor(140)
-    doc.text('AI AESTHETICS — Generated Report', marginX, footerY)
-
-    doc.text(`Page ${p - 1} of ${pageCount - 1}`, pageWidth / 2, footerY, { align: 'center' })
-  }
-
-  Loading.hide()
-  const filename = `${assessmentData.value.name}_Visual_Comparison_Report_${post_diagnosis.value.metadata?.treatment_session.replace(/\s+/g, '_')}.pdf`
-  doc.save(filename)
 }
 
 function finalizeAndExit() {

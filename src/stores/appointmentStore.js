@@ -72,15 +72,32 @@ export const useAppointmentStore = defineStore('appointment', {
       if (start_date && end_date) {
         url += `&from_date=${start_date}&to_date=${end_date}`
       }
+
       Loading.show({
         spinner: QSpinnerClock,
         message: 'Getting appointments...',
       })
+
       try {
         const res = await api.get(url)
         this.rawEvents = res.data.results
+
+        // Return the data so component can use it
+        return {
+          success: true,
+          data: res.data.results,
+          message: res.data.message,
+        }
       } catch (error) {
         this.error = error
+
+        // Return error response
+        return {
+          success: false,
+          data: [],
+          message: error.response?.data?.message || 'Failed to fetch appointments',
+          error: error,
+        }
       } finally {
         this.loading = false
         Loading.hide()
