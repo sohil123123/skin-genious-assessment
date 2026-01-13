@@ -34,12 +34,6 @@
       </q-card-section>
 
       <q-card-section v-if="clinic_id && therapist_id">
-        <!-- Loading indicator -->
-        <div v-if="isLoading" class="text-center q-my-md">
-          <q-spinner size="lg" />
-          <div>Loading appointments...</div>
-        </div>
-
         <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
         <!-- Add/Edit dialog -->
