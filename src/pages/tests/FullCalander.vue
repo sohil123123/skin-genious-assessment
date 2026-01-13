@@ -34,6 +34,12 @@
       </q-card-section>
 
       <q-card-section v-if="clinic_id && therapist_id">
+        <!-- Loading indicator -->
+        <div v-if="isLoading" class="text-center q-my-md">
+          <q-spinner size="lg" />
+          <div>Loading appointments...</div>
+        </div>
+
         <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
         <!-- Add/Edit dialog -->
@@ -112,10 +118,7 @@ const therapist_id = ref(therapistId)
 
 const appointments = ref([])
 const disabledSlotsFromAPI = ref([])
-const startDate = ref(null)
-const endDate = ref(null)
 const isLoading = ref(false)
-const isCalendarReady = ref(false)
 
 /* ------------------ REACTIVE STATE ------------------ */
 const form = ref({
@@ -143,50 +146,8 @@ const clinicHours = computed(() => {
   }
 })
 
-const calendarEvents = computed(() => {
-  const allEvents = []
-
-  // Add appointments
-  appointments.value.forEach((apt) => {
-    allEvents.push({
-      id: apt.id.toString(),
-      title: apt.title,
-      start: apt.start,
-      end: apt.end,
-      backgroundColor: apt.backgroundColor,
-      borderColor: apt.borderColor,
-      extendedProps: apt.extendedProps,
-    })
-  })
-
-  // Add disabled slots
-  disabledSlotsFromAPI.value.forEach((slot) => {
-    allEvents.push({
-      id: slot.id.toString(),
-      title: slot.title,
-      start: slot.start,
-      end: slot.end,
-      display: slot.display,
-      backgroundColor: slot.backgroundColor,
-      interactive: false,
-      extendedProps: slot.extendedProps,
-    })
-  })
-
-  return allEvents
-})
-
 /* ------------------ LIFECYCLE ------------------ */
 onMounted(async () => {
-  // Set initial date range
-  const now = new Date()
-  startDate.value = formatDateToYMD(now)
-
-  const endOfWeek = new Date(now)
-  endOfWeek.setDate(now.getDate() + 7)
-  endDate.value = formatDateToYMD(endOfWeek)
-
-  // Load initial data
   if (clinicId) {
     clinic_id.value = clinicId
     await commonStore.getClinics()
@@ -195,22 +156,10 @@ onMounted(async () => {
     await commonStore.getClinics()
   }
 
-  // Load therapist if provided
   if (therapistId) {
     therapist_id.value = therapistId
   }
-
-  // Load appointments if both clinic and therapist are selected
-  // if (clinic_id.value && therapist_id.value) {
-  //   await fetchAppointments()
-  // }
-
-  // Wait for calendar to initialize
-  await nextTick()
-  isCalendarReady.value = true
 })
-
-/* ------------------ WATCHERS ------------------ */
 
 /* ------------------ UTILITY FUNCTIONS ------------------ */
 function formatDateTime(dateTime) {
@@ -245,16 +194,14 @@ function formatDateToYMD(dateValue) {
 }
 
 function formatTimeString(timeString) {
-  // Convert "10:30:00" or "10:30" to "10:30:00"
   if (!timeString) return '00:00:00'
 
-  // If already has seconds, return as-is
   if (timeString.includes(':')) {
     const parts = timeString.split(':')
     if (parts.length === 3) {
-      return timeString // Already has seconds
+      return timeString
     } else if (parts.length === 2) {
-      return `${timeString}:00` // Add seconds
+      return `${timeString}:00`
     }
   }
 
@@ -268,7 +215,6 @@ function isPastTime(date) {
 
 function isTimeWithinClinicHours(date) {
   if (!selectedClinicData.value) return false
-
   const time = getTimeString(date)
   return time >= clinicHours.value.open && time <= clinicHours.value.close
 }
@@ -310,6 +256,63 @@ function validateTimeSlot(start) {
   return true
 }
 
+/* ------------------ EVENT PROCESSING ------------------ */
+function processApiResponse(results) {
+  const appointmentsList = []
+  const disabledSlotsList = []
+
+  results.forEach((item) => {
+    if (item.type === 'appointment') {
+      const formattedStartTime = formatTimeString(item.start_time)
+      const formattedEndTime = formatTimeString(item.end_time)
+      const startDateTime = `${item.start_date}T${formattedStartTime}`
+      const endDateTime = `${item.end_date}T${formattedEndTime}`
+
+      appointmentsList.push({
+        id: item.id.toString(),
+        title: `${item.meta?.client || 'Patient'} (${item.status})`,
+        start: startDateTime,
+        end: endDateTime,
+        backgroundColor: item.bgcolor || '#3788d8',
+        borderColor: item.bgcolor || '#3788d8',
+        extendedProps: {
+          originalData: item,
+          type: 'appointment',
+          status: item.status,
+          meta: item.meta,
+          isDisabledSlot: false,
+        },
+      })
+    } else {
+      const formattedStartTime = formatTimeString(item.start_time)
+      const formattedEndTime = formatTimeString(item.end_time)
+      const startDateTime = `${item.start_date}T${formattedStartTime}`
+      const endDateTime = `${item.end_date}T${formattedEndTime}`
+
+      disabledSlotsList.push({
+        id: item.id.toString(),
+        title: item.title,
+        start: startDateTime,
+        end: endDateTime,
+        display: 'background',
+        backgroundColor: item.bgcolor || '#BDBDBD',
+        start_date: item.start_date,
+        end_date: item.end_date,
+        start_time: formattedStartTime.slice(0, 5),
+        end_time: formattedEndTime.slice(0, 5),
+        extendedProps: {
+          originalData: item,
+          type: item.type,
+          reason: item.title,
+          isDisabledSlot: true,
+        },
+      })
+    }
+  })
+
+  return { appointmentsList, disabledSlotsList }
+}
+
 /* ------------------ CALENDAR OPTIONS ------------------ */
 const calendarOptions = ref({
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
@@ -336,32 +339,21 @@ const calendarOptions = ref({
   slotMinTime: computed(() => clinicHours.value.open),
   slotMaxTime: computed(() => clinicHours.value.close),
 
-  // CRITICAL: Bind events directly
-  events: (info, successCallback) => {
-    // Only return events if calendar is ready and we have data
-    if (isCalendarReady.value && calendarEvents.value.length > 0) {
-      successCallback(calendarEvents.value)
-    } else {
-      successCallback([])
-    }
+  // Use function callback for events
+  events: function (fetchInfo, successCallback) {
+    const eventsToShow = [...appointments.value, ...disabledSlotsFromAPI.value]
+    successCallback(eventsToShow)
   },
 
-  datesSet: (info) => {
-    startDate.value = formatDateToYMD(info.start)
-    endDate.value = formatDateToYMD(info.end)
-
+  datesSet: () => {
     if (clinic_id.value && therapist_id.value) {
       fetchAppointments()
     }
   },
 
-  selectAllow: (info) => {
-    return validateTimeSlot(info.start)
-  },
+  selectAllow: (info) => validateTimeSlot(info.start),
 
-  eventAllow: (dropInfo) => {
-    return validateTimeSlot(dropInfo.start)
-  },
+  eventAllow: (dropInfo) => validateTimeSlot(dropInfo.start),
 
   select: (info) => {
     if (!validateTimeSlot(info.start)) {
@@ -380,7 +372,6 @@ const calendarOptions = ref({
     isEditMode.value = false
     showDialog.value = true
 
-    // Focus input after dialog opens
     nextTick(() => {
       if (patientInput.value) {
         patientInput.value.focus()
@@ -416,79 +407,7 @@ const calendarOptions = ref({
       info.el.style.cursor = 'pointer'
     }
   },
-
-  eventDidMount: (info) => {
-    if (info.event.extendedProps?.isDisabledSlot) {
-      info.el.style.backgroundColor = info.event.backgroundColor || '#BDBDBD'
-      info.el.style.opacity = '0.5'
-      info.el.style.pointerEvents = 'none'
-    }
-  },
 })
-
-/* ------------------ API RESPONSE PROCESSING ------------------ */
-async function processApiResponse(results) {
-  const appointmentsList = []
-  const disabledSlotsList = []
-
-  results.forEach((item) => {
-    if (item.type === 'appointment') {
-      // Convert time strings to include seconds
-      const formattedStartTime = formatTimeString(item.start_time)
-      const formattedEndTime = formatTimeString(item.end_time)
-
-      // Create proper ISO datetime strings
-      const startDateTime = `${item.start_date}T${formattedStartTime}`
-      const endDateTime = `${item.end_date}T${formattedEndTime}`
-
-      appointmentsList.push({
-        id: item.id.toString(),
-        title: `${item.meta?.client || 'Patient'} (${item.status})`,
-        start: startDateTime,
-        end: endDateTime,
-        backgroundColor: item.bgcolor || '#3788d8',
-        borderColor: item.bgcolor || '#3788d8',
-        extendedProps: {
-          originalData: item,
-          type: 'appointment',
-          status: item.status,
-          meta: item.meta,
-          isDisabledSlot: false,
-        },
-      })
-    } else {
-      // Convert time strings to include seconds
-      const formattedStartTime = formatTimeString(item.start_time)
-      const formattedEndTime = formatTimeString(item.end_time)
-
-      // Create proper ISO datetime strings
-      const startDateTime = `${item.start_date}T${formattedStartTime}`
-      const endDateTime = `${item.end_date}T${formattedEndTime}`
-
-      disabledSlotsList.push({
-        id: item.id.toString(),
-        title: item.title,
-        start: startDateTime, // Use dynamic value
-        end: endDateTime, // Use dynamic value
-        display: 'background',
-        className: 'disabled-slot',
-        backgroundColor: item.bgcolor || '#BDBDBD',
-        start_date: item.start_date,
-        end_date: item.end_date,
-        start_time: formattedStartTime.slice(0, 5), // Store without seconds for display
-        end_time: formattedEndTime.slice(0, 5),
-        extendedProps: {
-          originalData: item,
-          type: item.type,
-          reason: item.title,
-          isDisabledSlot: true,
-        },
-      })
-    }
-  })
-
-  return { appointmentsList, disabledSlotsList }
-}
 
 /* ------------------ CRUD OPERATIONS ------------------ */
 function handleSave() {
@@ -501,20 +420,11 @@ function handleSave() {
   }
 
   if (isEditMode.value) {
-    // Update existing event
     selectedEvent.value.setProp(
       'title',
       `${form.value.title} (${selectedEvent.value.extendedProps.status || 'Updated'})`,
     )
-
-    // Update in local array
-    const index = appointments.value.findIndex((apt) => apt.id === selectedEvent.value.id)
-    if (index > -1) {
-      appointments.value[index].title =
-        `${form.value.title} (${selectedEvent.value.extendedProps.status || 'Updated'})`
-    }
   } else {
-    // Create new event
     const newAppointment = {
       id: `local-${Date.now()}`,
       title: `${form.value.title} (Pending)`,
@@ -543,8 +453,6 @@ function handleSave() {
 function handleDelete() {
   if (selectedEvent.value) {
     const eventId = selectedEvent.value.id
-
-    // Remove from local array
     const index = appointments.value.findIndex((apt) => apt.id === eventId)
     if (index > -1) {
       appointments.value.splice(index, 1)
@@ -576,72 +484,36 @@ function resetForm() {
 }
 
 /* ------------------ API METHODS ------------------ */
-
-async function initializeCalendarEvents() {
-  if (!calendarRef.value?.getApi) return
-
-  const api = calendarRef.value.getApi()
-
-  // Remove any existing events
-  const existingEvents = api.getEvents()
-  existingEvents.forEach((event) => event.remove())
-
-  // Add all events manually
-  const allEvents = [...appointments.value, ...disabledSlotsFromAPI.value]
-
-  allEvents.forEach((event) => {
-    api.addEvent(event)
-  })
-}
-
 async function fetchAppointments() {
-  if (!clinic_id.value || !therapist_id.value || !startDate.value || !endDate.value) {
+  if (!clinic_id.value || !therapist_id.value) {
     return
   }
 
   isLoading.value = true
   try {
-    const formattedStartDate = formatDateToYMD(startDate.value)
-    const formattedEndDate = formatDateToYMD(endDate.value)
     const response = await appointmentStore.getAppointments(
       clinic_id.value,
       therapist_id.value,
-      formattedStartDate,
-      formattedEndDate,
+      formatDateToYMD(calendarRef.value?.getApi()?.view?.currentStart),
+      formatDateToYMD(calendarRef.value?.getApi()?.view?.currentEnd),
     )
 
     if (response.success) {
       const results = response.data || []
+      const { appointmentsList, disabledSlotsList } = processApiResponse(results)
 
-      // Process API response
-      const { appointmentsList, disabledSlotsList } = await processApiResponse(results)
-
-      // Update local state - this will trigger calendarEvents computed
       appointments.value = [...appointmentsList]
       disabledSlotsFromAPI.value = [...disabledSlotsList]
 
-      // Wait for Vue to update
-      await nextTick()
-
-      // Update calendar hours
-      if (calendarRef.value?.getApi && selectedClinicData.value) {
-        const api = calendarRef.value.getApi()
-        api.setOption('slotMinTime', clinicHours.value.open)
-        api.setOption('slotMaxTime', clinicHours.value.close)
-
-        await initializeCalendarEvents()
+      if (calendarRef.value?.getApi) {
+        calendarRef.value.getApi().refetchEvents()
       }
-    } else {
-      Notify.create({
-        type: 'negative',
-        message: response.message || 'Failed to load appointments',
-      })
     }
   } catch (error) {
-    console.error('Failed to fetch appointments:', error)
+    console.log(error)
     Notify.create({
       type: 'negative',
-      message: 'Network error while fetching appointments',
+      message: 'Failed to load appointments',
     })
   } finally {
     isLoading.value = false
@@ -653,12 +525,9 @@ function handleClinicChange(clinic) {
 
   clinic_id.value = clinic.id
   therapist_id.value = null
-
-  // Clear existing data
   appointments.value = []
   disabledSlotsFromAPI.value = []
 
-  // Load therapists for this clinic
   commonStore.getTherapiests(clinic.id)
 }
 
@@ -666,13 +535,10 @@ function handleTherapistChange(therapistId) {
   if (!therapistId) return
 
   therapist_id.value = therapistId
-
-  // Clear existing data
   appointments.value = []
   disabledSlotsFromAPI.value = []
 
-  // Fetch appointments
-  if (clinic_id.value && startDate.value && endDate.value) {
+  if (clinic_id.value) {
     fetchAppointments()
   }
 }
@@ -690,15 +556,6 @@ function handleTherapistChange(therapistId) {
   opacity: 0.7 !important;
 }
 
-:deep(.disabled-slot) {
-  background-color: #bdbdbd !important;
-  opacity: 0.5 !important;
-}
-
-:deep(.fc-bg-event) {
-  border: none !important;
-}
-
 :deep(.fc-event) {
   cursor: pointer;
   border-radius: 4px;
@@ -708,7 +565,7 @@ function handleTherapistChange(therapistId) {
 }
 
 :deep(.fc-timegrid-slot) {
-  height: 1em !important;
+  height: 0.5em !important;
 }
 
 :deep(.fc-timegrid-now-indicator-line) {
@@ -729,10 +586,5 @@ function handleTherapistChange(therapistId) {
 
 :deep(.fc-event-title) {
   font-weight: 500;
-}
-
-:deep(.fc-bg-event .fc-event-title) {
-  color: #666;
-  font-style: italic;
 }
 </style>
