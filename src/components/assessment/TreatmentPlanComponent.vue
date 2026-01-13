@@ -218,7 +218,7 @@ const exportToPDF = async () => {
       doc.setFont('helvetica', 'italic')
       y = addWrappedText(
         doc,
-        `Equipment: ${step.ingredients_equipments.join(', ').replaceAll(/[‑-–→]/g, '-')}`,
+        `Equipment: ${step.ingredients_equipments?.join(', ').replaceAll(/[‑-–→]/g, '-')}`,
         20,
         y,
         pageWidth - 15,

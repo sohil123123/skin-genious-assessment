@@ -132,7 +132,12 @@ console.log(process.env.APP_TEST)
 onMounted(async () => {
   await store.getPatientData(userId)
 
-  let recentStoredId = await getValidAssessmentId()
+  let recentStoredId = null
+  if (route.params.assessment_id) {
+    recentStoredId = route.params.assessment_id
+  } else {
+    recentStoredId = await getValidAssessmentId()
+  }
   if (route.params.assessment_id || recentStoredId) {
     let id = route.params.assessment_id ? route.params.assessment_id : recentStoredId
     await store.getSingleAssessment(id)

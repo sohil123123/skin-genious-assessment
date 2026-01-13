@@ -96,7 +96,7 @@
                   </div>
                   <div class="text-caption text-grey-7 q-mb-xs">
                     <q-icon name="science" size="14px" class="q-mr-xs" /> Products/Devices:
-                    {{ s.ingredients_equipments.join(', ') }}
+                    {{ s.ingredients_equipments?.join(', ') }}
                   </div>
                   <div>
                     <q-card flat bordered class="q-mt-md header-card">
