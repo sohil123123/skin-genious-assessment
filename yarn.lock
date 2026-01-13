@@ -117,6 +117,35 @@
     "@eslint/core" "^0.15.2"
     levn "^0.4.1"
 
+"@fullcalendar/core@^6.1.20", "@fullcalendar/core@~6.1.20":
+  version "6.1.20"
+  resolved "https://registry.npmjs.org/@fullcalendar/core/-/core-6.1.20.tgz"
+  integrity sha512-1cukXLlePFiJ8YKXn/4tMKsy0etxYLCkXk8nUCFi11nRONF2Ba2CD5b21/ovtOO2tL6afTJfwmc1ed3HG7eB1g==
+  dependencies:
+    preact "~10.12.1"
+
+"@fullcalendar/daygrid@^6.1.20", "@fullcalendar/daygrid@~6.1.20":
+  version "6.1.20"
+  resolved "https://registry.npmjs.org/@fullcalendar/daygrid/-/daygrid-6.1.20.tgz"
+  integrity sha512-AO9vqhkLP77EesmJzuU+IGXgxNulsA8mgQHynclJ8U70vSwAVnbcLG9qftiTAFSlZjiY/NvhE7sflve6cJelyQ==
+
+"@fullcalendar/interaction@^6.1.20":
+  version "6.1.20"
+  resolved "https://registry.npmjs.org/@fullcalendar/interaction/-/interaction-6.1.20.tgz"
+  integrity sha512-p6txmc5txL0bMiPaJxe2ip6o0T384TyoD2KGdsU6UjZ5yoBlaY+dg7kxfnYKpYMzEJLG58n+URrHr2PgNL2fyA==
+
+"@fullcalendar/timegrid@^6.1.20":
+  version "6.1.20"
+  resolved "https://registry.npmjs.org/@fullcalendar/timegrid/-/timegrid-6.1.20.tgz"
+  integrity sha512-4H+/MWbz3ntA50lrPif+7TsvMeX3R1GSYjiLULz0+zEJ7/Yfd9pupZmAwUs/PBpA6aAcFmeRr0laWfcz1a9V1A==
+  dependencies:
+    "@fullcalendar/daygrid" "~6.1.20"
+
+"@fullcalendar/vue3@^6.1.20":
+  version "6.1.20"
+  resolved "https://registry.npmjs.org/@fullcalendar/vue3/-/vue3-6.1.20.tgz"
+  integrity sha512-8qg6pS27II9QBwFkkJC+7SfflMpWqOe7i3ii5ODq9KpLAjwQAd/zjfq8RvKR1Yryoh5UmMCmvRbMB7i4RGtqog==
+
 "@humanfs/core@^0.19.1":
   version "0.19.1"
   resolved "https://registry.npmjs.org/@humanfs/core/-/core-0.19.1.tgz"
@@ -2875,6 +2904,11 @@ postcss@^8.1.0, postcss@^8.4.14, postcss@^8.5.6:
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
+preact@~10.12.1:
+  version "10.12.1"
+  resolved "https://registry.npmjs.org/preact/-/preact-10.12.1.tgz"
+  integrity sha512-l8386ixSsBdbreOAkqtrwqHwdvR35ID8c3rKPa8lCWuO86dBi32QWHV4vfsZK1utLLFMvw+Z5Ad4XLkZzchscg==
+
 prelude-ls@^1.2.1:
   version "1.2.1"
   resolved "https://registry.npmjs.org/prelude-ls/-/prelude-ls-1.2.1.tgz"
@@ -3713,7 +3747,7 @@ vue-router@^4.0.0, vue-router@^4.0.12:
   dependencies:
     "@vue/devtools-api" "^6.6.4"
 
-"vue@^2.0.0 || >=3.0.0", "vue@^2.7.0 || ^3.5.11", vue@^3.0.0, "vue@^3.0.0-0 || ^2.6.0", vue@^3.2.0, vue@^3.2.25, vue@^3.2.29, vue@3.5.20:
+"vue@^2.0.0 || >=3.0.0", "vue@^2.7.0 || ^3.5.11", vue@^3.0.0, "vue@^3.0.0-0 || ^2.6.0", vue@^3.0.11, vue@^3.2.0, vue@^3.2.25, vue@^3.2.29, vue@3.5.20:
   version "3.5.20"
   resolved "https://registry.npmjs.org/vue/-/vue-3.5.20.tgz"
   integrity sha512-2sBz0x/wis5TkF1XZ2vH25zWq3G1bFEPOfkBcx2ikowmphoQsPH6X0V3mmPCXA2K1N/XGTnifVyDQP4GfDDeQw==

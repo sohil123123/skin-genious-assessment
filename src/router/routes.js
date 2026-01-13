@@ -27,6 +27,11 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       {
+        path: 'test-page',
+        name: 'test-page',
+        component: () => import('src/pages/tests/FullCalander.vue'),
+      },
+      {
         path: 'appointments/:clinic_id?/:therapist_id?',
         name: 'appointments',
         component: () => import('src/pages/AppointmentPage.vue'),
@@ -55,13 +60,13 @@ const routes = [
         props: true,
       },
       {
-        path: ':user_id/:step/:appointment_id?',
-        name: 'index',
+        path: 'edit/:user_id/:step/:assessment_id/:appointment_id?',
+        name: 'index-with-id',
         component: () => import('pages/IndexPage.vue'),
       },
       {
         path: ':user_id/:step/:appointment_id?',
-        name: 'index-with-id',
+        name: 'index',
         component: () => import('pages/IndexPage.vue'),
       },
     ],

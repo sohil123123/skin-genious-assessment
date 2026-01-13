@@ -15,6 +15,11 @@
     "postinstall": "quasar prepare"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
+    "@fullcalendar/vue3": "^6.1.20",
     "@quasar/extras": "^1.16.4",
     "@toon-format/toon": "^1.0.0",
     "@vuelidate/core": "^2.0.3",
