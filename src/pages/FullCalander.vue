@@ -35,44 +35,8 @@
 
       <q-card-section v-if="clinic_id && therapist_id">
         <EmergencyWarning :warnings="warning" />
-
+        <ServerErrorDialog v-model="showErrorDialog" :error="selectedError" />
         <FullCalendar ref="calendarRef" :options="calendarOptions" />
-
-        <!-- Add/Edit dialog -->
-        <q-dialog v-model="showDialog" persistent @hide="resetForm">
-          <CreateUpdateModal
-            :clients="clients"
-            :clinic="clinic"
-            v-model:appointmentData="appointmentData"
-            @submit="handleSave"
-          />
-          <!-- <q-card style="min-width: 400px">
-            <q-card-section class="text-h6">
-              {{ isEditMode ? 'Edit Appointment' : 'Add Appointment' }}
-            </q-card-section>
-
-            <q-card-section>
-              <q-input
-                ref="patientInput"
-                v-model="form.title"
-                label="Patient Name"
-                dense
-                :rules="[(val) => !!val || 'Patient name is required']"
-                @keyup.enter="handleSave"
-              />
-              <div class="q-mt-sm text-caption text-grey">
-                <div>Start: {{ formatDateTime(form.start) }}</div>
-                <div>End: {{ formatDateTime(form.end) }}</div>
-              </div>
-            </q-card-section>
-
-            <q-card-actions align="right">
-              <q-btn flat label="Cancel" @click="closeDialog" />
-              <q-btn v-if="isEditMode" color="negative" label="Delete" @click="handleDelete" />
-              <q-btn color="primary" label="Save" :disable="!form.title" @click="handleSave" />
-            </q-card-actions>
-          </q-card> -->
-        </q-dialog>
       </q-card-section>
 
       <q-card-section v-else>
@@ -84,11 +48,28 @@
       </q-card-section>
     </q-card>
   </q-page>
+  <!-- Add/Edit dialog -->
+  <q-dialog v-model="showDialog" persistent @hide="resetForm">
+    <CreateUpdateModal
+      :clients="clients"
+      :clinic="clinic"
+      v-model:appointmentData="appointmentData"
+      @submit="handleSave"
+    />
+  </q-dialog>
+
+  <AppointmentDetailsDialog
+    v-model="showDetailDialog"
+    :event="selectedEvent"
+    @edit="handleEdit"
+    @delete="handleDelete"
+    @fetchAppointments="fetchAppointments"
+  />
 </template>
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { Loading, Notify, date } from 'quasar'
+import { Loading, Notify, date, Dialog } from 'quasar'
 import FullCalendar from '@fullcalendar/vue3'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -100,12 +81,14 @@ import { useAppointmentStore } from 'src/stores/appointmentStore'
 import CreateUpdateModal from 'src/components/appointment/CreateUpdateModal.vue'
 import { api } from 'src/boot/axios'
 import EmergencyWarning from 'src/components/common/EmergencyWarning.vue'
+import AppointmentDetailsDialog from 'src/components/appointment/AppointmentDetails.vue'
+import ServerErrorDialog from 'src/components/common/ServerErrorDialog.vue'
 
 // ------------------ STORES ------------------
 const commonStore = useCommonStore()
 const { clinics, therapiests, clients } = storeToRefs(commonStore)
 const appointmentStore = useAppointmentStore()
-const { warning } = storeToRefs(appointmentStore)
+const { warning, selectedError, showErrorDialog } = storeToRefs(appointmentStore)
 
 /* ------------------ CONSTANTS ------------------ */
 const route = useRoute()
@@ -115,6 +98,7 @@ const therapistId = route.params.therapist_id ? parseInt(route.params.therapist_
 /* ------------------ REFS ------------------ */
 const calendarRef = ref(null)
 const showDialog = ref(false)
+const showDetailDialog = ref(false)
 const isEditMode = ref(false)
 const selectedEvent = ref(null)
 const patientInput = ref(null)
@@ -168,7 +152,8 @@ const form = ref({
 
 /* ------------------ COMPUTED ------------------ */
 const selectedClinicData = computed(() => {
-  return clinics.value.find((clinic) => clinic.id === clinic_id.value)
+  if (route.params.clinic_id) return clinic.value
+  else return clinics.value.find((clinic) => clinic.id === clinic_id.value)
 })
 
 const clinicHours = computed(() => {
@@ -426,7 +411,7 @@ const calendarOptions = ref({
     selectedEvent.value.end_datetime = `${selectedEvent.value.end_date} ${selectedEvent.value.end_time}`
     setAppointmentData()
     isEditMode.value = true
-    showDialog.value = true
+    showDetailDialog.value = true
   },
 
   eventDrop: async (info) => {
@@ -492,6 +477,11 @@ const calendarOptions = ref({
 })
 
 /* ------------------ CRUD OPERATIONS ------------------ */
+function handleEdit() {
+  isEditMode.value = true
+  showDialog.value = true
+}
+
 async function handleSave() {
   if (!appointmentData.value.type) {
     Notify.create({
@@ -521,7 +511,6 @@ async function handleSave() {
       if (!success) return
     }
 
-    fetchAppointments()
     resetAppointmentData()
     closeDialog()
     Notify.create({
@@ -535,6 +524,9 @@ async function handleSave() {
       message: error.message,
     })
   } finally {
+    fetchAppointments()
+    isEditMode.value = false
+    showDetailDialog.value = false
     Loading.hide()
   }
 }
@@ -543,21 +535,21 @@ function resetAppointmentData() {
   Object.assign(appointmentData.value, { ...initialAppointmentData })
 }
 
-// function handleDelete() {
-//   if (selectedEvent.value) {
-//     const eventId = selectedEvent.value.id
-//     const index = appointments.value.findIndex((apt) => apt.id === eventId)
-//     if (index > -1) {
-//       appointments.value.splice(index, 1)
-//     }
-
-//     closeDialog()
-//     Notify.create({
-//       type: 'info',
-//       message: 'Appointment deleted',
-//     })
-//   }
-// }
+function handleDelete(eventId) {
+  Dialog.create({
+    title: 'Delete Appointment',
+    message: 'Are you sure?',
+    cancel: true,
+    ok: {
+      label: 'Delete',
+      color: 'negative',
+    },
+  }).onOk(async () => {
+    await appointmentStore.deleteAppointment(eventId)
+    fetchAppointments()
+    showDetailDialog.value = false
+  })
+}
 
 function closeDialog() {
   showDialog.value = false
@@ -629,11 +621,12 @@ async function fetchAppointments() {
   }
 }
 
-function getClinicById(id) {
+async function getClinicById(id) {
   api
     .get(`get-clinics?id=${id}&is_first=1`)
     .then((res) => {
-      handleClinicChange(res.data.results)
+      clinic.value = res.data.results
+      console.log(clinic.value)
     })
     .catch((error) => {
       Notify.create({
@@ -645,7 +638,6 @@ function getClinicById(id) {
 
 function handleClinicChange(clinic) {
   if (!clinic) return
-
   clinic.value = clinic
   clinic_id.value = clinic.id
   therapist_id.value = null
@@ -658,7 +650,6 @@ function handleClinicChange(clinic) {
 
 function handleTherapistChange(therapistId) {
   if (!therapistId) return
-
   therapist_id.value = therapistId
   appointments.value = []
   disabledSlotsFromAPI.value = []

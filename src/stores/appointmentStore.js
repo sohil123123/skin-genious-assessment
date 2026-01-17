@@ -14,6 +14,8 @@ export const useAppointmentStore = defineStore('appointment', {
     loading: false,
     error: null,
     warning: [],
+    showErrorDialog: false,
+    selectedError: null,
     appointmentTypes: [
       { label: 'Consult', value: 'consult' },
       { label: 'Treatment', value: 'treatment' },
@@ -149,11 +151,11 @@ export const useAppointmentStore = defineStore('appointment', {
         return false // ❌ FAILURE
       }
     },
-    deleteAppointment(eventId) {
+    async deleteAppointment(eventId) {
       Loading.show({
         message: 'Deleting appointment...',
       })
-      api
+      await api
         .delete(`appointments/${eventId}`)
         .then((res) => {
           this.rawEvents = this.rawEvents.filter((e) => e.id !== eventId)
@@ -194,13 +196,45 @@ export const useAppointmentStore = defineStore('appointment', {
       Object.entries(errors).forEach(([field, messages]) => {
         if (!Array.isArray(messages)) return
 
+        let code = null
+        let textMessages = []
+        let details = null
+
+        messages.forEach((item) => {
+          if (typeof item === 'string') {
+            if (!code) code = item
+            else textMessages.push(item)
+          } else if (typeof item === 'object' && item !== null) {
+            details = item
+          }
+        })
+
         Notify.create({
           type: 'negative',
           position: 'top-right',
-          message: `<b>${field.replace('_', ' ')}</b>: ${messages.join(' ')}`,
-          html: true,
-          timeout: 6000,
-          actions: [{ icon: 'close', color: 'white', round: true }],
+          timeout: 0,
+          message: textMessages.join(' ') || 'Validation error occurred',
+          caption: code,
+          actions: [
+            {
+              label: 'View details',
+              color: 'white',
+              handler: () => {
+                this.selectedError = {
+                  field,
+                  code,
+                  messages: textMessages,
+                  details,
+                }
+                this.showErrorDialog = true
+              },
+            },
+            {
+              icon: 'close',
+              color: 'white',
+              round: true,
+            },
+          ],
         })
       })
     },

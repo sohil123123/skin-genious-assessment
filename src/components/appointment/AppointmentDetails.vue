@@ -7,7 +7,9 @@
 
         <div class="q-ml-sm">
           <div class="text-h6">Appointment</div>
-          <div class="text-caption text-grey-7">{{ event?.date }} • {{ event?.time }}</div>
+          <div class="text-caption text-grey-7">
+            {{ event?.start_date }} • {{ event?.start_time }}
+          </div>
         </div>
 
         <q-space />
@@ -45,7 +47,9 @@
               </q-item-section>
               <q-item-section>
                 <q-item-label>Time</q-item-label>
-                <q-item-label caption> {{ event.time }} • {{ event.duration }} mins </q-item-label>
+                <q-item-label caption>
+                  {{ event.start_time }} To {{ event.end_time }} • {{ event.duration }} mins
+                </q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -175,7 +179,7 @@
 
 <script setup>
 import { Notify, useQuasar } from 'quasar'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { api } from 'boot/axios'
 
 const $q = useQuasar()
@@ -187,19 +191,19 @@ const props = defineProps({
 
 const status = ref(null)
 
-const emit = defineEmits(['update:modelValue', 'delete', 'edit', 'getAppointments'])
+const emit = defineEmits(['update:modelValue', 'delete', 'edit', 'fetchAppointments'])
 
 const modelValue = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v),
 })
 
-watch(
-  () => props.event,
-  (v) => {
-    status.value = v.status
-  },
-)
+// watch(
+//   () => props.event,
+//   (v) => {
+//     status.value = v.status
+//   },
+// )
 
 function onDialogHide() {
   emit('update:modelValue', false)
@@ -233,7 +237,7 @@ function updateStatus(s) {
       api
         .post(`/appointments/status/${props.event.id}`, { status: s })
         .then((res) => {
-          emit('getAppointments')
+          emit('fetchAppointments')
           onDialogHide()
           Notify.create({
             type: 'positive',
