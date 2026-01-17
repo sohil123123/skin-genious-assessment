@@ -26,15 +26,15 @@ const routes = [
     component: () => import('layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      {
-        path: 'test-page',
-        name: 'test-page',
-        component: () => import('src/pages/tests/FullCalander.vue'),
-      },
+      // {
+      //   path: 'test-page',
+      //   name: 'test-page',
+      //   component: () => import('src/pages/tests/FullCalander.vue'),
+      // },
       {
         path: 'appointments/:clinic_id?/:therapist_id?',
         name: 'appointments',
-        component: () => import('src/pages/AppointmentPage.vue'),
+        component: () => import('src/pages/FullCalander.vue'),
       },
       {
         path: 'iv-assessment',

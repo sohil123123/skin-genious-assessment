@@ -13,7 +13,7 @@ export const useAppointmentStore = defineStore('appointment', {
     selectedDate: null,
     loading: false,
     error: null,
-    warning: {},
+    warning: [],
     appointmentTypes: [
       { label: 'Consult', value: 'consult' },
       { label: 'Treatment', value: 'treatment' },
@@ -103,56 +103,20 @@ export const useAppointmentStore = defineStore('appointment', {
         Loading.hide()
       }
     },
-    async storeAppointments(event) {
-      let payload = {
-        type: event.type,
-        clinic_id: event.meta.clinic,
-        therapist_id: event.meta.therapist,
-        user_id: event.meta.client,
-        assessment_id: event.assessment_id,
-        treatment_session_id: event.treatment_session_id,
-        start_datetime: `${event.date} ${event.time}`,
-        end_datetime: `${event.date} ${this.addMinutesToTime(event.time, event.duration)}`,
-        notes: event.notes || '',
-        status: event.status,
-      }
-
+    async storeAppointments(payload) {
       try {
-        const res = await api.post(`appointments`, payload)
-
-        Notify.create({
-          type: 'positive',
-          message: res.data.message || 'Appointment updated successfully',
-        })
-
+        await api.post(`appointments`, payload)
         return true // ✅ SUCCESS
       } catch (error) {
+        console.log(error)
         this.error = error
-        this.serverError = error?.response?.data?.results || null
-        this.showServerErrors(this.serverError)
+        if (error?.response?.data?.results) {
+          this.serverError = error?.response?.data?.results || null
+          this.showServerErrors(this.serverError)
+        }
 
         return false // ❌ FAILURE
       }
-    },
-    async addAppointment(event) {
-      this.rawEvents.push({
-        id: event.id,
-        title: event.title,
-        start_date: event.date,
-        end_date: event.date,
-        start_time: event.time,
-        end_time: this.addMinutesToTime(event.time, event.duration),
-        duration: event.duration,
-        type: event.type,
-        assessment_id: event.assessment_id,
-        treatment_session_id: event.treatment_session_id,
-        status: event.status,
-        bgcolor: event.bgcolor,
-        meta: event.meta,
-      })
-
-      const res = await this.storeAppointments(event)
-      return res
     },
     async getAppointmentById(eventId) {
       this.loading = true
@@ -170,28 +134,12 @@ export const useAppointmentStore = defineStore('appointment', {
         Loading.hide()
       }
     },
-    async updateAppointment(event) {
-      const payload = {
-        type: event.type,
-        clinic_id: event.meta.clinic,
-        therapist_id: event.meta.therapist,
-        user_id: event.meta.client,
-        assessment_id: event.assessment_id,
-        treatment_session_id: event.treatment_session_id,
-        start_datetime: `${event.date} ${event.time}`,
-        end_datetime: `${event.date} ${this.addMinutesToTime(event.time, event.duration)}`,
-        notes: event.notes || '',
-        status: event.status,
-      }
-
+    async updateAppointment(payload) {
       try {
-        const res = await api.put(`appointments/${event.id}`, payload)
-
-        Notify.create({
-          type: 'positive',
-          message: res.data.message || 'Appointment updated successfully',
-        })
-
+        const res = await api.put(`appointments/${payload.id}`, payload)
+        if (res.data.results.warning) {
+          this.warning = res.data.results.warning
+        }
         return true // ✅ SUCCESS
       } catch (error) {
         this.error = error

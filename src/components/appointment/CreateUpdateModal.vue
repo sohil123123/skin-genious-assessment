@@ -14,18 +14,18 @@
           <div class="q-pa-md">
             <!-- <div class="q-gutter-sm row flex items-center justify-center">
               <q-chip square color="teal" text-color="white" class="q-ma-md">
-                {{ activeSlot.start_datetime }}
+                {{ appointmentData.start_datetime }}
               </q-chip>
               TO
               <q-chip square color="teal" text-color="white" class="q-ma-md">
-                {{ activeSlot.end_datetime }}
+                {{ appointmentData.end_datetime }}
               </q-chip>
             </div> -->
 
             <div class="row q-gutter-md">
               <div class="col-md-12">
                 <DatePicker
-                  :model="activeSlot.start_datetime"
+                  :model="appointmentData.start_datetime"
                   :label="'Select Start Date & Time'"
                   :field="'start_datetime'"
                   :min-date="new Date()"
@@ -36,7 +36,7 @@
                   :dense="true"
                   @update="
                     (val) => {
-                      activeSlot.start_datetime = val
+                      appointmentData.start_datetime = val
                     }
                   "
                 />
@@ -44,7 +44,7 @@
               <div class="col-md-12">
                 <DatePicker
                   :key="endPickerKey"
-                  :model="activeSlot.end_datetime"
+                  :model="appointmentData.end_datetime"
                   :label="'Select End Date & Time'"
                   :field="'end_datetime'"
                   :min-date="new Date()"
@@ -56,19 +56,19 @@
                   :dense="true"
                   @update="
                     (val) => {
-                      activeSlot.end_datetime = val
+                      appointmentData.end_datetime = val
                     }
                   "
                 />
               </div>
-              <div v-if="!activeSlot.id" class="col-md-12">
+              <div v-if="!appointmentData.id" class="col-md-12">
                 <q-chip
                   v-for="type in appointmentTypes"
                   :key="type.value"
                   :label="type.label"
                   :value="type.value"
-                  :outline="activeSlot.type !== type.value"
-                  :color="activeSlot.type === type.value ? 'positive' : 'grey-6'"
+                  :outline="appointmentData.type !== type.value"
+                  :color="appointmentData.type === type.value ? 'positive' : 'grey-6'"
                   text-color="white"
                   class="q-ma-xs"
                   clickable
@@ -77,7 +77,7 @@
               </div>
               <div v-else class="col-md-12">
                 <q-chip
-                  :label="activeSlot.type"
+                  :label="appointmentData.type"
                   color="positive"
                   text-color="white"
                   class="q-ma-xs text-capitalize"
@@ -85,7 +85,7 @@
               </div>
               <div class="col-md-12">
                 <q-select
-                  v-model="activeSlot.client_id"
+                  v-model="appointmentData.user_id"
                   :options="clients"
                   emit-value
                   map-options
@@ -94,7 +94,7 @@
                   outlined
                   dense
                   clearable
-                  :readonly="activeSlot.id ? true : false"
+                  :readonly="appointmentData.id ? true : false"
                   @filter="commonStore.filterClients"
                   :rules="[(val) => !!val || 'Please select a client']"
                   style="max-width: 100%"
@@ -106,12 +106,14 @@
               </div>
               <div
                 v-if="
-                  activeSlot.type == 'treatment' && activeSlot.client_id && assessments.length > 0
+                  appointmentData.type == 'treatment' &&
+                  appointmentData.user_id &&
+                  assessments.length > 0
                 "
                 class="col-md-12"
               >
                 <q-select
-                  v-model="activeSlot.assessment_id"
+                  v-model="appointmentData.assessment_id"
                   :options="assessments"
                   emit-value
                   map-options
@@ -130,15 +132,15 @@
               </div>
               <div
                 v-if="
-                  activeSlot.type == 'treatment' &&
-                  activeSlot.client_id &&
-                  activeSlot.assessment_id &&
+                  appointmentData.type == 'treatment' &&
+                  appointmentData.user_id &&
+                  appointmentData.assessment_id &&
                   treatmentSessionsOptions.length > 0
                 "
                 class="col-md-12"
               >
                 <q-select
-                  v-model="activeSlot.treatment_session_id"
+                  v-model="appointmentData.treatment_session_id"
                   :options="treatmentSessionsOptions"
                   emit-value
                   map-options
@@ -153,7 +155,7 @@
               </div>
               <div class="col-md-12">
                 <q-input
-                  v-model="activeSlot.notes"
+                  v-model="appointmentData.notes"
                   label="Note"
                   outlined
                   dense
@@ -161,19 +163,19 @@
                   style="width: 100%"
                 />
               </div>
-              <div v-if="!activeSlot.id" class="col-md-12">
+              <div v-if="!appointmentData.id" class="col-md-12">
                 <q-chip
                   v-for="status in statusOptions"
                   :key="status.value"
                   :label="status.label"
                   :value="status.value"
-                  :outline="activeSlot.status !== status.value"
-                  :color="activeSlot.status === status.value ? 'positive' : 'grey-6'"
-                  :icon="activeSlot.status === status.value ? 'check' : 'close'"
+                  :outline="appointmentData.status !== status.value"
+                  :color="appointmentData.status === status.value ? 'positive' : 'grey-6'"
+                  :icon="appointmentData.status === status.value ? 'check' : 'close'"
                   text-color="white"
                   class="q-ma-xs"
                   clickable
-                  @click="activeSlot.status = status.value"
+                  @click="appointmentData.status = status.value"
                 />
               </div>
             </div>
@@ -198,16 +200,8 @@ import DatePicker from 'src/components/common/DatePicker.vue'
 const commonStore = useCommonStore()
 
 const props = defineProps({
-  activeSlot: {
+  appointmentData: {
     type: Object,
-    required: true,
-  },
-  appointmentTypes: {
-    type: Array,
-    required: true,
-  },
-  statusOptions: {
-    type: Array,
     required: true,
   },
   clients: {
@@ -222,10 +216,21 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'submit'])
 
-const activeSlot = computed({
-  get: () => props.activeSlot,
+const appointmentData = computed({
+  get: () => props.appointmentData,
   set: (value) => emit('update:modelValue', value),
 })
+
+const appointmentTypes = [
+  { label: 'Consult', value: 'consult' },
+  { label: 'Treatment', value: 'treatment' },
+  { label: 'Express', value: 'express' },
+]
+
+const statusOptions = [
+  { label: 'Pending', value: 'pending' },
+  { label: 'Confirmed', value: 'confirmed' },
+]
 
 const assessments = ref([])
 const treatmentSessionsOptions = ref([])
@@ -234,7 +239,7 @@ const loadingTreatmentSessions = ref(false)
 const endPickerKey = ref(0)
 
 function handleSubmit() {
-  emit('submit', activeSlot.value)
+  emit('submit', appointmentData.value)
 }
 
 onMounted(async () => {
@@ -243,17 +248,17 @@ onMounted(async () => {
 })
 
 watch(
-  () => activeSlot.value.start_datetime,
+  () => appointmentData.value.start_datetime,
   (newStart) => {
     if (!newStart) return
 
     const [startDate] = newStart.split(' ')
 
-    if (activeSlot.value.end_datetime) {
-      const [, endTime] = activeSlot.value.end_datetime.split(' ')
-      activeSlot.value.end_datetime = `${startDate} ${endTime || '00:00'}`
+    if (appointmentData.value.end_datetime) {
+      const [, endTime] = appointmentData.value.end_datetime.split(' ')
+      appointmentData.value.end_datetime = `${startDate} ${endTime || '00:00'}`
     } else {
-      activeSlot.value.end_datetime = `${startDate} 00:00`
+      appointmentData.value.end_datetime = `${startDate} 00:00`
     }
 
     // 🔥 force End DatePicker UI refresh
@@ -262,11 +267,11 @@ watch(
 )
 
 function setType(type) {
-  activeSlot.value.type = type
+  appointmentData.value.type = type
   // Reset dependent fields when type changes
   if (type !== 'treatment') {
-    // activeSlot.value.assessment_id = null
-    // activeSlot.value.treatment_session_id = null
+    // appointmentData.value.assessment_id = null
+    // appointmentData.value.treatment_session_id = null
   }
   if (type == 'treatment' && assessments.value.length === 0) {
     getAssessments()
@@ -274,10 +279,10 @@ function setType(type) {
 }
 
 async function getAssessments() {
-  if (activeSlot.value.type == 'treatment' && activeSlot.value.client_id) {
-    if (!activeSlot.value.id) {
-      activeSlot.value.assessment_id = null
-      activeSlot.value.treatment_session_id = null
+  if (appointmentData.value.type == 'treatment' && appointmentData.value.user_id) {
+    if (!appointmentData.value.id) {
+      appointmentData.value.assessment_id = null
+      appointmentData.value.treatment_session_id = null
     }
 
     loadingAssessments.value = true
@@ -286,7 +291,7 @@ async function getAssessments() {
       {
         column: 'user_id',
         condition: '=',
-        value: activeSlot.value.client_id,
+        value: appointmentData.value.user_id,
       },
     ]
     url += `&filterArray=${encodeURIComponent(JSON.stringify(filterArray))}`
@@ -314,14 +319,14 @@ async function getAssessments() {
 }
 
 function getTreatmentSessions() {
-  if (activeSlot.value.type == 'treatment' && activeSlot.value.client_id) {
+  if (appointmentData.value.type == 'treatment' && appointmentData.value.user_id) {
     loadingTreatmentSessions.value = true
     let url = `get-treatment-sessions?is_dropdown=1`
     let filterArray = [
       {
         column: 'assessment_id',
         condition: '=',
-        value: activeSlot.value.assessment_id,
+        value: appointmentData.value.assessment_id,
       },
     ]
     url += `&filterArray=${encodeURIComponent(JSON.stringify(filterArray))}`

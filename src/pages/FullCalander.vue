@@ -7,7 +7,7 @@
             <q-select
               label="Select Clinic"
               outlined
-              v-model="clinic_id"
+              v-model="clinic"
               :options="clinics"
               option-value="id"
               option-label="name"
@@ -34,17 +34,19 @@
       </q-card-section>
 
       <q-card-section v-if="clinic_id && therapist_id">
-        <!-- Loading indicator -->
-        <div v-if="isLoading" class="text-center q-my-md">
-          <q-spinner size="lg" />
-          <div>Loading appointments...</div>
-        </div>
+        <EmergencyWarning :warnings="warning" />
 
         <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
         <!-- Add/Edit dialog -->
         <q-dialog v-model="showDialog" persistent @hide="resetForm">
-          <q-card style="min-width: 400px">
+          <CreateUpdateModal
+            :clients="clients"
+            :clinic="clinic"
+            v-model:appointmentData="appointmentData"
+            @submit="handleSave"
+          />
+          <!-- <q-card style="min-width: 400px">
             <q-card-section class="text-h6">
               {{ isEditMode ? 'Edit Appointment' : 'Add Appointment' }}
             </q-card-section>
@@ -69,7 +71,7 @@
               <q-btn v-if="isEditMode" color="negative" label="Delete" @click="handleDelete" />
               <q-btn color="primary" label="Save" :disable="!form.title" @click="handleSave" />
             </q-card-actions>
-          </q-card>
+          </q-card> -->
         </q-dialog>
       </q-card-section>
 
@@ -86,7 +88,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { Notify, date } from 'quasar'
+import { Loading, Notify, date } from 'quasar'
 import FullCalendar from '@fullcalendar/vue3'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -95,11 +97,15 @@ import { useRoute } from 'vue-router'
 import { useCommonStore } from 'src/stores/commonStore'
 import { storeToRefs } from 'pinia'
 import { useAppointmentStore } from 'src/stores/appointmentStore'
+import CreateUpdateModal from 'src/components/appointment/CreateUpdateModal.vue'
+import { api } from 'src/boot/axios'
+import EmergencyWarning from 'src/components/common/EmergencyWarning.vue'
 
 // ------------------ STORES ------------------
 const commonStore = useCommonStore()
-const { clinics, therapiests } = storeToRefs(commonStore)
+const { clinics, therapiests, clients } = storeToRefs(commonStore)
 const appointmentStore = useAppointmentStore()
+const { warning } = storeToRefs(appointmentStore)
 
 /* ------------------ CONSTANTS ------------------ */
 const route = useRoute()
@@ -112,13 +118,46 @@ const showDialog = ref(false)
 const isEditMode = ref(false)
 const selectedEvent = ref(null)
 const patientInput = ref(null)
+const appointmentData = ref({
+  id: null,
+  type: null,
+  clinic_id: null,
+  therapist_id: null,
+  user_id: null,
+  assessment_id: null,
+  treatment_session_id: null,
+  start_datetime: null,
+  end_datetime: null,
+  notes: '',
+  status: 'confirmed',
+})
+
+const initialAppointmentData = {
+  id: null,
+  type: null,
+  clinic_id: null,
+  therapist_id: null,
+  user_id: null,
+  assessment_id: null,
+  treatment_session_id: null,
+  start_datetime: null,
+  end_datetime: null,
+  notes: '',
+  status: 'confirmed',
+}
 
 const clinic_id = ref(clinicId)
+const clinic = ref(null)
 const therapist_id = ref(therapistId)
 
 const appointments = ref([])
 const disabledSlotsFromAPI = ref([])
 const isLoading = ref(false)
+
+const formatDate = (iso) => {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 
 /* ------------------ REACTIVE STATE ------------------ */
 const form = ref({
@@ -150,8 +189,9 @@ const clinicHours = computed(() => {
 onMounted(async () => {
   if (clinicId) {
     clinic_id.value = clinicId
-    await commonStore.getClinics()
+    await getClinicById(route.params.clinic_id)
     await commonStore.getTherapiests(clinicId)
+    commonStore.getClients(route.params.clinic_id)
   } else {
     await commonStore.getClinics()
   }
@@ -162,10 +202,10 @@ onMounted(async () => {
 })
 
 /* ------------------ UTILITY FUNCTIONS ------------------ */
-function formatDateTime(dateTime) {
-  if (!dateTime) return ''
-  return date.formatDate(dateTime, 'YYYY-MM-DD HH:mm')
-}
+// function formatDateTime(dateTime) {
+//   if (!dateTime) return ''
+//   return date.formatDate(dateTime, 'YYYY-MM-DD HH:mm')
+// }
 
 function getTimeString(date) {
   return date.toTimeString().slice(0, 5)
@@ -332,8 +372,8 @@ const calendarOptions = ref({
   editable: true,
   nowIndicator: true,
   height: 'auto',
-  eventOverlap: false,
-  selectOverlap: false,
+  eventOverlap: true,
+  selectOverlap: true,
   selectMinDistance: 10,
 
   slotMinTime: computed(() => clinicHours.value.open),
@@ -362,12 +402,9 @@ const calendarOptions = ref({
       }
       return
     }
-
-    form.value = {
-      title: '',
-      start: info.start,
-      end: info.end,
-    }
+    resetAppointmentData()
+    appointmentData.value.start_datetime = formatDate(info.start)
+    appointmentData.value.end_datetime = formatDate(info.end)
 
     isEditMode.value = false
     showDialog.value = true
@@ -384,15 +421,60 @@ const calendarOptions = ref({
       info.jsEvent.preventDefault()
       return
     }
-
-    selectedEvent.value = info.event
-    form.value = {
-      title: info.event.title.split(' (')[0] || info.event.title,
-      start: info.event.start,
-      end: info.event.end,
-    }
+    selectedEvent.value = info.event.extendedProps.originalData
+    selectedEvent.value.start_datetime = `${selectedEvent.value.start_date} ${selectedEvent.value.start_time}`
+    selectedEvent.value.end_datetime = `${selectedEvent.value.end_date} ${selectedEvent.value.end_time}`
+    setAppointmentData()
     isEditMode.value = true
     showDialog.value = true
+  },
+
+  eventDrop: async (info) => {
+    // 1️⃣ Block disabled slots
+    if (info.event.extendedProps?.isDisabledSlot) {
+      info.revert()
+      return
+    }
+
+    // 2️⃣ Get UPDATED times (this is now correct)
+    const newStart = info.event.start
+    const newEnd = info.event.end
+
+    // 3️⃣ Update your original data model
+    selectedEvent.value = info.event.extendedProps.originalData
+    selectedEvent.value.start_datetime = formatDate(newStart)
+    selectedEvent.value.end_datetime = formatDate(newEnd)
+    isEditMode.value = true
+
+    // 4️⃣ Persist / sync
+    setAppointmentData()
+
+    // 5️⃣backend save
+    await handleSave()
+  },
+
+  eventResize: async (info) => {
+    // 1️⃣ Block disabled slots
+    if (info.event.extendedProps?.isDisabledSlot) {
+      info.revert()
+      return
+    }
+
+    // 2️⃣ Get UPDATED times (this is now correct)
+    const newStart = info.event.start
+    const newEnd = info.event.end
+
+    // 3️⃣ Update your original data model
+    selectedEvent.value = info.event.extendedProps.originalData
+    selectedEvent.value.start_datetime = formatDate(newStart)
+    selectedEvent.value.end_datetime = formatDate(newEnd)
+    isEditMode.value = true
+
+    // 4️⃣ Persist / sync
+    setAppointmentData()
+
+    // 5️⃣backend save
+    await handleSave()
   },
 
   eventMouseEnter: (info) => {
@@ -410,61 +492,72 @@ const calendarOptions = ref({
 })
 
 /* ------------------ CRUD OPERATIONS ------------------ */
-function handleSave() {
-  if (!form.value.title) {
+async function handleSave() {
+  if (!appointmentData.value.type) {
     Notify.create({
-      type: 'warning',
-      message: 'Please enter a patient name',
+      type: 'negative',
+      message: 'Please select an appointment type',
     })
     return
   }
 
-  if (isEditMode.value) {
-    selectedEvent.value.setProp(
-      'title',
-      `${form.value.title} (${selectedEvent.value.extendedProps.status || 'Updated'})`,
-    )
-  } else {
-    const newAppointment = {
-      id: `local-${Date.now()}`,
-      title: `${form.value.title} (Pending)`,
-      start: form.value.start,
-      end: form.value.end,
-      backgroundColor: '#FFC107',
-      borderColor: '#FFC107',
-      extendedProps: {
-        type: 'appointment',
-        status: 'pending',
-        isDisabledSlot: false,
-        isLocal: true,
-      },
+  try {
+    let success = false
+
+    if (isEditMode.value) {
+      Loading.show({ message: 'Updating Appointment...' })
+      success = await appointmentStore.updateAppointment(appointmentData.value)
+      // ❌ Stop here if API failed
+      if (!success) return
+    } else {
+      Loading.show({ message: 'Booking Appointment...' })
+
+      appointmentData.value.therapist_id = therapist_id.value
+      appointmentData.value.clinic_id = clinic_id.value
+
+      success = await appointmentStore.storeAppointments(appointmentData.value)
+
+      // ❌ Stop here if API failed
+      if (!success) return
     }
 
-    appointments.value.push(newAppointment)
-  }
-
-  closeDialog()
-  Notify.create({
-    type: 'positive',
-    message: isEditMode.value ? 'Appointment updated' : 'Appointment created',
-  })
-}
-
-function handleDelete() {
-  if (selectedEvent.value) {
-    const eventId = selectedEvent.value.id
-    const index = appointments.value.findIndex((apt) => apt.id === eventId)
-    if (index > -1) {
-      appointments.value.splice(index, 1)
-    }
-
+    fetchAppointments()
+    resetAppointmentData()
     closeDialog()
     Notify.create({
-      type: 'info',
-      message: 'Appointment deleted',
+      type: 'positive',
+      message: isEditMode.value ? 'Appointment updated' : 'Appointment created',
     })
+  } catch (error) {
+    console.error(error)
+    Notify.create({
+      type: 'negative',
+      message: error.message,
+    })
+  } finally {
+    Loading.hide()
   }
 }
+
+function resetAppointmentData() {
+  Object.assign(appointmentData.value, { ...initialAppointmentData })
+}
+
+// function handleDelete() {
+//   if (selectedEvent.value) {
+//     const eventId = selectedEvent.value.id
+//     const index = appointments.value.findIndex((apt) => apt.id === eventId)
+//     if (index > -1) {
+//       appointments.value.splice(index, 1)
+//     }
+
+//     closeDialog()
+//     Notify.create({
+//       type: 'info',
+//       message: 'Appointment deleted',
+//     })
+//   }
+// }
 
 function closeDialog() {
   showDialog.value = false
@@ -481,6 +574,22 @@ function resetForm() {
     end: '',
   }
   selectedEvent.value = null
+}
+
+function setAppointmentData() {
+  appointmentData.value = {
+    id: selectedEvent.value.id,
+    type: selectedEvent.value.meta.type,
+    start_datetime: selectedEvent.value.start_datetime,
+    end_datetime: selectedEvent.value.end_datetime,
+    notes: selectedEvent.value.notes || '',
+    status: selectedEvent.value.status || 'confirmed',
+    client_id: selectedEvent.value.meta.client_id || null,
+    therapist_id: selectedEvent.value.meta.therapist_id || null,
+    user_id: selectedEvent.value.meta.client_id || null,
+    assessment_id: selectedEvent.value.meta.assessment_id || null,
+    treatment_session_id: selectedEvent.value.meta.treatment_session_id || null,
+  }
 }
 
 /* ------------------ API METHODS ------------------ */
@@ -520,15 +629,31 @@ async function fetchAppointments() {
   }
 }
 
+function getClinicById(id) {
+  api
+    .get(`get-clinics?id=${id}&is_first=1`)
+    .then((res) => {
+      handleClinicChange(res.data.results)
+    })
+    .catch((error) => {
+      Notify.create({
+        type: 'negative',
+        message: error.response.data.message,
+      })
+    })
+}
+
 function handleClinicChange(clinic) {
   if (!clinic) return
 
+  clinic.value = clinic
   clinic_id.value = clinic.id
   therapist_id.value = null
   appointments.value = []
   disabledSlotsFromAPI.value = []
 
   commonStore.getTherapiests(clinic.id)
+  commonStore.getClients(clinic.id)
 }
 
 function handleTherapistChange(therapistId) {
