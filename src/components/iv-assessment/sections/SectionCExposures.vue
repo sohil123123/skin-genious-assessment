@@ -1,0 +1,272 @@
+<template>
+  <q-card flat bordered class="q-pa-md q-mb-md shadow-1">
+    <q-card-section class="q-pa-none q-mb-md">
+      <div class="row items-center">
+        <q-icon name="history" color="info" size="24px" class="q-mr-sm" />
+        <h3 class="text-subtitle1 text-weight-bold q-mb-none text-info">
+          C. Recent Exposures (Last 24–72 Hours)
+        </h3>
+      </div>
+      <q-separator class="q-mt-sm" />
+    </q-card-section>
+
+    <!-- Alcohol Intake -->
+    <div class="q-mb-lg">
+      <p class="text-weight-medium q-mb-xs">Alcohol intake in last 24 hours *</p>
+      <div class="row q-gutter-xs q-mb-sm">
+        <q-chip
+          v-for="item in alcoholOptions"
+          :key="item.value"
+          :label="item.label"
+          :text-color="
+            item.value ===
+            localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+              .alcohol_intake_last_24h
+              ? 'white'
+              : 'dark'
+          "
+          :color="
+            item.value ===
+            localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+              .alcohol_intake_last_24h
+              ? item.value === 'None'
+                ? 'positive'
+                : 'primary'
+              : 'grey-3'
+          "
+          size="md"
+          clickable
+          @click="
+            updateField(
+              'section_1_client_questionnaire.C_recent_exposures_24_72h.alcohol_intake_last_24h',
+              item.value,
+            )
+          "
+        />
+      </div>
+
+      <!-- Follow-up for high alcohol -->
+      <div v-if="showAlcoholFollowup" class="q-ml-md q-mt-md bg-yellow-1 q-pa-sm rounded-borders">
+        <p class="text-weight-medium text-grey-7 q-mb-xs">
+          If >5 drinks: Last drink within past 12 hours? *
+        </p>
+        <div class="row q-gutter-xs">
+          <q-chip
+            v-for="item in yesNoUnsureOptions"
+            :key="item"
+            :label="item"
+            :text-color="
+              item ===
+              localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+                .alcohol_last_drink_if_high
+                ? 'white'
+                : 'dark'
+            "
+            :color="
+              item ===
+              localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+                .alcohol_last_drink_if_high
+                ? item === 'Yes'
+                  ? 'amber'
+                  : 'blue-9'
+                : 'grey-6'
+            "
+            :square="
+              item ===
+              localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+                .alcohol_last_drink_if_high
+            "
+            outline
+            clickable
+            @click="
+              updateField(
+                'section_1_client_questionnaire.C_recent_exposures_24_72h.alcohol_last_drink_if_high',
+                item,
+              )
+            "
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Exercise -->
+    <div class="q-mb-lg">
+      <p class="text-weight-medium q-mb-xs">Exercise in last 24 hours *</p>
+      <div class="row q-gutter-xs q-mb-sm">
+        <q-chip
+          v-for="item in exerciseOptions"
+          :key="item.value"
+          :label="item.label"
+          :text-color="
+            item.value ===
+            localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h.exercise_last_24h
+              ? 'white'
+              : 'dark'
+          "
+          :color="
+            item.value ===
+            localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h.exercise_last_24h
+              ? 'primary'
+              : 'grey-3'
+          "
+          size="md"
+          clickable
+          @click="
+            updateField(
+              'section_1_client_questionnaire.C_recent_exposures_24_72h.exercise_last_24h',
+              item.value,
+            )
+          "
+        />
+      </div>
+    </div>
+
+    <!-- Sleep Duration -->
+    <div class="q-mb-lg">
+      <q-input
+        v-model.number="
+          localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+            .sleep_duration_last_night_hours
+        "
+        type="number"
+        step="0.1"
+        label="Sleep duration last night (hours) *"
+        outlined
+        dense
+        placeholder="e.g., 6.5"
+        :rules="[
+          (val) => (val !== null && val !== '') || 'Required',
+          (val) => (val >= 0 && val <= 24) || 'Must be 0-24 hours',
+        ]"
+        @update:model-value="emitUpdate"
+      />
+    </div>
+
+    <!-- Stress Level -->
+    <div class="q-mb-lg">
+      <p class="text-weight-medium q-mb-xs">Current perceived stress level *</p>
+      <div class="row q-gutter-xs q-mb-sm">
+        <q-chip
+          v-for="item in stressLevelOptions"
+          :key="item"
+          :label="item"
+          :text-color="
+            item ===
+            localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+              .perceived_stress_level
+              ? 'white'
+              : 'dark'
+          "
+          :color="
+            item ===
+            localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+              .perceived_stress_level
+              ? item === 'High'
+                ? 'negative'
+                : item === 'Medium'
+                  ? 'warning'
+                  : 'primary'
+              : 'grey-3'
+          "
+          size="md"
+          clickable
+          @click="
+            updateField(
+              'section_1_client_questionnaire.C_recent_exposures_24_72h.perceived_stress_level',
+              item,
+            )
+          "
+        />
+      </div>
+    </div>
+
+    <!-- Caffeine Intake -->
+    <div class="q-mb-md">
+      <p class="text-weight-medium q-mb-xs">Caffeine intake today *</p>
+      <div class="row q-gutter-xs">
+        <q-chip
+          v-for="item in caffeineOptions"
+          :key="item"
+          :label="item"
+          :text-color="
+            item ===
+            localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+              .caffeine_intake_today
+              ? 'white'
+              : 'dark'
+          "
+          :color="
+            item ===
+            localFormData.section_1_client_questionnaire.C_recent_exposures_24_72h
+              .caffeine_intake_today
+              ? 'primary'
+              : 'grey-3'
+          "
+          size="md"
+          clickable
+          @click="
+            updateField(
+              'section_1_client_questionnaire.C_recent_exposures_24_72h.caffeine_intake_today',
+              item,
+            )
+          "
+        />
+      </div>
+    </div>
+  </q-card>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+
+const props = defineProps({
+  formData: {
+    type: Object,
+    required: true,
+  },
+})
+
+const emit = defineEmits(['update:formData', 'update'])
+
+const alcoholOptions = [
+  { label: 'None', value: 'None' },
+  { label: '1-2 drinks', value: '1-2' },
+  { label: '3-5 drinks', value: '3-5' },
+  { label: '>5 drinks', value: '>5' },
+]
+
+const exerciseOptions = [
+  { label: 'None', value: 'None' },
+  { label: 'Light', value: 'Light' },
+  { label: 'Heavy', value: 'Heavy' },
+]
+
+const yesNoUnsureOptions = ['Yes', 'No', 'Unsure']
+const stressLevelOptions = ['Low', 'Medium', 'High']
+const caffeineOptions = ['None', '1 serving', '2+ servings']
+
+const showAlcoholFollowup = computed(
+  () =>
+    localFormData.value.section_1_client_questionnaire?.C_recent_exposures_24_72h
+      ?.alcohol_intake_last_24h === '>5',
+)
+
+// Create local reactive copy
+const localFormData = ref(props.formData)
+
+function updateField(path, value) {
+  const paths = path.split('.')
+  let obj = localFormData.value
+  for (let i = 0; i < paths.length - 1; i++) {
+    if (!obj[paths[i]]) obj[paths[i]] = {}
+    obj = obj[paths[i]]
+  }
+  obj[paths[paths.length - 1]] = value
+  emitUpdate()
+}
+
+function emitUpdate() {
+  emit('update:formData', localFormData.value)
+  emit('update')
+}
+</script>
