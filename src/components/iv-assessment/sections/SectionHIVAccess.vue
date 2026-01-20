@@ -3,7 +3,7 @@
     <q-card-section class="q-pa-none q-mb-md">
       <div class="row items-center">
         <q-icon name="local_hospital" color="info" size="24px" class="q-mr-sm" />
-        <h3 class="text-subtitle1 text-weight-bold q-mb-none text-info">
+        <h3 class="text-subtitle1 text-weight-bold q-my-none text-info">
           H. IV Access & Procedure Tolerance
         </h3>
       </div>

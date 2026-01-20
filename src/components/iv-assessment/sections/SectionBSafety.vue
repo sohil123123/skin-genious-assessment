@@ -3,7 +3,7 @@
     <q-card-section class="q-pa-none q-mb-md">
       <div class="row items-center">
         <q-icon name="health_and_safety" color="negative" size="24px" class="q-mr-sm" />
-        <h3 class="text-subtitle1 text-weight-bold q-mb-none text-negative">
+        <h3 class="text-subtitle1 text-weight-bold q-my-none text-negative">
           B. Safety & Contraindications (Mandatory)
         </h3>
         <q-badge color="negative" class="q-ml-sm" label="Critical" />

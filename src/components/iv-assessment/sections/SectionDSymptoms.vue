@@ -3,7 +3,7 @@
     <q-card-section class="q-pa-none q-mb-md">
       <div class="row items-center">
         <q-icon name="sick" color="amber" size="24px" class="q-mr-sm" />
-        <h3 class="text-subtitle1 text-weight-bold q-mb-none text-amber">D. Symptoms Today</h3>
+        <h3 class="text-subtitle1 text-weight-bold q-my-none text-amber">D. Symptoms Today</h3>
         <q-badge color="amber" class="q-ml-sm" label="Current Status" />
       </div>
       <q-separator class="q-mt-sm" />

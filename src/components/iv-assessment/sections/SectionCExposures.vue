@@ -3,7 +3,7 @@
     <q-card-section class="q-pa-none q-mb-md">
       <div class="row items-center">
         <q-icon name="history" color="info" size="24px" class="q-mr-sm" />
-        <h3 class="text-subtitle1 text-weight-bold q-mb-none text-info">
+        <h3 class="text-subtitle1 text-weight-bold q-my-none text-info">
           C. Recent Exposures (Last 24–72 Hours)
         </h3>
       </div>

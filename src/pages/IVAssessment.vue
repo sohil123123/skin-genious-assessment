@@ -27,6 +27,12 @@
           @process="handleProcess"
         />
 
+        <PatientPhysicalAssessment
+          v-if="currentStep === 'step-3'"
+          :form-data="formData"
+          @update="updateFormData"
+        />
+
         <!-- Navigation Buttons -->
         <div class="q-mt-lg flex justify-between">
           <q-btn color="black" label="Previous" :disable="isFirstStep" @click="goPrev" />
@@ -63,6 +69,7 @@ import config from 'src/config.js'
 import _ from 'lodash'
 import ClientInformation from 'src/components/iv-assessment/FormWrapper.vue'
 import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
+import PatientPhysicalAssessment from 'src/components/iv-assessment/sections/PatientPhysicalAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
 import { SYSTEM_PROMPT_DIAGNOSIS, D_REPORT_USER_PROMPT } from 'src/utils/aiPrompts'
 
@@ -335,8 +342,8 @@ watch(
   },
 )
 
-function updateFormData(formData) {
-  console.log(formData)
+function updateFormData(updatedFormData) {
+  formData.value = updatedFormData
 }
 
 function finalizeAndExit() {
@@ -359,15 +366,16 @@ function finalizeAndExit() {
     },
   })
     .onOk(() => {
-      assessmentData.value.status = 'completed'
-      submit(['status'])
-      Loading.show({
-        message: 'Finalizing and redirecting...',
-      })
-      setTimeout(() => {
-        // LocalStorage.clear()
-        window.location.href = `${process.env.CRM_URL}/users`
-      }, 3000)
+      console.log(formData.value)
+      // assessmentData.value.status = 'completed'
+      // submit(['status'])
+      // Loading.show({
+      //   message: 'Finalizing and redirecting...',
+      // })
+      // setTimeout(() => {
+      //   // LocalStorage.clear()
+      //   window.location.href = `${process.env.CRM_URL}/users`
+      // }, 3000)
     })
     .onCancel(() => {
       console.log('User cancelled')

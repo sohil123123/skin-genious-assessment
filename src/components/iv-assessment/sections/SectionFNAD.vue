@@ -3,7 +3,7 @@
     <q-card-section class="q-pa-none q-mb-md">
       <div class="row items-center">
         <q-icon name="science" color="primary" size="24px" class="q-mr-sm" />
-        <h3 class="text-subtitle1 text-weight-bold q-mb-none">F. NAD+ Specific</h3>
+        <h3 class="text-subtitle1 text-weight-bold q-my-none">F. NAD+ Specific</h3>
         <q-badge color="warning" class="q-ml-sm" label="Required" />
       </div>
       <q-separator class="q-mt-sm" />
@@ -150,7 +150,7 @@
     <q-card-section class="q-pa-none">
       <div class="row items-center">
         <q-icon name="science" color="grey-6" size="24px" class="q-mr-sm" />
-        <h3 class="text-subtitle1 text-weight-medium q-mb-none text-grey-7">F. NAD+ Specific</h3>
+        <h3 class="text-subtitle1 text-weight-medium q-my-none text-grey-7">F. NAD+ Specific</h3>
         <q-badge color="grey-5" class="q-ml-sm" label="Not applicable" />
       </div>
       <q-separator class="q-my-sm" />

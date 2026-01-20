@@ -3,9 +3,7 @@
     <q-card-section class="q-pa-none q-mb-md">
       <div class="row items-center">
         <q-icon name="biotech" color="primary" size="24px" class="q-mr-sm" />
-        <h3 class="text-subtitle1 text-weight-bold q-mb-none">
-          SECTION 3: Dermatological AI Inputs
-        </h3>
+        <h3 class="text-subtitle1 text-weight-bold q-my-none">Dermatological AI Inputs</h3>
       </div>
       <q-separator class="q-mt-sm" />
     </q-card-section>

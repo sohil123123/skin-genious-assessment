@@ -31,7 +31,7 @@
 
     <Section2Measurements v-model:formData="formData" @update="handleUpdate" />
 
-    <Section3Dermatology v-model:formData="formData" @update="handleUpdate" />
+    <!-- <Section3Dermatology v-model:formData="formData" @update="handleUpdate" /> -->
 
     <!-- Output Panel -->
     <!-- <q-card flat bordered class="q-pa-md q-mb-md shadow-1">
@@ -93,7 +93,7 @@ import SectionFNAD from 'src/components/iv-assessment/sections/SectionFNAD.vue'
 import SectionGMetabolic from 'src/components/iv-assessment/sections/SectionGMetabolic.vue'
 import SectionHIVAccess from 'src/components/iv-assessment/sections/SectionHIVAccess.vue'
 import Section2Measurements from 'src/components/iv-assessment/sections/Section2Measurements.vue'
-import Section3Dermatology from 'src/components/iv-assessment/sections/Section3Dermatology.vue'
+// import Section3Dermatology from 'src/components/iv-assessment/sections/Section3Dermatology.vue'
 
 const props = defineProps({
   initialData: {
