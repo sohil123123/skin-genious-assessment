@@ -14,15 +14,78 @@
           </div>
         </div>
 
-        <ClientInformation :initial-data="formData" @update="updateFormData" />
+        <ClientInformation
+          v-if="currentStep === 'step-1'"
+          :initial-data="formData"
+          @update="updateFormData"
+        />
+
+        <UploadFaceImages
+          v-if="currentStep === 'step-2'"
+          v-model:startProcessingStep="startProcessingStep"
+          :processingMessage="processingMessage"
+          @process="handleProcess"
+        />
+
+        <!-- Navigation Buttons -->
+        <div class="q-mt-lg flex justify-between">
+          <q-btn color="black" label="Previous" :disable="isFirstStep" @click="goPrev" />
+          <q-btn
+            v-if="!isLastStep"
+            color="positive"
+            label="Next"
+            :disable="isLastStep"
+            @click="goNext"
+          />
+          <q-btn
+            v-if="isLastStep"
+            color="accent"
+            outline
+            label="Finalize & Exit"
+            unelevated
+            rounded
+            @click="finalizeAndExit"
+          />
+        </div>
       </div>
     </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { storeToRefs } from 'pinia'
+import { Loading, Notify, useQuasar } from 'quasar'
+import { api } from 'src/boot/axios'
+import config from 'src/config.js'
+import _ from 'lodash'
 import ClientInformation from 'src/components/iv-assessment/FormWrapper.vue'
+import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
+import { useOpenAI } from 'src/composables/useOpenAI'
+import { SYSTEM_PROMPT_DIAGNOSIS, D_REPORT_USER_PROMPT } from 'src/utils/aiPrompts'
+
+const { getOrCreateConversation, runResponse } = useOpenAI()
+const $q = useQuasar()
+const store = useAssessmentStore()
+const { assessmentData } = storeToRefs(store)
+
+const router = useRouter()
+const route = useRoute()
+const userId = route.params.user_id
+const currentStep = ref(route.params.step || 'step-1')
+const isPostAssessment = ref(false)
+
+const steps = ['step-1', 'step-2', 'step-3']
+const currentIndex = computed(() => steps.indexOf(currentStep.value))
+const isFirstStep = computed(() => steps.indexOf(currentStep.value) === 0)
+const isLastStep = computed(() => steps.indexOf(currentStep.value) === steps.length - 1)
+
+const startProcessingStep = ref(false)
+const processingMessage = ref('')
+
+const faceImages = ref([])
 
 // Form data structure
 const formData = ref({
@@ -233,7 +296,235 @@ const formData = ref({
   },
 })
 
+onMounted(async () => {
+  await store.getPatientData(userId)
+
+  let recentStoredId = null
+  if (route.params.assessment_id) {
+    recentStoredId = route.params.assessment_id
+  } else {
+    recentStoredId = await getValidAssessmentId()
+  }
+  if (route.params.assessment_id || recentStoredId) {
+    let id = route.params.assessment_id ? route.params.assessment_id : recentStoredId
+    await store.getSingleAssessment(id)
+    assessmentData.value.id = route.params.assessment_id
+      ? route.params.assessment_id
+      : recentStoredId
+  } else {
+    store.createNewAssessment()
+  }
+
+  if (route.params.step === 'step-6') {
+    isPostAssessment.value = true
+  } else {
+    isPostAssessment.value = false
+  }
+})
+
+// Watch for route changes
+watch(
+  () => route.params.step,
+  (newStep) => {
+    currentStep.value = newStep || 'step-1'
+    if (newStep === 'step-6') {
+      isPostAssessment.value = true
+    } else {
+      isPostAssessment.value = false
+    }
+  },
+)
+
 function updateFormData(formData) {
   console.log(formData)
+}
+
+function finalizeAndExit() {
+  $q.dialog({
+    title: 'Confirm',
+    message: 'Would you like to confirm the treatment plan and return to CRM?',
+    persistent: true,
+
+    ok: {
+      label: 'Yes, Confirm & Exit',
+      color: 'positive',
+      icon: 'check_circle',
+      unelevated: true,
+    },
+    cancel: {
+      label: 'Cancel',
+      color: 'negative',
+      flat: true,
+      icon: 'close',
+    },
+  })
+    .onOk(() => {
+      assessmentData.value.status = 'completed'
+      submit(['status'])
+      Loading.show({
+        message: 'Finalizing and redirecting...',
+      })
+      setTimeout(() => {
+        // LocalStorage.clear()
+        window.location.href = `${process.env.CRM_URL}/users`
+      }, 3000)
+    })
+    .onCancel(() => {
+      console.log('User cancelled')
+    })
+    .onDismiss(() => {
+      console.log('Dialog closed (OK or Cancel)')
+    })
+}
+
+async function submit(field) {
+  const activeAssessmentId = route.params.assessment_id || assessmentData.value.id
+  if (userId && activeAssessmentId) {
+    let data = {}
+    field.forEach((f) => {
+      data[f] = _.cloneDeep(assessmentData.value[f])
+    })
+    console.log(data)
+    await store.updateAssessment(data)
+  } else {
+    if (userId && !assessmentData.value.id) {
+      await store.createNewAssessment()
+    }
+  }
+}
+
+function goNext() {
+  if (!isLastStep.value) {
+    navigateToStep(steps[currentIndex.value + 1])
+  }
+}
+
+function goPrev() {
+  if (!isFirstStep.value) {
+    navigateToStep(steps[currentIndex.value - 1])
+  }
+}
+
+function navigateToStep(step) {
+  router.push({
+    name: route.name,
+    params: {
+      user_id: route.params.user_id,
+      step,
+      ...(route.params.assessment_id && { assessment_id: route.params.assessment_id }),
+      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+    },
+  })
+}
+
+const handleProcess = async (files) => {
+  await handleDiagnosis(files)
+}
+
+async function handleDiagnosis(files) {
+  faceImages.value = assessmentData.value.images.map((img) => img.url)
+  // if (files.length > 0) {
+  //   const uploadedImages = await store.storeFaceImages(files, 'pre')
+  //   faceImages.value.push(...uploadedImages)
+  // }
+
+  faceImages.value = config.IMAGES_ORDER.map((name) =>
+    faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
+  ).filter(Boolean)
+
+  const apiResponse = await callApiForDiagnosis(assessmentData.value, files)
+
+  if (apiResponse.error) {
+    startProcessingStep.value = false
+    Notify.create({
+      type: 'negative',
+      message: apiResponse.error.message,
+      timeout: 3000,
+      actions: [
+        {
+          icon: 'close',
+          color: 'white',
+          round: true,
+        },
+      ],
+    })
+  } else {
+    startProcessingStep.value = false
+    // diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
+    assessmentData.value.diagnosis = apiResponse
+    assessmentData.value.parameters_with_abnormal_scores = apiResponse.treatable_concerns_summary
+    submit(['diagnosis', 'parameters_with_abnormal_scores'])
+    goNext()
+  }
+}
+
+async function callApiForDiagnosis(data, images) {
+  const convId = await getOrCreateConversation(`${data.user_id}`)
+
+  processingMessage.value = 'Uploading images to OpenAI...'
+  await uploadImageFileToOpenAI(images, 'pre')
+  const storedFiles = await Promise.all(
+    data.images.map((item) => ({
+      type: 'input_image',
+      file_id: item.custom_properties?.openai_file_id ?? null,
+    })),
+  )
+  console.log(storedFiles)
+  const input = [
+    {
+      role: 'system',
+      content: SYSTEM_PROMPT_DIAGNOSIS,
+    },
+    {
+      role: 'user',
+      content: [
+        ...storedFiles,
+        {
+          type: 'input_text',
+          text: D_REPORT_USER_PROMPT,
+        },
+      ],
+    },
+  ]
+  processingMessage.value = 'Processing scanned images...'
+  console.log('Conv ID:', convId)
+  console.log('Diagnosis Input:', input)
+  const result = await runResponse(convId, input)
+  console.log('✅ Diagnosis:', result)
+  return result
+}
+
+async function uploadImageFileToOpenAI(files, type) {
+  const uploaded = []
+
+  for (const f of files) {
+    const fileId = await store.storeFaceImages(f, type)
+    uploaded.push({ type: 'input_image', file_id: fileId })
+  }
+
+  return uploaded
+}
+
+async function getValidAssessmentId() {
+  try {
+    Loading.show({
+      message: 'Checking for in-progress assessment...',
+    })
+    const response = await api.get(`/assessments/get-in-progress-assessment/${userId}`)
+    const item = response.data.results
+    if (!item.assessment_id) return null
+
+    if (item.assessment_id) {
+      return item.assessment_id
+    } else {
+      // localStorage.removeItem(`recent_assessment_${route.params.patient_id}`)
+      return null
+    }
+  } catch (error) {
+    console.error('Error fetching assessment:', error.response.data)
+    return null
+  } finally {
+    Loading.hide()
+  }
 }
 </script>

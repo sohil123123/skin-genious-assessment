@@ -232,6 +232,8 @@ const statusOptions = [
   { label: 'Confirmed', value: 'confirmed' },
 ]
 
+const CONSULT_DURATION_MINUTES = 90
+
 const assessments = ref([])
 const treatmentSessionsOptions = ref([])
 const loadingAssessments = ref(false)
@@ -249,29 +251,40 @@ onMounted(async () => {
 
 watch(
   () => appointmentData.value.start_datetime,
-  (newStart) => {
-    if (!newStart) return
-
-    const [startDate] = newStart.split(' ')
-
-    if (appointmentData.value.end_datetime) {
-      const [, endTime] = appointmentData.value.end_datetime.split(' ')
-      appointmentData.value.end_datetime = `${startDate} ${endTime || '00:00'}`
-    } else {
-      appointmentData.value.end_datetime = `${startDate} 00:00`
-    }
-
-    // 🔥 force End DatePicker UI refresh
-    endPickerKey.value++
+  () => {
+    autoSetConsultEndTime()
   },
 )
+
+function autoSetConsultEndTime() {
+  if (appointmentData.value.type !== 'consult' || !appointmentData.value.start_datetime) {
+    return
+  }
+
+  const start = new Date(appointmentData.value.start_datetime.replace(' ', 'T'))
+
+  if (isNaN(start.getTime())) return
+
+  const end = new Date(start.getTime() + CONSULT_DURATION_MINUTES * 60000)
+
+  const pad = (n) => String(n).padStart(2, '0')
+
+  appointmentData.value.end_datetime =
+    `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())} ` +
+    `${pad(end.getHours())}:${pad(end.getMinutes())}`
+
+  // 🔥 force End DatePicker refresh
+  endPickerKey.value++
+}
 
 function setType(type) {
   appointmentData.value.type = type
   // Reset dependent fields when type changes
-  if (type !== 'treatment') {
-    // appointmentData.value.assessment_id = null
-    // appointmentData.value.treatment_session_id = null
+  if (type == 'consult') {
+    appointmentData.value.assessment_id = null
+    appointmentData.value.treatment_session_id = null
+    // ✅ AUTO SET 90 MIN SLOT
+    autoSetConsultEndTime()
   }
   if (type == 'treatment' && assessments.value.length === 0) {
     getAssessments()

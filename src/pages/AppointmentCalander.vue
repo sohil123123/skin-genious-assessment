@@ -49,7 +49,7 @@
     </q-card>
   </q-page>
   <!-- Add/Edit dialog -->
-  <q-dialog v-model="showDialog" persistent @hide="resetForm">
+  <q-dialog v-model="showDialog" persistent>
     <CreateUpdateModal
       :clients="clients"
       :clinic="clinic"
@@ -299,6 +299,7 @@ function processApiResponse(results) {
         start: startDateTime,
         end: endDateTime,
         backgroundColor: item.bgcolor || '#3788d8',
+        textColor: item.textcolor,
         borderColor: item.bgcolor || '#3788d8',
         extendedProps: {
           originalData: item,
@@ -321,6 +322,7 @@ function processApiResponse(results) {
         end: endDateTime,
         display: 'background',
         backgroundColor: item.bgcolor || '#BDBDBD',
+        textColor: item.textcolor,
         start_date: item.start_date,
         end_date: item.end_date,
         start_time: formattedStartTime.slice(0, 5),

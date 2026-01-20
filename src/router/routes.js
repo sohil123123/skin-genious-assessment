@@ -34,10 +34,10 @@ const routes = [
       {
         path: 'appointments/:clinic_id?/:therapist_id?',
         name: 'appointments',
-        component: () => import('src/pages/FullCalander.vue'),
+        component: () => import('src/pages/AppointmentCalander.vue'),
       },
       {
-        path: 'iv-assessment',
+        path: 'iv-assessment/:user_id/:step/:appointment_id?',
         name: 'iv-assessment',
         component: () => import('src/pages/IVAssessment.vue'),
       },

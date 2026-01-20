@@ -34,7 +34,7 @@
     <Section3Dermatology v-model:formData="formData" @update="handleUpdate" />
 
     <!-- Output Panel -->
-    <q-card flat bordered class="q-pa-md q-mb-md shadow-1">
+    <!-- <q-card flat bordered class="q-pa-md q-mb-md shadow-1">
       <q-card-section class="q-pa-none q-mb-md">
         <h3 class="text-subtitle1 text-weight-bold">Review & Output</h3>
       </q-card-section>
@@ -52,10 +52,10 @@
       </div>
 
       <pre class="json-output q-pa-md bg-dark text-white rounded-borders">{{ formattedJson }}</pre>
-    </q-card>
+    </q-card> -->
 
     <!-- Action Buttons -->
-    <div class="row q-mb-xl q-mt-lg">
+    <!-- <div class="row q-mb-xl q-mt-lg">
       <div class="col-12">
         <div class="row justify-center q-gutter-md">
           <q-btn
@@ -76,13 +76,13 @@
           <q-btn color="grey" icon="refresh" label="Reset" @click="resetForm" outline size="lg" />
         </div>
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
 
 <script setup>
 import { ref, computed, reactive } from 'vue'
-import { useQuasar } from 'quasar'
+// import { useQuasar } from 'quasar'
 import SectionProfile from 'src/components/iv-assessment/sections/SectionProfile.vue'
 import SectionAGoals from 'src/components/iv-assessment/sections/SectionAGoals.vue'
 import SectionBSafety from 'src/components/iv-assessment/sections/SectionBSafety.vue'
@@ -104,7 +104,7 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'update', 'validate'])
 
-const $q = useQuasar()
+// const $q = useQuasar()
 
 // Form data structure
 const formData = reactive({
@@ -321,7 +321,7 @@ if (props.initialData && Object.keys(props.initialData).length > 0) {
 }
 
 // UI State
-const validationStatus = ref('not-validated')
+// const validationStatus = ref('not-validated')
 const formattedJson = ref('{}')
 
 // Computed Properties
@@ -337,27 +337,27 @@ const formProgress = computed(() => {
   return Math.min(filledFields / totalFields, 1)
 })
 
-const statusPillText = computed(() => {
-  switch (validationStatus.value) {
-    case 'valid':
-      return 'Validated: OK'
-    case 'invalid':
-      return 'Validated: errors found'
-    default:
-      return 'Not validated'
-  }
-})
+// const statusPillText = computed(() => {
+//   switch (validationStatus.value) {
+//     case 'valid':
+//       return 'Validated: OK'
+//     case 'invalid':
+//       return 'Validated: errors found'
+//     default:
+//       return 'Not validated'
+//   }
+// })
 
-const statusPillColor = computed(() => {
-  switch (validationStatus.value) {
-    case 'valid':
-      return 'positive'
-    case 'invalid':
-      return 'negative'
-    default:
-      return ''
-  }
-})
+// const statusPillColor = computed(() => {
+//   switch (validationStatus.value) {
+//     case 'valid':
+//       return 'positive'
+//     case 'invalid':
+//       return 'negative'
+//     default:
+//       return ''
+//   }
+// })
 
 // Methods
 function countFilledFields() {
@@ -389,120 +389,120 @@ function updateJsonPreview() {
   formattedJson.value = JSON.stringify(json, null, 2)
 }
 
-async function copyJson() {
-  try {
-    await navigator.clipboard.writeText(formattedJson.value)
-    $q.notify({
-      type: 'positive',
-      message: 'JSON copied to clipboard!',
-    })
-  } catch (err) {
-    console.log(err)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to copy JSON',
-    })
-  }
-}
+// async function copyJson() {
+//   try {
+//     await navigator.clipboard.writeText(formattedJson.value)
+//     $q.notify({
+//       type: 'positive',
+//       message: 'JSON copied to clipboard!',
+//     })
+//   } catch (err) {
+//     console.log(err)
+//     $q.notify({
+//       type: 'negative',
+//       message: 'Failed to copy JSON',
+//     })
+//   }
+// }
 
-function downloadJson() {
-  const blob = new Blob([formattedJson.value], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `skincare-form-${Date.now()}.json`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
+// function downloadJson() {
+//   const blob = new Blob([formattedJson.value], { type: 'application/json' })
+//   const url = URL.createObjectURL(blob)
+//   const a = document.createElement('a')
+//   a.href = url
+//   a.download = `skincare-form-${Date.now()}.json`
+//   document.body.appendChild(a)
+//   a.click()
+//   document.body.removeChild(a)
+//   URL.revokeObjectURL(url)
+// }
 
-function validateForm() {
-  // Basic validation - expand as needed
-  const errors = []
+// function validateForm() {
+//   // Basic validation - expand as needed
+//   const errors = []
 
-  if (!formData.meta.profile.name) errors.push('Patient name is required')
-  if (!formData.meta.profile.age) errors.push('Age is required')
-  if (!formData.meta.profile.gender) errors.push('Gender is required')
+//   if (!formData.meta.profile.name) errors.push('Patient name is required')
+//   if (!formData.meta.profile.age) errors.push('Age is required')
+//   if (!formData.meta.profile.gender) errors.push('Gender is required')
 
-  if (errors.length > 0) {
-    validationStatus.value = 'invalid'
-    $q.notify({
-      type: 'negative',
-      message: `Validation failed: ${errors.join(', ')}`,
-      position: 'top',
-    })
-  } else {
-    validationStatus.value = 'valid'
-    emit('validate', formData)
-    $q.notify({
-      type: 'positive',
-      message: 'Form validated successfully!',
-      position: 'top',
-    })
-  }
-}
+//   if (errors.length > 0) {
+//     validationStatus.value = 'invalid'
+//     $q.notify({
+//       type: 'negative',
+//       message: `Validation failed: ${errors.join(', ')}`,
+//       position: 'top',
+//     })
+//   } else {
+//     validationStatus.value = 'valid'
+//     emit('validate', formData)
+//     $q.notify({
+//       type: 'positive',
+//       message: 'Form validated successfully!',
+//       position: 'top',
+//     })
+//   }
+// }
 
-function submitForm() {
-  if (validationStatus.value !== 'valid') {
-    $q.notify({
-      type: 'warning',
-      message: 'Please validate form before submitting',
-      position: 'top',
-    })
-    return
-  }
+// function submitForm() {
+//   if (validationStatus.value !== 'valid') {
+//     $q.notify({
+//       type: 'warning',
+//       message: 'Please validate form before submitting',
+//       position: 'top',
+//     })
+//     return
+//   }
 
-  emit('submit', formData)
-  $q.notify({
-    type: 'positive',
-    message: 'Form submitted successfully!',
-    position: 'top',
-  })
-}
+//   emit('submit', formData)
+//   $q.notify({
+//     type: 'positive',
+//     message: 'Form submitted successfully!',
+//     position: 'top',
+//   })
+// }
 
-function resetForm() {
-  $q.dialog({
-    title: 'Confirm Reset',
-    message: 'Are you sure you want to reset all form data?',
-    cancel: true,
-    persistent: true,
-  }).onOk(() => {
-    Object.keys(formData).forEach((key) => {
-      if (key === 'meta') {
-        formData.meta.profile = { name: '', age: null, gender: '' }
-        formData.meta.session_id = ''
-        formData.meta.session_datetime = ''
-      } else if (typeof formData[key] === 'object') {
-        resetObject(formData[key])
-      }
-    })
-    validationStatus.value = 'not-validated'
-    updateJsonPreview()
-    emit('update', formData)
-    $q.notify({
-      type: 'info',
-      message: 'Form has been reset',
-      position: 'top',
-    })
-  })
-}
+// function resetForm() {
+//   $q.dialog({
+//     title: 'Confirm Reset',
+//     message: 'Are you sure you want to reset all form data?',
+//     cancel: true,
+//     persistent: true,
+//   }).onOk(() => {
+//     Object.keys(formData).forEach((key) => {
+//       if (key === 'meta') {
+//         formData.meta.profile = { name: '', age: null, gender: '' }
+//         formData.meta.session_id = ''
+//         formData.meta.session_datetime = ''
+//       } else if (typeof formData[key] === 'object') {
+//         resetObject(formData[key])
+//       }
+//     })
+//     validationStatus.value = 'not-validated'
+//     updateJsonPreview()
+//     emit('update', formData)
+//     $q.notify({
+//       type: 'info',
+//       message: 'Form has been reset',
+//       position: 'top',
+//     })
+//   })
+// }
 
-function resetObject(obj) {
-  Object.keys(obj).forEach((key) => {
-    if (Array.isArray(obj[key])) {
-      obj[key] = []
-    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-      resetObject(obj[key])
-    } else if (typeof obj[key] === 'string') {
-      obj[key] = ''
-    } else if (typeof obj[key] === 'number') {
-      obj[key] = null
-    } else if (typeof obj[key] === 'boolean') {
-      obj[key] = false
-    }
-  })
-}
+// function resetObject(obj) {
+//   Object.keys(obj).forEach((key) => {
+//     if (Array.isArray(obj[key])) {
+//       obj[key] = []
+//     } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+//       resetObject(obj[key])
+//     } else if (typeof obj[key] === 'string') {
+//       obj[key] = ''
+//     } else if (typeof obj[key] === 'number') {
+//       obj[key] = null
+//     } else if (typeof obj[key] === 'boolean') {
+//       obj[key] = false
+//     }
+//   })
+// }
 
 // Initialize
 updateJsonPreview()
