@@ -7,11 +7,11 @@
     </div>
 
     <!-- Form Sections -->
-    <SectionProfile v-model:formData="formData" @update="handleUpdate" />
+    <SectionProfile v-model:formData="formData" :v="v" @update="handleUpdate" />
 
-    <SectionAGoals v-model:formData="formData" @update="handleUpdate" />
+    <SectionAGoals v-model:formData="formData" :v="v" @update="handleUpdate" />
 
-    <SectionBSafety v-model:formData="formData" @update="handleUpdate" />
+    <SectionBSafety v-model:formData="formData" :v="v" @update="handleUpdate" />
 
     <SectionCExposures v-model:formData="formData" @update="handleUpdate" />
 
@@ -97,6 +97,10 @@ import Section2Measurements from 'src/components/iv-assessment/sections/Section2
 
 const props = defineProps({
   initialData: {
+    type: Object,
+    default: () => ({}),
+  },
+  v: {
     type: Object,
     default: () => ({}),
   },

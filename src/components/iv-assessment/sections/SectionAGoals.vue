@@ -9,8 +9,20 @@
     </q-card-section>
 
     <!-- Primary Goal -->
-    <div class="q-mb-lg">
-      <p class="text-weight-medium q-mb-xs">Primary Goal *</p>
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error': v.section_1_client_questionnaire.A_goals_intent.primary_goal.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative': v.section_1_client_questionnaire.A_goals_intent.primary_goal.$error,
+        }"
+      >
+        Primary Goal *
+      </p>
       <div class="row q-gutter-sm q-mb-sm">
         <q-chip
           v-for="goal in goalOptions"
@@ -36,8 +48,20 @@
     </div>
 
     <!-- Secondary Goal -->
-    <div class="q-mb-lg">
-      <p class="text-weight-medium q-mb-xs">Secondary Goal (Optional)</p>
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error': v.section_1_client_questionnaire.A_goals_intent.secondary_goal.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative': v.section_1_client_questionnaire.A_goals_intent.secondary_goal.$error,
+        }"
+      >
+        Secondary Goal
+      </p>
       <div class="row q-gutter-sm q-mb-sm">
         <q-chip
           label="None"
@@ -81,8 +105,22 @@
     </div>
 
     <!-- Intensity Preference -->
-    <div class="q-mb-md">
-      <p class="text-weight-medium q-mb-xs">Desired Intensity Preference *</p>
+    <div
+      class="q-mb-md option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.A_goals_intent.desired_intensity_preference.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative':
+            v.section_1_client_questionnaire.A_goals_intent.desired_intensity_preference.$error,
+        }"
+      >
+        Desired Intensity Preference *
+      </p>
       <div class="row q-gutter-xs">
         <q-chip
           v-for="item in intensityOptions"
@@ -122,6 +160,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  v: {
+    type: Object,
+    required: true,
+  },
 })
 
 const emit = defineEmits(['update:formData', 'update'])
@@ -152,6 +194,7 @@ function updateField(path, value) {
     obj = obj[paths[i]]
   }
   obj[paths[paths.length - 1]] = value
+
   emitUpdate()
 }
 

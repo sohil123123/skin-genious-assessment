@@ -17,6 +17,7 @@
         <ClientInformation
           v-if="currentStep === 'step-1'"
           :initial-data="formData"
+          :v="v$"
           @update="updateFormData"
         />
 
@@ -55,6 +56,27 @@
         </div>
       </div>
     </div>
+
+    <q-page-sticky position="bottom-left" :offset="[18, 18]">
+      <q-btn
+        color="black"
+        label="Previous"
+        icon="arrow_back"
+        :disable="isFirstStep"
+        rounded
+        @click="goPrev"
+      />
+    </q-page-sticky>
+    <q-page-sticky position="bottom-right" :offset="[18, 18]">
+      <q-btn
+        v-if="!isLastStep"
+        rounded
+        label="Next"
+        icon-right="arrow_forward"
+        color="teal"
+        @click="goNext"
+      />
+    </q-page-sticky>
   </q-page>
 </template>
 
@@ -72,6 +94,8 @@ import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
 import PatientPhysicalAssessment from 'src/components/iv-assessment/sections/PatientPhysicalAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
 import { SYSTEM_PROMPT_DIAGNOSIS, D_REPORT_USER_PROMPT } from 'src/utils/aiPrompts'
+import { useIVAssessmentValidation } from 'src/composables/useIVAssessmentValidation'
+import { useVuelidate } from '@vuelidate/core'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 const $q = useQuasar()
@@ -303,6 +327,14 @@ const formData = ref({
   },
 })
 
+const rules = useIVAssessmentValidation(formData)
+const v$ = useVuelidate(rules, formData)
+
+const stepFields = {
+  'step-1': ['meta', 'section_1_client_questionnaire'],
+  'step-3': ['section_2_machine_objective_inputs'],
+}
+
 onMounted(async () => {
   await store.getPatientData(userId)
 
@@ -401,7 +433,20 @@ async function submit(field) {
   }
 }
 
-function goNext() {
+const isStepValid = async () => {
+  const fields = stepFields[currentStep.value]
+  if (!fields) return true
+
+  fields.forEach((path) => v$.value[path].$touch())
+  console.log(v$.value)
+  return !fields.some((path) => v$.value[path].$invalid)
+}
+
+async function goNext() {
+  const valid = await isStepValid()
+  console.log(formData.value)
+  if (!valid) return
+
   if (!isLastStep.value) {
     navigateToStep(steps[currentIndex.value + 1])
   }

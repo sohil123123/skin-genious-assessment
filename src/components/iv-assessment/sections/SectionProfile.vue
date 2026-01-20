@@ -15,7 +15,8 @@
           label="Patient Name *"
           outlined
           dense
-          :rules="[(val) => !!val || 'Name required']"
+          :error="v.meta.profile.name.$error"
+          error-message="Name is required"
           clearable
           @update:model-value="emitUpdate"
         />
@@ -27,15 +28,18 @@
           label="Age *"
           outlined
           dense
-          :rules="[
-            (val) => (val !== null && val !== '') || 'Age required',
-            (val) => (val >= 0 && val <= 130) || 'Age must be 0-130',
-          ]"
+          :error="v.meta.profile.age.$error"
+          error-message="Age is required"
           @update:model-value="emitUpdate"
         />
       </div>
       <div class="col-12 col-md-6">
-        <p class="text-weight-medium q-mb-xs">Gender *</p>
+        <p class="text-weight-medium q-mb-xs">
+          Gender *
+          <span v-if="v.meta.profile.gender.$error" class="text-caption text-negative"
+            >(Select gender)</span
+          >
+        </p>
         <div class="row q-gutter-xs">
           <q-chip
             v-for="item in genderOptions"
@@ -58,6 +62,10 @@ import { ref } from 'vue'
 
 const props = defineProps({
   formData: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

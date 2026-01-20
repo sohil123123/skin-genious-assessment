@@ -12,7 +12,7 @@
     </q-card-section>
 
     <!-- Import all safety components -->
-    <SafetyPregnancy v-model="localFormData" @update="emitUpdate" />
+    <SafetyPregnancy v-model="localFormData" :v="v" @update="emitUpdate" />
 
     <SafetyKidney v-model="localFormData" @update="emitUpdate" />
 
@@ -76,6 +76,10 @@ import SafetyElectrolyte from 'src/components/iv-assessment/partials/SafetyElect
 
 const props = defineProps({
   formData: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

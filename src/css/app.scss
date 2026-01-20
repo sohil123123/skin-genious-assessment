@@ -555,3 +555,13 @@ h6.heading {
   width: 500px;
   max-width: 90vw;
 }
+
+.option-group {
+  padding: 8px !important;
+  border-radius: 8px !important;
+}
+
+.group--error {
+  border: 1px solid rgba(193, 0, 21, 0.35) !important; /* Quasar negative */
+  background: rgba(193, 0, 21, 0.04);
+}
