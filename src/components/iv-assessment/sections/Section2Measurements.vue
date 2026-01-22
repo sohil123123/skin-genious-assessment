@@ -24,9 +24,11 @@
         label="BP Monitor"
         :class="{
           'text-negative':
-            v.section_2_machine_objective_inputs.blood_pressure_monitor.systolic_mmhg.$error ||
-            v.section_2_machine_objective_inputs.blood_pressure_monitor.diastolic_mmhg.$error ||
-            v.section_2_machine_objective_inputs.blood_pressure_monitor.pulse_bpm.$error,
+            v.section_2_machine_objective_inputs_part_1.blood_pressure_monitor.systolic_mmhg
+              .$error ||
+            v.section_2_machine_objective_inputs_part_1.blood_pressure_monitor.diastolic_mmhg
+              .$error ||
+            v.section_2_machine_objective_inputs_part_1.blood_pressure_monitor.pulse_bpm.$error,
         }"
       />
       <q-tab
@@ -35,9 +37,11 @@
         label="Pulse Oximeter"
         :class="{
           'text-negative':
-            v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.spo2_percent.$error ||
-            v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.pulse_bpm.$error ||
-            v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.perfusion_index.$error,
+            v.section_2_machine_objective_inputs_part_1.pulse_oximeter_with_pi.spo2_percent
+              .$error ||
+            v.section_2_machine_objective_inputs_part_1.pulse_oximeter_with_pi.pulse_bpm.$error ||
+            v.section_2_machine_objective_inputs_part_1.pulse_oximeter_with_pi.perfusion_index
+              .$error,
         }"
       />
       <q-tab
@@ -46,11 +50,12 @@
         label="HRV Device"
         :class="{
           'text-negative':
-            v.section_2_machine_objective_inputs.hrv_measurement_device.rmssd_or_tw_ms.$error ||
-            v.section_2_machine_objective_inputs.hrv_measurement_device.resting_heart_rate_bpm
+            v.section_2_machine_objective_inputs_part_1.hrv_measurement_device.rmssd_or_tw_ms
               .$error ||
-            v.section_2_machine_objective_inputs.hrv_measurement_device.measurement_duration_minutes
-              .$error,
+            v.section_2_machine_objective_inputs_part_1.hrv_measurement_device
+              .resting_heart_rate_bpm.$error ||
+            v.section_2_machine_objective_inputs_part_1.hrv_measurement_device
+              .measurement_duration_minutes.$error,
         }"
       />
       <q-tab
@@ -59,12 +64,12 @@
         label="Infrared Thermometer"
         :class="{
           'text-negative':
-            v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.forehead_c
+            v.section_2_machine_objective_inputs_part_1.infrared_skin_thermometer_3_point.forehead_c
               .$error ||
-            v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.left_cheek_c
-              .$error ||
-            v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.right_cheek_c
-              .$error,
+            v.section_2_machine_objective_inputs_part_1.infrared_skin_thermometer_3_point
+              .left_cheek_c.$error ||
+            v.section_2_machine_objective_inputs_part_1.infrared_skin_thermometer_3_point
+              .right_cheek_c.$error,
         }"
       />
     </q-tabs>
@@ -77,7 +82,7 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.blood_pressure_monitor
+                localFormData.section_2_machine_objective_inputs_part_1.blood_pressure_monitor
                   .systolic_mmhg
               "
               type="number"
@@ -85,7 +90,8 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.blood_pressure_monitor.systolic_mmhg.$error
+                v.section_2_machine_objective_inputs_part_1.blood_pressure_monitor.systolic_mmhg
+                  .$error
               "
               @update:model-value="emitUpdate"
             >
@@ -95,7 +101,7 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.blood_pressure_monitor
+                localFormData.section_2_machine_objective_inputs_part_1.blood_pressure_monitor
                   .diastolic_mmhg
               "
               type="number"
@@ -103,7 +109,8 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.blood_pressure_monitor.diastolic_mmhg.$error
+                v.section_2_machine_objective_inputs_part_1.blood_pressure_monitor.diastolic_mmhg
+                  .$error
               "
               @update:model-value="emitUpdate"
             >
@@ -113,13 +120,16 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.blood_pressure_monitor.pulse_bpm
+                localFormData.section_2_machine_objective_inputs_part_1.blood_pressure_monitor
+                  .pulse_bpm
               "
               type="number"
               label="Pulse (bpm) *"
               outlined
               dense
-              :error="v.section_2_machine_objective_inputs.blood_pressure_monitor.pulse_bpm.$error"
+              :error="
+                v.section_2_machine_objective_inputs_part_1.blood_pressure_monitor.pulse_bpm.$error
+              "
               @update:model-value="emitUpdate"
             >
               <template v-slot:error> Please enter your pulse </template>
@@ -137,7 +147,8 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.pulse_oximeter_with_pi.spo2_percent
+                localFormData.section_2_machine_objective_inputs_part_1.pulse_oximeter_with_pi
+                  .spo2_percent
               "
               type="number"
               step="0.1"
@@ -145,7 +156,8 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.spo2_percent.$error
+                v.section_2_machine_objective_inputs_part_1.pulse_oximeter_with_pi.spo2_percent
+                  .$error
               "
               @update:model-value="emitUpdate"
             >
@@ -155,13 +167,16 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.pulse_oximeter_with_pi.pulse_bpm
+                localFormData.section_2_machine_objective_inputs_part_1.pulse_oximeter_with_pi
+                  .pulse_bpm
               "
               type="number"
               label="Pulse (bpm) *"
               outlined
               dense
-              :error="v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.pulse_bpm.$error"
+              :error="
+                v.section_2_machine_objective_inputs_part_1.pulse_oximeter_with_pi.pulse_bpm.$error
+              "
               @update:model-value="emitUpdate"
             >
               <template v-slot:error> Please enter your pulse </template>
@@ -170,7 +185,7 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.pulse_oximeter_with_pi
+                localFormData.section_2_machine_objective_inputs_part_1.pulse_oximeter_with_pi
                   .perfusion_index
               "
               type="number"
@@ -179,7 +194,8 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.perfusion_index.$error
+                v.section_2_machine_objective_inputs_part_1.pulse_oximeter_with_pi.perfusion_index
+                  .$error
               "
               @update:model-value="emitUpdate"
             >
@@ -196,7 +212,7 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.hrv_measurement_device
+                localFormData.section_2_machine_objective_inputs_part_1.hrv_measurement_device
                   .rmssd_or_tw_ms
               "
               type="number"
@@ -205,7 +221,8 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.hrv_measurement_device.rmssd_or_tw_ms.$error
+                v.section_2_machine_objective_inputs_part_1.hrv_measurement_device.rmssd_or_tw_ms
+                  .$error
               "
               @update:model-value="emitUpdate"
             >
@@ -215,7 +232,7 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.hrv_measurement_device
+                localFormData.section_2_machine_objective_inputs_part_1.hrv_measurement_device
                   .resting_heart_rate_bpm
               "
               type="number"
@@ -223,8 +240,8 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.hrv_measurement_device.resting_heart_rate_bpm
-                  .$error
+                v.section_2_machine_objective_inputs_part_1.hrv_measurement_device
+                  .resting_heart_rate_bpm.$error
               "
               @update:model-value="emitUpdate"
             >
@@ -234,7 +251,7 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.hrv_measurement_device
+                localFormData.section_2_machine_objective_inputs_part_1.hrv_measurement_device
                   .measurement_duration_minutes
               "
               type="number"
@@ -243,7 +260,7 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.hrv_measurement_device
+                v.section_2_machine_objective_inputs_part_1.hrv_measurement_device
                   .measurement_duration_minutes.$error
               "
               @update:model-value="emitUpdate"
@@ -263,8 +280,8 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point
-                  .forehead_c
+                localFormData.section_2_machine_objective_inputs_part_1
+                  .infrared_skin_thermometer_3_point.forehead_c
               "
               type="number"
               step="0.1"
@@ -272,8 +289,8 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.forehead_c
-                  .$error
+                v.section_2_machine_objective_inputs_part_1.infrared_skin_thermometer_3_point
+                  .forehead_c.$error
               "
               @update:model-value="emitUpdate"
             >
@@ -283,8 +300,8 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point
-                  .left_cheek_c
+                localFormData.section_2_machine_objective_inputs_part_1
+                  .infrared_skin_thermometer_3_point.left_cheek_c
               "
               type="number"
               step="0.1"
@@ -292,8 +309,8 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.left_cheek_c
-                  .$error
+                v.section_2_machine_objective_inputs_part_1.infrared_skin_thermometer_3_point
+                  .left_cheek_c.$error
               "
               @update:model-value="emitUpdate"
             >
@@ -303,8 +320,8 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point
-                  .right_cheek_c
+                localFormData.section_2_machine_objective_inputs_part_1
+                  .infrared_skin_thermometer_3_point.right_cheek_c
               "
               type="number"
               step="0.1"
@@ -312,8 +329,8 @@
               outlined
               dense
               :error="
-                v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.right_cheek_c
-                  .$error
+                v.section_2_machine_objective_inputs_part_1.infrared_skin_thermometer_3_point
+                  .right_cheek_c.$error
               "
               @update:model-value="emitUpdate"
             >

@@ -264,7 +264,7 @@ const formData = ref({
       vasovagal_trigger: '',
     },
   },
-  section_2_machine_objective_inputs: {
+  section_2_machine_objective_inputs_part_1: {
     blood_pressure_monitor: {
       systolic_mmhg: null,
       diastolic_mmhg: null,
@@ -285,14 +285,13 @@ const formData = ref({
       left_cheek_c: null,
       right_cheek_c: null,
     },
+  },
+  section_2_machine_objective_inputs_part_2: {
     body_composition_analyzer_8_electrode: {
       body_weight_kg: null,
       height_cm: null,
       bmi: null,
-      total_body_water: {
-        value: null,
-        unit: '',
-      },
+      total_body_water: null,
       body_fat_percentage: null,
       lean_muscle_mass_kg: null,
       visceral_fat_kg: null,
@@ -301,7 +300,6 @@ const formData = ref({
     hand_grip_dynamometer: {
       dominant_hand_grip_strength_kg: null,
       non_dominant_hand_grip_strength_kg_optional: null,
-      age_sex_adjusted_percentile_engine_derived: null,
     },
     optional_systemic_measurements: {
       systemic_body_temperature_c_optional: null,
@@ -325,7 +323,6 @@ const formData = ref({
     oxidative_stress_score_oss: null,
     glycation_metabolic_score_gms: null,
     vascularity_inflammation_index_mvi: null,
-    pigment_instability_index_pii: null,
     barrier_hydration_stress_score_bhs: null,
   },
 })
@@ -334,8 +331,8 @@ const rules = useIVAssessmentValidation(formData)
 const v$ = useVuelidate(rules, formData)
 
 const stepFields = {
-  'step-1': ['meta', 'section_1_client_questionnaire', 'section_2_machine_objective_inputs'],
-  // 'step-3': ['section_2_machine_objective_inputs'],
+  'step-1': ['meta', 'section_1_client_questionnaire', 'section_2_machine_objective_inputs_part_1'],
+  'step-3': ['section_2_machine_objective_inputs_part_2', 'section_3_dermatological_ai_inputs'],
 }
 
 onMounted(async () => {

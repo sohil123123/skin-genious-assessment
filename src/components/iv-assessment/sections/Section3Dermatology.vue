@@ -20,12 +20,11 @@
           label="Oxidative Stress Score (OSS) *"
           outlined
           dense
-          :rules="[
-            (val) => (val !== null && val !== '') || 'Required',
-            (val) => (val >= 0 && val <= 1000) || 'Must be 0-1000',
-          ]"
+          :error="v.section_3_dermatological_ai_inputs.oxidative_stress_score_oss.$error"
           @update:model-value="emitUpdate"
-        />
+        >
+          <template v-slot:error> Please enter your oxidative stress score </template>
+        </q-input>
       </div>
       <div class="col-12 col-md-4">
         <q-input
@@ -37,12 +36,11 @@
           label="Glycation / Metabolic Score (GMS) *"
           outlined
           dense
-          :rules="[
-            (val) => (val !== null && val !== '') || 'Required',
-            (val) => (val >= 0 && val <= 1000) || 'Must be 0-1000',
-          ]"
+          :error="v.section_3_dermatological_ai_inputs.glycation_metabolic_score_gms.$error"
           @update:model-value="emitUpdate"
-        />
+        >
+          <template v-slot:error> Please enter your glycation / metabolic score </template>
+        </q-input>
       </div>
       <div class="col-12 col-md-4">
         <q-input
@@ -54,33 +52,15 @@
           label="Vascularity / Inflammation Index (MVI) *"
           outlined
           dense
-          :rules="[
-            (val) => (val !== null && val !== '') || 'Required',
-            (val) => (val >= 0 && val <= 1000) || 'Must be 0-1000',
-          ]"
+          :error="v.section_3_dermatological_ai_inputs.vascularity_inflammation_index_mvi.$error"
           @update:model-value="emitUpdate"
-        />
+        >
+          <template v-slot:error> Please enter your vascularity / inflammation index </template>
+        </q-input>
       </div>
     </div>
 
-    <div class="row q-col-gutter-md q-mt-md">
-      <!-- <div class="col-12 col-md-6">
-        <q-input
-          v-model.number="
-            localFormData.section_3_dermatological_ai_inputs.pigment_instability_index_pii
-          "
-          type="number"
-          step="0.1"
-          label="Pigment Instability Index (PII) *"
-          outlined
-          dense
-          :rules="[
-            (val) => (val !== null && val !== '') || 'Required',
-            (val) => (val >= 0 && val <= 1000) || 'Must be 0-1000',
-          ]"
-          @update:model-value="emitUpdate"
-        />
-      </div> -->
+    <div class="row q-col-gutter-md q-mt-sm">
       <div class="col-12 col-md-4">
         <q-input
           v-model.number="
@@ -91,12 +71,11 @@
           label="Barrier Hydration Stress Score (BHS) *"
           outlined
           dense
-          :rules="[
-            (val) => (val !== null && val !== '') || 'Required',
-            (val) => (val >= 0 && val <= 1000) || 'Must be 0-1000',
-          ]"
+          :error="v.section_3_dermatological_ai_inputs.barrier_hydration_stress_score_bhs.$error"
           @update:model-value="emitUpdate"
-        />
+        >
+          <template v-slot:error> Please enter your barrier hydration stress score </template>
+        </q-input>
       </div>
     </div>
 
@@ -112,6 +91,10 @@ import { ref } from 'vue'
 
 const props = defineProps({
   formData: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

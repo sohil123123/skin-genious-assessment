@@ -491,7 +491,7 @@ export function useIVAssessmentValidation(formData) {
       },
     },
 
-    section_2_machine_objective_inputs: {
+    section_2_machine_objective_inputs_part_1: {
       blood_pressure_monitor: {
         systolic_mmhg: { required, numeric },
         diastolic_mmhg: { required, numeric },
@@ -512,6 +512,28 @@ export function useIVAssessmentValidation(formData) {
         left_cheek_c: { required, numeric },
         right_cheek_c: { required, numeric },
       },
+    },
+
+    section_2_machine_objective_inputs_part_2: {
+      body_composition_analyzer_8_electrode: {
+        body_weight_kg: { required },
+        height_cm: { required },
+        bmi: { required },
+        total_body_water: { required },
+        body_fat_percentage: { required },
+        lean_muscle_mass_kg: { required },
+        visceral_fat_kg: { required },
+      },
+      hand_grip_dynamometer: {
+        dominant_hand_grip_strength_kg: { required },
+      },
+    },
+
+    section_3_dermatological_ai_inputs: {
+      oxidative_stress_score_oss: { required },
+      glycation_metabolic_score_gms: { required },
+      vascularity_inflammation_index_mvi: { required },
+      barrier_hydration_stress_score_bhs: { required },
     },
   }))
 }

@@ -13,12 +13,41 @@
       dense
       class="text-grey-7"
       active-color="primary"
-      indicator-color="primary"
       align="justify"
       narrow-indicator
     >
-      <q-tab name="bca" icon="accessibility" label="Body Composition" />
-      <q-tab name="grip" icon="fitness_center" label="Grip Dynamometer" />
+      <q-tab
+        name="bca"
+        icon="accessibility"
+        label="Body Composition"
+        :class="{
+          'text-negative':
+            v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+              .body_weight_kg.$error ||
+            v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+              .height_cm.$error ||
+            v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode.bmi
+              .$error ||
+            v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+              .total_body_water.$error ||
+            v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+              .body_fat_percentage.$error ||
+            v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+              .lean_muscle_mass_kg.$error ||
+            v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+              .visceral_fat_kg.$error,
+        }"
+      />
+      <q-tab
+        name="grip"
+        icon="fitness_center"
+        label="Grip Dynamometer"
+        :class="{
+          'text-negative':
+            v.section_2_machine_objective_inputs_part_2.hand_grip_dynamometer
+              .dominant_hand_grip_strength_kg.$error,
+        }"
+      />
       <q-tab name="sys" icon="biotech" label="Systemic" />
     </q-tabs>
 
@@ -34,7 +63,7 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs
+                localFormData.section_2_machine_objective_inputs_part_2
                   .body_composition_analyzer_8_electrode.body_weight_kg
               "
               type="number"
@@ -42,17 +71,19 @@
               label="Body weight (kg) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 500) || 'Must be 0-500',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+                  .body_weight_kg.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your body weight </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs
+                localFormData.section_2_machine_objective_inputs_part_2
                   .body_composition_analyzer_8_electrode.height_cm
               "
               type="number"
@@ -60,17 +91,19 @@
               label="Height (cm) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 250) || 'Must be 0-250',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+                  .height_cm.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your height </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs
+                localFormData.section_2_machine_objective_inputs_part_2
                   .body_composition_analyzer_8_electrode.bmi
               "
               type="number"
@@ -78,12 +111,14 @@
               label="BMI *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 100) || 'Must be 0-100',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+                  .bmi.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your BMI </template>
+            </q-input>
           </div>
         </div>
 
@@ -94,24 +129,29 @@
               <div class="col-12">
                 <q-input
                   v-model.number="
-                    localFormData.section_2_machine_objective_inputs
-                      .body_composition_analyzer_8_electrode.total_body_water.value
+                    localFormData.section_2_machine_objective_inputs_part_2
+                      .body_composition_analyzer_8_electrode.total_body_water
                   "
                   type="number"
                   step="0.1"
                   label="Total body water (%) *"
                   outlined
                   dense
-                  :rules="[(val) => (val !== null && val !== '') || 'Required']"
+                  :error="
+                    v.section_2_machine_objective_inputs_part_2
+                      .body_composition_analyzer_8_electrode.total_body_water.$error
+                  "
                   @update:model-value="emitUpdate"
-                />
+                >
+                  <template v-slot:error> Please enter your total body water </template>
+                </q-input>
               </div>
             </div>
           </div>
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs
+                localFormData.section_2_machine_objective_inputs_part_2
                   .body_composition_analyzer_8_electrode.body_fat_percentage
               "
               type="number"
@@ -119,17 +159,19 @@
               label="Body fat percentage (%) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 100) || 'Must be 0-100',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+                  .body_fat_percentage.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your body fat percentage </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs
+                localFormData.section_2_machine_objective_inputs_part_2
                   .body_composition_analyzer_8_electrode.lean_muscle_mass_kg
               "
               type="number"
@@ -137,12 +179,14 @@
               label="Lean / muscle mass (kg) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 300) || 'Must be 0-300',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+                  .lean_muscle_mass_kg.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your lean / muscle mass </template>
+            </q-input>
           </div>
         </div>
 
@@ -151,7 +195,7 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs
+                localFormData.section_2_machine_objective_inputs_part_2
                   .body_composition_analyzer_8_electrode.visceral_fat_kg
               "
               type="number"
@@ -159,17 +203,19 @@
               label="Visceral fat (Kg) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 100) || 'Must be 0-100',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
+                  .visceral_fat_kg.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your visceral fat </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs
+                localFormData.section_2_machine_objective_inputs_part_2
                   .body_composition_analyzer_8_electrode.basal_metabolic_rate_optional
               "
               type="number"
@@ -179,7 +225,9 @@
               dense
               placeholder="Optional"
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your basal metabolic rate </template>
+            </q-input>
           </div>
         </div>
       </q-tab-panel>
@@ -191,7 +239,7 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.hand_grip_dynamometer
+                localFormData.section_2_machine_objective_inputs_part_2.hand_grip_dynamometer
                   .dominant_hand_grip_strength_kg
               "
               type="number"
@@ -199,17 +247,19 @@
               label="Dominant hand grip strength (kg) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 200) || 'Must be 0-200',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs_part_2.hand_grip_dynamometer
+                  .dominant_hand_grip_strength_kg.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your dominant hand grip strength </template>
+            </q-input>
           </div>
-          <div class="col-12 col-md-4">
+          <div class="col-12 col-md-6">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.hand_grip_dynamometer
+                localFormData.section_2_machine_objective_inputs_part_2.hand_grip_dynamometer
                   .non_dominant_hand_grip_strength_kg_optional
               "
               type="number"
@@ -223,19 +273,6 @@
               @update:model-value="emitUpdate"
             />
           </div>
-          <!-- <div class="col-12 col-md-4">
-            <q-input
-              v-model="
-                localFormData.section_2_machine_objective_inputs.hand_grip_dynamometer
-                  .age_sex_adjusted_percentile_engine_derived
-              "
-              label="Age- & sex-adjusted percentile (engine-derived)"
-              readonly
-              outlined
-              dense
-              placeholder="Calculated by engine"
-            />
-          </div> -->
         </div>
       </q-tab-panel>
 
@@ -248,8 +285,8 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.optional_systemic_measurements
-                  .systemic_body_temperature_c_optional
+                localFormData.section_2_machine_objective_inputs_part_2
+                  .optional_systemic_measurements.systemic_body_temperature_c_optional
               "
               type="number"
               step="0.1"
@@ -266,8 +303,8 @@
           <div class="col-12 col-md-4">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.optional_systemic_measurements
-                  .respiratory_rate_bpm_optional
+                localFormData.section_2_machine_objective_inputs_part_2
+                  .optional_systemic_measurements.respiratory_rate_bpm_optional
               "
               type="number"
               label="Respiratory rate (breaths per minute)"
@@ -286,12 +323,12 @@
         <div class="row q-col-gutter-md q-mb-md">
           <div class="col-12 col-md-6">
             <q-card flat bordered class="q-pa-sm">
-              <h6 class="text-subtitle2 q-mb-sm">Seated (optional)</h6>
+              <h6 class="text-subtitle2 q-mb-sm q-mt-sm">Seated (optional)</h6>
               <div class="row q-col-gutter-sm">
                 <div class="col-4">
                   <q-input
                     v-model.number="
-                      localFormData.section_2_machine_objective_inputs
+                      localFormData.section_2_machine_objective_inputs_part_2
                         .optional_systemic_measurements.orthostatic_vitals_optional.seated_optional
                         .systolic_mmhg
                     "
@@ -305,7 +342,7 @@
                 <div class="col-4">
                   <q-input
                     v-model.number="
-                      localFormData.section_2_machine_objective_inputs
+                      localFormData.section_2_machine_objective_inputs_part_2
                         .optional_systemic_measurements.orthostatic_vitals_optional.seated_optional
                         .diastolic_mmhg
                     "
@@ -319,7 +356,7 @@
                 <div class="col-4">
                   <q-input
                     v-model.number="
-                      localFormData.section_2_machine_objective_inputs
+                      localFormData.section_2_machine_objective_inputs_part_2
                         .optional_systemic_measurements.orthostatic_vitals_optional.seated_optional
                         .heart_rate_bpm
                     "
@@ -335,12 +372,12 @@
           </div>
           <div class="col-12 col-md-6">
             <q-card flat bordered class="q-pa-sm">
-              <h6 class="text-subtitle2 q-mb-sm">Standing (optional)</h6>
+              <h6 class="text-subtitle2 q-mb-sm q-mt-sm">Standing (optional)</h6>
               <div class="row q-col-gutter-sm">
                 <div class="col-4">
                   <q-input
                     v-model.number="
-                      localFormData.section_2_machine_objective_inputs
+                      localFormData.section_2_machine_objective_inputs_part_2
                         .optional_systemic_measurements.orthostatic_vitals_optional
                         .standing_optional.systolic_mmhg
                     "
@@ -354,7 +391,7 @@
                 <div class="col-4">
                   <q-input
                     v-model.number="
-                      localFormData.section_2_machine_objective_inputs
+                      localFormData.section_2_machine_objective_inputs_part_2
                         .optional_systemic_measurements.orthostatic_vitals_optional
                         .standing_optional.diastolic_mmhg
                     "
@@ -368,7 +405,7 @@
                 <div class="col-4">
                   <q-input
                     v-model.number="
-                      localFormData.section_2_machine_objective_inputs
+                      localFormData.section_2_machine_objective_inputs_part_2
                         .optional_systemic_measurements.orthostatic_vitals_optional
                         .standing_optional.heart_rate_bpm
                     "
@@ -389,8 +426,9 @@
           <div class="col-12 col-md-6">
             <q-input
               v-model.number="
-                localFormData.section_2_machine_objective_inputs.optional_systemic_measurements
-                  .orthostatic_vitals_optional.time_between_positions_minutes_optional
+                localFormData.section_2_machine_objective_inputs_part_2
+                  .optional_systemic_measurements.orthostatic_vitals_optional
+                  .time_between_positions_minutes_optional
               "
               type="number"
               step="0.1"
@@ -405,7 +443,7 @@
     </q-tab-panels>
   </q-card>
 
-  <Section3Dermatology v-model:formData="localFormData" @update="emitUpdate" />
+  <Section3Dermatology v-model:formData="localFormData" :v="v" @update="emitUpdate" />
 </template>
 
 <script setup>
@@ -414,6 +452,10 @@ import Section3Dermatology from 'src/components/iv-assessment/sections/Section3D
 
 const props = defineProps({
   formData: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },
