@@ -1,6 +1,23 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">Known G6PD deficiency *</p>
+  <div
+    class="q-mb-lg option-group"
+    :class="{
+      'group--error':
+        v.section_1_client_questionnaire.B_safety_contraindications.known_g6pd_deficiency.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.g6pd_lab_test_if_yes.$error,
+    }"
+  >
+    <p
+      class="text-weight-medium q-mb-xs"
+      :class="{
+        'text-negative':
+          v.section_1_client_questionnaire.B_safety_contraindications.known_g6pd_deficiency
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.g6pd_lab_test_if_yes.$error,
+      }"
+    >
+      Known G6PD deficiency *
+    </p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in yesNoUnsureOptions"
@@ -55,6 +72,10 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   modelValue: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

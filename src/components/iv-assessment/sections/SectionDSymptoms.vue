@@ -10,8 +10,20 @@
     </q-card-section>
 
     <!-- Fatigue -->
-    <div class="q-mb-lg">
-      <p class="text-weight-medium q-mb-xs">Fatigue *</p>
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error': v.section_1_client_questionnaire.D_symptoms_today.fatigue.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative': v.section_1_client_questionnaire.D_symptoms_today.fatigue.$error,
+        }"
+      >
+        Fatigue *
+      </p>
       <div class="row q-gutter-xs q-mb-sm">
         <q-chip
           v-for="item in symptomSeverityOptions"
@@ -41,8 +53,20 @@
     </div>
 
     <!-- Headache -->
-    <div class="q-mb-lg">
-      <p class="text-weight-medium q-mb-xs">Headache *</p>
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error': v.section_1_client_questionnaire.D_symptoms_today.headache.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative': v.section_1_client_questionnaire.D_symptoms_today.headache.$error,
+        }"
+      >
+        Headache *
+      </p>
       <div class="row q-gutter-xs q-mb-sm">
         <q-chip
           v-for="item in symptomSeverityOptions"
@@ -72,15 +96,55 @@
     </div>
 
     <!-- Nausea with vomiting follow-up -->
-    <YesNoWithFollowup
-      label="Nausea *"
-      v-model="localFormData.section_1_client_questionnaire.D_symptoms_today.nausea"
-      followup-label="If nausea: Vomiting today? *"
-      followup-path="section_1_client_questionnaire.D_symptoms_today.vomiting_if_nausea"
-      :form-data="localFormData"
-      followup-type="single-select"
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error': v.section_1_client_questionnaire.D_symptoms_today.nausea.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative': v.section_1_client_questionnaire.D_symptoms_today.nausea.$error,
+        }"
+      >
+        Nausea *
+      </p>
+      <div class="row q-gutter-xs q-mb-sm">
+        <q-chip
+          v-for="item in nauseaTypeOptions"
+          :key="item"
+          :label="item"
+          :text-color="
+            item === localFormData.section_1_client_questionnaire.D_symptoms_today.nausea
+              ? 'white'
+              : 'dark'
+          "
+          :color="
+            item === localFormData.section_1_client_questionnaire.D_symptoms_today.nausea
+              ? item === 'None'
+                ? 'positive'
+                : item === 'Mild'
+                  ? 'primary'
+                  : item === 'Moderate'
+                    ? 'warning'
+                    : 'negative'
+              : 'grey-3'
+          "
+          size="md"
+          clickable
+          @click="updateField('section_1_client_questionnaire.D_symptoms_today.nausea', item)"
+        />
+      </div>
+    </div>
+
+    <!-- Dizziness -->
+    <YesNoField
+      label="Vomiting today?  *"
+      v-model="localFormData.section_1_client_questionnaire.D_symptoms_today.vomiting_if_nausea"
       @update="emitUpdate"
       class="q-mb-lg"
+      :error="v.section_1_client_questionnaire.D_symptoms_today.vomiting_if_nausea.$error"
     />
 
     <!-- Dizziness -->
@@ -90,6 +154,7 @@
       hint="Lightheadedness when getting up from sitting/lying"
       @update="emitUpdate"
       class="q-mb-lg"
+      :error="v.section_1_client_questionnaire.D_symptoms_today.dizziness_on_standing.$error"
     />
 
     <!-- Muscle cramps with type follow-up -->
@@ -103,10 +168,14 @@
       followup-type="single-select"
       @update="emitUpdate"
       class="q-mb-lg"
+      :error="
+        v.section_1_client_questionnaire.D_symptoms_today.muscle_cramps.$error ||
+        v.section_1_client_questionnaire.D_symptoms_today.muscle_cramps_type_if_yes.$error
+      "
     />
 
     <!-- Palpitations Component -->
-    <SymptomsPalpitations v-model="localFormData" @update="emitUpdate" class="q-mb-lg" />
+    <SymptomsPalpitations v-model="localFormData" :v="v" @update="emitUpdate" class="q-mb-lg" />
 
     <!-- Swelling with duration follow-up -->
     <YesNoWithFollowup
@@ -122,6 +191,10 @@
       hint="New swelling may indicate fluid retention"
       @update="emitUpdate"
       class="q-mb-lg"
+      :error="
+        v.section_1_client_questionnaire.D_symptoms_today.swelling_or_puffiness_today.$error ||
+        v.section_1_client_questionnaire.D_symptoms_today.swelling_duration_if_yes.$error
+      "
     />
 
     <!-- Constipation with type follow-up -->
@@ -137,6 +210,31 @@
       :followup-options="constipationTypeOptions"
       followup-type="single-select"
       @update="emitUpdate"
+      :error="
+        v.section_1_client_questionnaire.D_symptoms_today.constipation_or_sluggish_digestion_today
+          .$error ||
+        v.section_1_client_questionnaire.D_symptoms_today.constipation_type_if_yes.$error
+      "
+    />
+
+    <!-- Brain fog -->
+    <YesNoField
+      label="Brain fog today?  *"
+      v-model="localFormData.section_1_client_questionnaire.D_symptoms_today.brain_fog_today"
+      @update="emitUpdate"
+      class="q-mb-lg"
+      :error="v.section_1_client_questionnaire.D_symptoms_today.brain_fog_today.$error"
+    />
+
+    <!-- Shortness of breath today  -->
+    <YesNoField
+      label="Shortness of breath today?  *"
+      v-model="
+        localFormData.section_1_client_questionnaire.D_symptoms_today.shortness_of_breath_today
+      "
+      @update="emitUpdate"
+      class="q-mb-lg"
+      :error="v.section_1_client_questionnaire.D_symptoms_today.shortness_of_breath_today.$error"
     />
   </q-card>
 </template>
@@ -152,11 +250,16 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  v: {
+    type: Object,
+    required: true,
+  },
 })
 
 const emit = defineEmits(['update:formData', 'update'])
 
 const symptomSeverityOptions = ['None', 'Mild', 'Moderate', 'Severe']
+const nauseaTypeOptions = ['None', 'Mild', 'Moderate', 'Severe']
 const muscleCrampTypeOptions = ['Leg cramps at night', 'Generalized cramps', 'Exercise-related']
 const swellingDurationOptions = ['New today', 'Chronic', 'Unsure']
 const constipationTypeOptions = ['True constipation', 'Sluggishness']

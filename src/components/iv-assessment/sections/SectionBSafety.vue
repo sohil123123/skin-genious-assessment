@@ -14,33 +14,33 @@
     <!-- Import all safety components -->
     <SafetyPregnancy v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetyKidney v-model="localFormData" @update="emitUpdate" />
+    <SafetyKidney v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetyHeart v-model="localFormData" @update="emitUpdate" />
+    <SafetyHeart v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetyHypertension v-model="localFormData" @update="emitUpdate" />
+    <SafetyHypertension v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetyDiabetes v-model="localFormData" @update="emitUpdate" />
+    <SafetyDiabetes v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetyDeficiency v-model="localFormData" @update="emitUpdate" />
+    <SafetyDeficiency v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetySeizures v-model="localFormData" @update="emitUpdate" />
+    <SafetySeizures v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetyAsthma v-model="localFormData" @update="emitUpdate" />
+    <SafetyAsthma v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetySevereAllergy v-model="localFormData" @update="emitUpdate" class="q-mt-md" />
+    <SafetySevereAllergy v-model="localFormData" :v="v" @update="emitUpdate" class="q-mt-md" />
 
-    <SafetyLiverDisease v-model="localFormData" @update="emitUpdate" class="q-mt-lg" />
+    <SafetyLiverDisease v-model="localFormData" :v="v" @update="emitUpdate" class="q-mt-lg" />
 
-    <SafetyKidneyStones v-model="localFormData" @update="emitUpdate" class="q-mt-lg" />
+    <SafetyKidneyStones v-model="localFormData" :v="v" @update="emitUpdate" class="q-mt-lg" />
 
-    <SafetyElectrolyte v-model="localFormData" @update="emitUpdate" class="q-mt-lg" />
+    <SafetyElectrolyte v-model="localFormData" :v="v" @update="emitUpdate" class="q-mt-lg" />
 
-    <SafetyIVAllergy v-model="localFormData" @update="emitUpdate" />
+    <SafetyIVAllergy v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetyIVReaction v-model="localFormData" @update="emitUpdate" />
+    <SafetyIVReaction v-model="localFormData" :v="v" @update="emitUpdate" />
 
-    <SafetyFever v-model="localFormData" @update="emitUpdate" />
+    <SafetyFever v-model="localFormData" :v="v" @update="emitUpdate" />
 
     <!-- Additional Safety Questions (Collapsible) -->
     <!-- <q-expansion-item

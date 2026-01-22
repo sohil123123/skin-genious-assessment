@@ -1,6 +1,33 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">History of severe allergy / anaphylaxis *</p>
+  <div
+    class="q-mb-lg option-group"
+    :class="{
+      'group--error':
+        v.section_1_client_questionnaire.B_safety_contraindications.history_severe_allergy.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.severe_allergy_trigger_if_yes
+          .$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications
+          .severe_allergy_epinephrine_if_yes.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.severe_allergy_severity_if_yes
+          .$error,
+    }"
+  >
+    <p
+      class="text-weight-medium q-mb-xs"
+      :class="{
+        'text-negative':
+          v.section_1_client_questionnaire.B_safety_contraindications.history_severe_allergy
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.severe_allergy_trigger_if_yes
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications
+            .severe_allergy_epinephrine_if_yes.$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.severe_allergy_severity_if_yes
+            .$error,
+      }"
+    >
+      History of severe allergy / anaphylaxis *
+    </p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in yesNoUnsureOptions"
@@ -94,6 +121,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  v: {
+    type: Object,
+    required: true,
+  },
 })
 
 const modelValue = ref(props.modelValue)
@@ -166,7 +197,7 @@ const severityValue = computed({
   },
 })
 
-const showFollowup = computed(() => ['Yes', 'Unsure'].includes(localValue.value))
+const showFollowup = computed(() => ['Yes'].includes(localValue.value))
 
 function ensurePathExists() {
   if (!props.modelValue.section_1_client_questionnaire) {
@@ -179,7 +210,7 @@ function ensurePathExists() {
 
 function updateValue(value) {
   localValue.value = value
-  if (!['Yes', 'Unsure'].includes(value)) {
+  if (!['Yes'].includes(value)) {
     triggerValue.value = ''
     epinephrineValue.value = ''
     severityValue.value = ''

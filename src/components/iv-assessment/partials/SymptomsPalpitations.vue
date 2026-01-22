@@ -1,6 +1,24 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">Palpitations *</p>
+  <div
+    class="q-mb-lg option-group"
+    :class="{
+      'group--error':
+        v.section_1_client_questionnaire.D_symptoms_today.palpitations.$error ||
+        v.section_1_client_questionnaire.D_symptoms_today.palpitations_chest_pain_if_yes.$error ||
+        v.section_1_client_questionnaire.D_symptoms_today.palpitations_frequency_if_yes.$error,
+    }"
+  >
+    <p
+      class="text-weight-medium q-mb-xs"
+      :class="{
+        'text-negative':
+          v.section_1_client_questionnaire.D_symptoms_today.palpitations.$error ||
+          v.section_1_client_questionnaire.D_symptoms_today.palpitations_chest_pain_if_yes.$error ||
+          v.section_1_client_questionnaire.D_symptoms_today.palpitations_frequency_if_yes.$error,
+      }"
+    >
+      Palpitations *
+    </p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in yesNoOptions"
@@ -38,7 +56,7 @@
           </div>
         </div>
         <div class="col-12 col-md-6">
-          <p class="text-weight-medium text-grey-7 q-mb-xs">Frequency *</p>
+          <p class="text-weight-medium text-grey-7 q-mb-xs">Palpitations timing*</p>
           <div class="row q-gutter-xs">
             <q-chip
               v-for="item in frequencyOptions"
@@ -73,6 +91,10 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   modelValue: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

@@ -20,6 +20,11 @@
       :form-data="localFormData"
       @update="emitUpdate"
       class="q-mb-lg"
+      :error="
+        v.section_1_client_questionnaire.E_medications_supplements.blood_pressure_medications
+          .$error ||
+        v.section_1_client_questionnaire.E_medications_supplements.bp_meds_taken_today.$error
+      "
     />
 
     <!-- Blood Thinners -->
@@ -35,6 +40,10 @@
       followup-type="single-select"
       @update="emitUpdate"
       class="q-mb-lg"
+      :error="
+        v.section_1_client_questionnaire.E_medications_supplements.blood_thinners.$error ||
+        v.section_1_client_questionnaire.E_medications_supplements.bp_meds_taken_today.$error
+      "
     />
 
     <!-- Thyroid Medications -->
@@ -50,6 +59,10 @@
       followup-type="single-select"
       @update="emitUpdate"
       class="q-mb-lg"
+      :error="
+        v.section_1_client_questionnaire.E_medications_supplements.thyroid_medications.$error ||
+        v.section_1_client_questionnaire.E_medications_supplements.thyroid_meds_type.$error
+      "
     />
 
     <!-- Diabetes Medications -->
@@ -65,6 +78,10 @@
       followup-type="single-select"
       @update="emitUpdate"
       class="q-mb-lg"
+      :error="
+        v.section_1_client_questionnaire.E_medications_supplements.diabetes_medications.$error ||
+        v.section_1_client_questionnaire.E_medications_supplements.diabetes_insulin_use.$error
+      "
     />
 
     <!-- Anti-epileptic Medications -->
@@ -79,108 +96,143 @@
       :form-data="localFormData"
       @update="emitUpdate"
       class="q-mb-lg"
-    />
-
-    <!-- Antibiotics -->
-    <YesNoWithFollowup
-      label="Currently on antibiotics *"
-      v-model="
-        localFormData.section_1_client_questionnaire.E_medications_supplements
-          .currently_on_antibiotics
+      :error="
+        v.section_1_client_questionnaire.E_medications_supplements.anti_epileptic_medications
+          .$error ||
+        v.section_1_client_questionnaire.E_medications_supplements.anti_epileptic_taken_daily.$error
       "
-      followup-label="If yes: Reason *"
-      followup-path="section_1_client_questionnaire.E_medications_supplements.antibiotics_reason"
-      :form-data="localFormData"
-      :followup-options="antibioticReasonOptions"
-      followup-type="single-select"
-      @update="handleAntibioticsChange"
-      class="q-mb-lg"
     />
 
-    <!-- Additional antibiotic follow-ups -->
-    <div v-if="showAntibioticFollowups" class="q-ml-md q-mt-md bg-yellow-1 q-pa-sm rounded-borders">
-      <div class="row q-col-gutter-md q-mb-sm">
-        <div class="col-12 col-md-6">
-          <p class="text-weight-medium text-grey-7 q-mb-xs">Started when *</p>
-          <div class="row q-gutter-xs">
-            <q-chip
-              v-for="item in antibioticStartOptions"
-              :key="item"
-              :label="item"
-              :text-color="
-                item ===
-                localFormData.section_1_client_questionnaire.E_medications_supplements
-                  .antibiotics_started
-                  ? 'white'
-                  : 'dark'
-              "
-              :color="
-                item ===
-                localFormData.section_1_client_questionnaire.E_medications_supplements
-                  .antibiotics_started
-                  ? 'blue-9'
-                  : 'grey-6'
-              "
-              :square="
-                item ===
-                localFormData.section_1_client_questionnaire.E_medications_supplements
-                  .antibiotics_started
-              "
-              outline
-              clickable
-              @click="
-                updateField(
-                  'section_1_client_questionnaire.E_medications_supplements.antibiotics_started',
-                  item,
-                )
-              "
-            />
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.E_medications_supplements.currently_on_antibiotics
+            .$error ||
+          v.section_1_client_questionnaire.E_medications_supplements.antibiotics_reason.$error ||
+          v.section_1_client_questionnaire.E_medications_supplements.antibiotics_started.$error ||
+          v.section_1_client_questionnaire.E_medications_supplements.antibiotics_still_symptomatic
+            .$error,
+      }"
+    >
+      <!-- Antibiotics -->
+      <YesNoWithFollowup
+        label="Currently on antibiotics *"
+        v-model="
+          localFormData.section_1_client_questionnaire.E_medications_supplements
+            .currently_on_antibiotics
+        "
+        followup-label="If yes: Reason *"
+        followup-path="section_1_client_questionnaire.E_medications_supplements.antibiotics_reason"
+        :form-data="localFormData"
+        :followup-options="antibioticReasonOptions"
+        followup-type="single-select"
+        @update="handleAntibioticsChange"
+      />
+
+      <!-- Additional antibiotic follow-ups -->
+      <div
+        v-if="showAntibioticFollowups"
+        class="q-ml-md q-mt-sm bg-yellow-1 q-pa-sm rounded-borders"
+      >
+        <div class="row q-col-gutter-md q-mb-sm">
+          <div class="col-12 col-md-6">
+            <p class="text-weight-medium text-grey-7 q-mb-xs">Started when *</p>
+            <div class="row q-gutter-xs">
+              <q-chip
+                v-for="item in antibioticStartOptions"
+                :key="item"
+                :label="item"
+                :text-color="
+                  item ===
+                  localFormData.section_1_client_questionnaire.E_medications_supplements
+                    .antibiotics_started
+                    ? 'white'
+                    : 'dark'
+                "
+                :color="
+                  item ===
+                  localFormData.section_1_client_questionnaire.E_medications_supplements
+                    .antibiotics_started
+                    ? 'blue-9'
+                    : 'grey-6'
+                "
+                :square="
+                  item ===
+                  localFormData.section_1_client_questionnaire.E_medications_supplements
+                    .antibiotics_started
+                "
+                outline
+                clickable
+                @click="
+                  updateField(
+                    'section_1_client_questionnaire.E_medications_supplements.antibiotics_started',
+                    item,
+                  )
+                "
+              />
+            </div>
           </div>
-        </div>
-        <div class="col-12 col-md-6">
-          <p class="text-weight-medium text-grey-7 q-mb-xs">Still symptomatic from infection? *</p>
-          <div class="row q-gutter-xs">
-            <q-chip
-              v-for="item in yesNoOptions"
-              :key="item"
-              :label="item"
-              :text-color="
-                item ===
-                localFormData.section_1_client_questionnaire.E_medications_supplements
-                  .antibiotics_still_symptomatic
-                  ? 'white'
-                  : 'dark'
-              "
-              :color="
-                item ===
-                localFormData.section_1_client_questionnaire.E_medications_supplements
-                  .antibiotics_still_symptomatic
-                  ? item === 'Yes'
-                    ? 'amber'
-                    : 'positive'
-                  : 'grey-6'
-              "
-              :square="
-                item ===
-                localFormData.section_1_client_questionnaire.E_medications_supplements
-                  .antibiotics_still_symptomatic
-              "
-              outline
-              clickable
-              @click="
-                updateField(
-                  'section_1_client_questionnaire.E_medications_supplements.antibiotics_still_symptomatic',
-                  item,
-                )
-              "
-            />
+          <div class="col-12 col-md-6">
+            <p class="text-weight-medium text-grey-7 q-mb-xs">
+              Still symptomatic from infection? *
+            </p>
+            <div class="row q-gutter-xs">
+              <q-chip
+                v-for="item in yesNoOptions"
+                :key="item"
+                :label="item"
+                :text-color="
+                  item ===
+                  localFormData.section_1_client_questionnaire.E_medications_supplements
+                    .antibiotics_still_symptomatic
+                    ? 'white'
+                    : 'dark'
+                "
+                :color="
+                  item ===
+                  localFormData.section_1_client_questionnaire.E_medications_supplements
+                    .antibiotics_still_symptomatic
+                    ? item === 'Yes'
+                      ? 'amber'
+                      : 'positive'
+                    : 'grey-6'
+                "
+                :square="
+                  item ===
+                  localFormData.section_1_client_questionnaire.E_medications_supplements
+                    .antibiotics_still_symptomatic
+                "
+                outline
+                clickable
+                @click="
+                  updateField(
+                    'section_1_client_questionnaire.E_medications_supplements.antibiotics_still_symptomatic',
+                    item,
+                  )
+                "
+              />
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Current Supplements -->
-    <div class="q-mb-lg">
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.E_medications_supplements.current_supplements.selection
+            .$error ||
+          v.section_1_client_questionnaire.E_medications_supplements.current_supplements
+            .magnesium_taken_24h.$error ||
+          v.section_1_client_questionnaire.E_medications_supplements.current_supplements
+            .electrolytes_taken_24h.$error ||
+          v.section_1_client_questionnaire.E_medications_supplements.current_supplements
+            .others_specify_if_selected.$error,
+      }"
+    >
       <p class="text-weight-medium q-mb-xs">Current supplements *</p>
       <div class="row q-gutter-xs q-mb-sm">
         <q-chip
@@ -301,6 +353,10 @@
             outlined
             dense
             placeholder="List other supplements"
+            :error="
+              v.section_1_client_questionnaire.E_medications_supplements.current_supplements
+                .others_specify_if_selected.$error
+            "
             @update:model-value="emitUpdate"
           />
         </div>
@@ -330,6 +386,10 @@ import YesNoWithFollowup from '../partials/YesNoWithFollowup.vue'
 
 const props = defineProps({
   formData: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

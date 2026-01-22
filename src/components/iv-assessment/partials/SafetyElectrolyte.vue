@@ -1,6 +1,30 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">Known electrolyte disorder diagnosed by a doctor *</p>
+  <div
+    class="q-mb-lg option-group"
+    :class="{
+      'group--error':
+        v.section_1_client_questionnaire.B_safety_contraindications.known_electrolyte_disorder
+          .$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.electrolyte_type_if_yes
+          .$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.electrolyte_medication_if_yes
+          .$error,
+    }"
+  >
+    <p
+      class="text-weight-medium q-mb-xs"
+      :class="{
+        'text-negative':
+          v.section_1_client_questionnaire.B_safety_contraindications.known_electrolyte_disorder
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.electrolyte_type_if_yes
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.electrolyte_medication_if_yes
+            .$error,
+      }"
+    >
+      Known electrolyte disorder diagnosed by a doctor *
+    </p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in yesNoUnsureOptions"
@@ -80,6 +104,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  v: {
+    type: Object,
+    required: true,
+  },
 })
 
 const modelValue = ref(props.modelValue)
@@ -138,7 +166,7 @@ const medicationValue = computed({
   },
 })
 
-const showFollowup = computed(() => ['Yes', 'Unsure'].includes(localValue.value))
+const showFollowup = computed(() => ['Yes'].includes(localValue.value))
 
 function ensurePathExists() {
   if (!props.modelValue.section_1_client_questionnaire) {
@@ -151,7 +179,7 @@ function ensurePathExists() {
 
 function updateValue(value) {
   localValue.value = value
-  if (!['Yes', 'Unsure'].includes(value)) {
+  if (!['Yes'].includes(value)) {
     typeValue.value = ''
     medicationValue.value = ''
   }

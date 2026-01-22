@@ -1,5 +1,5 @@
 <template>
-  <div class="q-mb-lg">
+  <div class="q-mb-sm">
     <p class="text-weight-medium text-grey-7 q-mb-xs">{{ label }}</p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip

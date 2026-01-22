@@ -1,6 +1,6 @@
 <template>
   <q-page>
-    <div class="min-h-screen bg-grey-2 p-6">
+    <div class="min-h-screen bg-grey-2" :class="[$q.screen.width < 500 ? 'p-2' : 'p-6']">
       <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-8">
         <!-- Header -->
         <div class="flex items-center justify-between mb-8">
@@ -31,6 +31,7 @@
         <PatientPhysicalAssessment
           v-if="currentStep === 'step-3'"
           :form-data="formData"
+          :v="v$"
           @update="updateFormData"
         />
 
@@ -209,6 +210,8 @@ const formData = ref({
       swelling_duration_if_yes: '',
       constipation_or_sluggish_digestion_today: '',
       constipation_type_if_yes: '',
+      brain_fog_today: '',
+      shortness_of_breath_today: '',
     },
     E_medications_supplements: {
       blood_pressure_medications: '',
@@ -331,8 +334,8 @@ const rules = useIVAssessmentValidation(formData)
 const v$ = useVuelidate(rules, formData)
 
 const stepFields = {
-  'step-1': ['meta', 'section_1_client_questionnaire'],
-  'step-3': ['section_2_machine_objective_inputs'],
+  'step-1': ['meta', 'section_1_client_questionnaire', 'section_2_machine_objective_inputs'],
+  // 'step-3': ['section_2_machine_objective_inputs'],
 }
 
 onMounted(async () => {
@@ -378,7 +381,10 @@ function updateFormData(updatedFormData) {
   formData.value = updatedFormData
 }
 
-function finalizeAndExit() {
+async function finalizeAndExit() {
+  const valid = await isStepValid()
+  if (!valid) return
+
   $q.dialog({
     title: 'Confirm',
     message: 'Would you like to confirm the treatment plan and return to CRM?',
@@ -438,13 +444,12 @@ const isStepValid = async () => {
   if (!fields) return true
 
   fields.forEach((path) => v$.value[path].$touch())
-  console.log(v$.value)
+
   return !fields.some((path) => v$.value[path].$invalid)
 }
 
 async function goNext() {
   const valid = await isStepValid()
-  console.log(formData.value)
   if (!valid) return
 
   if (!isLastStep.value) {

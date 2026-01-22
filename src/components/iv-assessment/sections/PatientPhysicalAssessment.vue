@@ -91,7 +91,7 @@
         <div class="row q-col-gutter-md q-mb-md">
           <div class="col-12 col-md-4">
             <div class="row q-col-gutter-sm">
-              <div class="col-8">
+              <div class="col-12">
                 <q-input
                   v-model.number="
                     localFormData.section_2_machine_objective_inputs
@@ -99,23 +99,10 @@
                   "
                   type="number"
                   step="0.1"
-                  label="Total body water *"
+                  label="Total body water (%) *"
                   outlined
                   dense
                   :rules="[(val) => (val !== null && val !== '') || 'Required']"
-                  @update:model-value="emitUpdate"
-                />
-              </div>
-              <div class="col-4">
-                <q-select
-                  v-model="
-                    localFormData.section_2_machine_objective_inputs
-                      .body_composition_analyzer_8_electrode.total_body_water.unit
-                  "
-                  :options="['%', 'Liters']"
-                  label="Unit"
-                  outlined
-                  dense
                   @update:model-value="emitUpdate"
                 />
               </div>

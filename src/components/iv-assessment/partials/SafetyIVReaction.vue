@@ -1,6 +1,31 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">Previous adverse reaction to IV therapy *</p>
+  <div
+    class="q-mb-lg option-group"
+    :class="{
+      'group--error':
+        v.section_1_client_questionnaire.B_safety_contraindications
+          .previous_adverse_reaction_to_iv_therapy.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.reaction_type_if_yes.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.reaction_severity_if_yes
+          .$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.reaction_specify_if_yes.$error,
+    }"
+  >
+    <p
+      class="text-weight-medium q-mb-xs"
+      :class="{
+        'text-negative':
+          v.section_1_client_questionnaire.B_safety_contraindications
+            .previous_adverse_reaction_to_iv_therapy.$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.reaction_type_if_yes.$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.reaction_severity_if_yes
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.reaction_specify_if_yes
+            .$error,
+      }"
+    >
+      Previous adverse reaction to IV therapy *
+    </p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in yesNoOptions"
@@ -16,7 +41,7 @@
 
     <!-- Follow-up: If yes -->
     <div v-if="showFollowup" class="q-ml-md q-mt-md">
-      <div class="row q-col-gutter-md q-mb-sm">
+      <div class="row q-col-gutter-sm q-mb-sm">
         <div class="col-12 col-md-6">
           <p class="text-weight-medium text-grey-7 q-mb-xs">What happened? *</p>
           <MultiSelectChips
@@ -56,13 +81,17 @@
       </div>
 
       <!-- Optional free text -->
-      <div class="q-mt-sm">
+      <div class="q-mt-md">
         <q-input
           v-model="specifyValue"
-          label="Specify reaction details (optional)"
+          label="Specify reaction details"
           outlined
           dense
           placeholder="Add any additional details about the reaction"
+          :error="
+            v.section_1_client_questionnaire.B_safety_contraindications.reaction_specify_if_yes
+              .$error
+          "
           @update:model-value="emit('update')"
         />
       </div>
@@ -76,6 +105,10 @@ import MultiSelectChips from './MultiSelectChips.vue'
 
 const props = defineProps({
   modelValue: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

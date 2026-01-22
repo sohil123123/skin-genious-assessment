@@ -34,11 +34,13 @@
         />
       </div>
       <div class="col-12 col-md-6">
-        <p class="text-weight-medium q-mb-xs">
+        <p
+          class="text-weight-medium q-mb-xs"
+          :class="{
+            'text-negative': v.meta.profile.gender.$error,
+          }"
+        >
           Gender *
-          <span v-if="v.meta.profile.gender.$error" class="text-caption text-negative"
-            >(Select gender)</span
-          >
         </p>
         <div class="row q-gutter-xs">
           <q-chip

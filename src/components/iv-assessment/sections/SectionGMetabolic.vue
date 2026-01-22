@@ -9,7 +9,7 @@
     </q-card-section>
 
     <!-- Time since last meal -->
-    <div class="q-mb-lg">
+    <div>
       <q-input
         v-model.number="
           localFormData.section_1_client_questionnaire.G_acute_metabolic_status
@@ -20,18 +20,33 @@
         label="Time since last meal (hours) *"
         outlined
         dense
+        clearable
         placeholder="e.g., 3"
-        :rules="[
-          (val) => (val !== null && val !== '') || 'Required',
-          (val) => (val >= 0 && val <= 72) || 'Must be 0-72 hours',
-        ]"
+        :error="
+          v.section_1_client_questionnaire.G_acute_metabolic_status.time_since_last_meal_hours
+            .$error
+        "
         @update:model-value="emitUpdate"
       />
     </div>
 
     <!-- Current diet type -->
-    <div class="q-mb-lg">
-      <p class="text-weight-medium q-mb-xs">Current diet type *</p>
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.G_acute_metabolic_status.current_diet_type.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-color':
+            v.section_1_client_questionnaire.G_acute_metabolic_status.current_diet_type.$error,
+        }"
+      >
+        Current diet type *
+      </p>
       <div class="row q-gutter-xs q-mb-sm">
         <q-chip
           v-for="item in dietTypeOptions"
@@ -62,7 +77,7 @@
     </div>
 
     <!-- Female only fields -->
-    <div v-if="isFemale" class="q-mt-lg bg-pink-1 q-pa-md rounded-borders">
+    <div v-if="isFemale" class="q-mt-lg bg-grey-1 q-pa-md rounded-borders">
       <h4 class="text-subtitle2 q-mb-md">Females Only</h4>
 
       <!-- LMP Date -->
@@ -76,12 +91,26 @@
           label="First day of last menstrual period (Date)"
           outlined
           dense
+          hide-bottom-space
+          :error="
+            v.section_1_client_questionnaire.G_acute_metabolic_status.females_only
+              .first_day_of_last_menstrual_period_date.$error
+          "
           @update:model-value="emitUpdate"
         />
       </div>
 
       <!-- OR Menopausal -->
-      <div class="q-mb-lg">
+      <div
+        class="q-mb-lg option-group"
+        :class="{
+          'group--error':
+            v.section_1_client_questionnaire.G_acute_metabolic_status.females_only.menopausal
+              .$error ||
+            v.section_1_client_questionnaire.G_acute_metabolic_status.females_only
+              .pregnancy_chance_if_uncertain.$error,
+        }"
+      >
         <p class="text-weight-medium q-mb-xs">OR Menopausal</p>
         <div class="row q-gutter-xs q-mb-sm">
           <q-chip
@@ -114,8 +143,27 @@
       </div>
 
       <!-- Pregnancy chance if uncertain -->
-      <div v-if="showPregnancyChance" class="q-mb-md">
-        <p class="text-weight-medium text-grey-7 q-mb-xs">Any chance of pregnancy? *</p>
+      <div
+        v-if="showPregnancyChance"
+        class="q-mb-md option-group"
+        :class="{
+          'group--error':
+            v.section_1_client_questionnaire.G_acute_metabolic_status.females_only
+              .pregnancy_chance_if_uncertain.$error,
+        }"
+      >
+        <p
+          class="text-weight-medium text-grey-7 q-mb-xs"
+          :class="{
+            'text-negative':
+              v.section_1_client_questionnaire.G_acute_metabolic_status.females_only.menopausal
+                .$error ||
+              v.section_1_client_questionnaire.G_acute_metabolic_status.females_only
+                .pregnancy_chance_if_uncertain.$error,
+          }"
+        >
+          Any chance of pregnancy? *
+        </p>
         <div class="row q-gutter-xs">
           <q-chip
             v-for="item in yesNoUnsureOptions"
@@ -165,6 +213,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  v: {
+    type: Object,
+    required: true,
+  },
 })
 
 const emit = defineEmits(['update:formData', 'update'])
@@ -207,6 +259,9 @@ function handleMenopausalChange(value) {
   // Reset pregnancy chance if menopausal is Yes
   if (value === 'Yes') {
     localFormData.value.section_1_client_questionnaire.G_acute_metabolic_status.females_only.pregnancy_chance_if_uncertain =
+      ''
+  } else {
+    localFormData.value.section_1_client_questionnaire.G_acute_metabolic_status.females_only.first_day_of_last_menstrual_period_date =
       ''
   }
 

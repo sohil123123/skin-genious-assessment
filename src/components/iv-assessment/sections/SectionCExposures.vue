@@ -11,8 +11,28 @@
     </q-card-section>
 
     <!-- Alcohol Intake -->
-    <div class="q-mb-lg">
-      <p class="text-weight-medium q-mb-xs">Alcohol intake in last 24 hours *</p>
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.C_recent_exposures_24_72h.alcohol_intake_last_24h
+            .$error ||
+          v.section_1_client_questionnaire.C_recent_exposures_24_72h.alcohol_last_drink_if_high
+            .$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative':
+            v.section_1_client_questionnaire.C_recent_exposures_24_72h.alcohol_intake_last_24h
+              .$error ||
+            v.section_1_client_questionnaire.C_recent_exposures_24_72h.alcohol_last_drink_if_high
+              .$error,
+        }"
+      >
+        Alcohol intake in last 24 hours *
+      </p>
       <div class="row q-gutter-xs q-mb-sm">
         <q-chip
           v-for="item in alcoholOptions"
@@ -47,9 +67,7 @@
 
       <!-- Follow-up for high alcohol -->
       <div v-if="showAlcoholFollowup" class="q-ml-md q-mt-md bg-yellow-1 q-pa-sm rounded-borders">
-        <p class="text-weight-medium text-grey-7 q-mb-xs">
-          If >5 drinks: Last drink within past 12 hours? *
-        </p>
+        <p class="text-weight-medium text-grey-7 q-mb-xs">Last drink was within past 12 hours? *</p>
         <div class="row q-gutter-xs">
           <q-chip
             v-for="item in yesNoUnsureOptions"
@@ -90,8 +108,22 @@
     </div>
 
     <!-- Exercise -->
-    <div class="q-mb-lg">
-      <p class="text-weight-medium q-mb-xs">Exercise in last 24 hours *</p>
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.C_recent_exposures_24_72h.exercise_last_24h.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative':
+            v.section_1_client_questionnaire.C_recent_exposures_24_72h.exercise_last_24h.$error,
+        }"
+      >
+        Exercise in last 24 hours *
+      </p>
       <div class="row q-gutter-xs q-mb-sm">
         <q-chip
           v-for="item in exerciseOptions"
@@ -134,17 +166,33 @@
         outlined
         dense
         placeholder="e.g., 6.5"
-        :rules="[
-          (val) => (val !== null && val !== '') || 'Required',
-          (val) => (val >= 0 && val <= 24) || 'Must be 0-24 hours',
-        ]"
+        hide-bottom-space
+        :error="
+          v.section_1_client_questionnaire.C_recent_exposures_24_72h.sleep_duration_last_night_hours
+            .$error
+        "
         @update:model-value="emitUpdate"
       />
     </div>
 
     <!-- Stress Level -->
-    <div class="q-mb-lg">
-      <p class="text-weight-medium q-mb-xs">Current perceived stress level *</p>
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.C_recent_exposures_24_72h.perceived_stress_level.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative':
+            v.section_1_client_questionnaire.C_recent_exposures_24_72h.perceived_stress_level
+              .$error,
+        }"
+      >
+        Current perceived stress level *
+      </p>
       <div class="row q-gutter-xs q-mb-sm">
         <q-chip
           v-for="item in stressLevelOptions"
@@ -181,8 +229,22 @@
     </div>
 
     <!-- Caffeine Intake -->
-    <div class="q-mb-md">
-      <p class="text-weight-medium q-mb-xs">Caffeine intake today *</p>
+    <div
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.C_recent_exposures_24_72h.caffeine_intake_today.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative':
+            v.section_1_client_questionnaire.C_recent_exposures_24_72h.caffeine_intake_today.$error,
+        }"
+      >
+        Caffeine intake today *
+      </p>
       <div class="row q-gutter-xs">
         <q-chip
           v-for="item in caffeineOptions"
@@ -224,6 +286,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  v: {
+    type: Object,
+    required: true,
+  },
 })
 
 const emit = defineEmits(['update:formData', 'update'])
@@ -243,7 +309,7 @@ const exerciseOptions = [
 
 const yesNoUnsureOptions = ['Yes', 'No', 'Unsure']
 const stressLevelOptions = ['Low', 'Medium', 'High']
-const caffeineOptions = ['None', '1 serving', '2+ servings']
+const caffeineOptions = ['0', '1', '2', '3+']
 
 const showAlcoholFollowup = computed(
   () =>
@@ -262,6 +328,13 @@ function updateField(path, value) {
     obj = obj[paths[i]]
   }
   obj[paths[paths.length - 1]] = value
+  if (
+    localFormData.value.section_1_client_questionnaire?.C_recent_exposures_24_72h
+      ?.alcohol_intake_last_24h != '>5'
+  ) {
+    localFormData.value.section_1_client_questionnaire.C_recent_exposures_24_72h.alcohol_last_drink_if_high =
+      ''
+  }
   emitUpdate()
 }
 

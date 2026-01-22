@@ -13,23 +13,24 @@
 
     <SectionBSafety v-model:formData="formData" :v="v" @update="handleUpdate" />
 
-    <SectionCExposures v-model:formData="formData" @update="handleUpdate" />
+    <SectionCExposures v-model:formData="formData" :v="v" @update="handleUpdate" />
 
-    <SectionDSymptoms v-model:formData="formData" @update="handleUpdate" />
+    <SectionDSymptoms v-model:formData="formData" :v="v" @update="handleUpdate" />
 
-    <SectionEMeds v-model:formData="formData" @update="handleUpdate" />
+    <SectionEMeds v-model:formData="formData" :v="v" @update="handleUpdate" />
 
     <SectionFNAD
       v-model:formData="formData"
+      :v="v"
       :is-nad-applicable="isNadApplicable"
       @update="handleUpdate"
     />
 
-    <SectionGMetabolic v-model:formData="formData" @update="handleUpdate" />
+    <SectionGMetabolic v-model:formData="formData" :v="v" @update="handleUpdate" />
 
-    <SectionHIVAccess v-model:formData="formData" @update="handleUpdate" />
+    <SectionHIVAccess v-model:formData="formData" :v="v" @update="handleUpdate" />
 
-    <Section2Measurements v-model:formData="formData" @update="handleUpdate" />
+    <Section2Measurements v-model:formData="formData" :v="v" @update="handleUpdate" />
 
     <!-- <Section3Dermatology v-model:formData="formData" @update="handleUpdate" /> -->
 
@@ -201,6 +202,8 @@ const formData = reactive({
       swelling_duration_if_yes: '',
       constipation_or_sluggish_digestion_today: '',
       constipation_type_if_yes: '',
+      brain_fog_today: '',
+      shortness_of_breath_today: '',
     },
     E_medications_supplements: {
       blood_pressure_medications: '',

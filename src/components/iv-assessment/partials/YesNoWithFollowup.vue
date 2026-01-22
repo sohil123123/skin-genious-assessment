@@ -1,6 +1,6 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">{{ label }}</p>
+  <div :class="{ 'q-mb-lg option-group group--error': error }">
+    <p class="text-weight-medium q-mb-xs" :class="{ 'text-negative': error }">{{ label }}</p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in options"
@@ -119,6 +119,10 @@ const props = defineProps({
   hint: {
     type: String,
     default: '',
+  },
+  error: {
+    type: Boolean,
+    default: false,
   },
 })
 

@@ -1,6 +1,6 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">{{ label }}</p>
+  <div class="q-mb-lg option-group" :class="{ 'group--error': error }">
+    <p class="text-weight-medium q-mb-xs" :class="{ 'text-negative': error }">{{ label }}</p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in options"
@@ -44,6 +44,10 @@ defineProps({
   positiveColor: {
     type: String,
     default: 'positive',
+  },
+  error: {
+    type: Boolean,
+    default: false,
   },
 })
 

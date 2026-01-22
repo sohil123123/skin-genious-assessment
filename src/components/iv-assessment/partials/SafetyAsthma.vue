@@ -1,6 +1,28 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">History of asthma / reactive airway disease *</p>
+  <div
+    class="q-mb-lg option-group"
+    :class="{
+      'group--error':
+        v.section_1_client_questionnaire.B_safety_contraindications.history_asthma.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.asthma_control_if_yes.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.asthma_inhaler_if_yes.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.asthma_er_if_yes.$error,
+    }"
+  >
+    <p
+      class="text-weight-medium q-mb-xs"
+      :class="{
+        'text-negative':
+          v.section_1_client_questionnaire.B_safety_contraindications.history_asthma.$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.asthma_control_if_yes
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.asthma_inhaler_if_yes
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.asthma_er_if_yes.$error,
+      }"
+    >
+      History of asthma / reactive airway disease *
+    </p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in yesNoUnsureOptions"
@@ -101,6 +123,10 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   modelValue: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

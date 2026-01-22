@@ -195,6 +195,20 @@ function updateField(path, value) {
   }
   obj[paths[paths.length - 1]] = value
 
+  const primary_goal =
+    localFormData.value.section_1_client_questionnaire.A_goals_intent.primary_goal
+  const secondary_goal =
+    localFormData.value.section_1_client_questionnaire.A_goals_intent.secondary_goal
+  if (primary_goal != 'NAD+ wellness' && secondary_goal != 'NAD+ wellness') {
+    localFormData.value.section_1_client_questionnaire.F_nad_specific_if_applicable = {
+      previous_nad_experience: '',
+      tolerance_if_yes: '',
+      tolerance_improved_when_slowed: '',
+      preferred_nad_experience: '',
+      primary_reason_for_nad_interest: '',
+    }
+  }
+
   emitUpdate()
 }
 

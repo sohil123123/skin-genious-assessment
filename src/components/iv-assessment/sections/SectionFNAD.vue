@@ -1,5 +1,5 @@
 <template>
-  <q-card v-if="isNadApplicable" flat bordered class="q-pa-md q-mb-md shadow-1 bg-light-blue-2">
+  <q-card v-if="isNadApplicable" flat bordered class="q-pa-md q-mb-md shadow-1">
     <q-card-section class="q-pa-none q-mb-md">
       <div class="row items-center">
         <q-icon name="science" color="primary" size="24px" class="q-mr-sm" />
@@ -9,73 +9,97 @@
       <q-separator class="q-mt-sm" />
     </q-card-section>
 
-    <!-- Previous NAD+ experience -->
-    <YesNoWithFollowup
-      label="Previous NAD+ experience *"
-      v-model="
-        localFormData.section_1_client_questionnaire.F_nad_specific_if_applicable
-          .previous_nad_experience
-      "
-      followup-label="If yes: tolerance *"
-      followup-path="section_1_client_questionnaire.F_nad_specific_if_applicable.tolerance_if_yes"
-      :form-data="localFormData"
-      :followup-options="toleranceOptions"
-      followup-type="single-select"
-      @update="handleNadExperienceChange"
-      class="q-mb-lg"
-    />
-
-    <!-- Additional tolerance follow-up -->
     <div
-      v-if="showToleranceFollowup"
-      class="q-ml-md q-mt-md bg-yellow-1 q-pa-sm rounded-borders q-mb-lg"
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.F_nad_specific_if_applicable.previous_nad_experience
+            .$error ||
+          v.section_1_client_questionnaire.F_nad_specific_if_applicable.tolerance_if_yes.$error ||
+          v.section_1_client_questionnaire.F_nad_specific_if_applicable
+            .tolerance_improved_when_slowed.$error,
+      }"
     >
-      <p class="text-weight-medium text-grey7 q-mb-xs">
-        Did symptoms improve when drip was slowed? *
-      </p>
-      <div class="row q-gutter-xs">
-        <q-chip
-          v-for="item in yesNoUnsureOptions"
-          :key="item"
-          :label="item"
-          :text-color="
-            item ===
-            localFormData.section_1_client_questionnaire.F_nad_specific_if_applicable
-              .tolerance_improved_when_slowed
-              ? 'white'
-              : 'dark'
-          "
-          :color="
-            item ===
-            localFormData.section_1_client_questionnaire.F_nad_specific_if_applicable
-              .tolerance_improved_when_slowed
-              ? item === 'Yes'
-                ? 'positive'
-                : item === 'Unsure'
-                  ? 'amber'
-                  : 'blue-9'
-              : 'grey-6'
-          "
-          :square="
-            item ===
-            localFormData.section_1_client_questionnaire.F_nad_specific_if_applicable
-              .tolerance_improved_when_slowed
-          "
-          outline
-          clickable
-          @click="
-            updateField(
-              'section_1_client_questionnaire.F_nad_specific_if_applicable.tolerance_improved_when_slowed',
-              item,
-            )
-          "
-        />
+      <!-- Previous NAD+ experience -->
+      <YesNoWithFollowup
+        label="Previous NAD+ experience *"
+        v-model="
+          localFormData.section_1_client_questionnaire.F_nad_specific_if_applicable
+            .previous_nad_experience
+        "
+        followup-label="If yes: tolerance *"
+        followup-path="section_1_client_questionnaire.F_nad_specific_if_applicable.tolerance_if_yes"
+        :form-data="localFormData"
+        :followup-options="toleranceOptions"
+        followup-type="single-select"
+        @update="handleNadExperienceChange"
+      />
+
+      <!-- Additional tolerance follow-up -->
+      <div v-if="showToleranceFollowup" class="q-ml-md q-mt-md bg-yellow-1 q-pa-sm rounded-borders">
+        <p class="text-weight-medium text-grey7 q-mb-xs">
+          Did symptoms improve when drip was slowed? *
+        </p>
+        <div class="row q-gutter-xs">
+          <q-chip
+            v-for="item in yesNoUnsureOptions"
+            :key="item"
+            :label="item"
+            :text-color="
+              item ===
+              localFormData.section_1_client_questionnaire.F_nad_specific_if_applicable
+                .tolerance_improved_when_slowed
+                ? 'white'
+                : 'dark'
+            "
+            :color="
+              item ===
+              localFormData.section_1_client_questionnaire.F_nad_specific_if_applicable
+                .tolerance_improved_when_slowed
+                ? item === 'Yes'
+                  ? 'positive'
+                  : item === 'Unsure'
+                    ? 'amber'
+                    : 'blue-9'
+                : 'grey-6'
+            "
+            :square="
+              item ===
+              localFormData.section_1_client_questionnaire.F_nad_specific_if_applicable
+                .tolerance_improved_when_slowed
+            "
+            outline
+            clickable
+            @click="
+              updateField(
+                'section_1_client_questionnaire.F_nad_specific_if_applicable.tolerance_improved_when_slowed',
+                item,
+              )
+            "
+          />
+        </div>
       </div>
     </div>
 
     <!-- Preferred NAD+ experience -->
-    <div class="q-mb-lg">
-      <p class="text-weight-medium q-mb-xs">Preferred NAD+ experience *</p>
+    <div
+      class="q-mb-sm option-group"
+      :class="{
+        'q-mb-lg group--error':
+          v.section_1_client_questionnaire.F_nad_specific_if_applicable.preferred_nad_experience
+            .$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative':
+            v.section_1_client_questionnaire.F_nad_specific_if_applicable.preferred_nad_experience
+              .$error,
+        }"
+      >
+        Preferred NAD+ experience *
+      </p>
       <div class="row q-gutter-xs q-mb-sm">
         <q-chip
           v-for="item in nadExperienceOptions"
@@ -112,8 +136,24 @@
     </div>
 
     <!-- Primary reason for NAD+ interest -->
-    <div class="q-mb-md">
-      <p class="text-weight-medium q-mb-xs">Primary reason for NAD+ interest *</p>
+    <div
+      class="q-mb-sm option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.F_nad_specific_if_applicable
+            .primary_reason_for_nad_interest.$error,
+      }"
+    >
+      <p
+        class="text-weight-medium q-mb-xs"
+        :class="{
+          'text-negative':
+            v.section_1_client_questionnaire.F_nad_specific_if_applicable
+              .primary_reason_for_nad_interest.$error,
+        }"
+      >
+        Primary reason for NAD+ interest *
+      </p>
       <div class="row q-gutter-xs">
         <q-chip
           v-for="item in nadReasonOptions"
@@ -176,6 +216,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  v: {
+    type: Object,
+    required: true,
+  },
 })
 
 const emit = defineEmits(['update:formData', 'update'])
@@ -213,6 +257,12 @@ function handleNadExperienceChange() {
   if (value !== 'Yes') {
     localFormData.value.section_1_client_questionnaire.F_nad_specific_if_applicable.tolerance_if_yes =
       ''
+    localFormData.value.section_1_client_questionnaire.F_nad_specific_if_applicable.tolerance_improved_when_slowed =
+      ''
+  }
+  const tolerance =
+    localFormData.value.section_1_client_questionnaire.F_nad_specific_if_applicable.tolerance_if_yes
+  if (tolerance === 'Chest tightness' || tolerance === 'Anxiety') {
     localFormData.value.section_1_client_questionnaire.F_nad_specific_if_applicable.tolerance_improved_when_slowed =
       ''
   }

@@ -1,6 +1,24 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">Diabetes *</p>
+  <div
+    class="q-mb-lg option-group"
+    :class="{
+      'group--error':
+        v.section_1_client_questionnaire.B_safety_contraindications.diabetes.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.diabetes_type_if_yes.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.diabetes_hba1c_if_yes.$error,
+    }"
+  >
+    <p
+      class="text-weight-medium q-mb-xs"
+      :class="{
+        'text-negative':
+          v.section_1_client_questionnaire.B_safety_contraindications.diabetes.$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.diabetes_type_if_yes.$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.diabetes_hba1c_if_yes.$error,
+      }"
+    >
+      Diabetes *
+    </p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in yesNoOptions"
@@ -67,6 +85,10 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   modelValue: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

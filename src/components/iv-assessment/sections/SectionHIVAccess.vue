@@ -11,62 +11,74 @@
     </q-card-section>
 
     <!-- History of fainting -->
-    <YesNoWithFollowup
-      label="History of fainting with needles / blood draws *"
-      v-model="
-        localFormData.section_1_client_questionnaire.H_iv_access_procedure_tolerance
-          .history_fainting_needles
-      "
-      followup-label="If yes: How often *"
-      followup-path="section_1_client_questionnaire.H_iv_access_procedure_tolerance.fainting_frequency"
-      :form-data="localFormData"
-      :followup-options="faintingFrequencyOptions"
-      followup-type="single-select"
-      @update="handleFaintingChange"
-      class="q-mb-lg"
-    />
-
-    <!-- Additional fainting follow-ups -->
     <div
-      v-if="showFaintingFollowups"
-      class="q-ml-md q-mt-md bg-yellow-1 q-pa-sm rounded-borders q-mb-lg"
+      class="q-mb-lg option-group"
+      :class="{
+        'group--error':
+          v.section_1_client_questionnaire.H_iv_access_procedure_tolerance.history_fainting_needles
+            .$error ||
+          v.section_1_client_questionnaire.H_iv_access_procedure_tolerance.fainting_frequency
+            .$error ||
+          v.section_1_client_questionnaire.H_iv_access_procedure_tolerance.fainting_last_occurred
+            .$error,
+      }"
     >
-      <p class="text-weight-medium text-grey-7 q-mb-xs">Last occurred *</p>
-      <div class="row q-gutter-xs">
-        <q-chip
-          v-for="item in faintingTimeOptions"
-          :key="item"
-          :label="item"
-          :text-color="
-            item ===
-            localFormData.section_1_client_questionnaire.H_iv_access_procedure_tolerance
-              .fainting_last_occurred
-              ? 'white'
-              : 'dark'
-          "
-          :color="
-            item ===
-            localFormData.section_1_client_questionnaire.H_iv_access_procedure_tolerance
-              .fainting_last_occurred
-              ? item === '<12 months'
-                ? 'purple-9'
-                : 'blue-9'
-              : 'grey-6'
-          "
-          :square="
-            item ===
-            localFormData.section_1_client_questionnaire.H_iv_access_procedure_tolerance
-              .fainting_last_occurred
-          "
-          outline
-          clickable
-          @click="
-            updateField(
-              'section_1_client_questionnaire.H_iv_access_procedure_tolerance.fainting_last_occurred',
-              item,
-            )
-          "
-        />
+      <YesNoWithFollowup
+        label="History of fainting with needles / blood draws *"
+        v-model="
+          localFormData.section_1_client_questionnaire.H_iv_access_procedure_tolerance
+            .history_fainting_needles
+        "
+        followup-label="If yes: How often *"
+        followup-path="section_1_client_questionnaire.H_iv_access_procedure_tolerance.fainting_frequency"
+        :form-data="localFormData"
+        :followup-options="faintingFrequencyOptions"
+        followup-type="single-select"
+        @update="handleFaintingChange"
+      />
+
+      <!-- Additional fainting follow-ups -->
+      <div
+        v-if="showFaintingFollowups"
+        class="q-ml-md q-mt-md bg-yellow-1 q-pa-sm rounded-borders q-mb-lg"
+      >
+        <p class="text-weight-medium text-grey-7 q-mb-xs">Last occurred *</p>
+        <div class="row q-gutter-xs">
+          <q-chip
+            v-for="item in faintingTimeOptions"
+            :key="item"
+            :label="item"
+            :text-color="
+              item ===
+              localFormData.section_1_client_questionnaire.H_iv_access_procedure_tolerance
+                .fainting_last_occurred
+                ? 'white'
+                : 'dark'
+            "
+            :color="
+              item ===
+              localFormData.section_1_client_questionnaire.H_iv_access_procedure_tolerance
+                .fainting_last_occurred
+                ? item === '<12 months'
+                  ? 'purple-9'
+                  : 'blue-9'
+                : 'grey-6'
+            "
+            :square="
+              item ===
+              localFormData.section_1_client_questionnaire.H_iv_access_procedure_tolerance
+                .fainting_last_occurred
+            "
+            outline
+            clickable
+            @click="
+              updateField(
+                'section_1_client_questionnaire.H_iv_access_procedure_tolerance.fainting_last_occurred',
+                item,
+              )
+            "
+          />
+        </div>
       </div>
     </div>
 
@@ -82,6 +94,11 @@
       :followup-options="phobiaPreferenceOptions"
       followup-type="single-select"
       @update="emitUpdate"
+      :error="
+        v.section_1_client_questionnaire.H_iv_access_procedure_tolerance.needle_phobia.$error ||
+        v.section_1_client_questionnaire.H_iv_access_procedure_tolerance.needle_phobia_preference
+          .$error
+      "
       class="q-mb-lg"
     />
 
@@ -97,6 +114,11 @@
       :followup-options="veinAttemptOptions"
       followup-type="single-select"
       @update="emitUpdate"
+      :error="
+        v.section_1_client_questionnaire.H_iv_access_procedure_tolerance.difficult_veins.$error ||
+        v.section_1_client_questionnaire.H_iv_access_procedure_tolerance.difficult_veins_attempts
+          .$error
+      "
       class="q-mb-lg"
     />
 
@@ -113,6 +135,11 @@
       :followup-options="vasovagalTriggerOptions"
       followup-type="single-select"
       @update="emitUpdate"
+      :error="
+        v.section_1_client_questionnaire.H_iv_access_procedure_tolerance.vasovagal_tendency
+          .$error ||
+        v.section_1_client_questionnaire.H_iv_access_procedure_tolerance.vasovagal_trigger.$error
+      "
     />
   </q-card>
 </template>
@@ -123,6 +150,10 @@ import YesNoWithFollowup from '../partials/YesNoWithFollowup.vue'
 
 const props = defineProps({
   formData: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

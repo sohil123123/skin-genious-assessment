@@ -1,6 +1,29 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">History of kidney stones *</p>
+  <div
+    class="q-mb-lg option-group"
+    :class="{
+      'group--error':
+        v.section_1_client_questionnaire.B_safety_contraindications.history_kidney_stones.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.kidney_stones_last_if_yes
+          .$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.kidney_stones_recurrent_if_yes
+          .$error,
+    }"
+  >
+    <p
+      class="text-weight-medium q-mb-xs"
+      :class="{
+        'text-negative':
+          v.section_1_client_questionnaire.B_safety_contraindications.history_kidney_stones
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.kidney_stones_last_if_yes
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.kidney_stones_recurrent_if_yes
+            .$error,
+      }"
+    >
+      History of kidney stones *
+    </p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in yesNoUnsureOptions"
@@ -84,6 +107,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  v: {
+    type: Object,
+    required: true,
+  },
 })
 
 const modelValue = ref(props.modelValue)
@@ -136,7 +163,7 @@ const recurrentValue = computed({
   },
 })
 
-const showFollowup = computed(() => ['Yes', 'Unsure'].includes(localValue.value))
+const showFollowup = computed(() => ['Yes'].includes(localValue.value))
 
 function ensurePathExists() {
   if (!props.modelValue.section_1_client_questionnaire) {
@@ -149,7 +176,7 @@ function ensurePathExists() {
 
 function updateValue(value) {
   localValue.value = value
-  if (!['Yes', 'Unsure'].includes(value)) {
+  if (!['Yes'].includes(value)) {
     lastEpisodeValue.value = ''
     recurrentValue.value = ''
   }

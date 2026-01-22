@@ -1,6 +1,29 @@
 <template>
-  <div class="q-mb-lg">
-    <p class="text-weight-medium q-mb-xs">Current fever or infection symptoms today *</p>
+  <div
+    class="q-mb-lg option-group"
+    :class="{
+      'group--error':
+        v.section_1_client_questionnaire.B_safety_contraindications
+          .current_fever_or_infection_symptoms_today.$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.fever_temperature_if_yes
+          .$error ||
+        v.section_1_client_questionnaire.B_safety_contraindications.fever_antibiotics_if_yes.$error,
+    }"
+  >
+    <p
+      class="text-weight-medium q-mb-xs"
+      :class="{
+        'text-negative':
+          v.section_1_client_questionnaire.B_safety_contraindications
+            .current_fever_or_infection_symptoms_today.$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.fever_temperature_if_yes
+            .$error ||
+          v.section_1_client_questionnaire.B_safety_contraindications.fever_antibiotics_if_yes
+            .$error,
+      }"
+    >
+      Current fever or infection symptoms today *
+    </p>
     <div class="row q-gutter-xs q-mb-sm">
       <q-chip
         v-for="item in yesNoOptions"
@@ -69,6 +92,10 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   modelValue: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },

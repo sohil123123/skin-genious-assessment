@@ -15,14 +15,58 @@
       dense
       class="text-grey-7"
       active-color="primary"
-      indicator-color="primary"
       align="justify"
       narrow-indicator
     >
-      <q-tab name="bp" icon="favorite" label="BP Monitor" />
-      <q-tab name="pox" icon="monitor_heart" label="Pulse Oximeter" />
-      <q-tab name="hrv" icon="track_changes" label="HRV Device" />
-      <q-tab name="irt" icon="thermostat" label="Infrared Thermometer" />
+      <q-tab
+        name="bp"
+        icon="favorite"
+        label="BP Monitor"
+        :class="{
+          'text-negative':
+            v.section_2_machine_objective_inputs.blood_pressure_monitor.systolic_mmhg.$error ||
+            v.section_2_machine_objective_inputs.blood_pressure_monitor.diastolic_mmhg.$error ||
+            v.section_2_machine_objective_inputs.blood_pressure_monitor.pulse_bpm.$error,
+        }"
+      />
+      <q-tab
+        name="pox"
+        icon="monitor_heart"
+        label="Pulse Oximeter"
+        :class="{
+          'text-negative':
+            v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.spo2_percent.$error ||
+            v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.pulse_bpm.$error ||
+            v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.perfusion_index.$error,
+        }"
+      />
+      <q-tab
+        name="hrv"
+        icon="track_changes"
+        label="HRV Device"
+        :class="{
+          'text-negative':
+            v.section_2_machine_objective_inputs.hrv_measurement_device.rmssd_or_tw_ms.$error ||
+            v.section_2_machine_objective_inputs.hrv_measurement_device.resting_heart_rate_bpm
+              .$error ||
+            v.section_2_machine_objective_inputs.hrv_measurement_device.measurement_duration_minutes
+              .$error,
+        }"
+      />
+      <q-tab
+        name="irt"
+        icon="thermostat"
+        label="Infrared Thermometer"
+        :class="{
+          'text-negative':
+            v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.forehead_c
+              .$error ||
+            v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.left_cheek_c
+              .$error ||
+            v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.right_cheek_c
+              .$error,
+        }"
+      />
     </q-tabs>
 
     <q-tab-panels v-model="activeDeviceTab" animated class="q-mt-md">
@@ -40,12 +84,13 @@
               label="Systolic (mmHg) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 300) || 'Must be 0-300',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.blood_pressure_monitor.systolic_mmhg.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your systolic blood pressure </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
@@ -57,12 +102,13 @@
               label="Diastolic (mmHg) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 200) || 'Must be 0-200',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.blood_pressure_monitor.diastolic_mmhg.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your diastolic blood pressure </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
@@ -73,12 +119,11 @@
               label="Pulse (bpm) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 250) || 'Must be 0-250',
-              ]"
+              :error="v.section_2_machine_objective_inputs.blood_pressure_monitor.pulse_bpm.$error"
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your pulse </template>
+            </q-input>
           </div>
         </div>
       </q-tab-panel>
@@ -99,12 +144,13 @@
               label="SpO₂ (%) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 100) || 'Must be 0-100',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.spo2_percent.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your SpO2 </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
@@ -115,12 +161,11 @@
               label="Pulse (bpm) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 250) || 'Must be 0-250',
-              ]"
+              :error="v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.pulse_bpm.$error"
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your pulse </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
@@ -133,12 +178,13 @@
               label="Perfusion Index *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 30) || 'Must be 0-30',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.pulse_oximeter_with_pi.perfusion_index.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your Perfusion Index </template>
+            </q-input>
           </div>
         </div>
       </q-tab-panel>
@@ -158,12 +204,13 @@
               label="RMSSD / TW (ms) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 500) || 'Must be 0-500 ms',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.hrv_measurement_device.rmssd_or_tw_ms.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your RMSSD / TW </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
@@ -175,12 +222,14 @@
               label="Resting heart rate (bpm) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0 && val <= 250) || 'Must be 0-250',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.hrv_measurement_device.resting_heart_rate_bpm
+                  .$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your resting heart rate </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
@@ -193,12 +242,14 @@
               label="Measurement duration (minutes) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 0.1 && val <= 60) || 'Must be 0.1-60 minutes',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.hrv_measurement_device
+                  .measurement_duration_minutes.$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your measurement duration </template>
+            </q-input>
           </div>
         </div>
       </q-tab-panel>
@@ -220,12 +271,14 @@
               label="Forehead temperature (°C) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 20 && val <= 45) || 'Must be 20-45°C',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.forehead_c
+                  .$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your forehead temperature </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
@@ -238,12 +291,14 @@
               label="Left cheek temperature (°C) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 20 && val <= 45) || 'Must be 20-45°C',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.left_cheek_c
+                  .$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your left cheek temperature </template>
+            </q-input>
           </div>
           <div class="col-12 col-md-4">
             <q-input
@@ -256,12 +311,14 @@
               label="Right cheek temperature (°C) *"
               outlined
               dense
-              :rules="[
-                (val) => (val !== null && val !== '') || 'Required',
-                (val) => (val >= 20 && val <= 45) || 'Must be 20-45°C',
-              ]"
+              :error="
+                v.section_2_machine_objective_inputs.infrared_skin_thermometer_3_point.right_cheek_c
+                  .$error
+              "
               @update:model-value="emitUpdate"
-            />
+            >
+              <template v-slot:error> Please enter your right cheek temperature </template>
+            </q-input>
           </div>
         </div>
       </q-tab-panel>
@@ -274,6 +331,10 @@ import { ref } from 'vue'
 
 const props = defineProps({
   formData: {
+    type: Object,
+    required: true,
+  },
+  v: {
     type: Object,
     required: true,
   },
