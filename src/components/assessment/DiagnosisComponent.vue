@@ -53,8 +53,39 @@
     <h6>Please Go Back And Process Scanned Images To Get Diagnosis</h6>
   </div>
 
-  <q-page-sticky v-if="diagnosis" position="bottom-right" :offset="[18, 18]">
-    <q-btn fab icon="download" color="accent" @click="exportToPDF" />
+  <q-page-sticky v-if="diagnosis" position="bottom-right" :offset="fabPos">
+    <q-fab
+      v-model="fabOpened"
+      icon="keyboard_arrow_up"
+      direction="up"
+      color="accent"
+      persistent
+      :disable="draggingFab || audioStatus === 'loading'"
+      v-touch-pan.prevent.mouse="moveFab"
+    >
+      <q-fab-action
+        @click="exportToPDF"
+        external-label
+        label-position="left"
+        color="black"
+        icon="download"
+        :disable="draggingFab"
+      >
+        <template v-slot:label> Download PDF </template>
+      </q-fab-action>
+      <q-fab-action
+        @click="handleAudioAction"
+        external-label
+        label-position="left"
+        :color="audioStatus === 'playing' ? 'negative' : 'positive'"
+        :icon="audioStatus === 'playing' ? 'pause' : 'play_arrow'"
+        :loading="audioStatus === 'loading'"
+      >
+        <template v-slot:label>
+          {{ audioStatus === 'playing' ? 'Pause Audio' : 'Play Audio' }}
+        </template>
+      </q-fab-action>
+    </q-fab>
   </q-page-sticky>
 </template>
 
@@ -63,7 +94,7 @@ import jsPDF from 'jspdf'
 import { storeToRefs } from 'pinia'
 import { Loading, Notify } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import config from 'src/config.js'
 
 const store = useAssessmentStore()
@@ -71,6 +102,14 @@ const { assessmentData } = storeToRefs(store)
 
 const diagnosis = ref(null)
 const faceImages = ref(null)
+const fabPos = ref([18, 18])
+const draggingFab = ref(false)
+
+const audioPlayer = new Audio() // hidden audio
+const audioStatus = ref('idle') // idle | loading | playing | paused
+
+let currentAudioUrl = null
+const fabOpened = ref(false)
 
 const emit = defineEmits(['show-major-concerns', 'previous'])
 
@@ -263,6 +302,123 @@ const exportToPDF = async () => {
     Loading.hide()
   }
 }
+
+function moveFab(ev) {
+  draggingFab.value = ev.isFirst !== true && ev.isFinal !== true
+
+  fabPos.value = [fabPos.value[0] - ev.delta.x, fabPos.value[1] - ev.delta.y]
+}
+
+/* =========================
+   Public FAB handler
+========================= */
+async function handleAudioAction() {
+  if (audioStatus.value === 'playing') {
+    pauseAudio()
+    return
+  }
+
+  if (audioStatus.value === 'paused') {
+    playAudio()
+    return
+  }
+
+  // idle → generate + play
+  await generateAndPlay()
+}
+
+/* =========================
+   Generate + Autoplay
+========================= */
+async function generateAndPlay() {
+  fabOpened.value = true
+  const text = diagnosis.value.script // 👈 important
+
+  if (!text) {
+    Notify.create({
+      type: 'warning',
+      message: 'Nothing to read',
+    })
+    return
+  }
+
+  audioStatus.value = 'loading'
+
+  try {
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${config.ELEVENLAB_VOICE_ID}`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': process.env.ELEVENLAB_API_KEY,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: config.ELEVENLAB_MODEL,
+          voice_settings: {
+            stability: config.ELEVENLAB_STABILITY,
+            similarity_boost: config.ELEVENLAB_SIMILARITY,
+            style: config.ELEVENLAB_STYLE,
+            use_speaker_boost: config.ELEVENLAB_BOOST,
+          },
+        }),
+      },
+    )
+
+    if (!response.ok) {
+      const err = await response.json()
+      throw new Error(err?.detail?.message || 'Audio generation failed')
+    }
+
+    const blob = await response.blob()
+
+    if (currentAudioUrl) {
+      URL.revokeObjectURL(currentAudioUrl)
+    }
+
+    currentAudioUrl = URL.createObjectURL(blob)
+    audioPlayer.src = currentAudioUrl
+
+    await audioPlayer.play()
+    audioStatus.value = 'playing'
+
+    audioPlayer.onended = () => {
+      audioStatus.value = 'paused'
+      fabOpened.value = true
+    }
+  } catch (err) {
+    console.error(err)
+    audioStatus.value = 'idle'
+    Notify.create({ type: 'negative', message: err.message })
+  }
+}
+
+/* =========================
+   Controls
+========================= */
+function playAudio() {
+  audioPlayer.play()
+  audioStatus.value = 'playing'
+  fabOpened.value = true
+}
+
+function pauseAudio() {
+  audioPlayer.pause()
+  audioStatus.value = 'paused'
+  fabOpened.value = true
+}
+
+/* =========================
+   Cleanup
+========================= */
+onBeforeUnmount(() => {
+  audioPlayer.pause()
+  if (currentAudioUrl) {
+    URL.revokeObjectURL(currentAudioUrl)
+  }
+})
 </script>
 
 <style scoped>

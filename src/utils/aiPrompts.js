@@ -2948,6 +2948,8 @@ const diagnosis_json_structure = {
       possible_causes: ['<Cause 1>', '<Cause 2>'],
     },
   },
+  script:
+    'pateint centric, script, about the patient scoring values pt : pateint centric, script, about the patient scoring values',
 }
 
 const reassessment_json_structure = {
