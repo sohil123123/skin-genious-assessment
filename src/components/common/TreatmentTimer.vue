@@ -32,10 +32,9 @@ import { ref, computed } from 'vue'
 
 const props = defineProps({
   duration: { type: Number, default: 300 },
-  autoStart: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['finished'])
+const emit = defineEmits(['finished', 'start'])
 
 const elapsed = ref(0)
 let interval = null
@@ -63,6 +62,7 @@ const formattedTime = computed(() => {
 function startTimer() {
   if (interval) return // prevent multiple intervals
   running.value = true
+  emit('start')
   interval = setInterval(() => {
     if (elapsed.value < props.duration) {
       elapsed.value++

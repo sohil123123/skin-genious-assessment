@@ -97,7 +97,7 @@
                   <TreatmentTimer
                     ref="timerRef"
                     :duration="Number(step.duration.replace(/(mins|minutes)/g, '') * 60) || 0"
-                    :autoStart="true"
+                    @start="onTimerStart"
                     @finished="onTimerFinished"
                   />
                 </q-card>
@@ -141,7 +141,9 @@ import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'stores/assessmentStore'
 import TreatmentTimer from 'src/components/common/TreatmentTimer.vue'
 import { useQuasar } from 'quasar'
+import { useElevenLabsAudio } from 'src/composables/useElevenLabsAudio'
 
+const { handleAudioAction, cleanup } = useElevenLabsAudio()
 const $q = useQuasar()
 
 /* -------------------------------------------
@@ -163,6 +165,7 @@ const stepNumber = ref(Number(route.params.step))
 --------------------------------------------*/
 const timerIsFinished = ref(false)
 const timerRef = ref(null)
+const isAudioPlayed = ref(false)
 
 /* -------------------------------------------
    COMPUTED
@@ -196,7 +199,9 @@ watch(
   (newStep) => {
     stepNumber.value = Number(newStep)
     store.setStepByNumber(stepNumber.value)
+    isAudioPlayed.value = false // Reset audio flag for new step
     resetTimer()
+    cleanup()
   },
 )
 
@@ -223,6 +228,14 @@ watch(stepDuration, async () => {
 /* -------------------------------------------
    TIMER CONTROL
 --------------------------------------------*/
+function onTimerStart() {
+  console.log(isAudioPlayed.value)
+  if (!isAudioPlayed.value) {
+    handleAudioAction(step.value.script)
+    isAudioPlayed.value = true
+  }
+}
+
 function resetTimer() {
   timerIsFinished.value = false
 

@@ -3416,6 +3416,7 @@ ________________________________________
       {
         "session_number": <number>,
         "title": "<Session Title>",
+        "script": "<description of concerns addressed in this session>",
         "treatment_time": "<minutes>",
         "week": <Week Number>,
         "preparations_checklist_for_therapist": [
@@ -3434,11 +3435,12 @@ ________________________________________
             "step_number": <number>,
             "duration": "<minutes in number no extra text>",
             "ingredients_equipments": ["<device>", "<serum>", "<peel>"],
-            "how_to_do": "<clear zone-wise technique>"
+            "how_to_do": "<clear zone-wise technique>",
+            "script": "<description of concerns addressed in this step and how therapiest will improve the patient's condition>"
           }
         ]
       }
-    ]
+    ],
   }
 }
 `

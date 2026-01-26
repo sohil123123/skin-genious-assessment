@@ -108,6 +108,17 @@
       </div>
     </div>
   </q-page>
+
+  <q-page-sticky position="bottom-right" :offset="[18, 18]">
+    <q-btn
+      @click="() => handleAudioAction(text)"
+      fab
+      :disable="audioStatus === 'loading'"
+      :color="audioStatus === 'playing' ? 'negative' : 'positive'"
+      :icon="audioStatus === 'playing' ? 'pause' : 'play_arrow'"
+      :loading="audioStatus === 'loading'"
+    />
+  </q-page-sticky>
 </template>
 
 <script setup>
@@ -115,6 +126,9 @@ import { onMounted, computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { useElevenLabsAudio } from 'src/composables/useElevenLabsAudio'
+
+const { audioStatus, handleAudioAction } = useElevenLabsAudio()
 
 const assessmentStore = useAssessmentStore()
 
@@ -137,6 +151,7 @@ const session = computed(() =>
 )
 const concerns_addressed = computed(() => session.value?.concerns_addressed ?? [])
 const prepList = computed(() => session.value?.preparations_checklist_for_therapist ?? [])
+const text = computed(() => session.value?.script ?? '')
 
 const selected = ref([])
 const totalItems = computed(() => prepList.value.length)

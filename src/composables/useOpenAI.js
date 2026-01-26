@@ -21,7 +21,11 @@ export function useOpenAI() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          metadata: { patient_id: pid, assessment_id: `${assessmentStore.assessmentData.id}` },
+          metadata: {
+            patient_id: pid,
+            patient_name: assessmentStore.assessmentData.name,
+            assessment_id: `${assessmentStore.assessmentData.id}`,
+          },
         }),
       })
 
