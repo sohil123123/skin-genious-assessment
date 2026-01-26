@@ -98,6 +98,16 @@ export function useElevenLabsAudio() {
   }
 
   const handleAudioAction = async (text) => {
+    // Import commonStore dynamically to check global audio setting
+    const { useCommonStore } = await import('src/stores/commonStore')
+    const commonStore = useCommonStore()
+
+    // Check if audio is globally disabled
+    if (!commonStore.isAudioEnabled) {
+      console.log('Audio is globally disabled')
+      return
+    }
+
     if (audioStatus.value === 'playing') {
       pauseAudio()
       return

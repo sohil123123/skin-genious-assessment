@@ -12,6 +12,19 @@
             </div>
             <span class="text-xl font-light tracking-wider">AI AESTHETICS</span>
           </div>
+
+          <!-- Audio Toggle Button -->
+          <q-btn
+            :icon="commonStore.isAudioEnabled ? 'volume_up' : 'volume_off'"
+            :color="commonStore.isAudioEnabled ? 'primary' : 'grey'"
+            round
+            flat
+            @click="commonStore.toggleAudio()"
+          >
+            <q-tooltip>
+              {{ commonStore.isAudioEnabled ? 'Disable Audio' : 'Enable Audio' }}
+            </q-tooltip>
+          </q-btn>
         </div>
 
         <q-card flat class="q-pa-lg">
@@ -113,11 +126,28 @@
     <q-btn
       @click="() => handleAudioAction(text)"
       fab
-      :disable="audioStatus === 'loading'"
-      :color="audioStatus === 'playing' ? 'negative' : 'positive'"
-      :icon="audioStatus === 'playing' ? 'pause' : 'play_arrow'"
+      :disable="audioStatus === 'loading' || !commonStore.isAudioEnabled"
+      :color="
+        !commonStore.isAudioEnabled ? 'grey' : audioStatus === 'playing' ? 'negative' : 'positive'
+      "
+      :icon="
+        !commonStore.isAudioEnabled
+          ? 'volume_off'
+          : audioStatus === 'playing'
+            ? 'pause'
+            : 'play_arrow'
+      "
       :loading="audioStatus === 'loading'"
-    />
+    >
+      <q-tooltip
+        v-if="!commonStore.isAudioEnabled"
+        anchor="center left"
+        self="center right"
+        :offset="[10, 10]"
+      >
+        Audio is globally disabled
+      </q-tooltip>
+    </q-btn>
   </q-page-sticky>
 </template>
 
@@ -126,11 +156,13 @@ import { onMounted, computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { useCommonStore } from 'src/stores/commonStore'
 import { useElevenLabsAudio } from 'src/composables/useElevenLabsAudio'
 
 const { audioStatus, handleAudioAction } = useElevenLabsAudio()
 
 const assessmentStore = useAssessmentStore()
+const commonStore = useCommonStore()
 
 const route = useRoute()
 const router = useRouter()

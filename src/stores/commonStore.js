@@ -9,6 +9,8 @@ export const useCommonStore = defineStore('common', {
     therapiests: [],
     clients: [],
     initialClients: [],
+    // Audio settings - persisted to localStorage
+    isAudioEnabled: localStorage.getItem('audioEnabled') !== 'false', // Default to true
   }),
 
   actions: {
@@ -94,6 +96,13 @@ export const useCommonStore = defineStore('common', {
       }
 
       return age
+    },
+    /**
+     * Toggle global audio on/off
+     */
+    toggleAudio() {
+      this.isAudioEnabled = !this.isAudioEnabled
+      localStorage.setItem('audioEnabled', this.isAudioEnabled.toString())
     },
   },
 })

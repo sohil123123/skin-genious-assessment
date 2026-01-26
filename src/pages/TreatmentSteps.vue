@@ -13,8 +13,23 @@
             <span class="text-xl font-light tracking-wider">AI AESTHETICS</span>
           </div>
 
-          <div class="text-weight-bold">
-            Session {{ sessionID }} — Step {{ stepNumber }} of {{ totalSteps }}
+          <div class="flex items-center gap-4">
+            <div class="text-weight-bold">
+              Session {{ sessionID }} — Step {{ stepNumber }} of {{ totalSteps }}
+            </div>
+
+            <!-- Audio Toggle Button -->
+            <q-btn
+              :icon="commonStore.isAudioEnabled ? 'volume_up' : 'volume_off'"
+              :color="commonStore.isAudioEnabled ? 'primary' : 'grey'"
+              round
+              flat
+              @click="commonStore.toggleAudio()"
+            >
+              <q-tooltip>
+                {{ commonStore.isAudioEnabled ? 'Disable Audio' : 'Enable Audio' }}
+              </q-tooltip>
+            </q-btn>
           </div>
         </div>
 
@@ -139,6 +154,7 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'stores/assessmentStore'
+import { useCommonStore } from 'stores/commonStore'
 import TreatmentTimer from 'src/components/common/TreatmentTimer.vue'
 import { useQuasar } from 'quasar'
 import { useElevenLabsAudio } from 'src/composables/useElevenLabsAudio'
@@ -153,6 +169,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useTreatmentFlowStore()
 const assessmentStore = useAssessmentStore()
+const commonStore = useCommonStore()
 
 /* -------------------------------------------
    PARAMS
@@ -229,8 +246,8 @@ watch(stepDuration, async () => {
    TIMER CONTROL
 --------------------------------------------*/
 function onTimerStart() {
-  console.log(isAudioPlayed.value)
-  if (!isAudioPlayed.value) {
+  // Only play audio if globally enabled and not already played for this step
+  if (commonStore.isAudioEnabled && !isAudioPlayed.value) {
     handleAudioAction(step.value.script)
     isAudioPlayed.value = true
   }
