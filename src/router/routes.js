@@ -29,7 +29,7 @@ const routes = [
       {
         path: 'test-page',
         name: 'test-page',
-        component: () => import('src/pages/tests/ElevenLabsTTS.vue'),
+        component: () => import('src/pages/tests/VoiceCommand.vue'),
       },
       {
         path: 'appointments/:clinic_id?/:therapist_id?',

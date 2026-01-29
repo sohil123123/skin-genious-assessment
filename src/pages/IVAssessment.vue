@@ -97,6 +97,7 @@ import { useOpenAI } from 'src/composables/useOpenAI'
 import { SYSTEM_PROMPT_DIAGNOSIS, D_REPORT_USER_PROMPT } from 'src/utils/aiPrompts'
 import { useIVAssessmentValidation } from 'src/composables/useIVAssessmentValidation'
 import { useVuelidate } from '@vuelidate/core'
+import { generateCanonicalJson } from 'src/services/generateCanonicalJson'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 const $q = useQuasar()
@@ -192,6 +193,8 @@ async function finalizeAndExit() {
   })
     .onOk(() => {
       console.log(formData.value)
+      const canonicalPayload = generateCanonicalJson(formData.value)
+      console.log(canonicalPayload)
       // formData.value.status = 'completed'
       // submit(['status'])
       // Loading.show({
