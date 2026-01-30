@@ -1,12 +1,11 @@
 import { useQuasar } from 'quasar'
 // import { skinTypeFunctions, imageAnalysisFunctions } from 'src/utils/ai-functions'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { api } from 'src/boot/axios'
 
 const assessmentStore = useAssessmentStore()
 export function useOpenAI() {
   const $q = useQuasar()
-  const API_KEY = process.env.OPENAI_API_KEY
-  const BASE_URL = 'https://api.openai.com/v1'
 
   // 🧠 1. Get or create conversation
   const getOrCreateConversation = async (pid) => {
@@ -14,23 +13,19 @@ export function useOpenAI() {
       let id = assessmentStore.assessmentData.conversation_id
       if (id) return id
 
-      const res = await fetch(`${BASE_URL}/conversations`, {
-        method: 'POST',
+      const res = await api.post(`ai/conversations`, {
         headers: {
-          Authorization: `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          metadata: {
-            patient_id: pid,
-            patient_name: assessmentStore.assessmentData.name,
-            assessment_id: `${assessmentStore.assessmentData.id}`,
-          },
+          patient_id: pid,
+          patient_name: assessmentStore.assessmentData.name,
+          assessment_id: `${assessmentStore.assessmentData.id}`,
         }),
       })
 
-      const data = await res.json()
-      if (!res.ok || !data.id) {
+      const data = await res.data
+      if (!data || !data.id) {
         throw new Error(`Conversation creation failed: ${JSON.stringify(data)}`)
       }
 
@@ -58,18 +53,9 @@ export function useOpenAI() {
         prompt_cache_key: 'ai-aesthetics-assessment-key-v1-ai',
       }
 
-      const res = await fetch(`${BASE_URL}/responses`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        return data
-      }
+      const res = await api.post(`ai/responses`, body)
+      const data = await res.data
+      if (!data) return data
 
       // Try to return the assistant's text output
       // return data.output?.[0]?.content?.[0]?.text || JSON.stringify(data, null, 2)
@@ -77,15 +63,6 @@ export function useOpenAI() {
       const extractedText =
         data.output?.[data.output?.length - 1]?.content?.[0]?.text || JSON.stringify(data, null, 2)
 
-      // let cleanedText = ''
-      // const match = extractedText.match(/```json([\s\S]*?)```/)
-      // if (match && match[1]) {
-      //   cleanedText = match[1].trim()
-      // } else if (extractedText.trim().startsWith('{')) {
-      //   cleanedText = extractedText.trim()
-      // } else {
-      //   throw new Error('No valid JSON found.')
-      // }
       try {
         const parsed = JSON.parse(extractedText)
         console.log('AI Response: ', parsed)

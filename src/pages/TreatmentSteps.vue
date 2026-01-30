@@ -87,7 +87,7 @@
 
               <div class="col-md-6 col-sm-6 col-xs-12">
                 <q-card class="info-card soft-bg q-pa-lg full-height">
-                  <TreatmentTimer
+                  <TreatmentTimerV1
                     ref="timerRef"
                     :duration="Number(step.duration * 60) || 0"
                     :autoStart="true"
@@ -109,7 +109,7 @@
               <div class="preview-label">Timer</div>
               <div class="col-md-6 col-sm-6 col-xs-12 q-mt-md">
                 <q-card flat class="timer-card q-pa-lg full-height">
-                  <TreatmentTimer
+                  <TreatmentTimerV1
                     ref="timerRef"
                     :duration="Number(step.duration.replace(/(mins|minutes)/g, '') * 60) || 0"
                     @start="onTimerStart"
@@ -155,7 +155,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'stores/assessmentStore'
 import { useCommonStore } from 'stores/commonStore'
-import TreatmentTimer from 'src/components/common/TreatmentTimer.vue'
+import TreatmentTimerV1 from 'src/components/common/TreatmentTimerV1.vue'
 import { useQuasar } from 'quasar'
 import { useElevenLabsAudio } from 'src/composables/useElevenLabsAudio'
 
