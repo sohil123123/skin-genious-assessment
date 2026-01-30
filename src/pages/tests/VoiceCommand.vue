@@ -2,11 +2,11 @@
   <q-page class="flex flex-center">
     <q-card>
       <q-card-section>
-        <TreatmentTimer />
+        <TreatmentTimerV2 />
       </q-card-section>
     </q-card>
   </q-page>
 </template>
 <script setup>
-import TreatmentTimer from 'src/components/common/TreatmentTimer.vue'
+import TreatmentTimerV2 from 'src/components/common/TreatmentTimerV2.vue'
 </script>
