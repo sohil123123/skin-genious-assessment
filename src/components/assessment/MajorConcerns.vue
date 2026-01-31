@@ -174,7 +174,6 @@ watch(
   (val) => {
     if (val) {
       treatableConcernsSummary.value = val.parameters_with_abnormal_scores
-      console.log(val.selected_plan_type)
       treatmentType.value = val.selected_plan_type
     }
   },
