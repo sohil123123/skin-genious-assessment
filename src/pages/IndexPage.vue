@@ -85,7 +85,7 @@ import { useOpenAI } from 'src/composables/useOpenAI'
 import {
   SYSTEM_PROMPT_DIAGNOSIS,
   D_REPORT_USER_PROMPT,
-  SYSTEM_TREATEMENT_PLAN_PROMPT,
+  SYSTEM_TREATMENT_PLAN_PROMPT,
   POST_DIAGNOSIS_USER_PROMPT,
 } from 'src/utils/aiPrompts'
 import { Loading, Notify, QSpinnerFacebook, useQuasar } from 'quasar'
@@ -495,7 +495,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
       content: [
         {
           type: 'input_text',
-          text: SYSTEM_TREATEMENT_PLAN_PROMPT,
+          text: SYSTEM_TREATMENT_PLAN_PROMPT,
         },
         {
           type: 'input_text',
@@ -518,7 +518,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
                 'Parameters showing deviations that can be treated or improved with appropriate interventions.',
               parameters_with_abnormal_scores: selected,
             },
-            selected_plan_type: `${treatmentType} session`, // 'single session' or 'full treatment'
+            selected_plan_type: `${treatmentType}`, // 'single', 'express' or 'full'
           }),
         },
       ],

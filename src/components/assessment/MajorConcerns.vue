@@ -87,6 +87,33 @@
             </q-card>
           </div>
 
+          <!-- Express Session Plan -->
+          <div class="col-12">
+            <q-card
+              flat
+              bordered
+              class="plan-card cursor-pointer"
+              :class="{ 'plan-card--active': treatmentType === 'express' }"
+              @click="treatmentType = 'express'"
+            >
+              <q-card-section class="row items-center">
+                <div class="col-auto">
+                  <q-icon
+                    name="flash_on"
+                    size="40px"
+                    :color="treatmentType === 'express' ? 'primary' : 'grey-7'"
+                  />
+                </div>
+                <div class="col">
+                  <div class="text-subtitle1 text-weight-medium">Express Session</div>
+                  <div class="text-caption text-grey-7">
+                    Ideal for quick boost and immediate results.
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+
           <!-- Full Treatment Plan -->
           <div class="col-12">
             <q-card
@@ -147,6 +174,8 @@ watch(
   (val) => {
     if (val) {
       treatableConcernsSummary.value = val.parameters_with_abnormal_scores
+      console.log(val.selected_plan_type)
+      treatmentType.value = val.selected_plan_type
     }
   },
   { immediate: true },

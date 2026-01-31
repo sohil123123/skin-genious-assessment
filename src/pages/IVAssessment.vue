@@ -14,6 +14,13 @@
           </div>
         </div>
 
+        <UploadFaceImages
+          v-if="currentStep === 'step-1'"
+          v-model:startProcessingStep="startProcessingStep"
+          :processingMessage="processingMessage"
+          @process="handleProcess"
+        />
+
         <ClientInformation
           v-if="currentStep === 'step-1'"
           :initial-data="formData"
@@ -21,40 +28,12 @@
           @update="updateFormData"
         />
 
-        <UploadFaceImages
-          v-if="currentStep === 'step-2'"
-          v-model:startProcessingStep="startProcessingStep"
-          :processingMessage="processingMessage"
-          @process="handleProcess"
-        />
-
         <PatientPhysicalAssessment
-          v-if="currentStep === 'step-3'"
+          v-if="currentStep === 'step-2'"
           :form-data="formData"
           :v="v$"
           @update="updateFormData"
         />
-
-        <!-- Navigation Buttons -->
-        <div class="q-mt-lg flex justify-between">
-          <q-btn color="black" label="Previous" :disable="isFirstStep" @click="goPrev" />
-          <q-btn
-            v-if="!isLastStep"
-            color="positive"
-            label="Next"
-            :disable="isLastStep"
-            @click="goNext"
-          />
-          <q-btn
-            v-if="isLastStep"
-            color="accent"
-            outline
-            label="Finalize & Exit"
-            unelevated
-            rounded
-            @click="finalizeAndExit"
-          />
-        </div>
       </div>
     </div>
 
@@ -76,6 +55,14 @@
         icon-right="arrow_forward"
         color="teal"
         @click="goNext"
+      />
+      <q-btn
+        v-if="isLastStep"
+        color="accent"
+        label="Finalize & Exit"
+        unelevated
+        rounded
+        @click="finalizeAndExit"
       />
     </q-page-sticky>
   </q-page>
@@ -110,7 +97,7 @@ const userId = route.params.user_id
 const currentStep = ref(route.params.step || 'step-1')
 const isPostAssessment = ref(false)
 
-const steps = ['step-1', 'step-2', 'step-3']
+const steps = ['step-1', 'step-2']
 const currentIndex = computed(() => steps.indexOf(currentStep.value))
 const isFirstStep = computed(() => steps.indexOf(currentStep.value) === 0)
 const isLastStep = computed(() => steps.indexOf(currentStep.value) === steps.length - 1)
@@ -125,7 +112,7 @@ const v$ = useVuelidate(rules, formData)
 
 const stepFields = {
   'step-1': ['meta', 'section_1_client_questionnaire', 'section_2_machine_objective_inputs_part_1'],
-  'step-3': ['section_2_machine_objective_inputs_part_2', 'section_3_dermatological_ai_inputs'],
+  'step-2': ['section_2_machine_objective_inputs_part_2', 'section_3_dermatological_ai_inputs'],
 }
 
 onMounted(async () => {
@@ -232,14 +219,18 @@ async function submit(field) {
 const isStepValid = async () => {
   const fields = stepFields[currentStep.value]
   if (!fields) return true
-
   fields.forEach((path) => v$.value[path].$touch())
-
   return !fields.some((path) => v$.value[path].$invalid)
 }
 
 async function goNext() {
   const valid = await isStepValid()
+  if (!valid) {
+    console.log(
+      'Invalid fields:',
+      v$.value.$errors.map((e) => e.$property),
+    )
+  }
   if (!valid) return
 
   if (!isLastStep.value) {

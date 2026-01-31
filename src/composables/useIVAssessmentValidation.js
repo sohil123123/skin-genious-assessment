@@ -393,11 +393,26 @@ export function useIVAssessmentValidation(formData) {
         },
       },
       F_nad_specific_if_applicable: {
-        previous_nad_experience: { required },
+        previous_nad_experience: {
+          required: requiredIf(() => {
+            const primary_goal =
+              formData.value.section_1_client_questionnaire.A_goals_intent.primary_goal
+            const secondary_goal =
+              formData.value.section_1_client_questionnaire.A_goals_intent.secondary_goal
+            return primary_goal == 'NAD+ wellness' || secondary_goal == 'NAD+ wellness'
+          }),
+        },
         tolerance_if_yes: {
           required: requiredIf(() => {
             const b = formData.value.section_1_client_questionnaire.F_nad_specific_if_applicable
-            return b.previous_nad_experience == 'Yes'
+            const primary_goal =
+              formData.value.section_1_client_questionnaire.A_goals_intent.primary_goal
+            const secondary_goal =
+              formData.value.section_1_client_questionnaire.A_goals_intent.secondary_goal
+            return (
+              b.previous_nad_experience == 'Yes' &&
+              (primary_goal == 'NAD+ wellness' || secondary_goal == 'NAD+ wellness')
+            )
           }),
         },
         tolerance_improved_when_slowed: {
@@ -406,8 +421,24 @@ export function useIVAssessmentValidation(formData) {
             return b.tolerance_if_yes == 'Chest tightness' || b.tolerance_if_yes == 'Anxiety'
           }),
         },
-        preferred_nad_experience: { required },
-        primary_reason_for_nad_interest: { required },
+        preferred_nad_experience: {
+          required: requiredIf(() => {
+            const primary_goal =
+              formData.value.section_1_client_questionnaire.A_goals_intent.primary_goal
+            const secondary_goal =
+              formData.value.section_1_client_questionnaire.A_goals_intent.secondary_goal
+            return primary_goal == 'NAD+ wellness' || secondary_goal == 'NAD+ wellness'
+          }),
+        },
+        primary_reason_for_nad_interest: {
+          required: requiredIf(() => {
+            const primary_goal =
+              formData.value.section_1_client_questionnaire.A_goals_intent.primary_goal
+            const secondary_goal =
+              formData.value.section_1_client_questionnaire.A_goals_intent.secondary_goal
+            return primary_goal == 'NAD+ wellness' || secondary_goal == 'NAD+ wellness'
+          }),
+        },
       },
       G_acute_metabolic_status: {
         time_since_last_meal_hours: { required, numeric },

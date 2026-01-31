@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 
 const props = defineProps({
   duration: { type: Number, default: 300 },
@@ -78,7 +78,7 @@ let interval = null
 const running = ref(false)
 
 // ---------------- TIMER LOGIC ----------------
-
+// (Keep your existing timer logic as is)
 const reverseProgress = computed({
   get() {
     return props.duration - elapsed.value
@@ -135,7 +135,7 @@ function restart() {
   restartTimer()
 }
 
-// ---------------- VOICE CONTROL ----------------
+// ---------------- IMPROVED VOICE CONTROL ----------------
 
 const listening = ref(false)
 const isSpeechSupported = ref(false)
@@ -146,46 +146,23 @@ const feedbackClass = ref('')
 const debugMode = ref(false)
 let recognition = null
 let feedbackTimeout = null
+let restartTimeout = null
+let speechStartTimeout = null
 
-// Expanded wake word patterns for Indian English
-const WAKE_WORD_PATTERNS = [
-  // Original patterns
-  'hey clinic ai',
-  'hey clinical ai',
-  'hey clinic i',
-  'hey clinic a i',
-  'hey cleanic ai',
-  'hey a clinic ai',
-  'hello clinic ai',
-  'hi clinic ai',
+// Wake word detection improved with fuzzy matching
+const WAKE_WORDS = ['clinic ai', 'clinic eye', 'clinic i', 'clinic hey', 'clinic hi']
 
-  // Indian English variations
-  'clinic ai',
-  'clinical ai',
-  'clinic eye',
-  'clinical eye',
-  'clean tick ai',
-  'clean tick i',
-
-  // Without "hey"
-  'clinic ai start',
-  'clinical ai start',
-  'clinic ai pause',
-  'clinical ai pause',
-
-  // Common mispronunciations
-  'clinic aye',
-  'clinical aye',
-  'kleen tick ai',
-  'kleen tick i',
-]
-
-// Common Indian English command variations
-const COMMAND_VARIANTS = {
-  start: ['start', 'begin', 'resume', 'play', 'go', 'shuru', 'shuru karo'],
-  pause: ['pause', 'stop', 'hold', 'wait', 'ruk', 'ruk jao', 'band'],
-  reset: ['reset', 'clear', 'fresh', 'new', 'dubara', 'phir se'],
-  restart: ['restart', 'again', 'restart karo', 'phir shuru'],
+// Command patterns with better matching
+const COMMAND_PATTERNS = {
+  start: [/start(?: the)? timer/i, /begin(?: the)? timer/i, /start counting/i],
+  pause: [
+    /stop(?: the)? timer/i,
+    /pause(?: the)? timer/i,
+    /halt(?: the)? timer/i,
+    /freeze(?: the)? timer/i,
+  ],
+  reset: [/reset(?: the)? timer/i, /clear(?: the)? timer/i],
+  restart: [/restart(?: the)? timer/i, /start again/i, /begin again/i],
 }
 
 const voiceButtonLabel = computed(() => {
@@ -196,7 +173,7 @@ const voiceStatusMessage = computed(() => {
   if (!isSpeechSupported.value) return 'Voice not supported'
   return listening.value
     ? '🎤 Listening... (Say "Clinic AI" + command)'
-    : '🎙️ Click to enable voice'
+    : '🎙️ Click to enable voice control'
 })
 
 const voiceStatusClass = computed(() => {
@@ -221,46 +198,77 @@ function normalizeSpeech(text) {
     .trim()
 }
 
-function hasWakeWord(text) {
-  return text.includes('clinic ai') || text.includes('clinical ai') || text.includes('cleanic ai')
-}
+// Improved wake word detection with fuzzy matching
+function detectWakeWord(text) {
+  const normalized = normalizeSpeech(text)
 
-let lastCommandTime = 0
-
-function canExecuteCommand() {
-  const now = Date.now()
-  if (now - lastCommandTime < 1500) return false
-  lastCommandTime = now
-  return true
-}
-
-// Levenshtein distance for fuzzy matching
-function levenshteinDistance(a, b) {
-  const matrix = []
-
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i]
+  // Check for exact matches first
+  for (const wakeWord of WAKE_WORDS) {
+    if (normalized.includes(wakeWord)) {
+      return wakeWord
+    }
   }
 
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0][j] = j
-  }
-
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1]
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1,
-        )
+  // Fuzzy matching for slight variations
+  const words = normalized.split(' ')
+  for (let i = 0; i < words.length - 1; i++) {
+    const potentialWake = `${words[i]} ${words[i + 1]}`
+    for (const wakeWord of WAKE_WORDS) {
+      // Calculate simple similarity
+      if (similarity(potentialWake, wakeWord) > 0.7) {
+        return wakeWord
       }
     }
   }
 
-  return matrix[b.length][a.length]
+  return null
+}
+
+// Simple similarity function for fuzzy matching
+function similarity(s1, s2) {
+  const longer = s1.length > s2.length ? s1 : s2
+  const shorter = s1.length > s2.length ? s2 : s1
+
+  if (longer.length === 0) return 1.0
+
+  return (longer.length - editDistance(longer, shorter)) / parseFloat(longer.length)
+}
+
+function editDistance(s1, s2) {
+  s1 = s1.toLowerCase()
+  s2 = s2.toLowerCase()
+
+  const costs = []
+  for (let i = 0; i <= s1.length; i++) {
+    let lastValue = i
+    for (let j = 0; j <= s2.length; j++) {
+      if (i === 0) {
+        costs[j] = j
+      } else if (j > 0) {
+        let newValue = costs[j - 1]
+        if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1
+        }
+        costs[j - 1] = lastValue
+        lastValue = newValue
+      }
+    }
+    if (i > 0) costs[s2.length] = lastValue
+  }
+  return costs[s2.length]
+}
+
+let lastCommandTime = 0
+const COMMAND_COOLDOWN = 1000 // 1 second cooldown between commands
+
+function canExecuteCommand() {
+  const now = Date.now()
+  if (now - lastCommandTime < COMMAND_COOLDOWN) {
+    log('Command cooldown active, skipping')
+    return false
+  }
+  lastCommandTime = now
+  return true
 }
 
 function log(step, data = '') {
@@ -269,89 +277,71 @@ function log(step, data = '') {
   }
 }
 
-function handleVoiceCommand(rawText, confidence = 0.5) {
+function handleVoiceCommand(rawText, confidence = 0.5, isFinal = true) {
   lastCommand.value = rawText
   lastConfidence.value = confidence
 
   log('Raw transcript:', rawText)
 
-  if (!rawText) return
+  if (!rawText || rawText.trim().length < 3) return
+
+  // Only process final results to avoid multiple triggers
+  if (!isFinal) return
 
   const text = normalizeSpeech(rawText)
   log('Normalized:', text)
 
-  // 1️⃣ Wake-word detection
-  if (!hasWakeWord(text)) {
+  // Wake-word detection with fuzzy matching
+  const detectedWakeWord = detectWakeWord(text)
+  if (!detectedWakeWord) {
     if (debugMode.value) {
-      showFeedback(`Heard: "${rawText}" (No wake word)`, 'grey')
+      log('No wake word detected')
+      showFeedback(`Heard: "${rawText.substring(0, 30)}..."`, 'grey')
     }
     return
   }
 
   showFeedback(`Heard: "${rawText}"`, 'positive')
-  console.log('✅ Wake word detected')
+  log('✅ Wake word detected:', detectedWakeWord)
 
-  // 2️⃣ Extract command (remove wake words)
+  // Extract command text (remove wake word)
   let actionText = text
-  WAKE_WORD_PATTERNS.forEach((pattern) => {
-    const patternWords = pattern.split(' ')
-    patternWords.forEach((word) => {
-      const regex = new RegExp(`\\b${word}\\b`, 'gi')
-      actionText = actionText.replace(regex, '')
-    })
-  })
+  const wakeWordPattern = detectedWakeWord.replace(/\s+/g, '\\s+')
+  const regex = new RegExp(wakeWordPattern, 'i')
+  actionText = actionText.replace(regex, '').trim()
 
-  actionText = actionText.trim()
-  log('Action text:', actionText)
+  log('Action text after wake word removal:', actionText)
 
-  // 3️⃣ Fuzzy command matching
+  // If only wake word was said without command
+  if (!actionText) {
+    showFeedback('Command?', 'warning')
+    return
+  }
+
+  // Command matching with patterns
   let commandMatched = false
 
-  // Check each command category
-  for (const [command, variants] of Object.entries(COMMAND_VARIANTS)) {
-    for (const variant of variants) {
-      // Check exact match
-      if (actionText.includes(variant)) {
+  for (const [command, patterns] of Object.entries(COMMAND_PATTERNS)) {
+    for (const pattern of patterns) {
+      if (pattern.test(actionText)) {
         executeCommand(command)
         commandMatched = true
         break
       }
-
-      // Check fuzzy match for Indian pronunciations
-      const words = actionText.split(' ')
-      for (const word of words) {
-        if (levenshteinDistance(variant, word) <= 2) {
-          // Allow 2 character differences
-          executeCommand(command)
-          commandMatched = true
-          break
-        }
-      }
-
-      if (commandMatched) break
     }
     if (commandMatched) break
   }
 
-  // If no match, try direct keyword matching
   if (!commandMatched) {
-    if (/(start|begin|resume|play|go)/i.test(actionText)) {
-      executeCommand('start')
-    } else if (/(pause|stop|hold|wait)/i.test(actionText)) {
-      executeCommand('pause')
-    } else if (/(reset|clear|fresh)/i.test(actionText)) {
-      executeCommand('reset')
-    } else if (/(restart|again)/i.test(actionText)) {
-      executeCommand('restart')
-    } else {
-      console.log('❓ Command not recognized')
-      showFeedback('Command not recognized. Try: start, pause, reset, restart', 'warning')
-    }
+    log('❓ Command not recognized')
+    showFeedback(`Try: "Clinic AI start timer"`, 'warning')
   }
 }
 
 function executeCommand(command) {
   if (!canExecuteCommand()) return
+
+  log('Executing command:', command)
 
   switch (command) {
     case 'start':
@@ -367,13 +357,44 @@ function executeCommand(command) {
       restartTimer()
       break
   }
+
+  // Visual feedback
+  showFeedback(`✓ ${command.charAt(0).toUpperCase() + command.slice(1)}`, 'positive')
+}
+
+// Improved speech recognition restart mechanism
+function restartRecognition() {
+  if (!listening.value || !recognition) return
+
+  try {
+    log('Attempting to restart recognition...')
+    recognition.stop()
+
+    // Small delay before restarting
+    clearTimeout(restartTimeout)
+    restartTimeout = setTimeout(() => {
+      if (listening.value && recognition) {
+        try {
+          recognition.start()
+          log('Recognition restarted successfully')
+        } catch (e) {
+          log('Error restarting recognition:', e.message)
+          // If we can't restart, try reinitializing
+          setTimeout(() => initVoiceRecognition(), 1000)
+        }
+      }
+    }, 300)
+  } catch (e) {
+    log('Error stopping recognition:', e.message)
+  }
 }
 
 function initVoiceRecognition() {
   log('Initializing speech recognition')
 
   // Check for browser support
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  if (!SpeechRecognition) {
     console.error('SpeechRecognition not supported')
     isSpeechSupported.value = false
     showFeedback('Voice not supported in this browser', 'negative')
@@ -382,86 +403,146 @@ function initVoiceRecognition() {
 
   isSpeechSupported.value = true
 
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  // Clean up existing instance
+  if (recognition) {
+    try {
+      recognition.stop()
+      recognition = null
+    } catch (e) {
+      console.error('Error stopping recognition:', e.message)
+      // Ignore errors during cleanup
+    }
+  }
 
   recognition = new SpeechRecognition()
 
   // Optimize for Indian English
-  recognition.lang = 'en-IN' // Indian English
+  recognition.lang = 'en-IN'
   recognition.continuous = true
-  recognition.maxAlternatives = 3 // Get multiple alternatives for better accuracy
   recognition.interimResults = true
+  recognition.maxAlternatives = 1 // Reduced for simpler processing
+
+  // Set longer timeout for silence
+  if (Object.prototype.hasOwnProperty.call(recognition, 'timeout')) {
+    recognition.timeout = 30000 // 30 seconds of silence timeout
+  }
 
   recognition.onstart = () => {
     listening.value = true
     log('Recognition STARTED 🎤')
-    showFeedback('Voice control activated!', 'positive')
+    showFeedback('Voice control active!', 'positive')
   }
 
   recognition.onend = () => {
-    listening.value = false
-    console.log('🎙️ Recognition ended')
+    log('Recognition ended')
+
+    // Don't immediately restart - give a small delay
+    if (listening.value) {
+      log('Auto-restarting in 500ms...')
+      setTimeout(() => {
+        if (listening.value && recognition) {
+          try {
+            recognition.start()
+          } catch (e) {
+            log('Auto-restart failed, will retry:', e.message)
+            // If auto-restart fails, try again after longer delay
+            setTimeout(restartRecognition, 2000)
+          }
+        }
+      }, 500)
+    }
   }
 
   recognition.onerror = (event) => {
     console.error('Speech recognition error:', event.error)
-    listening.value = false
 
-    // Handle specific errors
-    switch (event.error) {
-      case 'not-allowed':
-      case 'permission-denied':
-        console.error('Microphone permission denied')
-        showFeedback('Please allow microphone access', 'negative')
-        recognition = null
-        break
-      case 'no-speech':
-        log('No speech detected')
-        break
-      case 'audio-capture':
-        console.error('No microphone found')
-        showFeedback('No microphone detected', 'negative')
-        break
-      default:
-        console.error('Speech recognition error:', event.error)
+    // Don't show network/no-speech errors to user
+    const silentErrors = ['no-speech', 'network', 'aborted']
+
+    if (!silentErrors.includes(event.error)) {
+      showFeedback(`Voice error: ${event.error}`, 'negative')
+    }
+
+    // Handle permission errors
+    if (['not-allowed', 'permission-denied'].includes(event.error)) {
+      listening.value = false
+      showFeedback('Microphone access denied', 'negative')
+      return
+    }
+
+    // For other errors, attempt to restart
+    if (listening.value) {
+      log('Error occurred, attempting restart...')
+      setTimeout(restartRecognition, 1000)
     }
   }
 
   recognition.onresult = (event) => {
+    let finalTranscript = ''
+    let interimTranscript = ''
+    let highestConfidence = 0
+
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const transcript = event.results[i][0].transcript
-      const confidence = event.results[i][0].confidence || 0.5
+      const confidence = event.results[i][0].confidence || 0.1
       const isFinal = event.results[i].isFinal
 
-      // ✅ Process BOTH interim & final
-      handleVoiceCommand(transcript, confidence)
+      if (isFinal) {
+        finalTranscript += transcript
+        if (confidence > highestConfidence) highestConfidence = confidence
+      } else {
+        interimTranscript += transcript
+      }
+    }
 
-      // Optional: stop listening once a valid command fires
-      if (isFinal) break
+    // Process final results
+    if (finalTranscript) {
+      handleVoiceCommand(finalTranscript, highestConfidence, true)
+    }
+
+    // Show interim results in debug mode
+    if (debugMode.value && interimTranscript) {
+      log('Interim:', interimTranscript)
     }
   }
 
-  try {
-    recognition.start()
-    log('Recognition started successfully')
-  } catch (error) {
-    console.error('Failed to start recognition:', error)
-    listening.value = false
-    showFeedback('Failed to start voice recognition', 'negative')
-  }
+  // Start with a delay to ensure proper initialization
+  clearTimeout(speechStartTimeout)
+  speechStartTimeout = setTimeout(() => {
+    try {
+      recognition.start()
+      log('Recognition started successfully')
+    } catch (error) {
+      console.error('Failed to start recognition:', error)
+      listening.value = false
+
+      // If start fails, try again once
+      if (error.message.includes('already started')) {
+        setTimeout(restartRecognition, 1000)
+      } else {
+        showFeedback('Failed to start voice recognition', 'negative')
+      }
+    }
+  }, 100)
 }
 
 function toggleVoiceRecognition() {
   if (listening.value) {
-    // Stop listening
+    // Stop listening completely
+    listening.value = false
     if (recognition) {
-      recognition.stop()
+      try {
+        recognition.stop()
+      } catch (e) {
+        console.error('Error stopping recognition:', e.message)
+        // Ignore stop errors
+      }
       recognition = null
     }
-    listening.value = false
     showFeedback('Voice control disabled', 'info')
   } else {
     // Start listening
+    listening.value = true
     initVoiceRecognition()
   }
 }
@@ -471,35 +552,81 @@ function toggleVoiceRecognition() {
 onMounted(() => {
   log('Component mounted')
 
+  // Check for speech support immediately
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  isSpeechSupported.value = !!SpeechRecognition
+
+  if (!isSpeechSupported.value) {
+    showFeedback('Voice control not available', 'warning')
+    return
+  }
+
   // Request microphone permission proactively
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     navigator.mediaDevices
       .getUserMedia({ audio: true })
       .then(() => {
         log('Microphone permission granted')
-        // Initialize voice after permission
+        // Initialize voice recognition after permission
         setTimeout(() => {
-          initVoiceRecognition()
+          if (isSpeechSupported.value) {
+            initVoiceRecognition()
+          }
         }, 500)
       })
       .catch((error) => {
         console.warn('Microphone permission not granted:', error)
         showFeedback('Allow microphone for voice control', 'warning')
+        // Still try to initialize - some browsers allow speech without getUserMedia
+        setTimeout(() => {
+          if (isSpeechSupported.value) {
+            initVoiceRecognition()
+          }
+        }, 1000)
       })
   } else {
     // Fallback: initialize without permission check
     setTimeout(() => {
-      initVoiceRecognition()
+      if (isSpeechSupported.value) {
+        initVoiceRecognition()
+      }
     }, 1000)
   }
 })
 
 onBeforeUnmount(() => {
+  listening.value = false
+
   if (recognition) {
-    recognition.stop()
+    try {
+      recognition.stop()
+    } catch (e) {
+      console.error('Error stopping recognition:', e.message)
+      // Ignore errors during cleanup
+    }
     recognition = null
   }
+
   clearTimeout(feedbackTimeout)
+  clearTimeout(restartTimeout)
+  clearTimeout(speechStartTimeout)
+
+  if (interval) {
+    clearInterval(interval)
+    interval = null
+  }
+})
+
+// Watch for listening state changes to ensure proper cleanup
+watch(listening, (newVal) => {
+  if (!newVal && recognition) {
+    try {
+      recognition.stop()
+    } catch (e) {
+      console.error('Error stopping recognition:', e.message)
+      // Ignore
+    }
+  }
 })
 
 // Expose for parent

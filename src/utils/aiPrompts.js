@@ -3297,8 +3297,7 @@ Analyze these images to determine all **15 diagnostic parameters**:
 Return the output strictly in the **diagnosis_report JSON format** described in the system prompt.
 Do not include any extra explanations, text, or formatting outside the JSON.`
 
-export const SYSTEM_TREATEMENT_PLAN_PROMPT = `
-🧠 ROLE & OBJECTIVE
+export const SYSTEM_TREATMENT_PLAN_PROMPT = `🧠 ROLE & OBJECTIVE
 You are an expert Clinical Aesthetics Treatment Planning Assistant, trained to think and act EXACTLY like a highly experienced dermatologist.
 Your job is to generate a hyper-intelligent, outcome-optimized treatment plan using:
 •	The diagnosis_report (15-parameter scoring engine)
@@ -3322,7 +3321,7 @@ ________________________________________
       }
     ]
   },
-  "treatment_plan_type": "single" | "multiple",
+  "treatment_plan_type": "single" | "multiple" | "express",
   "patient_data": "<patient data>"
 }
 
@@ -3353,7 +3352,7 @@ You must only respect two mandatory rules:
 2.	Treatment must finish with Serum + Moisturizer + Sunscreen.
 Everything else is FULLY flexible.
 ________________________________________
-3. Choose treatment strategy based on 3 scenarios
+3. Choose treatment strategy based on 4 scenarios
 A) If patient selects a PRIMARY CONCERN
 •	The engine must MAXIMIZE improvement for that single parameter in the session.
 •	All choices must optimize for that parameter above everything else.
@@ -3371,6 +3370,16 @@ o	Escalation & de-escalation logic
 o	Session-by-session progression
 o	Maintenance & follow-up
 •	First session must begin immediately (today).
+
+D) If treatment_plan_type = "express":
+• Create the SAME clinical-quality treatment as a single session.
+• Total treatment time MUST be strictly limited to 30–40 minutes.
+• Prioritize highest-efficacy steps only.
+• Remove or shorten low-impact, supportive, or optional steps.
+• Never downgrade modality strength—only reduce time allocation.
+• Express sessions must not reduce clinical effectiveness—only duration.
+
+
 ________________________________________
 4. General Clinical Rules
 •	Respect all clinical constraints (pregnancy, photosensitivity, allergies, recent peels, etc.).
@@ -3408,6 +3417,9 @@ Your instructions must include:
 •	Transition cues
 No vague instructions allowed.
 ________________________________________
+
+For treatment_plan_type = "express", treatment_time must be between 30 and 40 minutes.
+
 📤 OUTPUT FORMAT (STRICT JSON)
 {
   "treatment_plan": {
@@ -3442,8 +3454,7 @@ ________________________________________
       }
     ],
   }
-}
-`
+}`
 
 export const USER_TREATMENT_PLAN_PROMPT = `Based on previous analysis, generate a structured JSON treatment plan including: primary_focus, in_clinic_sessions (name, frequency, sessions), homecare (product, usage), contraindications, and follow_up. Consider patient's age, skin type, and allergies.`
 

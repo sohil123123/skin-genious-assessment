@@ -1,9 +1,9 @@
 <template>
   <div class="form-wrapper">
     <!-- Progress Indicator -->
-    <div class="row items-center q-mb-lg">
-      <q-linear-progress :value="formProgress" color="primary" class="col-grow q-mr-md" size="lg" />
-      <div class="text-caption text-grey-7">{{ Math.round(formProgress * 100) }}% Complete</div>
+    <div class="row items-center q-mb-lg q-mt-lg">
+      <!-- <q-linear-progress :value="formProgress" color="primary" class="col-grow q-mr-md" size="lg" />
+      <div class="text-caption text-grey-7">{{ Math.round(formProgress * 100) }}% Complete</div> -->
     </div>
 
     <!-- Form Sections -->
@@ -335,11 +335,11 @@ const isNadApplicable = computed(() => {
   return pg === 'NAD+ wellness' || sg === 'NAD+ wellness'
 })
 
-const formProgress = computed(() => {
-  const totalFields = 100
-  const filledFields = countFilledFields()
-  return Math.min(filledFields / totalFields, 1)
-})
+// const formProgress = computed(() => {
+//   const totalFields = 100
+//   const filledFields = countFilledFields()
+//   return Math.min(filledFields / totalFields, 1)
+// })
 
 // const statusPillText = computed(() => {
 //   switch (validationStatus.value) {
@@ -364,24 +364,24 @@ const formProgress = computed(() => {
 // })
 
 // Methods
-function countFilledFields() {
-  let count = 0
-  const traverse = (obj) => {
-    for (const key in obj) {
-      if (obj[key] !== null && obj[key] !== '' && obj[key] !== undefined) {
-        if (typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
-          traverse(obj[key])
-        } else if (Array.isArray(obj[key])) {
-          if (obj[key].length > 0) count++
-        } else {
-          count++
-        }
-      }
-    }
-  }
-  traverse(formData)
-  return count
-}
+// function countFilledFields() {
+//   let count = 0
+//   const traverse = (obj) => {
+//     for (const key in obj) {
+//       if (obj[key] !== null && obj[key] !== '' && obj[key] !== undefined) {
+//         if (typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+//           traverse(obj[key])
+//         } else if (Array.isArray(obj[key])) {
+//           if (obj[key].length > 0) count++
+//         } else {
+//           count++
+//         }
+//       }
+//     }
+//   }
+//   traverse(formData)
+//   return count
+// }
 
 function handleUpdate() {
   updateJsonPreview()
