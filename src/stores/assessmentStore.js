@@ -183,7 +183,7 @@ export const useAssessmentStore = defineStore('assessment', {
       this.assessmentData.age = useCommonStore().getAgeFromDate(data.date_of_birth)
     },
     setData(data) {
-      this.assessmentData = { ...this.assessmentData, ...data }
+      Object.assign(this.assessmentData, data)
     },
     async storeFaceImages(file, assessment_type) {
       const formData = new FormData()

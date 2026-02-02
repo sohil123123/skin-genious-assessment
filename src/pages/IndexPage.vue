@@ -18,6 +18,7 @@
         <UploadFaceImages
           v-if="currentStep === 'step-2'"
           v-model:startProcessingStep="startProcessingStep"
+          :assessmentData="assessmentData"
           :processingMessage="processingMessage"
           @process="handleProcess"
         />
@@ -41,6 +42,7 @@
         <UploadFaceImages
           v-if="currentStep === 'step-6'"
           :isPostAssessment="true"
+          :assessmentData="assessmentData"
           v-model:startProcessingStep="startProcessingStep"
           @process="handleProcess"
         />

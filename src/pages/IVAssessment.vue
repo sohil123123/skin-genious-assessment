@@ -17,6 +17,7 @@
         <UploadFaceImages
           v-if="currentStep === 'step-1'"
           v-model:startProcessingStep="startProcessingStep"
+          :assessmentData="formData"
           :processingMessage="processingMessage"
           @process="handleProcess"
         />

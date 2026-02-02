@@ -123,13 +123,8 @@
 <script setup>
 import { ref, nextTick, watch, onMounted } from 'vue'
 // import { useCommonStore } from 'src/stores/commonStore'
-import { useAssessmentStore } from 'src/stores/assessmentStore'
-import { storeToRefs } from 'pinia'
 import { api } from 'src/boot/axios'
 import { Notify } from 'quasar'
-
-const store = useAssessmentStore()
-const { assessmentData } = storeToRefs(store)
 
 const loading = ref(false)
 
@@ -137,6 +132,10 @@ const loading = ref(false)
 const emit = defineEmits(['process', 'save_data', 'update:startProcessingStep'])
 
 const props = defineProps({
+  assessmentData: {
+    type: Object,
+    default: () => ({}),
+  },
   uploadImagesStep: {
     type: Boolean,
     default: false,
@@ -154,6 +153,17 @@ const props = defineProps({
     default: 'Processing scanned images...',
   },
 })
+
+const assessmentData = ref(props.assessmentData)
+
+// Keep assessmentData ref in sync with prop changes
+watch(
+  () => props.assessmentData,
+  (newVal) => {
+    assessmentData.value = newVal
+  },
+  { deep: true },
+)
 
 const startProcessingStep = ref(props.startProcessingStep)
 
