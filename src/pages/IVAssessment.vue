@@ -23,16 +23,16 @@
 
         <ClientInformation
           v-if="currentStep === 'step-1'"
-          :initial-data="formData"
-          :v="v$"
-          @update="updateFormData"
+          :initial-data="formData.iv_inputs"
+          :v="v$.iv_inputs"
+          @update="updateIVInputs"
         />
 
         <PatientPhysicalAssessment
           v-if="currentStep === 'step-2'"
-          :form-data="formData"
-          :v="v$"
-          @update="updateFormData"
+          :form-data="formData.iv_inputs"
+          :v="v$.iv_inputs"
+          @update="updateIVInputs"
         />
       </div>
     </div>
@@ -111,8 +111,15 @@ const rules = useIVAssessmentValidation(formData)
 const v$ = useVuelidate(rules, formData)
 
 const stepFields = {
-  'step-1': ['meta', 'section_1_client_questionnaire', 'section_2_machine_objective_inputs_part_1'],
-  'step-2': ['section_2_machine_objective_inputs_part_2', 'section_3_dermatological_ai_inputs'],
+  'step-1': [
+    'iv_inputs.meta',
+    'iv_inputs.section_1_client_questionnaire',
+    'iv_inputs.section_2_machine_objective_inputs_part_1',
+  ],
+  'step-2': [
+    'iv_inputs.section_2_machine_objective_inputs_part_2',
+    'iv_inputs.section_3_dermatological_ai_inputs',
+  ],
 }
 
 onMounted(async () => {
@@ -152,8 +159,13 @@ watch(
   },
 )
 
-function updateFormData(updatedFormData) {
-  formData.value = updatedFormData
+const debouncedSubmit = _.debounce(async (fields) => {
+  await submit(fields)
+}, 1000)
+
+function updateIVInputs(updatedIVInputs) {
+  formData.value.iv_inputs = updatedIVInputs
+  debouncedSubmit(['iv_inputs'])
 }
 
 async function finalizeAndExit() {
@@ -180,7 +192,7 @@ async function finalizeAndExit() {
   })
     .onOk(() => {
       console.log(formData.value)
-      const canonicalPayload = generateCanonicalJson(formData.value)
+      const canonicalPayload = generateCanonicalJson(formData.value.iv_inputs)
       console.log(canonicalPayload)
       // formData.value.status = 'completed'
       // submit(['status'])
@@ -219,8 +231,30 @@ async function submit(field) {
 const isStepValid = async () => {
   const fields = stepFields[currentStep.value]
   if (!fields) return true
-  fields.forEach((path) => v$.value[path].$touch())
-  return !fields.some((path) => v$.value[path].$invalid)
+
+  for (const path of fields) {
+    const parts = path.split('.')
+    let vNode = v$.value
+    for (const part of parts) {
+      if (vNode[part]) {
+        vNode = vNode[part]
+      }
+    }
+    vNode.$touch()
+  }
+
+  const isInvalid = fields.some((path) => {
+    const parts = path.split('.')
+    let vNode = v$.value
+    for (const part of parts) {
+      if (vNode[part]) {
+        vNode = vNode[part]
+      }
+    }
+    return vNode.$invalid
+  })
+
+  return !isInvalid
 }
 
 async function goNext() {
@@ -349,7 +383,7 @@ async function getValidAssessmentId() {
     Loading.show({
       message: 'Checking for in-progress assessment...',
     })
-    const response = await api.get(`/assessments/get-in-progress-assessment/${userId}`)
+    const response = await api.get(`/assessments/get-in-progress-assessment/${userId}?type=iv`)
     const item = response.data.results
     if (!item.assessment_id) return null
 

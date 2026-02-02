@@ -100,7 +100,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import MultiSelectChips from './MultiSelectChips.vue'
 
 const props = defineProps({
@@ -115,6 +115,14 @@ const props = defineProps({
 })
 
 const modelValue = ref(props.modelValue)
+
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    modelValue.value = newVal
+  },
+  { deep: true },
+)
 
 const emit = defineEmits(['update:modelValue', 'update'])
 

@@ -153,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 const props = defineProps({
   formData: {
@@ -185,6 +185,14 @@ const intensityOptions = ['Gentle', 'Moderate', 'Strong']
 
 // Create local reactive copy
 const localFormData = ref(props.formData)
+
+watch(
+  () => props.formData,
+  (newVal) => {
+    localFormData.value = newVal
+  },
+  { deep: true },
+)
 
 function updateField(path, value) {
   const paths = path.split('.')

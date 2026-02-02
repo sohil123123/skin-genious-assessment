@@ -447,7 +447,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import Section3Dermatology from 'src/components/iv-assessment/sections/Section3Dermatology.vue'
 
 const props = defineProps({
@@ -467,6 +467,14 @@ const activeDeviceTab = ref('bca')
 
 // Create local reactive copy
 const localFormData = ref(props.formData)
+
+watch(
+  () => props.formData,
+  (newVal) => {
+    localFormData.value = newVal
+  },
+  { deep: true },
+)
 
 function emitUpdate() {
   emit('update', localFormData.value)

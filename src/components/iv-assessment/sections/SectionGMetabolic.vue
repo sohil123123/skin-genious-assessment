@@ -206,7 +206,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   formData: {
@@ -240,6 +240,14 @@ const showPregnancyChance = computed(() => {
 
 // Create local reactive copy
 const localFormData = ref(props.formData)
+
+watch(
+  () => props.formData,
+  (newVal) => {
+    localFormData.value = newVal
+  },
+  { deep: true },
+)
 
 function updateField(path, value) {
   const paths = path.split('.')

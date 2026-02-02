@@ -240,7 +240,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import YesNoField from '../partials/YesNoField.vue'
 import YesNoWithFollowup from '../partials/YesNoWithFollowup.vue'
 import SymptomsPalpitations from '../partials/SymptomsPalpitations.vue'
@@ -266,6 +266,14 @@ const constipationTypeOptions = ['True constipation', 'Sluggishness']
 
 // Create local reactive copy
 const localFormData = ref(props.formData)
+
+watch(
+  () => props.formData,
+  (newVal) => {
+    localFormData.value = newVal
+  },
+  { deep: true },
+)
 
 function updateField(path, value) {
   const paths = path.split('.')

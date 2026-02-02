@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import SafetyPregnancy from 'src/components/iv-assessment/partials/SafetyPregnancy.vue'
 import SafetyKidney from 'src/components/iv-assessment/partials/SafetyKidney.vue'
 import SafetyHeart from 'src/components/iv-assessment/partials/SafetyHeart.vue'
@@ -89,6 +89,14 @@ const emit = defineEmits(['update:formData', 'update'])
 
 // Create local reactive copy
 const localFormData = ref(props.formData)
+
+watch(
+  () => props.formData,
+  (newVal) => {
+    localFormData.value = newVal
+  },
+  { deep: true },
+)
 
 function emitUpdate() {
   emit('update:formData', localFormData.value)

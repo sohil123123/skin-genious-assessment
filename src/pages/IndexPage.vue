@@ -204,7 +204,7 @@ async function getValidAssessmentId() {
     Loading.show({
       message: 'Checking for in-progress assessment...',
     })
-    const response = await api.get(`/assessments/get-in-progress-assessment/${userId}`)
+    const response = await api.get(`/assessments/get-in-progress-assessment/${userId}?type=normal`)
     const item = response.data.results
     if (!item.assessment_id) return null
 

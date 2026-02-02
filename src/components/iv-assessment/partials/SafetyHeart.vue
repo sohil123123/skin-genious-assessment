@@ -91,7 +91,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -105,6 +105,14 @@ const props = defineProps({
 })
 
 const modelValue = ref(props.modelValue)
+
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    modelValue.value = newVal
+  },
+  { deep: true },
+)
 
 const emit = defineEmits(['update:modelValue', 'update'])
 

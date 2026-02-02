@@ -344,7 +344,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 const props = defineProps({
   formData: {
@@ -363,6 +363,14 @@ const activeDeviceTab = ref('bp')
 
 // Create local reactive copy
 const localFormData = ref(props.formData)
+
+watch(
+  () => props.formData,
+  (newVal) => {
+    localFormData.value = newVal
+  },
+  { deep: true },
+)
 
 function emitUpdate() {
   emit('update:formData', localFormData.value)

@@ -82,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 // import { useQuasar } from 'quasar'
 import SectionProfile from 'src/components/iv-assessment/sections/SectionProfile.vue'
 import SectionAGoals from 'src/components/iv-assessment/sections/SectionAGoals.vue'
@@ -320,9 +320,15 @@ const formData = reactive({
 })
 
 // Initialize with props if provided
-if (props.initialData && Object.keys(props.initialData).length > 0) {
-  Object.assign(formData, props.initialData)
-}
+watch(
+  () => props.initialData,
+  (newVal) => {
+    if (newVal && Object.keys(newVal).length > 0) {
+      Object.assign(formData, newVal)
+    }
+  },
+  { immediate: true, deep: true },
+)
 
 // UI State
 // const validationStatus = ref('not-validated')

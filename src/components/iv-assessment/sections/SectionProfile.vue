@@ -18,6 +18,7 @@
           :error="v.meta.profile.name.$error"
           error-message="Name is required"
           clearable
+          readonly
           @update:model-value="emitUpdate"
         />
       </div>
@@ -60,7 +61,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 const props = defineProps({
   formData: {
@@ -79,6 +80,14 @@ const genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say']
 
 // Create local reactive copy
 const localFormData = ref(props.formData)
+
+watch(
+  () => props.formData,
+  (newVal) => {
+    localFormData.value = newVal
+  },
+  { deep: true },
+)
 
 function updateField(path, value) {
   const paths = path.split('.')
