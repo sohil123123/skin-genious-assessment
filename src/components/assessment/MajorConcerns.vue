@@ -160,6 +160,7 @@
 import { ref, watch } from 'vue'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
+import { Notify } from 'quasar'
 
 const emit = defineEmits(['generate-treatment', 'previous', 'save_data'])
 
@@ -181,6 +182,13 @@ watch(
 )
 
 const generatePlan = () => {
+  if (!treatmentType.value) {
+    Notify.create({
+      type: 'negative',
+      message: 'Please select a treatment plan type',
+    })
+    return
+  }
   assessmentData.value.selected_plan_type = treatmentType.value
   emit('save_data', ['selected_plan_type'])
   emit(

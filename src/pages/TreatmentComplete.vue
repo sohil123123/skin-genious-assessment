@@ -21,7 +21,6 @@
               <!-- <div class="text-subtitle2 q-mt-xs">Session {{ sessionNumber }} completed</div> -->
             </div>
           </div>
-
           <!-- <q-separator class="q-my-md" /> -->
 
           <div class="row q-col-gutter-md">
@@ -94,6 +93,81 @@
                     label="Skip & Finish"
                     @click="skipAndFinish"
                   />
+                </div>
+              </q-card>
+            </div>
+
+            <!-- Daily Home Care Routine Section -->
+            <div v-if="dailyRoutine.morning.length || dailyRoutine.evening.length" class="col-12">
+              <q-card flat class="section-card q-pa-md soft-bg">
+                <div class="row items-center justify-between q-mb-md">
+                  <div class="text-h5 q-my-none">Daily Home Care Routine</div>
+                  <q-btn
+                    color="black"
+                    outline
+                    icon="download"
+                    label="Download PDF"
+                    no-caps
+                    @click="downloadRoutinePDF"
+                  />
+                </div>
+
+                <div class="row q-col-gutter-md">
+                  <!-- Morning Routine -->
+                  <div v-if="dailyRoutine.morning.length" class="col-md-6 col-sm-12">
+                    <div class="text-h6 q-mb-sm text-orange-8 flex items-center gap-2">
+                      <q-icon name="wb_sunny" /> Morning Routine
+                    </div>
+                    <q-list bordered separator class="rounded-borders bg-white">
+                      <q-item
+                        v-for="step in dailyRoutine.morning"
+                        :key="'morning-' + step.step_number"
+                      >
+                        <q-item-section avatar>
+                          <q-avatar color="orange-1" text-color="orange-8" size="md">
+                            {{ step.step_number }}
+                          </q-avatar>
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label class="text-bold">{{ step.product_name }}</q-item-label>
+                          <q-item-label caption class="text-grey-9 q-mt-xs">
+                            <strong>How to use:</strong> {{ step.how_to_use }}
+                          </q-item-label>
+                          <q-item-label caption class="text-grey-7 q-mt-xs">
+                            <strong>Clinical Purpose:</strong> {{ step.clinical_purpose }}
+                          </q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </div>
+
+                  <!-- Evening Routine -->
+                  <div v-if="dailyRoutine.evening.length" class="col-md-6 col-sm-12">
+                    <div class="text-h6 q-mb-sm text-indigo-8 flex items-center gap-2">
+                      <q-icon name="nights_stay" /> Evening Routine
+                    </div>
+                    <q-list bordered separator class="rounded-borders bg-white">
+                      <q-item
+                        v-for="step in dailyRoutine.evening"
+                        :key="'evening-' + step.step_number"
+                      >
+                        <q-item-section avatar>
+                          <q-avatar color="indigo-1" text-color="indigo-8" size="md">
+                            {{ step.step_number }}
+                          </q-avatar>
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label class="text-bold">{{ step.product_name }}</q-item-label>
+                          <q-item-label caption class="text-grey-9 q-mt-xs">
+                            <strong>How to use:</strong> {{ step.how_to_use }}
+                          </q-item-label>
+                          <q-item-label caption class="text-grey-7 q-mt-xs">
+                            <strong>Clinical Purpose:</strong> {{ step.clinical_purpose }}
+                          </q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </div>
                 </div>
               </q-card>
             </div>
@@ -179,6 +253,8 @@ import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import moment from 'moment'
 import { storeToRefs } from 'pinia'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const $q = useQuasar()
 const assessmentStore = useAssessmentStore()
@@ -211,6 +287,19 @@ onMounted(async () => {
 })
 
 const session = computed(() => store.currentSession)
+const dailyRoutine = computed(() => {
+  const routine = session.value?.daily_home_care_routine
+  if (!routine) return { morning: [], evening: [] }
+  if (typeof routine === 'string') {
+    try {
+      return JSON.parse(routine)
+    } catch (e) {
+      console.error('Failed to parse daily_home_care_routine', e)
+      return { morning: [], evening: [] }
+    }
+  }
+  return routine
+})
 const nextSession = computed(() => {
   const idx = store.currentSessionIndex + 1
   return store.sessions[idx] ?? null
@@ -254,6 +343,110 @@ async function confirmBooking() {
   const isFormCorrect = await v$.value.$validate()
   if (!isFormCorrect) return
   await assessmentStore.bookNextAppointment(appointmentData.value, nextSession.value.id)
+}
+
+function downloadRoutinePDF() {
+  const doc = new jsPDF()
+
+  // Header
+  doc.setFontSize(22)
+  doc.setTextColor(0, 0, 0)
+  doc.text('AI AESTHETICS', 105, 20, { align: 'center' })
+
+  doc.setFontSize(16)
+  doc.text('Daily Home Care Routine', 105, 30, { align: 'center' })
+
+  doc.setFontSize(12)
+  doc.setTextColor(100)
+  doc.text(`Patient: ${assessmentData.value.name}`, 14, 45)
+  doc.text(`Date: ${moment().format('DD-MM-YYYY')}`, 14, 52)
+  doc.text(`Session: ${session.value?.title}`, 14, 59)
+
+  let currentY = 70
+
+  // Morning Section
+  if (dailyRoutine.value.morning && dailyRoutine.value.morning.length > 0) {
+    doc.setFontSize(14)
+    doc.setTextColor(255, 140, 0) // Orange
+    doc.text('Morning Routine', 14, currentY)
+
+    const morningData = dailyRoutine.value.morning.map((step) => [
+      step.step_number,
+      step.product_name,
+      step.how_to_use,
+      step.clinical_purpose,
+    ])
+
+    autoTable(doc, {
+      startY: currentY + 5,
+      head: [['Step', 'Product', 'How to Use', 'Clinical Purpose']],
+      body: morningData,
+      headStyles: { fillColor: [255, 140, 0] },
+      theme: 'striped',
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 15 },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 60 },
+      },
+    })
+
+    currentY = doc.lastAutoTable.finalY + 15
+  }
+
+  // Evening Section
+  if (dailyRoutine.value.evening && dailyRoutine.value.evening.length > 0) {
+    // Check if we need a new page
+    if (currentY > 240) {
+      doc.addPage()
+      currentY = 20
+    }
+
+    doc.setFontSize(14)
+    doc.setTextColor(63, 81, 181) // Indigo
+    doc.text('Evening Routine', 14, currentY)
+
+    const eveningData = dailyRoutine.value.evening.map((step) => [
+      step.step_number,
+      step.product_name,
+      step.how_to_use,
+      step.clinical_purpose,
+    ])
+
+    autoTable(doc, {
+      startY: currentY + 5,
+      head: [['Step', 'Product', 'How to Use', 'Clinical Purpose']],
+      body: eveningData,
+      headStyles: { fillColor: [63, 81, 181] },
+      theme: 'striped',
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 15 },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 60 },
+      },
+    })
+  }
+
+  // Footer
+  const pageCount = doc.internal.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    doc.setFontSize(10)
+    doc.setTextColor(150)
+    doc.text(
+      'Generated by AI Aesthetics - Confidential Skin Assessment',
+      105,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'center' },
+    )
+  }
+
+  doc.save(
+    `Home_Care_Routine_Session_${session.value.session_number}_${assessmentData.value.name.replace(/\s+/g, '_')}.pdf`,
+  )
 }
 
 function skipAndFinish() {

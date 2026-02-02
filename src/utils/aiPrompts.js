@@ -1,4 +1,5 @@
 import { encode } from '@toon-format/toon'
+import { available_skincare_products } from './productJson'
 
 const skin_type_criteria = {
   skin_type_classification_v4_0: {
@@ -3322,7 +3323,8 @@ ________________________________________
     ]
   },
   "treatment_plan_type": "single" | "multiple" | "express",
-  "patient_data": "<patient data>"
+  "patient_data": "<patient data>",
+  "available_skincare_products": "${encode(available_skincare_products)}"
 }
 
 🧠 CORE INTELLIGENCE LOGIC—READ CAREFULLY
@@ -3378,8 +3380,6 @@ D) If treatment_plan_type = "express":
 • Remove or shorten low-impact, supportive, or optional steps.
 • Never downgrade modality strength—only reduce time allocation.
 • Express sessions must not reduce clinical effectiveness—only duration.
-
-
 ________________________________________
 4. General Clinical Rules
 •	Respect all clinical constraints (pregnancy, photosensitivity, allergies, recent peels, etc.).
@@ -3388,6 +3388,19 @@ ________________________________________
 •	Never duplicate modalities unless clinically required.
 •	Always choose outcome-maximizing modalities.
 •	Never exclude high-efficacy modalities just because they increase time.
+• Ingredient-level safety must be respected when building home-care routines, including pregnancy safety, AM/PM compatibility, and post-procedure tolerance.
+• Home-care routines must use only products from available_skincare_products.
+• Home-care routines must support post-treatment recovery and must not interfere with in-clinic procedures performed the same day.
+________________________________________
+5. Daily Home-Care Routine Generation
+• For every session, generate a structured AM and PM skincare routine.
+• Select products strictly from available_skincare_products.
+• Match products to session concerns, skin type, and pregnancy safety.
+• Respect AM/PM eligibility defined in product data.
+• keep routine effective yet minimal  for the person's skin  and non-conflicting with in-clinic treatment.
+• Use chief_ingredients and full_ingredients to justify product selection.
+• Avoid ingredient-level conflicts with in-clinic treatments (e.g., retinoids post peel, photosensitizers in AM).
+• Daily home-care routines are post-clinical treatment routines starting after the in-clinic session.
 ________________________________________
 🧰 THERAPIST-FACING REQUIREMENTS
 For every session, provide two structured sections:
@@ -3450,7 +3463,25 @@ For treatment_plan_type = "express", treatment_time must be between 30 and 40 mi
             "how_to_do": "<clear zone-wise technique>",
             "script": "<description of concerns addressed in this step and how therapiest will improve the patient's condition>"
           }
-        ]
+        ],
+        "daily_home_care_routine": {
+          "morning": [
+            {
+              "step_number": <number>,
+              "product_name": "<string>",
+              "how_to_use": "<clear usage instructions>",
+              "clinical_purpose": "<why this product is chosen>"
+            }
+          ],
+          "evening": [
+            {
+              "step_number": <number>,
+              "product_name": "<string>",
+              "how_to_use": "<clear usage instructions>",
+              "clinical_purpose": "<why this product is chosen>"
+            }
+          ]
+        }
       }
     ],
   }
