@@ -1,16 +1,13 @@
 import { useQuasar } from 'quasar'
-// import { skinTypeFunctions, imageAnalysisFunctions } from 'src/utils/ai-functions'
-import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { api } from 'src/boot/axios'
 
-const assessmentStore = useAssessmentStore()
 export function useOpenAI() {
   const $q = useQuasar()
 
   // 🧠 1. Get or create conversation
-  const getOrCreateConversation = async (pid) => {
+  const getOrCreateConversation = async (pid, convId, name, assessmentId) => {
     try {
-      let id = assessmentStore.assessmentData.conversation_id
+      let id = convId
       if (id) return id
 
       const res = await api.post(`ai/conversations`, {
@@ -19,8 +16,8 @@ export function useOpenAI() {
         },
         body: JSON.stringify({
           patient_id: pid,
-          patient_name: assessmentStore.assessmentData.name,
-          assessment_id: `${assessmentStore.assessmentData.id}`,
+          patient_name: name,
+          assessment_id: `${assessmentId}`,
         }),
       })
 
@@ -29,7 +26,6 @@ export function useOpenAI() {
         throw new Error(`Conversation creation failed: ${JSON.stringify(data)}`)
       }
 
-      assessmentStore.updateAssessment({ conversation_id: data.id })
       return data.id
     } catch (err) {
       console.error(err)

@@ -333,7 +333,14 @@ async function handleDiagnosis(files) {
 }
 
 async function callApiForDiagnosis(data, images) {
-  const convId = await getOrCreateConversation(`${data.user_id}`)
+  const convId = await getOrCreateConversation(
+    `${data.user_id}`,
+    data.conversation_id,
+    data.name,
+    data.id,
+  )
+  formData.value.conversation_id = convId
+  submit(['conversation_id'])
 
   processingMessage.value = 'Uploading images to OpenAI...'
   await uploadImageFileToOpenAI(images, 'pre')

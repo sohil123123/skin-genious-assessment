@@ -3520,6 +3520,25 @@ For all reassessment parameters:
 
 * No explanations, no additional text, no null values
 
+REASSESSMENT CONSISTENCY RULE (MANDATORY):
+
+Before computing any reassessment, you MUST first evaluate whether the
+pre-treatment images and post-treatment images are visually identical
+or near-identical.
+
+If the images are identical or show no clinically meaningful visual
+difference across ALL relevant modes (white, UV, woods, blue, positive,
+negative):
+
+- You MUST classify the reassessment outcome as: "stable"
+- You MUST NOT report improvement or deterioration
+- You MUST set all delta values to zero (or "no_change")
+- You MUST reuse the baseline scores without modification
+- You MUST explicitly state: "No visual change detected between pre and post images"
+
+Only if clear, multi-metric visual differences are present may you
+report improvement or worsening.
+
 IMPORTANT — IMAGE NUMBER CONSISTENCY RULE:
 
 For every diagnostic parameter, you MUST use the EXACT SAME image number for:

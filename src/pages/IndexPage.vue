@@ -410,7 +410,14 @@ async function callApiForDiagnosis(data, images) {
 
   // const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
 
-  const convId = await getOrCreateConversation(`${data.user_id}`)
+  const convId = await getOrCreateConversation(
+    `${data.user_id}`,
+    data.conversation_id,
+    data.name,
+    data.id,
+  )
+  assessmentData.value.conversation_id = convId
+  submit(['conversation_id'])
 
   processingMessage.value = 'Uploading images to OpenAI...'
   await uploadImageFileToOpenAI(images, 'pre')
@@ -534,7 +541,14 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
 }
 
 async function callApiForPostDiagnosis(data, images) {
-  const convId = await getOrCreateConversation(`${data.user_id}`)
+  const convId = await getOrCreateConversation(
+    `${data.user_id}`,
+    data.conversation_id,
+    data.name,
+    data.id,
+  )
+  assessmentData.value.conversation_id = convId
+  submit(['conversation_id'])
 
   // const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
 
