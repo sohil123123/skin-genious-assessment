@@ -69,6 +69,16 @@ onMounted(async () => {
               ...(appointmentId && { appointment_id: appointmentId }),
             },
           })
+        }
+        if (type == 'iv') {
+          router.push({
+            name: 'iv-assessment',
+            params: {
+              user_id: userId,
+              step: 'step-1',
+              ...(appointmentId && { appointment_id: appointmentId }),
+            },
+          })
         } else if (type == 'treatment') {
           router.push({
             name: 'TreatmentPrep',

@@ -1,0 +1,529 @@
+{
+  "engine": "AI_IV_Constraints",
+  "version": "1.4.2-schema_checks-unsure_handling-fever_37_5-carrier_exceptions",
+  "defined_by": "Dr.Aakriti Mehra",
+
+  "philosophy": {
+    "principle": "Minimal, non-negotiable clinical, chemical, and safety constraints only",
+    "ai_freedom": "Maximum freedom unless a rule is explicitly violated",
+    "constraint_types": [
+      "hard_block",
+      "doctor_approval_required",
+      "dose_cap",
+      "dose_floor",
+      "bag_exclusivity",
+      "session_exclusivity",
+      "soft_caution",
+      "rate_restriction",
+      "protocol_required",
+      "system_error"
+    ]
+  },
+
+  "upstream_contract_assumptions": {
+    "required_top_level_containers": ["session_intake_raw", "session_machines_raw", "skin_ai_raw"],
+    "expected_iv_scoring_output_location": "iv_scoring_output.scores_public_0_100",
+    "notes": [
+      "Constraints require stable internal key mapping under session_intake_raw.safety_and_contraindications.",
+      "This version adds schema_checks to prevent silent rule failures."
+    ],
+
+    "expected_safety_keys_inside_session_intake_raw_safety_and_contraindications": {
+      "pregnant_or_breastfeeding": "Yes|No|Unsure",
+      "pregnant_or_breastfeeding_type_optional": "Pregnant|Breastfeeding|null",
+      "pregnancy_trimester_optional": "Trimester_1|Trimester_2|Trimester_3|Unsure|null",
+
+      "known_kidney_disease": "Yes|No|Unsure",
+      "kidney_disease_severity_optional": "Mild|Moderate|Severe|On_dialysis|null",
+      "doctor_advised_fluid_restriction_optional": "Yes|No|Unsure|null",
+
+      "history_of_uncontrolled_hypertension": "Yes|No|Unsure",
+      "last_known_bp_over_160_or_100_optional": "Yes|No|Unsure|null",
+
+      "known_g6pd_deficiency": "Yes|No|Unsure",
+      "g6pd_confirmed_by_lab_optional": "Yes|No|Unsure|null",
+
+      "history_of_seizures_epilepsy": "Yes|No|Unsure",
+      "seizure_in_last_12_months_optional": "Yes|No|Unsure|null",
+
+      "history_of_asthma_reactive_airway": "Yes|No|Unsure",
+      "asthma_control_optional": "Well_controlled|Sometimes_symptomatic|Poorly_controlled|null",
+
+      "history_of_severe_allergy_anaphylaxis": "Yes|No|Unsure",
+      "anaphylaxis_reaction_severity_optional": "Mild_rash_only|Breathing_difficulty_or_swelling|Full_anaphylaxis_doctor_diagnosed|null",
+
+      "known_kidney_stones": "Yes|No|Unsure"
+    }
+  },
+
+  "schema_checks": {
+    "policy": "Prevent silent failures. If required keys are missing, emit system_error plus conservative gating where relevant.",
+    "required_paths": [
+      "session_intake_raw.demographics.age_years",
+      "session_machines_raw.vitals.systolic_bp_mmHg",
+      "session_machines_raw.vitals.diastolic_bp_mmHg",
+      "session_machines_raw.vitals.spo2_percent",
+      "session_intake_raw.safety_and_contraindications",
+      "session_intake_raw.symptoms.chest_pain_or_sob_right_now_optional"
+    ],
+    "required_safety_keys_minimum": [
+      "pregnant_or_breastfeeding",
+      "known_kidney_disease",
+      "known_g6pd_deficiency",
+      "history_of_asthma_reactive_airway",
+      "history_of_severe_allergy_anaphylaxis",
+      "history_of_seizures_epilepsy"
+    ],
+    "on_missing_required_path": {
+      "emit": { "action": "system_error", "severity": "high" },
+      "message": "Missing required upstream fields for constraints evaluation; do not proceed without fixing intake mapping."
+    },
+    "on_missing_required_safety_key": {
+      "emit": { "action": "system_error", "severity": "high" },
+      "message": "Missing required safety key inside safety_and_contraindications; enforce conservative gates until mapping is fixed.",
+      "conservative_fallbacks": {
+        "pregnancy_gate": { "action": "doctor_approval_required" },
+        "g6pd_unknown_vitc_cap": { "apply": true, "max_mg_per_session": 2000 }
+      }
+    }
+  },
+
+  "ingredient_catalog": {
+    "canonical_ingredient_names": [
+      "Normal Saline (0.9%)",
+      "Lactated Ringer's",
+
+      "Glutathione",
+      "Vitamin C (High Dose)",
+      "Alpha Lipoic Acid (ALA)",
+      "N-Acetylcysteine (NAC)",
+      "Glycine",
+
+      "Methylcobalamin (B12)",
+      "B-Complex (B1/B2/B3/B5/B6)",
+      "Methylfolate (B9)",
+      "Biotin (B7)",
+      "Thiamine (B1) – High Dose (optional)",
+
+      "Magnesium",
+      "Zinc",
+      "Selenium",
+
+      "NAD+",
+      "L-Carnitine",
+
+      "L-Glutamine",
+      "L-Arginine",
+      "L-Lysine",
+      "Taurine"
+    ],
+
+    "ingredient_groups": {
+      "CARRIERS": ["Normal Saline (0.9%)", "Lactated Ringer's"],
+
+      "MVI_GROUP": [
+        "B-Complex (B1/B2/B3/B5/B6)",
+        "Methylfolate (B9)",
+        "Biotin (B7)",
+        "Thiamine (B1) – High Dose (optional)"
+      ]
+    }
+  },
+  "equipment_formulary": {
+    "version": "AIA_IV_Equipment_v1.0",
+    "policy": {
+      "purpose": "Operational checklist for IV setup, infusion, monitoring, and emergency readiness.",
+      "enforcement_style": "protocol_required_outputs (not a hard_block) unless you explicitly turn on hard enforcement."
+    },
+
+    "equipment_groups": {
+      "iv_access_and_cannulation": [
+        "Tourniquet",
+        "Alcohol swabs / Chlorhexidine prep",
+        "Sterile gauze",
+        "Cotton rolls",
+        "Transparent dressing (e.g., Tegaderm-style)",
+        "Medical tape (micropore)",
+        "IV cannula 18G/20G/22G/24G assortment",
+        "Butterfly needle set (winged infusion set) 21G/23G",
+        "Extension line / IV extension set",
+        "3-way stopcock",
+        "Saline flush syringes (0.9% NaCl)",
+        "Syringes (2 ml / 5 ml / 10 ml / 20 ml)",
+        "Needles for drawing/mixing (blunt fill needles + standard needles)",
+        "Sharps container",
+        "Gloves (non-sterile), masks"
+      ],
+
+      "infusion_setup": [
+        "IV fluid bags (NS / LR as stocked)",
+        "IV administration set (macrodrip)",
+        "Microdrip set (when slower/controlled delivery is preferred)",
+        "Infusion pump (recommended for NAD+ / NAC / slow-only protocols)",
+        "IV stand",
+        "Labels + marker (bag labeling: patient name, ingredients, time)"
+      ],
+
+      "patient_comfort_and_safety": [
+        "Recliner/IV chair",
+        "Pillow/blanket",
+        "Emesis bag",
+        "Oral water",
+        "Glucose source (oral) for lightheadedness",
+        "Cold pack / warm pack"
+      ],
+
+      "monitoring_devices": [
+        "Blood pressure monitor",
+        "Pulse oximeter",
+        "Thermometer",
+        "Stethoscope",
+        "Timer/clock for monitoring intervals"
+      ],
+
+      "anaphylaxis_and_emergency_readiness": [
+        "Oxygen cylinder or oxygen concentrator",
+        "Oxygen mask + nasal cannula",
+        "Bag-valve mask (Ambu bag)",
+        "Suction (portable) if available",
+        "Emergency crash kit / tray (clinic standard)",
+        "Epinephrine auto-injector or ampoules (per clinic policy)",
+        "Antihistamine (per clinic policy)",
+        "Steroid (per clinic policy)",
+        "IV fluids for emergency support (NS)",
+        "Airway adjuncts (oropharyngeal airway set) if available"
+      ],
+
+      "infection_control_and_waste": [
+        "Hand sanitizer",
+        "Surface disinfectant wipes",
+        "Biohazard waste bags",
+        "Spill kit",
+        "Disposable underpads"
+      ]
+    },
+
+    "equipment_aliases": {
+      "Tegaderm": "Transparent dressing (e.g., Tegaderm-style)",
+      "Winged set": "Butterfly needle set (winged infusion set) 21G/23G"
+    }
+  },
+  "rate_definitions": {
+    "units": "Use duration-based rules; ml_per_hour is derived by bag_ml / duration_hours.",
+    "profiles": {
+      "SLOW": {
+        "100_ml_min_minutes": 30,
+        "250_ml_min_minutes": 60,
+        "500_ml_min_minutes": 90,
+        "1000_ml_min_minutes": 180
+      },
+      "FAST": {
+        "250_ml_min_minutes": 30,
+        "500_ml_min_minutes": 60
+      },
+      "SLOW_ONLY": {
+        "note": "Must meet or exceed the SLOW minimum duration for the given bag size; may require longer per ingredient override."
+      }
+    },
+    "ingredient_overrides": {
+      "NAD+": { "min_minutes_per_session": 90, "profile": "SLOW_ONLY" },
+      "N-Acetylcysteine (NAC)": { "min_minutes_per_bag": 60, "profile": "SLOW_ONLY" }
+    }
+  },
+
+  "hard_constraints": {
+    "age_policy": {
+      "rule": {
+        "if": "session_intake_raw.demographics.age_years< 18",
+        "then": { "action": "hard_block" }
+      },
+      "message": "No IV treatment below age 18."
+    },
+
+    "vitals_hard_blocks": [
+      {
+        "rule": {
+          "if": "session_machines_raw.vitals.spo2_percent is not null && session_machines_raw.vitals.spo2_percent < 90",
+          "then": { "action": "hard_block" }
+        },
+        "message": "SpO₂ below 90% is a hard block."
+      },
+      {
+        "rule": {
+          "if": "session_machines_raw.vitals.systemic_temperature_c_optional is not null &&session_machines_raw.vitals.systemic_temperature_c_optional>= 37.5",
+          "then": { "action": "hard_block" }
+        },
+        "message": "Systemic temperature ≥37.5°C today is a hard block."
+      },
+      {
+        "rule": {
+          "if": "session_machines_raw.vitals.systolic_bp_mmHg>= 150 || session_machines_raw.vitals.diastolic_bp_mmHg>= 100",
+          "then": { "action": "hard_block" }
+        },
+        "message": "BP ≥150 systolic and/or ≥100 diastolic is a hard block."
+      }
+    ],
+
+    "symptom_hard_blocks": [
+      {
+        "rule": {
+          "if": "session_intake_raw.symptoms.chest_pain_or_sob_right_now_optional == true",
+          "then": { "action": "hard_block" }
+        },
+        "message": "Chest pain or shortness of breath right now is a hard block."
+      }
+    ],
+
+    "safety_hard_blocks_and_doctor_approval": [
+      {
+        "rule": {
+          "if": "session_intake_raw.safety_and_contraindications.pregnant_or_breastfeeding == 'Yes' || session_intake_raw.safety_and_contraindications.pregnant_or_breastfeeding == 'Unsure'",
+          "then": { "action": "doctor_approval_required" }
+        },
+        "message": "Pregnancy/breastfeeding Yes or Unsure: IV can be done only after doctor approval."
+      },
+
+      {
+        "rule": {
+          "if": "session_intake_raw.safety_and_contraindications.known_kidney_disease == 'Yes' && (session_intake_raw.safety_and_contraindications.kidney_disease_severity_optional == 'Moderate' || session_intake_raw.safety_and_contraindications.kidney_disease_severity_optional == 'Severe' || session_intake_raw.safety_and_contraindications.kidney_disease_severity_optional == 'On_dialysis')",
+          "then": { "action": "hard_block" }
+        },
+        "message": "Kidney disease Moderate/Severe/On dialysis: hard block for any IV."
+      },
+      {
+        "rule": {
+          "if": "session_intake_raw.safety_and_contraindications.known_kidney_disease == 'Yes' && session_intake_raw.safety_and_contraindications.kidney_disease_severity_optional == 'Mild'",
+          "then": { "action": "doctor_approval_required" }
+        },
+        "message": "Mild kidney disease: doctor approval required; measure serum creatinine before any IV."
+      },
+
+      {
+        "rule": {
+          "if": "session_intake_raw.safety_and_contraindications.known_g6pd_deficiency == 'Yes'",
+          "then": { "action": "hard_block" }
+        },
+        "message": "Known G6PD deficiency (Yes): hard block."
+      }
+    ],
+
+    "dose_rules": {
+      "dose_caps": {
+        "NAD+": {
+          "max_mg_per_session": 250,
+          "reason": "Max dose per single session/day per Dr.Aakriti."
+        },
+        "Vitamin C (High Dose)": {
+          "max_mg_per_session": 4000,
+          "reason": "Maximum revised by Dr.Aakriti."
+        },
+        "Vitamin C (High Dose)_G6PD_unknown_or_missing_special_cap": {
+          "when_any": [
+            "session_intake_raw.safety_and_contraindications.known_g6pd_deficiency == 'Unsure'",
+            "session_intake_raw.safety_and_contraindications.known_g6pd_deficiency is null",
+            "session_intake_raw.safety_and_contraindications.known_g6pd_deficiency is undefined"
+          ],
+          "max_mg_per_session": 2000,
+          "reason": "If G6PD status is unknown/unsure/missing, do not exceed 2000mg Vitamin C."
+        }
+      },
+
+      "dose_floors": {
+        "Glutathione": {
+          "min_mg_per_session": 1200,
+          "reason": "Minimum stays at 1200mg; below this results are not practical."
+        }
+      }
+    },
+
+    "nad_spacing_policy": {
+      "rule_type": "protocol_required",
+      "applies_to": "NAD+",
+      "minimum_days_between_nad_sessions": 14,
+      "enforcement": {
+        "requires_optional_field": "optional.medications_and_flags.last_nad_session_date_iso_optional",
+        "if_field_missing": "do_not_block__flag_caution"
+      },
+      "message": "NAD+ repeat dose allowed only after a minimum 2-week gap (requires last NAD date tracking)."
+    },
+
+    "bag_exclusivity": {
+      "NAD+": {
+        "must_be_alone": true,
+        "allowed_carriers": ["Normal Saline (0.9%)"],
+        "reason": "NAD+ must be mixed only in NS and must not be mixed with other actives."
+      }
+    },
+
+    "session_exclusivity": {
+      "NAD+": {
+        "no_other_active_ingredients": true,
+        "allowed_components_can_include": ["Normal Saline (0.9%)"],
+        "reason": "NAD+ session is standalone and must use NS only."
+      }
+    }
+  },
+
+  "chemical_compatibility_constraints": {
+    "incompatible_same_bag": [
+      {
+        "ingredients": ["NAD+", "Vitamin C (High Dose)"],
+        "reason": "Avoid mixing NAD+ with Vitamin C in the same bag."
+      },
+      {
+        "ingredients": ["NAD+", "Glutathione"],
+        "reason": "Avoid mixing NAD+ with Glutathione in the same bag."
+      },
+      {
+        "ingredients": ["NAD+", "Methylcobalamin (B12)"],
+        "reason": "Avoid mixing NAD+ with B12 in the same bag."
+      },
+      {
+        "ingredients": ["Vitamin C (High Dose)", "Methylcobalamin (B12)"],
+        "reason": "Avoid mixing Vitamin C with B12 in the same bag."
+      }
+    ],
+
+    "allowed_same_bag_with_admin_notes": [
+      {
+        "ingredients": ["Glutathione", "Methylcobalamin (B12)"],
+        "admin_note": "B12 is allowed with Glutathione but should be added at the end of preparation."
+      },
+      {
+        "ingredients": ["Vitamin C (High Dose)", "Glutathione"],
+        "admin_note": "Vitamin C + Glutathione allowed."
+      }
+    ],
+
+    "administration_notes": {
+      "sequential_administration_allowed": true,
+      "same_session_separate_bags_allowed": true,
+
+      "non_ns_carriers_allowed_global": true,
+      "carrier_exceptions": { "NAD+": ["Normal Saline (0.9%)"] }
+    }
+  },
+
+  "ingredient_specific_constraints": {
+    "L-Carnitine": {
+      "hard_block_rules": [
+        {
+          "if": "session_intake_raw.safety_and_contraindications.history_of_seizures_epilepsy == 'Yes'",
+          "then": { "action": "hard_block" },
+          "message": "History of seizures: Carnitine is a hard block."
+        }
+      ]
+    },
+
+    "Magnesium": {
+      "hard_block_rules": [
+        {
+          "if": "session_intake_raw.safety_and_contraindications.known_kidney_disease == 'Yes'",
+          "then": { "action": "hard_block" },
+          "message": "Magnesium is a hard block for any kidney disease (including mild)."
+        }
+      ]
+    },
+
+    "N-Acetylcysteine (NAC)": {
+      "dose_policy": {
+        "max_mg_per_session": null,
+        "reason": "No fixed dose cap per Dr.Aakriti; safety is managed via slow-only rate + monitoring."
+      },
+      "rate_policy": { "profile": "SLOW_ONLY", "min_minutes_per_bag": 60 },
+      "notes": ["Keep slow-only to reduce nausea and anaphylactoid-like reaction risk."]
+    }
+  },
+
+  "asthma_policy": {
+    "trigger": "session_intake_raw.safety_and_contraindications.history_of_asthma_reactive_airway == 'Yes'",
+    "hard_block_ingredients": ["NAD+", "Glutathione"],
+    "hard_block_ingredient_groups": ["MVI_GROUP"],
+    "allowed_explicitly": ["Magnesium"],
+    "message": "If asthmatic: NAD+, Glutathione, and MVI are hard blocks; Magnesium is allowed."
+  },
+
+  "monitoring_protocols": {
+    "anaphylaxis_history": {
+      "trigger": "session_intake_raw.safety_and_contraindications.history_of_severe_allergy_anaphylaxis == 'Yes'",
+      "action": "protocol_required",
+      "protocol": {
+        "vital_checks_frequency_minutes": 5,
+        "note": "Every 5 minutes monitoring as part of protocol."
+      }
+    }
+  },
+
+  "rate_restrictions": [
+    {
+      "trigger": { "ingredient": "NAD+" },
+      "restriction": { "max_rate_profile": "SLOW_ONLY" },
+      "reason": "NAD+ should be slow-only for tolerability."
+    },
+    {
+      "trigger": { "ingredient": "N-Acetylcysteine (NAC)" },
+      "restriction": { "max_rate_profile": "SLOW_ONLY" },
+      "reason": "NAC slow-only reduces nausea and reaction risk."
+    },
+    {
+      "trigger": {
+        "clinical_finding_path": "iv_scoring_output.scores_public_0_100.PCCS",
+        "operator": ">",
+        "value": 60
+      },
+      "restriction": { "global_rate_profile": "SLOW" },
+      "reason": "High perfusion constraint suggests better tolerability with slower infusion."
+    },
+    {
+      "trigger": {
+        "clinical_finding_path": "iv_scoring_output.scores_public_0_100.ASLS",
+        "operator": ">",
+        "value": 50
+      },
+      "restriction": { "avoid_fast_stimulatory_infusions": true },
+      "reason": "High sympathetic load: avoid fast stimulatory infusions."
+    }
+  ],
+
+  "treatment_prompt_consumption_contract": {
+    "required_outputs": [
+      "hard_blocks[]",
+      "doctor_approval_required[]",
+      "dose_caps[]",
+      "dose_floors[]",
+      "bag_exclusivity[]",
+      "session_exclusivity[]",
+      "rate_restrictions[]",
+      "required_protocols[]",
+      "system_errors[]"
+    ],
+    "notes": [
+      "Treatment prompt must surface hard blocks, doctor approval gates, and required monitoring protocols to staff-facing output."
+    ]
+  },
+
+  "explicit_non_constraints": {
+    "not_constrained": [
+      "ingredient_selection_logic",
+      "number_of_ingredients_per_session",
+      "clinical_goal_prioritization",
+      "volume_selection_logic",
+      "treatment_outcome_prediction"
+    ],
+    "reason": "Handled by scoring engine and treatment prompt"
+  },
+
+  "output_contract": {
+    "enforcement_only": true,
+    "flags_allowed": true,
+    "blocking_only_for_hard_constraints": true,
+    "doctor_approval_gate_supported": true,
+    "protocol_required_supported": true,
+    "system_error_supported": true,
+    "consumer_layers": [
+      "IV Treatment Prompt",
+      "Therapist Instruction Generator",
+      "Safety Monitoring Layer"
+    ]
+  }
+}

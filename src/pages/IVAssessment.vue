@@ -35,6 +35,25 @@
           :v="v$.iv_inputs"
           @update="updateIVInputs"
         />
+
+        <ScoringResults
+          v-if="currentStep === 'step-3'"
+          :ivScores="formData.diagnosis"
+          :skinScores="skinScores"
+          :initialPlanType="formData.selected_plan_type"
+          @update:planType="updatePlanType"
+        />
+
+        <SafetyReview v-if="currentStep === 'step-4'" :safetyResults="safetyResults" />
+
+        <div v-if="currentStep === 'step-5'">
+          <TreatmentPlanComponent @save_data="debouncedSubmit" />
+        </div>
+
+        <NurseRunSheet
+          v-if="currentStep === 'step-6'"
+          :treatmentSessions="formData.treatment_sessions"
+        />
       </div>
     </div>
 
@@ -49,22 +68,32 @@
       />
     </q-page-sticky>
     <q-page-sticky position="bottom-right" :offset="[18, 18]">
-      <q-btn
-        v-if="!isLastStep"
-        rounded
-        label="Next"
-        icon-right="arrow_forward"
-        color="teal"
-        @click="goNext"
-      />
-      <q-btn
-        v-if="isLastStep"
-        color="accent"
-        label="Finalize & Exit"
-        unelevated
-        rounded
-        @click="finalizeAndExit"
-      />
+      <div class="row q-gutter-sm">
+        <q-btn
+          v-if="currentStep === 'step-1'"
+          rounded
+          label="Cancel"
+          flat
+          color="grey-7"
+          @click="cancelAssessment"
+        />
+        <q-btn
+          v-if="!isLastStep"
+          rounded
+          :label="currentStep === 'step-2' ? 'Generate IV Scores' : 'Next'"
+          icon-right="arrow_forward"
+          color="teal"
+          @click="goNext"
+        />
+        <q-btn
+          v-if="isLastStep"
+          color="accent"
+          label="Finalize & Exit"
+          unelevated
+          rounded
+          @click="finalizeAndExit"
+        />
+      </div>
     </q-page-sticky>
   </q-page>
 </template>
@@ -74,7 +103,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
 import { storeToRefs } from 'pinia'
-import { Loading, Notify, useQuasar } from 'quasar'
+import { Loading, Notify, useQuasar, LocalStorage } from 'quasar'
 import { api } from 'src/boot/axios'
 import config from 'src/config.js'
 import _ from 'lodash'
@@ -82,10 +111,19 @@ import ClientInformation from 'src/components/iv-assessment/FormWrapper.vue'
 import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
 import PatientPhysicalAssessment from 'src/components/iv-assessment/sections/PatientPhysicalAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
-import { SYSTEM_PROMPT_DIAGNOSIS, D_REPORT_USER_PROMPT } from 'src/utils/aiPrompts'
+import { FACE_SCAN_SYSTEM_PROMPT, IV_SCORING_SYSTEM_PROMPT } from 'src/utils/ivPrompts'
 import { useIVAssessmentValidation } from 'src/composables/useIVAssessmentValidation'
 import { useVuelidate } from '@vuelidate/core'
 import { generateCanonicalJson } from 'src/services/generateCanonicalJson'
+// import { calculateIVScoring } from 'src/services/ivScoring'
+import { evaluateSafety } from 'src/services/safetyEngine'
+import ScoringResults from 'src/components/iv-assessment/results/ScoringResults.vue'
+import SafetyReview from 'src/components/iv-assessment/results/SafetyReview.vue'
+import TreatmentPlanComponent from 'src/components/assessment/TreatmentPlanComponent.vue'
+import NurseRunSheet from 'src/components/iv-assessment/results/NurseRunSheet.vue'
+import { SYSTEM_TREATMENT_PLAN_PROMPT } from 'src/utils/aiPrompts'
+import { available_skincare_products } from 'src/utils/productJson'
+import { encode } from '@toon-format/toon'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 const $q = useQuasar()
@@ -98,7 +136,7 @@ const userId = route.params.user_id
 const currentStep = ref(route.params.step || 'step-1')
 const isPostAssessment = ref(false)
 
-const steps = ['step-1', 'step-2']
+const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5', 'step-6']
 const currentIndex = computed(() => steps.indexOf(currentStep.value))
 const isFirstStep = computed(() => steps.indexOf(currentStep.value) === 0)
 const isLastStep = computed(() => steps.indexOf(currentStep.value) === steps.length - 1)
@@ -107,6 +145,10 @@ const startProcessingStep = ref(false)
 const processingMessage = ref('')
 
 const faceImages = ref([])
+const ivScores = ref({})
+const skinScores = ref({})
+const safetyResults = ref({ status: 'safe', flags: [] })
+const canonicalPayload = ref(null)
 
 const rules = useIVAssessmentValidation(formData)
 const v$ = useVuelidate(rules, formData)
@@ -169,6 +211,34 @@ function updateIVInputs(updatedIVInputs) {
   debouncedSubmit(['iv_inputs'])
 }
 
+function updatePlanType(planType) {
+  formData.value.selected_plan_type = planType
+  debouncedSubmit(['selected_plan_type'])
+}
+
+function cancelAssessment() {
+  $q.dialog({
+    title: 'Confirm',
+    message: 'Are you sure you want to cancel this assessment?',
+    persistent: true,
+    ok: {
+      label: 'Yes, Cancel',
+      color: 'negative',
+      icon: 'close',
+      unelevated: true,
+    },
+    cancel: {
+      label: 'No',
+      color: 'primary',
+      flat: true,
+      icon: 'close',
+    },
+  }).onOk(() => {
+    LocalStorage.clear()
+    window.location.href = `${process.env.CRM_URL}/users`
+  })
+}
+
 async function finalizeAndExit() {
   const valid = await isStepValid()
   if (!valid) return
@@ -193,8 +263,6 @@ async function finalizeAndExit() {
   })
     .onOk(() => {
       console.log(formData.value)
-      const canonicalPayload = generateCanonicalJson(formData.value.iv_inputs)
-      console.log(canonicalPayload)
       // formData.value.status = 'completed'
       // submit(['status'])
       // Loading.show({
@@ -265,11 +333,141 @@ async function goNext() {
       'Invalid fields:',
       v$.value.$errors.map((e) => e.$property),
     )
+    Notify.create({
+      type: 'negative',
+      message: 'Please fill all required fields before proceeding.',
+    })
+    return
   }
-  if (!valid) return
+
+  // --- Pipeline Processing Logic ---
+  if (currentStep.value === 'step-2') {
+    // Transitioning from Inputs to Scoring
+    Loading.show({ message: 'Building Canonical Payload & Calculating Scores...' })
+    try {
+      const canonical = generateCanonicalJson(formData.value.iv_inputs)
+      canonicalPayload.value = canonical
+
+      // 1. Calculate IV 8-Axes
+      ivScores.value = await generateIVScoring(formData.value, canonical)
+
+      // 2. Prepare Skin Scores (from diagnosis)
+      skinScores.value =
+        formData.value.parameters_with_abnormal_scores?.Skin_score_data?.scores || {}
+
+      // Save results to store
+      formData.value.diagnosis = ivScores.value
+      await submit(['diagnosis'])
+
+      Loading.hide()
+    } catch (e) {
+      console.error(e)
+      Loading.hide()
+      Notify.create({ type: 'negative', message: 'Failed to process assessment data.' })
+      return
+    }
+  }
+
+  if (currentStep.value === 'step-3') {
+    // Transitioning from Scoring to Safety
+    Loading.show({ message: 'Running Safety & Constraints Engine...' })
+    try {
+      const results = evaluateSafety(canonicalPayload.value)
+      safetyResults.value = results
+
+      // Save results
+      formData.value.safety_review = results
+      await submit(['safety_review'])
+      Loading.hide()
+    } catch (e) {
+      console.error(e)
+      Loading.hide()
+      return
+    }
+  }
+
+  if (currentStep.value === 'step-4') {
+    // Transitioning from Safety to Treatment Generation
+    if (!formData.value.treatment_sessions || formData.value.treatment_sessions.length === 0) {
+      await generateTreatmentPlan()
+    }
+  }
 
   if (!isLastStep.value) {
     navigateToStep(steps[currentIndex.value + 1])
+  }
+}
+
+async function generateIVScoring(data, canonical) {
+  const convId = await getOrCreateConversation(
+    `${data.user_id}`,
+    data.conversation_id,
+    data.name,
+    data.id,
+  )
+  formData.value.conversation_id = convId
+
+  const IV_SCORING_USER_PROMPT = encode(canonical)
+  const input = [
+    {
+      role: 'system',
+      content: IV_SCORING_SYSTEM_PROMPT,
+    },
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text: IV_SCORING_USER_PROMPT,
+        },
+        {
+          type: 'input_text',
+          text: encode(data.parameters_with_abnormal_scores),
+        },
+      ],
+    },
+  ]
+  processingMessage.value = 'Processing scanned images...'
+  const result = await runResponse(convId, input)
+  console.log('✅ IV Diagnosis Result:', result)
+  return result
+}
+
+async function generateTreatmentPlan() {
+  Loading.show({ message: 'AI is generating optimized treatment options...' })
+  try {
+    const input = [
+      {
+        role: 'system',
+        content: SYSTEM_TREATMENT_PLAN_PROMPT,
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          treatable_concerns: formData.value.parameters_with_abnormal_scores || {},
+          treatment_plan_type: 'single',
+          patient_data: {
+            ...formData.value.iv_inputs.meta.profile,
+            iv_scores: ivScores.value,
+            safety: safetyResults.value,
+          },
+          available_skincare_products: available_skincare_products,
+        }),
+      },
+    ]
+
+    const result = await runResponse(formData.value.conversation_id, input)
+    console.log('✅ Treatment Plan:', result)
+
+    if (result) {
+      formData.value.treatment_sessions = result.treatment_plan
+      await submit(['treatment_sessions'])
+    }
+    Loading.hide()
+  } catch (e) {
+    console.error(e)
+    Loading.hide()
+    Notify.create({ type: 'negative', message: 'Failed to generate treatment plan.' })
   }
 }
 
@@ -325,9 +523,8 @@ async function handleDiagnosis(files) {
   } else {
     startProcessingStep.value = false
     // diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
-    formData.value.diagnosis = apiResponse
-    formData.value.parameters_with_abnormal_scores = apiResponse.treatable_concerns_summary
-    submit(['diagnosis', 'parameters_with_abnormal_scores'])
+    formData.value.parameters_with_abnormal_scores = apiResponse
+    submit(['parameters_with_abnormal_scores'])
     goNext()
   }
 }
@@ -354,24 +551,16 @@ async function callApiForDiagnosis(data, images) {
   const input = [
     {
       role: 'system',
-      content: SYSTEM_PROMPT_DIAGNOSIS,
+      content: FACE_SCAN_SYSTEM_PROMPT,
     },
     {
       role: 'user',
-      content: [
-        ...storedFiles,
-        {
-          type: 'input_text',
-          text: D_REPORT_USER_PROMPT,
-        },
-      ],
+      content: [...storedFiles],
     },
   ]
   processingMessage.value = 'Processing scanned images...'
-  console.log('Conv ID:', convId)
-  console.log('Diagnosis Input:', input)
   const result = await runResponse(convId, input)
-  console.log('✅ Diagnosis:', result)
+  console.log('✅ IV FACE SCAN RESULT:', result)
   return result
 }
 
