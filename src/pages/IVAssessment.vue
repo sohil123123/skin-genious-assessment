@@ -44,9 +44,7 @@
           @update:planType="updatePlanType"
         />
 
-        <SafetyReview v-if="currentStep === 'step-4'" :safetyResults="safetyResults" />
-
-        <div v-if="currentStep === 'step-5'">
+        <div v-if="currentStep === 'step-4'">
           <TreatmentPlanComponent @save_data="debouncedSubmit" />
         </div>
 
@@ -111,18 +109,21 @@ import ClientInformation from 'src/components/iv-assessment/FormWrapper.vue'
 import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
 import PatientPhysicalAssessment from 'src/components/iv-assessment/sections/PatientPhysicalAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
-import { FACE_SCAN_SYSTEM_PROMPT, IV_SCORING_SYSTEM_PROMPT } from 'src/utils/ivPrompts'
+import {
+  FACE_SCAN_SYSTEM_PROMPT,
+  IV_SCORING_SYSTEM_PROMPT,
+  IV_TREATMENT_PLAN_SYSTEM_PROMPT,
+} from 'src/utils/ivPrompts'
 import { useIVAssessmentValidation } from 'src/composables/useIVAssessmentValidation'
 import { useVuelidate } from '@vuelidate/core'
 import { generateCanonicalJson } from 'src/services/generateCanonicalJson'
 // import { calculateIVScoring } from 'src/services/ivScoring'
-import { evaluateSafety } from 'src/services/safetyEngine'
+// import { evaluateSafety } from 'src/services/safetyEngine'
 import ScoringResults from 'src/components/iv-assessment/results/ScoringResults.vue'
-import SafetyReview from 'src/components/iv-assessment/results/SafetyReview.vue'
-import TreatmentPlanComponent from 'src/components/assessment/TreatmentPlanComponent.vue'
+// import SafetyReview from 'src/components/iv-assessment/results/SafetyReview.vue'
+import TreatmentPlanComponent from 'src/components/iv-assessment/results/TreatmentPlanComponent.vue'
 import NurseRunSheet from 'src/components/iv-assessment/results/NurseRunSheet.vue'
-import { SYSTEM_TREATMENT_PLAN_PROMPT } from 'src/utils/aiPrompts'
-import { available_skincare_products } from 'src/utils/productJson'
+// import { available_skincare_products } from 'src/utils/productJson'
 import { encode } from '@toon-format/toon'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
@@ -147,7 +148,7 @@ const processingMessage = ref('')
 const faceImages = ref([])
 const ivScores = ref({})
 const skinScores = ref({})
-const safetyResults = ref({ status: 'safe', flags: [] })
+// const safetyResults = ref({ status: 'safe', flags: [] })
 const canonicalPayload = ref(null)
 
 const rules = useIVAssessmentValidation(formData)
@@ -368,25 +369,25 @@ async function goNext() {
     }
   }
 
+  // if (currentStep.value === 'step-3') {
+  //   // Transitioning from Scoring to Safety
+  //   Loading.show({ message: 'Generating Treatment Plan...' })
+  //   try {
+  //     const results = evaluateSafety(canonicalPayload.value)
+  //     safetyResults.value = results
+
+  //     // Save results
+  //     formData.value.safety_review = results
+  //     await submit(['safety_review'])
+  //     Loading.hide()
+  //   } catch (e) {
+  //     console.error(e)
+  //     Loading.hide()
+  //     return
+  //   }
+  // }
+
   if (currentStep.value === 'step-3') {
-    // Transitioning from Scoring to Safety
-    Loading.show({ message: 'Running Safety & Constraints Engine...' })
-    try {
-      const results = evaluateSafety(canonicalPayload.value)
-      safetyResults.value = results
-
-      // Save results
-      formData.value.safety_review = results
-      await submit(['safety_review'])
-      Loading.hide()
-    } catch (e) {
-      console.error(e)
-      Loading.hide()
-      return
-    }
-  }
-
-  if (currentStep.value === 'step-4') {
     // Transitioning from Safety to Treatment Generation
     if (!formData.value.treatment_sessions || formData.value.treatment_sessions.length === 0) {
       await generateTreatmentPlan()
@@ -436,23 +437,49 @@ async function generateIVScoring(data, canonical) {
 async function generateTreatmentPlan() {
   Loading.show({ message: 'AI is generating optimized treatment options...' })
   try {
+    const canonical = generateCanonicalJson(formData.value.iv_inputs)
+
     const input = [
       {
         role: 'system',
-        content: SYSTEM_TREATMENT_PLAN_PROMPT,
+        content: IV_TREATMENT_PLAN_SYSTEM_PROMPT,
       },
       {
         role: 'user',
-        content: JSON.stringify({
-          treatable_concerns: formData.value.parameters_with_abnormal_scores || {},
-          treatment_plan_type: 'single',
-          patient_data: {
-            ...formData.value.iv_inputs.meta.profile,
-            iv_scores: ivScores.value,
-            safety: safetyResults.value,
-          },
-          available_skincare_products: available_skincare_products,
-        }),
+        content: `Generate the selected IV treatment plan.
+
+          SELECTED PLAN TYPE: ${encode(formData.value.selected_plan_type)}
+
+          UPSTREAM INPUT PAYLOAD:
+          {
+            "session_intake_raw": ${encode(canonical.session_intake_raw)},
+            "session_machines_raw": ${encode(canonical.session_machines_raw)},
+            "skin_ai_raw": ${encode(canonical.skin_ai_raw)},
+            "iv_scoring_output": ${encode(formData.value.diagnosis)}
+          }
+
+          GENERATION INSTRUCTIONS
+
+          1. Read iv_scoring_output.scores_public_0_100.
+            - Identify the dominant axis (highest score)
+            - Identify the top 2-3 contributing axes
+
+          2. Generate ONLY the selected plan:
+            ${formData.value.selected_plan_type}
+
+          3. Align treatment intent to dominant axes:
+            - FENS → hydration / electrolytes
+            - PCCS → circulation-friendly, slower rates
+            - ASLS → calming / ANS support
+            - MONS → metabolic energy support
+            - ODS / DGS → antioxidant / glow support
+
+          4. Apply all ingredient and safety constraints exactly.
+
+          5. Ensure output schema matches the system-defined shape.
+
+          Return the final JSON now.
+          `,
       },
     ]
 
@@ -460,8 +487,8 @@ async function generateTreatmentPlan() {
     console.log('✅ Treatment Plan:', result)
 
     if (result) {
-      formData.value.treatment_sessions = result.treatment_plan
-      await submit(['treatment_sessions'])
+      formData.value.iv_treatment_plan = result
+      await submit(['iv_treatment_plan'])
     }
     Loading.hide()
   } catch (e) {

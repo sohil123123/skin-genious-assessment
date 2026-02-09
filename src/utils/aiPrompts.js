@@ -1,5 +1,5 @@
 import { encode } from '@toon-format/toon'
-import { available_skincare_products } from './productJson'
+import { available_skincare_products } from './productJsonNew'
 
 const skin_type_criteria = {
   skin_type_classification_v4_0: {
@@ -3106,6 +3106,23 @@ const reassessment_json_structure = {
       result: '< improved or declined or stable>',
     },
   },
+  images_used: [
+    {
+      concern_name: 'first concern',
+      before_image_file_id_used: ['<The ID of the image used>'],
+      after_image_file_id_used: ['<The ID of the image used>'],
+    },
+    {
+      concern_name: '2nd concern',
+      before_image_file_id_used: ['<The ID of the image used>'],
+      after_image_file_id_used: ['<The ID of the image used>'],
+    },
+    {
+      concern_name: 'nth concern',
+      before_image_file_id_used: ['<The ID of the image used>'],
+      after_image_file_id_used: ['<The ID of the image used>'],
+    },
+  ],
 }
 
 export const SYSTEM_PROMPT_DIAGNOSIS = `Act as an expert AI Skin Diagnostic Assistant.
@@ -3308,6 +3325,7 @@ Your job is to generate a hyper-intelligent, outcome-optimized treatment plan us
 •	The patient's history & profile
 •	The selected treatment_plan_type
 Your output must be clinically accurate, customized zone-wise, and optimized for BEST POSSIBLE RESULTS in the given session or across multiple sessions.
+
 ________________________________________
 ⚙️ INPUT FORMAT YOU WILL RECEIVE
 {
@@ -3325,6 +3343,37 @@ ________________________________________
   "treatment_plan_type": "single" | "multiple" | "express",
   "patient_data": "<patient data>",
   "available_skincare_products": "${encode(available_skincare_products)}"
+}
+
+**Planner knowledge**.
+NOTE: the below json is just a PLANNER JSON. It is not scoring, not constraints.
+
+"high_efficacy_modalities_by_concern": {
+  "superficial_pigmentation": [
+    "Q-Switch Laser",
+    "Carbon Facial",
+    "Chemical Peel"
+  ],
+  "acne_severity": [
+    "Carbon Facial",
+    "Q-Switch Laser (low fluence)",
+    "High Frequency",
+    "Chemical Peel"
+  ],
+  "texture_roughness": [
+    "Chemical Peel",
+    "Microneedling",
+    "RF"
+  ],
+  "skin_laxity_sagging": [
+    "RF",
+    "HiFU",
+    "Microneedling RF"
+  ],
+  "vascularity_redness": [
+    "LED Light Therapy",
+    "Targeted Laser (if allowed)"
+  ]
 }
 
 🧠 CORE INTELLIGENCE LOGIC—READ CAREFULLY
@@ -3380,6 +3429,28 @@ D) If treatment_plan_type = "express":
 • Remove or shorten low-impact, supportive, or optional steps.
 • Never downgrade modality strength—only reduce time allocation.
 • Express sessions must not reduce clinical effectiveness—only duration.
+
+E) ENERGY / PEEL NECESSITY RULE (MANDATORY — OUTCOME DOMINANCE LOGIC)
+  For EACH parameter marked as is_primary_concern = true:
+
+  1. Compute deviation_from_target as:
+    deviation_from_target = absolute_difference(current_score, target_score)
+
+  2. Evaluate improvability_index for this parameter.
+
+  If ALL of the following are true:
+  • deviation_from_target >= 1
+  • improvability_index >= 0.4
+  • NO explicit patient-history denial applies
+  • NO numeric / safety / timing constraint applies
+
+  THEN:
+  • The treatment plan MUST include at least ONE high-efficacy corrective modality
+    (e.g., peel, energy-based device, microneedling, laser, RF etc. — as permitted).
+  • Supportive-only plans (hydrafacial, massage, serums, LED, oxygen alone)
+    are INVALID for this primary concern.
+  • Time allocation MUST prioritize the corrective modality over supportive steps.
+
 ________________________________________
 4. General Clinical Rules
 •	Respect all clinical constraints (pregnancy, photosensitivity, allergies, recent peels, etc.).
@@ -3431,7 +3502,51 @@ Your instructions must include:
 No vague instructions allowed.
 ________________________________________
 
-For treatment_plan_type = "express", treatment_time must be between 30 and 40 minutes.
+FINAL PLAN VALIDATION (MANDATORY):
+
+For each PRIMARY concern:
+
+Ask:
+1. Does at least one step directly act on the root pathology?
+2. Is modality strength proportional to deviation_from_target?
+3. Would a dermatologist reasonably expect visible improvement?
+
+If ANY answer is "NO":
+→ Regenerate the plan with higher-efficacy modalities,
+  unless explicitly denied by constraints.
+
+**MINIMUM EFFECTIVE DOSE RULE (MANDATORY)**
+
+  If an energy/peel modality is selected to address a PRIMARY concern, it must be delivered as a
+  meaningful corrective block, not a token mention.
+
+  Therefore, for any selected corrective modality (Q-switch / carbon / RF / HiFU / microneedling / chemical peel):
+
+  - The plan MUST include at least ONE of the following:
+    (a) a concrete time allocation for that modality step, OR
+    (b) a concrete “passes / coverage” instruction, OR
+    (c) a concrete “zone-wise protocol” instruction.
+
+  - If none of (a)(b)(c) are present, the plan is INVALID and must be regenerated.
+
+  Caution handling:
+  - If constraints indicate "allowed_with_caution", you may reduce intensity/coverage, but you must still provide
+    (a) or (b) or (c) to ensure the modality is delivered meaningfully.
+
+**MODALITY OMISSION EXPLANATION (MANDATORY)**
+
+  If any of these modalities are NOT used in the plan:
+    - Q-Switch Laser
+    - Carbon Facial
+    - Chemical Peel
+    - RF / HiFU / Microneedling (as relevant to concerns)
+  Reason must include these if applicable:
+    - whether it was considered (yes/no)
+    - omission_reason_category: one of ["contraindicated_by_history", "blocked_by_proxy_gates", "blocked_by_temperature_policy", "not_best_efficacy_for_this_concern", "insufficient_data -> defaulted_to_caution_alternative"]
+    - the specific rule/proxy that caused omission (if applicable)
+    - the chosen alternative modality
+    - expected tradeoff (1 sentence)
+
 
 📤 OUTPUT FORMAT (STRICT JSON)
 {
@@ -3482,8 +3597,14 @@ For treatment_plan_type = "express", treatment_time must be between 30 and 40 mi
             }
           ]
         }
-      }
+      },
     ],
+    "modality_omission_explanation": {
+      "q_switch_laser": "<reason if not used>",
+      "carbon_facial": "<reason if not used>",
+      "chemical_peel": "<reason if not used>",
+      "rf_hifu_microneedling": "<reason if not used>"
+    }
   }
 }`
 
@@ -3520,24 +3641,24 @@ For all reassessment parameters:
 
 * No explanations, no additional text, no null values
 
-REASSESSMENT CONSISTENCY RULE (MANDATORY):
+REASSESSMENT CONSISTENCY RULE (MANDATORY — STRICT IDENTICAL ONLY):
 
-Before computing any reassessment, you MUST first evaluate whether the
-pre-treatment images and post-treatment images are visually identical
-or near-identical.
+This reassessment MUST be performed by re-applying the SAME scoring rubric used for the baseline diagnosis
+to the NEW post-treatment images. Do NOT estimate deltas or "assume improvement"; instead, SCORE the post-treatment
+images independently using the same criteria, scales, and thresholds as baseline.
 
-If the images are identical or show no clinically meaningful visual
-difference across ALL relevant modes (white, UV, woods, blue, positive,
-negative):
+IDENTICAL-IMAGE GUARDRAIL (ONLY FOR TRUE RE-UPLOADS):
+Before scoring, check whether the post-treatment image set is EXACTLY the same as the baseline image set
+(i.e., the same images were re-uploaded).
 
-- You MUST classify the reassessment outcome as: "stable"
-- You MUST NOT report improvement or deterioration
-- You MUST set all delta values to zero (or "no_change")
-- You MUST reuse the baseline scores without modification
-- You MUST explicitly state: "No visual change detected between pre and post images"
+If the post-treatment images are EXACTLY IDENTICAL to baseline (true re-upload / same scan):
+- You MUST set every post_treatment_score_or_label equal to the baseline score/label
+- You MUST set every result to "stable"
+- Do NOT report improvement or decline
 
-Only if clear, multi-metric visual differences are present may you
-report improvement or worsening.
+If the post-treatment images are NOT exactly identical:
+- You MUST compute post_treatment_score_or_label by scoring the post-treatment images (fresh scoring)
+- Then compare to baseline to set result = improved / declined / stable
 
 IMPORTANT — IMAGE NUMBER CONSISTENCY RULE:
 

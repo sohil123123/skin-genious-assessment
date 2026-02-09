@@ -99,8 +99,7 @@
         ],
         "behavior_when_caution": [
           "Energy devices remain allowed; prefer non-ablative / low-downtime options first.",
-          "Use lower initial settings and fewer passes; escalate only if tolerated and clinically appropriate.",
-          "Avoid stacking multiple aggressive modalities in the same session; sequence across sessions instead."
+          "Use lower initial settings and fewer passes; escalate only if tolerated and clinically appropriate."
         ],
         "notes": "Caution bands are deliberately tightened to keep 'allowed_with_caution' prevalence below ~50% in typical clinic populations while preserving safety. Hydration alone does not trigger caution unless paired with elevated BSI or erythema."
       },
