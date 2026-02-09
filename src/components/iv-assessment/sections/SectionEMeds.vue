@@ -404,6 +404,7 @@ const thyroidTypeOptions = ['For hypothyroid', 'For hyperthyroid', 'Unsure']
 const antibioticReasonOptions = ['Dental', 'Respiratory', 'Skin', 'Urinary', 'Other', 'Unsure']
 const antibioticStartOptions = ['Today-2 days', '3-7 days', '>7 days']
 const supplementOptions = [
+  { label: 'None', value: 'None' },
   { label: 'Magnesium', value: 'Magnesium' },
   { label: 'Electrolytes', value: 'Electrolytes' },
   { label: 'Vitamin C', value: 'Vitamin C' },
