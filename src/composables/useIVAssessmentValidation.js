@@ -15,7 +15,7 @@ export function useIVAssessmentValidation(formData) {
       section_1_client_questionnaire: {
         A_goals_intent: {
           primary_goal: { required },
-          secondary_goal: { required },
+          secondary_goal: {},
           desired_intensity_preference: { required },
         },
         B_safety_contraindications: {
