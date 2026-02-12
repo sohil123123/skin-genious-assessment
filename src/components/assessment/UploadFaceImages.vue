@@ -276,11 +276,8 @@ async function connectDevice() {
 }
 
 function addUniqueFiles(newFiles) {
-  const existingKeys = new Set(uploader.value.files.map((f) => f.__key))
-
-  const uniqueFiles = newFiles.filter((f) => !existingKeys.has(f.__key))
-
-  uploader.value.files.push(...uniqueFiles)
+  // Clear existing files to prevent duplication and sync with props
+  uploader.value.files.splice(0, uploader.value.files.length, ...newFiles)
 }
 
 // Utility functions

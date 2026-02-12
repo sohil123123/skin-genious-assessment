@@ -89,14 +89,14 @@ import {
   D_REPORT_USER_PROMPT,
   SYSTEM_TREATMENT_PLAN_PROMPT,
   POST_DIAGNOSIS_USER_PROMPT,
-} from 'src/utils/aiPrompts'
+} from 'src/utils/facial/aiPrompts'
 import { Loading, Notify, QSpinnerFacebook, useQuasar } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from 'src/boot/axios'
 import _ from 'lodash'
-import constraints from 'src/utils/constraints'
+import constraints from 'src/utils/facial/constraints'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
 
