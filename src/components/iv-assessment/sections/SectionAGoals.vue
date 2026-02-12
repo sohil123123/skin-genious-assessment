@@ -64,22 +64,6 @@
       </p>
       <div class="row q-gutter-sm q-mb-sm">
         <q-chip
-          label="None"
-          :text-color="
-            localFormData.section_1_client_questionnaire.A_goals_intent.secondary_goal === ''
-              ? 'white'
-              : 'dark'
-          "
-          :color="
-            localFormData.section_1_client_questionnaire.A_goals_intent.secondary_goal === ''
-              ? 'grey-6'
-              : 'grey-3'
-          "
-          size="md"
-          clickable
-          @click="updateField('section_1_client_questionnaire.A_goals_intent.secondary_goal', '')"
-        />
-        <q-chip
           v-for="goal in goalOptions"
           :key="goal.value"
           :label="goal.label"
@@ -169,6 +153,7 @@ const props = defineProps({
 const emit = defineEmits(['update:formData', 'update'])
 
 const goalOptions = [
+  'None',
   'Energy',
   'Skin glow',
   'Recovery',

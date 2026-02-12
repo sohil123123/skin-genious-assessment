@@ -109,11 +109,14 @@ import ClientInformation from 'src/components/iv-assessment/FormWrapper.vue'
 import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
 import PatientPhysicalAssessment from 'src/components/iv-assessment/sections/PatientPhysicalAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
+import { IV_SCORING_SYSTEM_PROMPT, IV_TREATMENT_PLAN_SYSTEM_PROMPT } from 'src/utils/iv/ivPrompts'
 import {
-  FACE_SCAN_SYSTEM_PROMPT,
-  IV_SCORING_SYSTEM_PROMPT,
-  IV_TREATMENT_PLAN_SYSTEM_PROMPT,
-} from 'src/utils/ivPrompts'
+  IV_SCORING_SYSTEM_PROMPT_STAGE_1,
+  IV_SCORING_USER_PROMPT_STAGE_1,
+  IV_SCORING_SYSTEM_PROMPT_STAGE_2,
+  IV_SCORING_USER_PROMPT_STAGE_2,
+  IV_SCORING_SYSTEM_PROMPT_STAGE_3,
+} from 'src/utils/iv/scoringPrompt'
 import { useIVAssessmentValidation } from 'src/composables/useIVAssessmentValidation'
 import { useVuelidate } from '@vuelidate/core'
 import { generateCanonicalJson } from 'src/services/generateCanonicalJson'
@@ -369,24 +372,6 @@ async function goNext() {
     }
   }
 
-  // if (currentStep.value === 'step-3') {
-  //   // Transitioning from Scoring to Safety
-  //   Loading.show({ message: 'Generating Treatment Plan...' })
-  //   try {
-  //     const results = evaluateSafety(canonicalPayload.value)
-  //     safetyResults.value = results
-
-  //     // Save results
-  //     formData.value.safety_review = results
-  //     await submit(['safety_review'])
-  //     Loading.hide()
-  //   } catch (e) {
-  //     console.error(e)
-  //     Loading.hide()
-  //     return
-  //   }
-  // }
-
   if (currentStep.value === 'step-3') {
     // Transitioning from Safety to Treatment Generation
     if (!formData.value.treatment_sessions || formData.value.treatment_sessions.length === 0) {
@@ -517,21 +502,47 @@ function navigateToStep(step) {
 }
 
 const handleProcess = async (files) => {
-  await handleDiagnosis(files)
+  try {
+    await handleIVScoring(files)
+    Notify.create({
+      type: 'positive',
+      message: 'IV 8-Axes calculated successfully.',
+      timeout: 3000,
+      actions: [
+        {
+          icon: 'close',
+          color: 'white',
+          round: true,
+        },
+      ],
+    })
+    Loading.hide()
+  } catch (e) {
+    console.error(e)
+    Loading.hide()
+    Notify.create({
+      type: 'negative',
+      message: 'Failed to calculate IV 8-Axes.',
+      timeout: 0,
+      actions: [
+        {
+          icon: 'close',
+          color: 'white',
+          round: true,
+        },
+      ],
+    })
+  }
 }
 
-async function handleDiagnosis(files) {
+async function handleIVScoring(files) {
   faceImages.value = formData.value.images.map((img) => img.url)
-  // if (files.length > 0) {
-  //   const uploadedImages = await store.storeFaceImages(files, 'pre')
-  //   faceImages.value.push(...uploadedImages)
-  // }
 
   faceImages.value = config.IMAGES_ORDER.map((name) =>
     faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
   ).filter(Boolean)
 
-  const apiResponse = await callApiForDiagnosis(formData.value, files)
+  const apiResponse = await callApiForIVScoring(formData.value, files)
 
   if (apiResponse.error) {
     startProcessingStep.value = false
@@ -549,14 +560,28 @@ async function handleDiagnosis(files) {
     })
   } else {
     startProcessingStep.value = false
-    // diagnosis.value = apiResponse // e.g., { issues: [...], summary: '...' }
     formData.value.parameters_with_abnormal_scores = apiResponse
-    submit(['parameters_with_abnormal_scores'])
-    goNext()
+    if (apiResponse.scores.OSS.score_0_100) {
+      formData.value.iv_inputs.section_3_dermatological_ai_inputs.oxidative_stress_score_oss =
+        apiResponse.scores.OSS.score_0_100
+    }
+    if (apiResponse.scores.GMS.score_0_100) {
+      formData.value.iv_inputs.section_3_dermatological_ai_inputs.glycation_metabolic_score_gms =
+        apiResponse.scores.GMS.score_0_100
+    }
+    if (apiResponse.scores.MVI.score_0_100) {
+      formData.value.iv_inputs.section_3_dermatological_ai_inputs.vascularity_inflammation_index_mvi =
+        apiResponse.scores.MVI.score_0_100
+    }
+    if (apiResponse.scores.BHS.score_0_100) {
+      formData.value.iv_inputs.section_3_dermatological_ai_inputs.barrier_hydration_stress_score_bhs =
+        apiResponse.scores.BHS.score_0_100
+    }
+    submit(['parameters_with_abnormal_scores', 'iv_inputs'])
   }
 }
 
-async function callApiForDiagnosis(data, images) {
+async function callApiForIVScoring(data, images) {
   const convId = await getOrCreateConversation(
     `${data.user_id}`,
     data.conversation_id,
@@ -567,6 +592,8 @@ async function callApiForDiagnosis(data, images) {
   submit(['conversation_id'])
 
   processingMessage.value = 'Uploading images to OpenAI...'
+
+  //INFO: STAGE 1
   await uploadImageFileToOpenAI(images, 'pre')
   const storedFiles = await Promise.all(
     data.images.map((item) => ({
@@ -574,21 +601,69 @@ async function callApiForDiagnosis(data, images) {
       file_id: item.custom_properties?.openai_file_id ?? null,
     })),
   )
-  console.log(storedFiles)
   const input = [
     {
       role: 'system',
-      content: FACE_SCAN_SYSTEM_PROMPT,
+      content: IV_SCORING_SYSTEM_PROMPT_STAGE_1,
     },
     {
       role: 'user',
-      content: [...storedFiles],
+      content: [
+        ...storedFiles,
+        {
+          type: 'input_text',
+          text: IV_SCORING_USER_PROMPT_STAGE_1,
+        },
+      ],
     },
   ]
   processingMessage.value = 'Processing scanned images...'
   const result = await runResponse(convId, input)
-  console.log('✅ IV FACE SCAN RESULT:', result)
-  return result
+
+  //INFO: STAGE 2
+  const input2 = [
+    {
+      role: 'system',
+      content: IV_SCORING_SYSTEM_PROMPT_STAGE_2,
+    },
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text: JSON.stringify(result),
+        },
+        {
+          type: 'input_text',
+          text: IV_SCORING_USER_PROMPT_STAGE_2,
+        },
+      ],
+    },
+  ]
+  processingMessage.value = 'Processing scanned images...'
+  const result2 = await runResponse(convId, input2)
+
+  //INFO: STAGE 3
+  const input3 = [
+    {
+      role: 'system',
+      content: IV_SCORING_SYSTEM_PROMPT_STAGE_3,
+    },
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text: JSON.stringify(result2),
+        },
+      ],
+    },
+  ]
+  processingMessage.value = 'Processing scanned images...'
+  const result3 = await runResponse(convId, input3)
+
+  console.log('✅ IV SCORING RESULT:', result3)
+  return result3
 }
 
 async function uploadImageFileToOpenAI(files, type) {

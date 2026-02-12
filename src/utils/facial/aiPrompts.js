@@ -1,5 +1,5 @@
 import { encode } from '@toon-format/toon'
-import { available_skincare_products } from './productJsonNew'
+import { available_skincare_products } from './productJson'
 
 const skin_type_criteria = {
   skin_type_classification_v4_0: {

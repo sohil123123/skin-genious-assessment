@@ -42,7 +42,7 @@ export function useOpenAI() {
     try {
       const body = {
         model: 'gpt-5.2',
-        // temperature: 2.0,
+        temperature: 0,
         conversation: convId,
         input,
         prompt_cache_retention: '24h',

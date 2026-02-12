@@ -1,0 +1,323 @@
+{
+  "engine": "AI_Aesthetics_IV_SkinAI_ProxyScoring_ScoringLayerOnly",
+  "version": "1.0-mece-stable-scoring-layer",
+
+  "architecture_note": {
+    "what_this_is": "Scoring + evidence layer only (no pixel analytics).",
+    "assumption": "All image primitives below are produced upstream by a deterministic feature extractor with fixed calibration per device/mode.",
+    "why_this_matches_facial_engine": "The facial scoring JSON also assumes normalized, mode-specific primitives exist; it focuses on weighting, logic, and output contracts."
+  },
+
+  "score_scale": {
+    "range": "0-100",
+    "direction": "0=low burden/ideal, 100=high burden"
+  },
+
+  "inputs_contract": {
+    "required": {
+      "skin_feature_primitives": {
+        "uv": {
+          "uv_haze_index_0_1": {
+            "definition": "Diffuse UV dullness/haze proxy after UV mode normalization.",
+            "range": "0..1"
+          },
+          "uv_fluorescence_load_0_1": {
+            "definition": "Porphyrin/fluorescence burden intensity proxy (normalized).",
+            "range": "0..1"
+          },
+          "uv_fluorescence_coverage_0_1": {
+            "definition": "Fractional skin area showing porphyrin/fluorescence signal.",
+            "range": "0..1"
+          }
+        },
+
+        "positive": {
+          "redness_level_0_1": {
+            "definition": "Mean erythema/redness intensity proxy after positive-mode normalization.",
+            "range": "0..1"
+          },
+          "redness_coverage_0_1": {
+            "definition": "Fractional skin area exceeding redness threshold proxy (computed upstream).",
+            "range": "0..1"
+          }
+        },
+
+        "white": {
+          "barrier_instability_0_1": {
+            "definition": "Reflectance non-uniformity proxy (higher = more uneven / poorer barrier optics).",
+            "range": "0..1"
+          },
+          "dry_sink_fraction_0_1": {
+            "definition": "Fractional area with light-sink / xerotic / rough scatter pattern proxy.",
+            "range": "0..1"
+          }
+        },
+
+        "blue_optional": {
+          "texture_roughness_0_1": {
+            "definition": "Optional microrelief/texture harshness proxy (higher = rougher).",
+            "range": "0..1 or null"
+          }
+        }
+      }
+    },
+
+    "optional": {
+      "telemetry_upstream": {
+        "roi_confidence_0_1": "0..1",
+        "mode_calibration_ok": "boolean",
+        "underexposed_flag": "boolean",
+        "overexposed_flag": "boolean",
+        "high_glare_flag": "boolean"
+      }
+    }
+  },
+
+  "helpers": {
+    "clip01": "clip(x,0,1)",
+    "to100": "round(100*clip(x,0,1))",
+    "safe": "if_null(x, default)"
+  },
+
+  "aliases": {
+    "uv": "skin_feature_primitives.uv",
+    "positive": "skin_feature_primitives.positive",
+    "white": "skin_feature_primitives.white",
+    "blue_optional": "skin_feature_primitives.blue_optional"
+  },
+
+  "subscores_0_1": {
+    "oxidative_haze_proxy": {
+      "definition": "UV haze/dullness proxy = oxidative/photo stress burden component.",
+      "equation": "clip01(uv.uv_haze_index_0_1)"
+    },
+
+    "porphyrin_proxy": {
+      "definition": "Porphyrin burden proxy (microbiome/follicular activity component). Uses BOTH coverage + load.",
+      "equation": "clip01(0.55*uv.uv_fluorescence_coverage_0_1 + 0.45*uv.uv_fluorescence_load_0_1)"
+    },
+
+    "inflammation_proxy": {
+      "definition": "Inflammation proxy based on redness intensity + extent.",
+      "equation": "clip01(0.60*positive.redness_level_0_1 + 0.40*positive.redness_coverage_0_1)"
+    },
+
+    "barrier_proxy": {
+      "definition": "Barrier/dehydration proxy based on optical instability + dry sinks.",
+      "equation": "clip01(0.55*white.barrier_instability_0_1 + 0.45*white.dry_sink_fraction_0_1)"
+    },
+
+    "texture_proxy_optional": {
+      "definition": "Optional refinement if blue-mode texture is available.",
+      "equation": "clip01(safe(blue_optional.texture_roughness_0_1, 0.0))"
+    }
+  },
+
+  "scores": {
+    "OSS": {
+      "definition": "Oxidative Stress Score (photo/oxidative burden + microbiome fluorescence component).",
+      "equation_0_1": "clip01(0.55*subscores_0_1.oxidative_haze_proxy + 0.25*subscores_0_1.inflammation_proxy + 0.20*subscores_0_1.porphyrin_proxy)",
+      "score_0_100": "to100(equation_0_1)"
+    },
+
+    "GMS": {
+      "definition": "Glycation/Metabolic Score (best available proxy from UV haze/dullness today).",
+      "equation_0_1": "clip01(subscores_0_1.oxidative_haze_proxy)",
+      "score_0_100": "to100(equation_0_1)"
+    },
+
+    "MVI": {
+      "definition": "Vascularity/Inflammation Index (erythema intensity + coverage).",
+      "equation_0_1": "clip01(subscores_0_1.inflammation_proxy)",
+      "score_0_100": "to100(equation_0_1)"
+    },
+
+    "BHS": {
+      "definition": "Barrier Hydration Stress (barrier proxy + optional texture refinement).",
+      "equation_0_1": "clip01(0.85*subscores_0_1.barrier_proxy + 0.15*subscores_0_1.texture_proxy_optional)",
+      "score_0_100": "to100(equation_0_1)"
+    }
+  },
+
+  "scores_public": {
+    "OSS": "scores.OSS.score_0_100",
+    "GMS": "scores.GMS.score_0_100",
+    "MVI": "scores.MVI.score_0_100",
+    "BHS": "scores.BHS.score_0_100"
+  },
+
+  "backend_evidence_for_downstream_IV_engine": {
+    "principle": "Expose minimal primitives + subscores for the IV engine and treatment prompt.",
+
+    "optional_primitives": {
+      "uv_haze_index_0_1": "uv.uv_haze_index_0_1",
+      "uv_fluorescence_load_0_1": "uv.uv_fluorescence_load_0_1",
+      "uv_fluorescence_coverage_0_1": "uv.uv_fluorescence_coverage_0_1",
+      "redness_level_0_1": "positive.redness_level_0_1",
+      "redness_coverage_0_1": "positive.redness_coverage_0_1",
+      "barrier_instability_0_1": "white.barrier_instability_0_1",
+      "dry_sink_fraction_0_1": "white.dry_sink_fraction_0_1",
+      "texture_roughness_0_1": "blue_optional.texture_roughness_0_1"
+    },
+
+    "subscores_passthrough": {
+      "oxidative_haze_proxy_0_1": "subscores_0_1.oxidative_haze_proxy",
+      "porphyrin_proxy_0_1": "subscores_0_1.porphyrin_proxy",
+      "inflammation_proxy_0_1": "subscores_0_1.inflammation_proxy",
+      "barrier_proxy_0_1": "subscores_0_1.barrier_proxy"
+    }
+  },
+
+  "optional_primitives": {
+    "uv_haze_index_0_1": "uv.uv_haze_index_0_1",
+    "uv_fluorescence_load_0_1": "uv.uv_fluorescence_load_0_1",
+    "uv_fluorescence_coverage_0_1": "uv.uv_fluorescence_coverage_0_1",
+    "redness_level_0_1": "positive.redness_level_0_1",
+    "redness_coverage_0_1": "positive.redness_coverage_0_1",
+    "barrier_instability_0_1": "white.barrier_instability_0_1",
+    "dry_sink_fraction_0_1": "white.dry_sink_fraction_0_1",
+    "texture_roughness_0_1": "blue_optional.texture_roughness_0_1"
+  },
+
+  "telemetry": {
+    "confidence_contract": {
+      "input": "telemetry_upstream (optional)",
+      "output": {
+        "confidence_0_1": {
+          "definition": "If upstream telemetry exists, propagate a confidence estimate; else default.",
+          "equation": "if provided -> clamp(0.92 - penalties, 0.10, 0.95); else 0.90"
+        }
+      },
+      "penalties": [
+        { "if": "telemetry_upstream.underexposed_flag", "subtract": 0.25 },
+        { "if": "telemetry_upstream.overexposed_flag", "subtract": 0.25 },
+        { "if": "telemetry_upstream.high_glare_flag", "subtract": 0.15 },
+        {
+          "if": "telemetry_upstream.mode_calibration_ok=false",
+          "subtract": 0.35
+        },
+        {
+          "if": "telemetry_upstream.roi_confidence_0_1 < 0.65",
+          "subtract": 0.3
+        }
+      ]
+    },
+
+    "primary_driver_per_score": {
+      "OSS": "oxidative_haze_proxy + inflammation_proxy + porphyrin_proxy",
+      "GMS": "oxidative_haze_proxy",
+      "MVI": "inflammation_proxy",
+      "BHS": "barrier_proxy (+ texture_proxy_optional if present)"
+    }
+  },
+  "confidence_0_1": "if telemetry_upstream provided -> clamp(0.92 - penalties, 0.10, 0.95); else 0.90",
+  "telemetry_upstream_optional": "if provided ->telemetry_upstream; else null",
+  "runtime_return_shape_example": {
+    "scores": {
+      "OSS": { "score_0_100": 62 },
+      "GMS": { "score_0_100": 58 },
+      "MVI": { "score_0_100": 35 },
+      "BHS": { "score_0_100": 71 }
+    },
+    "optional_primitives": {
+      "uv_haze_index_0_1": 0.62,
+      "uv_fluorescence_load_0_1": 0.41,
+      "uv_fluorescence_coverage_0_1": 0.52,
+      "redness_level_0_1": 0.28,
+      "redness_coverage_0_1": 0.22,
+      "barrier_instability_0_1": 0.75,
+      "dry_sink_fraction_0_1": 0.68,
+      "texture_roughness_0_1": 0.4
+    },
+    "telemetry_upstream_optional": {
+      "roi_confidence_0_1": 0.88,
+      "mode_calibration_ok": true,
+      "underexposed_flag": false,
+      "overexposed_flag": false,
+      "high_glare_flag": false
+    },
+    "confidence_0_1": 0.9
+  },
+  "runtime_attached_as_skin_ai_raw_example": {
+    "skin_ai_raw": {
+      "scores": {
+        "OSS": { "score_0_100": 62 },
+        "GMS": { "score_0_100": 58 },
+        "MVI": { "score_0_100": 35 },
+        "BHS": { "score_0_100": 71 }
+      },
+      "optional_primitives": {
+        "uv_haze_index_0_1": 0.62,
+        "uv_fluorescence_load_0_1": 0.41,
+        "uv_fluorescence_coverage_0_1": 0.52,
+        "redness_level_0_1": 0.28,
+        "redness_coverage_0_1": 0.22,
+        "barrier_instability_0_1": 0.75,
+        "dry_sink_fraction_0_1": 0.68,
+        "texture_roughness_0_1": 0.4
+      },
+      "telemetry_upstream_optional": {
+        "roi_confidence_0_1": 0.88,
+        "mode_calibration_ok": true,
+        "underexposed_flag": false,
+        "overexposed_flag": false,
+        "high_glare_flag": false
+      },
+      "confidence_0_1": 0.9
+    }
+  },
+  "runtime_output_contract": {
+    "purpose": "Clarifies what the engine must RETURN at runtime (real values), vs what is written above as scoring logic/spec strings.",
+    "at_runtime_return_must_be_real_values": true,
+
+    "required_runtime_fields": {
+      "scores": {
+        "OSS": { "score_0_100": "integer_0_100" },
+        "GMS": { "score_0_100": "integer_0_100" },
+        "MVI": { "score_0_100": "integer_0_100" },
+        "BHS": { "score_0_100": "integer_0_100" }
+      },
+      "optional_primitives": "object_or_null (values are floats 0..1 or null where applicable)",
+      "telemetry_upstream_optional": "object_or_null (verbatim upstream telemetry object if provided)",
+      "confidence_0_1": "float_0_1"
+    },
+
+    "runtime_mapping_notes": [
+      "scores.<X>.score_0_100 MUST be computed numbers (not equation strings).",
+      "optional_primitives MUST be an object (not a string reference).",
+      "confidence_0_1 must be computed from telemetry penalties if telemetry exists; otherwise default to 0.90.",
+      "This entire output object must be attached downstream as skin_ai_raw."
+    ]
+  },
+
+  "integration_note_for_IV_engine": {
+    "how_to_attach": "The entire output of this engine MUST be attached downstream as skin_ai_raw",
+    "iv_engine_reads": [
+      "skin_ai_raw.scores.<OSS|GMS|MVI|BHS>.score_0_100",
+      "skin_ai_raw.optional_primitives",
+      "skin_ai_raw.telemetry_upstream_optional",
+      "skin_ai_raw.confidence_0_1"
+    ]
+  },
+  "output_contract": {
+    "scores": {
+      "OSS": { "score_0_100": "integer_0_100" },
+      "GMS": { "score_0_100": "integer_0_100" },
+      "MVI": { "score_0_100": "integer_0_100" },
+      "BHS": { "score_0_100": "integer_0_100" }
+    },
+
+    "scores_public": {
+      "OSS": "integer_0_100",
+      "GMS": "integer_0_100",
+      "MVI": "integer_0_100",
+      "BHS": "integer_0_100"
+    },
+
+    "optional_primitives": "object_or_null",
+    "telemetry_upstream_optional": "object_or_null",
+
+    "backend_evidence_for_downstream_IV_engine": "object_optional",
+    "confidence_0_1": "float_0_1"
+  }
+}
