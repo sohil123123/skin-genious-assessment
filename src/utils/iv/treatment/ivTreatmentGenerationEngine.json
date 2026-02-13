@@ -1,0 +1,641 @@
+{
+  "engine": "AI_IV_TreatmentGeneration",
+  "version": "2.1-generative_planner-4_options-nad_mutual_exclusion-budget_no_nad-max3_heroes-no_effect_model+execution_runsheet+sop_defaults+formulary_bound",
+  "defined_by": "AI Aesthetics Clinical Team + Dr. Aakriti Mehra Constraints",
+
+  "integration_contract": {
+    "required_top_level_keys": [
+      "session_intake_raw",
+      "session_machines_raw",
+      "skin_ai_raw",
+      "iv_scoring_output"
+    ],
+    "iv_scoring_expected_location": "iv_scoring_output.scores_public_0_100",
+    "do_not_break": [
+      "Keep session_intake_raw / session_machines_raw / skin_ai_raw as top-level containers alongside iv_scoring_output",
+      "Constraints uses clinical_finding_path like iv_scoring_output.scores_public_0_100.PCCS"
+    ]
+  },
+
+  "constraints_binding": {
+    "constraints_engine": "AI_IV_Constraints",
+    "note": "This engine NEVER overrides constraints. It generates candidate protocols, calls constraints.evaluate() per candidate, applies returned caps/restrictions/patches, and emits only allowed protocols."
+  },
+
+  "ingredient_menu_binding": {
+    "source_of_truth": "AI_IV_Constraints.ingredient_catalog.canonical_ingredient_names",
+    "generation_rule": "The model MUST ONLY propose ingredients whose canonical names exist in the constraints allowlist. Unknown ingredient => must not be proposed.",
+    "naming_rule": "Ingredient names must match the allowlist by exact string."
+  },
+
+  "helpers": {
+    "uniq": "unique(arr)",
+    "contains": "arrayContains(arr, value)",
+    "any_ingredient_named": "return any(ing.name == target for all bags/ingredients)",
+    "protocol_contains": "return any_ingredient_named(protocol, ingredient_name)",
+    "hero_count": "return protocol.hero_ingredients.length"
+  },
+
+  "enums": {
+    "bag_sizes_ml": [100, 250, 500, 1000],
+    "rate_profiles": ["SLOW", "FAST", "SLOW_ONLY"],
+    "option_types": [
+      "single_session_option_1",
+      "single_session_option_2",
+      "plan_option",
+      "budget_option"
+    ],
+    "execution_check_timing": [
+      "baseline",
+      "every_10_min",
+      "every_15_min",
+      "every_30_min",
+      "as_needed"
+    ]
+  },
+
+  "read_views": {
+    "scores": "iv_scoring_output.scores_public_0_100",
+    "primary_goal": "session_intake_raw.goals_and_intent.primary_goal",
+    "secondary_goal_optional": "session_intake_raw.goals_and_intent.secondary_goal_optional",
+    "desired_intensity": "session_intake_raw.goals_and_intent.desired_intensity_preference",
+    "safety_raw": "session_intake_raw.safety_and_contraindications"
+  },
+
+  "treatment_object_model": {
+    "protocol": {
+      "protocol_id": "string",
+      "label_short": "string",
+      "bags": [
+        {
+          "bag_id": "string",
+          "carrier": "Normal Saline (0.9%)|Lactated Ringer's",
+          "bag_size_ml": "integer",
+          "rate_profile": "SLOW|FAST|SLOW_ONLY",
+          "min_duration_minutes": "integer_or_null",
+          "ingredients": [
+            {
+              "name": "canonical ingredient string (must match constraints allowlist)",
+              "dose_mg_optional": "number_or_null",
+              "dose_units_optional": "string_or_null"
+            }
+          ],
+          "admin_notes_optional": ["string"]
+        }
+      ],
+      "hero_ingredients": ["canonical ingredient string"],
+      "intended_benefits_tags": [
+        "Energy",
+        "Hydration",
+        "Glow",
+        "Detox",
+        "Recovery",
+        "Calm/ANS",
+        "Focus"
+      ],
+      "axis_targeting_intent": {
+        "primary_axes": ["FENS", "PCCS", "ASLS", "MONS", "ODS", "ILS", "MSGS", "DGS"],
+        "why_these_axes": "string"
+      },
+      "budget_candidate_optional": {
+        "is_budget": "boolean",
+        "budget_rule": "If true => hero_ingredients MUST have exactly 1 item and MUST NOT be NAD+"
+      }
+    },
+
+    "option_output": {
+      "option_type": "single_session_option_1|single_session_option_2|plan_option|budget_option",
+      "name": "string",
+      "protocols": ["protocol object(s)"],
+      "constraint_report": {
+        "status": "allowed|blocked|doctor_approval_required|allowed_with_cautions",
+        "actions": [
+          "hard_block|doctor_approval_required|dose_cap|rate_restriction|protocol_required|soft_caution"
+        ],
+        "messages": ["string"],
+        "applied_caps_or_restrictions": ["string"]
+      },
+      "client_facing_explanation": {
+        "why_today": "string",
+        "what_you_may_feel_today": ["string"],
+        "what_you_may_see_over_7_14_days": ["string"],
+        "who_should_not_take_today": ["string"]
+      }
+    }
+  },
+
+  "hero_policy": {
+    "max_hero_ingredients_per_protocol": 3,
+    "hard_rules": [
+      "All protocols MUST have hero_ingredients length between 1 and 3 (inclusive).",
+      "Budget option protocol MUST have exactly 1 hero ingredient.",
+      "Budget option MUST NOT contain NAD+ anywhere (including supporting ingredients).",
+      "If one of Option 1/2 contains NAD+, the other MUST NOT contain NAD+."
+    ],
+    "validation": {
+      "reject_if_more_than_3_heroes": true,
+      "reject_if_budget_hero_count_not_1": true,
+      "reject_if_budget_contains_nad_anywhere": true
+    },
+    "hero_selection_guidance": [
+      "Hero ingredients are the 1–3 most important actives driving the main benefit today.",
+      "Carrier fluid (NS/LR) does NOT need to be a hero unless you intentionally want it as a hero.",
+      "Supporting ingredients are allowed as long as constraints allow and hero cap is respected."
+    ]
+  },
+
+  "naming_rules": {
+    "single_session_and_plan": {
+      "format": "benefits provided by the IV treatment_Hero Ingredients",
+      "benefits_from": "protocol.intended_benefits_tags (top 2-3 joined by '+')",
+      "hero_from": "protocol.hero_ingredients (top 1-3 joined by '+')"
+    },
+    "budget": {
+      "format": "Budget Option_Benefits_Hero Ingredient",
+      "benefits_from": "protocol.intended_benefits_tags (top 1-2 joined by '+')",
+      "hero_from": "protocol.hero_ingredients (exactly 1)"
+    }
+  },
+
+  "treatment_synthesis_policy": {
+    "generation_style": "creative_constrained_optimization",
+    "core_principle": "Compose protocols freely within the ingredient allowlist and constraints. Optimize for patient-perceived benefit + goal alignment + reduction of the top IV burden axes. Never exceed max 3 hero ingredients.",
+
+    "must_follow_rules": [
+      "Only use ingredients from constraints allowlist.",
+      "Always call constraints.evaluate(candidate_protocol, full_upstream_payload) before emitting any option.",
+      "If constraints returns patched_protocol_optional, use that patched protocol in the final output.",
+      "Never propose more than 3 hero ingredients in any protocol.",
+      "Single-session Option 1 and Option 2 must be different protocols.",
+      "If one of Option 1/2 contains NAD+, the other MUST NOT contain NAD+.",
+      "Budget option must have exactly one hero ingredient and MUST NOT contain NAD+ anywhere.",
+      "If NAD+ is used: it must be standalone session; NS carrier only; slow-only; spacing rules enforced by constraints."
+    ],
+
+    "degrees_of_freedom": [
+      "choose carrier (Normal Saline vs Lactated Ringer's)",
+      "choose bag size (100/250/500/1000)",
+      "choose ingredient set from allowlist",
+      "assign doses and units (constraints may cap/patch)",
+      "assign rate_profile and min_duration (constraints may restrict/patch)",
+      "choose 1-bag vs 2-bag session IF constraints allow (default prefer 1 bag)",
+      "choose which 1–3 actives are heroes (max 3) and label others as supporting"
+    ],
+
+    "soft_preferences": [
+      "Prefer fewer total ingredients when intensity preference is Gentle or when many safety fields are unknown.",
+      "Prefer hydration + electrolyte comfort when PCCS/ASLS are high (aligns with same-day feel).",
+      "Prefer antioxidant support when ODS/DGS are high AND constraints allow (aligns with 7–14 day visible improvement).",
+      "Prefer metabolic cofactors when MONS is high (aligns with fatigue/energy).",
+      "Avoid complex multi-bag sessions unless dominant burden is very high and constraints allow."
+    ],
+
+    "illustrative_high_efficacy_multi_axis_patterns": {
+      "purpose": "These examples are illustrative only and are NOT fixed recipes, templates, or constraints. They exist to signal that clinically justified complexity is acceptable and encouraged when supported by burden axes and safety constraints.",
+      "general_principle": "The presence of multiple supporting ingredients is not considered over-treatment if each ingredient is justified by a distinct physiological burden axis and constraints permit safe administration.",
+      "examples": [
+        {
+          "context": "High MONS with concurrent PCCS and moderate ODS; client reports fatigue with poor recovery and wants both same-day energy and near-term improvement.",
+          "clinical_reasoning": "It is clinically reasonable to combine metabolic cofactors, hydration/electrolyte support, and antioxidant support in a single session when each addresses a different axis and no contraindications exist.",
+          "important_note": "Multiple supporting ingredients may be appropriate here if they map to distinct axes rather than duplicating the same pathway."
+        },
+        {
+          "context": "ASLS and PCCS are dominant with secondary MONS elevation; client has stress symptoms, poor sleep, and intermittent fatigue.",
+          "clinical_reasoning": "ANS-calming and hydration strategies may be prioritized while still layering light metabolic support in the same session if safety allows, rather than separating into multiple visits.",
+          "important_note": "Layering across axes in one session is acceptable when the goal is global autonomic and recovery improvement."
+        },
+        {
+          "context": "ODS and DGS are high with moderate MSGS; client’s primary goal is glow and detox but reports low systemic energy.",
+          "clinical_reasoning": "Antioxidant-focused protocols may still include metabolic or electrolyte support when systemic fatigue or recovery burden is present, even if glow is the primary intent.",
+          "important_note": "Secondary axes should be meaningfully addressed, not tokenized, when clinically relevant."
+        }
+      ],
+      "explicit_non_constraints": [
+        "These examples do NOT define ideal ingredient counts.",
+        "These examples do NOT imply required ingredient combinations.",
+        "These examples do NOT override constraints, safety checks, or hero caps.",
+        "Ingredient selection, dosing, and rates remain fully governed by constraints and clinical logic."
+      ]
+    }
+  },
+
+  "ingredient_building_blocks": {
+    "note": "Planning guide only. Not a fixed protocol menu. Ingredient names listed here are examples that MUST exist in the constraints allowlist; if your allowlist differs, remove or update.",
+    "carrier_candidates": ["Normal Saline (0.9%)", "Lactated Ringer's"],
+    "bag_size_candidates_ml": [100, 250, 500, 1000],
+
+    "roles": {
+      "hydration_base": ["Normal Saline (0.9%)", "Lactated Ringer's"],
+      "electrolyte_support": ["Magnesium"],
+      "ans_calm_support": ["Magnesium", "Taurine"],
+      "energy_metabolic_support": [
+        "B-Complex (B1/B2/B3/B5/B6)",
+        "Methylcobalamin (B12)",
+        "Methylfolate (B9)",
+        "L-Carnitine"
+      ],
+      "antioxidant_glow_support": [
+        "Vitamin C (High Dose)",
+        "Glutathione",
+        "N-Acetylcysteine (NAC)",
+        "Alpha Lipoic Acid (ALA)"
+      ],
+      "nad_special": ["NAD+"]
+    },
+
+    "axis_intent_map": {
+      "FENS": { "primary_roles": ["hydration_base"], "secondary_roles": ["electrolyte_support"] },
+      "PCCS": {
+        "primary_roles": ["hydration_base", "electrolyte_support"],
+        "secondary_roles": ["ans_calm_support"]
+      },
+      "ASLS": {
+        "primary_roles": ["ans_calm_support", "hydration_base"],
+        "secondary_roles": ["energy_metabolic_support"]
+      },
+      "MONS": {
+        "primary_roles": ["energy_metabolic_support", "nad_special"],
+        "secondary_roles": ["hydration_base"]
+      },
+      "ODS": {
+        "primary_roles": ["antioxidant_glow_support"],
+        "secondary_roles": ["hydration_base"]
+      },
+      "ILS": {
+        "primary_roles": ["antioxidant_glow_support"],
+        "secondary_roles": ["hydration_base"]
+      },
+      "MSGS": {
+        "primary_roles": ["energy_metabolic_support", "antioxidant_glow_support"],
+        "secondary_roles": ["hydration_base"]
+      },
+      "DGS": {
+        "primary_roles": ["antioxidant_glow_support"],
+        "secondary_roles": ["hydration_base"]
+      }
+    }
+  },
+
+  "candidate_generation_loop": {
+    "single_session": {
+      "initial_candidate_count": 10,
+      "max_iterations": 3,
+
+      "candidate_design_templates": [
+        {
+          "template_id": "hydration_ans_comfort",
+          "when": "PCCS or ASLS is among top_axes OR desired_intensity is Gentle",
+          "composition_guidance": [
+            "Prefer 1 bag",
+            "Choose NS or LR based on hydration/electrolyte theme",
+            "Use 1–3 hero ingredients max (e.g., Magnesium/Taurine can be heroes if they drive benefit)",
+            "Keep total ingredients conservative"
+          ]
+        },
+        {
+          "template_id": "metabolic_energy",
+          "when": "MONS is among top_axes OR primary_goal indicates Energy/Focus",
+          "composition_guidance": [
+            "Prefer 1 bag",
+            "Choose a metabolic cofactor set; cap heroes at 3",
+            "Avoid incompatible mixes; constraints will enforce"
+          ]
+        },
+        {
+          "template_id": "antioxidant_glow",
+          "when": "ODS or DGS is among top_axes OR primary_goal indicates Glow/Detox",
+          "composition_guidance": [
+            "Prefer 1 bag",
+            "Choose 1–3 antioxidant heroes (max 3)",
+            "Keep doses conservative; constraints will cap/patch"
+          ]
+        },
+        {
+          "template_id": "nad_special_case",
+          "when": "NAD+ seems strongly ideal (MONS very high AND constraints likely allow AND desired_intensity not Gentle)",
+          "composition_guidance": [
+            "Standalone NAD+ only",
+            "NS carrier only",
+            "SLOW_ONLY and longer min duration",
+            "Hero ingredients = ['NAD+']"
+          ],
+          "note": "Do not force NAD+. Only include when it genuinely wins on objectives."
+        }
+      ],
+
+      "generation_steps": [
+        "1) Compute top_axes: top 2-3 axes by highest scores from iv_scoring_output.scores_public_0_100.",
+        "2) Generate diverse candidates using the templates above, varying carrier/bag size/ingredient sets/doses/rate_profile.",
+        "3) For each candidate: ensure every ingredient name is in constraints allowlist; otherwise rebuild candidate.",
+        "4) For each candidate: assign hero_ingredients (1–3) and ensure hero_count<=3. If >3, rebuild or reduce heroes.",
+        "5) Run constraints.evaluate(candidate, full_upstream_payload).",
+        "6) Discard blocked candidates. Keep allowed and allowed_with_cautions. Keep doctor_approval_required but rank lower for consumer options.",
+        "7) If constraints returns patched_protocol_optional, replace candidate with patched protocol and re-check hero_count<=3; if patch breaks hero cap, adjust heroes (not ingredients) to max 3 while keeping protocol unchanged.",
+        "8) Rank candidates using qualitative scoring: top_axes overlap + goal alignment + intensity match + same-day perceived benefit + simplicity.",
+        "9) If insufficient allowed candidates, iterate (simplify builds: fewer ingredients, slower rate, smaller bag) and re-evaluate; stop at max_iterations."
+      ],
+
+      "selection_rules_for_top2": [
+        "Option 1 = best ranked candidate (allowed preferred).",
+        "Option 2 = next best ranked candidate different from Option 1.",
+        "NAD mutual exclusion: if Option 1 contains NAD+, Option 2 must NOT contain NAD+; if Option 1 does not contain NAD+, Option 2 may contain NAD+ only if it is the best remaining and constraints allow."
+      ]
+    },
+
+    "budget_option": {
+      "hard_rules": [
+        "Budget option MUST NOT contain NAD+ anywhere",
+        "Budget option MUST have exactly 1 hero ingredient",
+        "Budget option should be as simple as possible while still beneficial"
+      ],
+      "generation_steps": [
+        "1) Identify dominant_axis (highest score).",
+        "2) Propose a minimal protocol using 1 hero ingredient aligned to dominant_axis; choose carrier and bag size conservatively.",
+        "3) Ensure NAD+ is not used anywhere.",
+        "4) Run constraints.evaluate(). If blocked, switch hero ingredient and retry.",
+        "5) Validate: hero_ingredients length==1 AND hero != 'NAD+' AND protocol does not contain NAD+ anywhere. If violated, rebuild."
+      ]
+    },
+
+    "plan_option_3_to_4_months": {
+      "duration_weeks_default": 14,
+      "schedule": "weekly_first_4_weeks_then_biweekly",
+      "principle": "Adaptive plan: each session is generated on the day using the same synthesis loop, guided by phase objectives, then constraints-validated.",
+      "phases": [
+        {
+          "phase_id": "phase_1_reset_4_weeks",
+          "weeks": 4,
+          "frequency": "weekly",
+          "phase_objectives": [
+            "Prioritize hydration/ANS comfort + baseline recovery",
+            "Keep sessions simple and tolerable",
+            "Use max 3 hero ingredients"
+          ]
+        },
+        {
+          "phase_id": "phase_2_build_6_weeks",
+          "weeks": 6,
+          "frequency": "biweekly",
+          "phase_objectives": [
+            "Target persistent top axes after phase 1",
+            "Introduce more axis-specific actives if constraints allow",
+            "Balance same-day feel with 7–14 day improvement",
+            "Use max 3 hero ingredients"
+          ]
+        },
+        {
+          "phase_id": "phase_3_maintain_4_weeks",
+          "weeks": 4,
+          "frequency": "biweekly",
+          "phase_objectives": [
+            "Maintenance and consolidation",
+            "Prefer simpler builds",
+            "Use max 3 hero ingredients"
+          ]
+        }
+      ],
+      "nad_handling": {
+        "allowed_but_not_forced": true,
+        "note": "NAD+ may appear only as a standalone session, only if optimal in that week and constraints allow. Budget option never includes NAD+."
+      },
+      "plan_output_shape": {
+        "plan_duration_weeks": "integer",
+        "schedule_description": "string",
+        "sessions": [
+          {
+            "week_index": "integer_1_based",
+            "phase_id": "string",
+            "session_goal_summary": "string",
+            "candidate_generation_hint": "string",
+            "recommended_protocol_week_optional": "protocol object (only for Week 1 by default)",
+            "note": "Each later session is re-generated on its day using updated inputs and re-validated by constraints."
+          }
+        ]
+      }
+    }
+  },
+
+  "constraint_evaluation_contract": {
+    "call": "constraints.evaluate(candidate_protocol, full_upstream_payload)",
+    "expected_return_shape_min": {
+      "status": "allowed|blocked|doctor_approval_required|allowed_with_cautions",
+      "actions": ["string"],
+      "messages": ["string"],
+      "applied_caps_or_restrictions": ["string"],
+      "patched_protocol_optional": "protocol (if constraints engine modifies dose/rate)"
+    }
+  },
+
+  "runtime_algorithm": {
+    "steps": [
+      "1) Assert required top-level keys exist per integration_contract.",
+      "2) Read scores from iv_scoring_output.scores_public_0_100.",
+      "3) Rank axes by descending score; derive dominant_axis and top_axes (top 2-3).",
+      "4) Generate single-session candidates using candidate_generation_loop.single_session (free composition within allowlist).",
+      "5) Constraints-evaluate each candidate; apply patched_protocol_optional when present; enforce hero cap (<=3 heroes).",
+      "6) Select Option 1 and Option 2 per selection rules (including NAD mutual exclusion).",
+      "7) Generate Budget option using candidate_generation_loop.budget_option; constraints-evaluate; enforce budget rules (1 hero, no NAD+ anywhere).",
+      "8) Generate Plan option scaffold for 14 weeks with phase objectives and week-by-week session intents; include Week 1 recommended protocol as an example, produced via the same candidate loop and constraints validation.",
+      "9) Build option names using naming_rules.",
+      "10) Emit only allowed/allowed_with_cautions options; if doctor_approval_required, mark clearly and include constraint messages."
+    ]
+  },
+
+  "output_contract": {
+    "treatment_generation_output": {
+      "options": [
+        "single_session_option_1",
+        "single_session_option_2",
+        "plan_option",
+        "budget_option"
+      ],
+      "meta": {
+        "generated_from_scores": "iv_scoring_output.scores_public_0_100",
+        "goal_primary": "session_intake_raw.goals_and_intent.primary_goal",
+        "intensity": "session_intake_raw.goals_and_intent.desired_intensity_preference",
+        "notes": [
+          "Generative planner: composes protocols freely inside constraints + ingredient menu.",
+          "Max 3 hero ingredients in any protocol.",
+          "Option 1 and 2 are top-2 single-session choices; NAD+ is not preferred but can win if truly ideal.",
+          "If one of Option 1/2 contains NAD+, the other must not contain NAD+.",
+          "Budget option: exactly 1 hero ingredient and never NAD+ anywhere.",
+          "After client selection, execution engine generates step-by-step nurse/therapist run sheet."
+        ]
+      }
+    }
+  },
+
+  "clinic_sop_defaults": {
+    "sop_version": "AIA_IV_SOP_DEFAULTS_v1.0",
+    "preflight_minimum_checks": {
+      "identity_and_consent": [
+        "Confirm patient name + DOB (or clinic ID).",
+        "Confirm consent for IV session and selected option."
+      ],
+      "baseline_vitals_required": ["BP", "HR", "SpO2", "Temp"],
+      "baseline_symptoms_required": [
+        "dizziness (yes/no)",
+        "nausea (yes/no)",
+        "anxiety/palpitations (yes/no)",
+        "headache (yes/no)"
+      ],
+      "hard_stop_if_present": [
+        "chest pain now",
+        "shortness of breath now",
+        "fainting episode today",
+        "confusion or severe weakness now"
+      ]
+    },
+    "monitoring_defaults": {
+      "standard_frequency": {
+        "baseline": ["BP", "HR", "SpO2", "Temp"],
+        "during_infusion": ["Comfort check every 10–15 min", "IV site check every 10–15 min"],
+        "end_of_session": ["BP", "HR", "SpO2"]
+      },
+      "nad_specific_frequency_override": {
+        "during_infusion": [
+          "Comfort check every 10 min",
+          "IV site check every 10 min",
+          "BP/HR trend check at least every 15 min or sooner if symptomatic"
+        ]
+      }
+    },
+    "stop_rules_and_escalation": {
+      "stop_immediately_and_call_clinician": [
+        "chest pain",
+        "shortness of breath",
+        "fainting / near-fainting",
+        "rapidly worsening symptoms"
+      ],
+      "pause_and_reassess": [
+        "moderate nausea",
+        "moderate dizziness",
+        "moderate headache",
+        "IV site pain/burning",
+        "patient asks to stop"
+      ]
+    },
+    "documentation_defaults": {
+      "must_record": [
+        "protocol_id and option selected",
+        "carrier + bag size",
+        "all additives and final doses actually administered",
+        "start time, end time, total duration",
+        "rate profile used and any rate changes",
+        "baseline vitals + end vitals",
+        "any symptoms and actions taken",
+        "constraints status + any restrictions applied",
+        "clinician signoff events (if any)"
+      ]
+    }
+  },
+
+  "treatment_execution_engine": {
+    "engine": "AI_IV_TreatmentExecution",
+    "version": "1.0-stepwise-nurse_runsheet-monitoring-escalation",
+    "trigger": "After client selects one option, generate nurse/therapist step-by-step instructions for the chosen protocol.",
+
+    "inputs_required": {
+      "full_upstream_payload": [
+        "session_intake_raw",
+        "session_machines_raw",
+        "skin_ai_raw",
+        "iv_scoring_output"
+      ],
+      "treatment_generation_output": "treatment_generation_output",
+      "client_selection_input": {
+        "selected_option_type": "single_session_option_1|single_session_option_2|plan_option|budget_option",
+        "selected_protocol_id": "string",
+        "selected_session_context": {
+          "is_plan_session": "boolean",
+          "plan_week_index_optional": "integer_or_null"
+        }
+      }
+    },
+
+    "output_contract": {
+      "treatment_execution_output": {
+        "run_sheet": {
+          "header": {
+            "protocol_id": "string",
+            "option_type": "string",
+            "display_name": "string",
+            "bag_count": "integer",
+            "expected_total_duration_minutes": "integer",
+            "special_flags": ["string"]
+          },
+          "preflight_checks": ["step"],
+          "setup_steps": ["step"],
+          "administration_steps": ["step"],
+          "monitoring_plan": {
+            "baseline_measurements": ["string"],
+            "during_infusion_checks": ["check"],
+            "stop_rules": ["string"],
+            "escalation_rules": ["string"]
+          },
+          "post_care": ["step"],
+          "documentation": ["string"],
+          "clinician_signoff_required_if": ["string"]
+        }
+      }
+    }
+  },
+
+  "run_sheet_builder": {
+    "policy": {
+      "constraints_first": true,
+      "never_override_constraints": true,
+      "use_constraints_patched_protocol_if_present": true,
+      "merge_with_clinic_sop_defaults": "clinic_sop_defaults"
+    },
+
+    "how_to_build_run_sheet": [
+      "1) Find the chosen protocol in treatment_generation_output by selected_protocol_id.",
+      "2) Re-run constraints.evaluate(chosen_protocol, full_upstream_payload) with today's vitals (recommended).",
+      "3) If constraints returns patched_protocol_optional, use that protocol for execution steps.",
+      "4) Build preflight checks from clinic_sop_defaults + constraints actions (hard blocks / doctor approval).",
+      "5) Build setup and administration steps from protocol bags/ingredients + any constraints restrictions (dose caps, slow-only, min duration).",
+      "6) Monitoring plan: use clinic_sop_defaults.monitoring_defaults; if protocol contains NAD+ => apply nad_specific_frequency_override.",
+      "7) Add documentation checklist from clinic_sop_defaults.documentation_defaults."
+    ],
+
+    "step_templates": {
+      "step_object_model": {
+        "step_id": "string",
+        "title": "string",
+        "instructions": ["string"],
+        "inputs_to_record_optional": ["string"],
+        "decision_points_optional": [
+          {
+            "if": "string",
+            "then": ["string"],
+            "else_optional": ["string"]
+          }
+        ],
+        "safety_notes_optional": ["string"]
+      },
+      "check_object_model": {
+        "timing": "baseline|every_10_min|every_15_min|every_30_min|as_needed",
+        "what_to_check": ["string"],
+        "thresholds_or_rules_optional": ["string"],
+        "action_if_triggered": ["string"]
+      }
+    }
+  },
+
+  "pipeline": {
+    "stages": [
+      {
+        "stage": "generate_options",
+        "engine": "AI_IV_TreatmentGeneration",
+        "output": "treatment_generation_output"
+      },
+      {
+        "stage": "execute_selected_protocol",
+        "engine": "AI_IV_TreatmentExecution",
+        "trigger": "client_selection_input is provided",
+        "output": "treatment_execution_output"
+      }
+    ]
+  }
+}

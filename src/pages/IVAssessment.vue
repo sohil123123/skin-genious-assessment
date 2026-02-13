@@ -41,15 +41,16 @@
           :ivScores="formData.diagnosis"
           :skinScores="skinScores"
           :initialPlanType="formData.selected_plan_type"
-          @update:planType="updatePlanType"
+          @handleTreatmentPlan="handleTreatmentPlan"
         />
+        <!-- @update:planType="updatePlanType" -->
 
         <div v-if="currentStep === 'step-4'">
           <TreatmentPlanComponent @save_data="debouncedSubmit" />
         </div>
 
         <NurseRunSheet
-          v-if="currentStep === 'step-6'"
+          v-if="currentStep === 'step-5'"
           :treatmentSessions="formData.treatment_sessions"
         />
       </div>
@@ -78,7 +79,7 @@
         <q-btn
           v-if="!isLastStep"
           rounded
-          :label="currentStep === 'step-2' ? 'Generate IV Scores' : 'Next'"
+          label="Next"
           icon-right="arrow_forward"
           color="teal"
           @click="goNext"
@@ -109,24 +110,21 @@ import ClientInformation from 'src/components/iv-assessment/FormWrapper.vue'
 import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
 import PatientPhysicalAssessment from 'src/components/iv-assessment/sections/PatientPhysicalAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
-import { IV_SCORING_SYSTEM_PROMPT, IV_TREATMENT_PLAN_SYSTEM_PROMPT } from 'src/utils/iv/ivPrompts'
+import { IV_TREATMENT_PLAN_SYSTEM_PROMPT } from 'src/utils/iv/treatment/treatmentPrompt'
 import {
   IV_SCORING_SYSTEM_PROMPT_STAGE_1,
   IV_SCORING_USER_PROMPT_STAGE_1,
   IV_SCORING_SYSTEM_PROMPT_STAGE_2,
   IV_SCORING_USER_PROMPT_STAGE_2,
   IV_SCORING_SYSTEM_PROMPT_STAGE_3,
-} from 'src/utils/iv/scoringPrompt'
+  IV_SCORING_SYSTEM_PROMPT_STAGE_4,
+} from 'src/utils/iv/scoring/scoringPrompt'
 import { useIVAssessmentValidation } from 'src/composables/useIVAssessmentValidation'
 import { useVuelidate } from '@vuelidate/core'
 import { generateCanonicalJson } from 'src/services/generateCanonicalJson'
-// import { calculateIVScoring } from 'src/services/ivScoring'
-// import { evaluateSafety } from 'src/services/safetyEngine'
 import ScoringResults from 'src/components/iv-assessment/results/ScoringResults.vue'
-// import SafetyReview from 'src/components/iv-assessment/results/SafetyReview.vue'
 import TreatmentPlanComponent from 'src/components/iv-assessment/results/TreatmentPlanComponent.vue'
 import NurseRunSheet from 'src/components/iv-assessment/results/NurseRunSheet.vue'
-// import { available_skincare_products } from 'src/utils/productJson'
 import { encode } from '@toon-format/toon'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
@@ -140,7 +138,7 @@ const userId = route.params.user_id
 const currentStep = ref(route.params.step || 'step-1')
 const isPostAssessment = ref(false)
 
-const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5', 'step-6']
+const steps = ['step-1', 'step-2', 'step-3', 'step-4']
 const currentIndex = computed(() => steps.indexOf(currentStep.value))
 const isFirstStep = computed(() => steps.indexOf(currentStep.value) === 0)
 const isLastStep = computed(() => steps.indexOf(currentStep.value) === steps.length - 1)
@@ -215,10 +213,10 @@ function updateIVInputs(updatedIVInputs) {
   debouncedSubmit(['iv_inputs'])
 }
 
-function updatePlanType(planType) {
-  formData.value.selected_plan_type = planType
-  debouncedSubmit(['selected_plan_type'])
-}
+// function updatePlanType(planType) {
+//   formData.value.selected_plan_type = planType
+//   debouncedSubmit(['selected_plan_type'])
+// }
 
 function cancelAssessment() {
   $q.dialog({
@@ -292,7 +290,6 @@ async function submit(field) {
     field.forEach((f) => {
       data[f] = _.cloneDeep(formData.value[f])
     })
-    console.log(data)
     await store.updateAssessment(data)
   } else {
     if (userId && !formData.value.id) {
@@ -372,13 +369,6 @@ async function goNext() {
     }
   }
 
-  if (currentStep.value === 'step-3') {
-    // Transitioning from Safety to Treatment Generation
-    if (!formData.value.treatment_sessions || formData.value.treatment_sessions.length === 0) {
-      await generateTreatmentPlan()
-    }
-  }
-
   if (!isLastStep.value) {
     navigateToStep(steps[currentIndex.value + 1])
   }
@@ -397,7 +387,7 @@ async function generateIVScoring(data, canonical) {
   const input = [
     {
       role: 'system',
-      content: IV_SCORING_SYSTEM_PROMPT,
+      content: IV_SCORING_SYSTEM_PROMPT_STAGE_4,
     },
     {
       role: 'user',
@@ -415,7 +405,6 @@ async function generateIVScoring(data, canonical) {
   ]
   processingMessage.value = 'Processing scanned images...'
   const result = await runResponse(convId, input)
-  console.log('✅ IV Diagnosis Result:', result)
   return result
 }
 
@@ -423,7 +412,7 @@ async function generateTreatmentPlan() {
   Loading.show({ message: 'AI is generating optimized treatment options...' })
   try {
     const canonical = generateCanonicalJson(formData.value.iv_inputs)
-
+    const IV_TREATMENT_PLAN_USER_PROMPT = encode(canonical)
     const input = [
       {
         role: 'system',
@@ -431,55 +420,41 @@ async function generateTreatmentPlan() {
       },
       {
         role: 'user',
-        content: `Generate the selected IV treatment plan.
-
-          SELECTED PLAN TYPE: ${encode(formData.value.selected_plan_type)}
-
-          UPSTREAM INPUT PAYLOAD:
-          {
-            "session_intake_raw": ${encode(canonical.session_intake_raw)},
-            "session_machines_raw": ${encode(canonical.session_machines_raw)},
-            "skin_ai_raw": ${encode(canonical.skin_ai_raw)},
-            "iv_scoring_output": ${encode(formData.value.diagnosis)}
-          }
-
-          GENERATION INSTRUCTIONS
-
-          1. Read iv_scoring_output.scores_public_0_100.
-            - Identify the dominant axis (highest score)
-            - Identify the top 2-3 contributing axes
-
-          2. Generate ONLY the selected plan:
-            ${formData.value.selected_plan_type}
-
-          3. Align treatment intent to dominant axes:
-            - FENS → hydration / electrolytes
-            - PCCS → circulation-friendly, slower rates
-            - ASLS → calming / ANS support
-            - MONS → metabolic energy support
-            - ODS / DGS → antioxidant / glow support
-
-          4. Apply all ingredient and safety constraints exactly.
-
-          5. Ensure output schema matches the system-defined shape.
-
-          Return the final JSON now.
-          `,
+        content: IV_TREATMENT_PLAN_USER_PROMPT,
       },
     ]
 
-    const result = await runResponse(formData.value.conversation_id, input)
-    console.log('✅ Treatment Plan:', result)
+    const result = await runResponse(formData.value.conversation_id, input, 0.2)
 
-    if (result) {
+    if (!result.error) {
       formData.value.iv_treatment_plan = result
       await submit(['iv_treatment_plan'])
+      Loading.hide()
+      return true
+    } else {
+      Notify.create({ type: 'negative', message: result.error.response.data.message })
+      Loading.hide()
+      return false
     }
-    Loading.hide()
   } catch (e) {
     console.error(e)
     Loading.hide()
     Notify.create({ type: 'negative', message: 'Failed to generate treatment plan.' })
+    return false
+  }
+}
+
+async function handleTreatmentPlan() {
+  if (currentStep.value === 'step-3') {
+    // Transitioning from Safety to Treatment Generation
+    if (!formData.value.treatment_sessions || formData.value.treatment_sessions.length === 0) {
+      const success = await generateTreatmentPlan()
+      if (!success) return
+    }
+
+    if (!isLastStep.value) {
+      navigateToStep(steps[currentIndex.value + 1])
+    }
   }
 }
 
@@ -595,12 +570,22 @@ async function callApiForIVScoring(data, images) {
 
   //INFO: STAGE 1
   await uploadImageFileToOpenAI(images, 'pre')
-  const storedFiles = await Promise.all(
-    data.images.map((item) => ({
-      type: 'input_image',
-      file_id: item.custom_properties?.openai_file_id ?? null,
-    })),
-  )
+
+  const getFileId = (nameVal) => {
+    const found = data.images.find(
+      (img) =>
+        img.name?.toLowerCase().includes(nameVal) ||
+        img.file_name?.toLowerCase().includes(nameVal) ||
+        img.url?.toLowerCase().includes(nameVal),
+    )
+    return found?.custom_properties?.openai_file_id ?? null
+  }
+
+  const uvId = getFileId('uv')
+  const positiveId = getFileId('positive')
+  const whiteId = getFileId('white')
+  const blueId = getFileId('blue')
+
   const input = [
     {
       role: 'system',
@@ -609,7 +594,38 @@ async function callApiForIVScoring(data, images) {
     {
       role: 'user',
       content: [
-        ...storedFiles,
+        {
+          type: 'input_text',
+          text: 'Image 1 = UV MODE',
+        },
+        {
+          type: 'input_image',
+          file_id: uvId,
+        },
+        {
+          type: 'input_text',
+          text: 'Image 2 = POSITIVE MODE',
+        },
+        {
+          type: 'input_image',
+          file_id: positiveId,
+        },
+        {
+          type: 'input_text',
+          text: 'Image 3 = WHITE MODE',
+        },
+        {
+          type: 'input_image',
+          file_id: whiteId,
+        },
+        {
+          type: 'input_text',
+          text: 'Image 4 = BLUE MODE',
+        },
+        {
+          type: 'input_image',
+          file_id: blueId,
+        },
         {
           type: 'input_text',
           text: IV_SCORING_USER_PROMPT_STAGE_1,
@@ -661,8 +677,6 @@ async function callApiForIVScoring(data, images) {
   ]
   processingMessage.value = 'Processing scanned images...'
   const result3 = await runResponse(convId, input3)
-
-  console.log('✅ IV SCORING RESULT:', result3)
   return result3
 }
 
