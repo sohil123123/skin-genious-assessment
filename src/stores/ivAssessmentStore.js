@@ -578,13 +578,13 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
         this.formData.iv_inputs = { ...this.formData.iv_inputs, ...data.iv_inputs }
 
         this.formData.iv_inputs.section_3_dermatological_ai_inputs.oxidative_stress_score_oss =
-          data.parameters_with_abnormal_scores.scores.OSS.score_0_100
+          data.parameters_with_abnormal_scores?.scores?.OSS?.score_0_100
         this.formData.iv_inputs.section_3_dermatological_ai_inputs.glycation_metabolic_score_gms =
-          data.parameters_with_abnormal_scores.scores.GMS.score_0_100
+          data.parameters_with_abnormal_scores?.scores?.GMS?.score_0_100
         this.formData.iv_inputs.section_3_dermatological_ai_inputs.vascularity_inflammation_index_mvi =
-          data.parameters_with_abnormal_scores.scores.MVI.score_0_100
+          data.parameters_with_abnormal_scores?.scores?.MVI?.score_0_100
         this.formData.iv_inputs.section_3_dermatological_ai_inputs.barrier_hydration_stress_score_bhs =
-          data.parameters_with_abnormal_scores.scores.BHS.score_0_100
+          data.parameters_with_abnormal_scores?.scores?.BHS?.score_0_100
       }
     },
     async storeFaceImages(file, assessment_type) {

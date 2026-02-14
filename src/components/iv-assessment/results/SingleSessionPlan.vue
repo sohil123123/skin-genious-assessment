@@ -33,6 +33,17 @@
               >
                 {{ constraintStatusLabel }}
               </q-chip>
+              <q-btn
+                flat
+                round
+                dense
+                color="primary"
+                icon="download"
+                class="q-ml-auto"
+                @click="downloadPDF"
+              >
+                <q-tooltip>Download PDF</q-tooltip>
+              </q-btn>
             </div>
           </q-card-section>
         </q-card>
@@ -188,6 +199,8 @@
 <script setup>
 import { computed } from 'vue'
 import { startCase } from 'lodash'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const props = defineProps({
   planDetails: {
@@ -241,6 +254,137 @@ const getRateColor = (rate) => {
   if (rate === 'SLOW') return 'deep-orange' // Darker orange for better contrast
   if (rate === 'MODERATE') return 'primary'
   return 'positive'
+}
+
+const downloadPDF = () => {
+  const doc = new jsPDF()
+
+  // Header
+  doc.setFontSize(10)
+  doc.setTextColor(100)
+  doc.text('SELECTED PROTOCOL', 14, 15)
+
+  doc.setFontSize(18)
+  doc.setTextColor(0)
+  doc.setFont('helvetica', 'bold')
+  doc.text(props.planDetails.name, 14, 23)
+
+  // Chips / Status
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  let yPos = 30
+
+  if (props.planDetails.option_type) {
+    doc.text(`Type: ${formatOptionType(props.planDetails.option_type)}`, 14, yPos)
+    yPos += 5
+  }
+
+  if (constraintStatus.value) {
+    doc.text(`Status: ${constraintStatusLabel.value}`, 14, yPos)
+    yPos += 10
+  } else {
+    yPos += 5
+  }
+
+  // Constraints
+  if (hasConstraints.value && props.planDetails.constraint_report) {
+    doc.setFontSize(12)
+    doc.setTextColor(200, 100, 0) // Warning color
+    doc.text('Clinical Constraints & Cautions', 14, yPos)
+    yPos += 7
+
+    doc.setFontSize(10)
+    doc.setTextColor(0)
+
+    if (props.planDetails.constraint_report.messages?.length) {
+      doc.setFont('helvetica', 'bold')
+      doc.text('Analysis Details:', 14, yPos)
+      yPos += 5
+      doc.setFont('helvetica', 'normal')
+      props.planDetails.constraint_report.messages.forEach((msg) => {
+        const lines = doc.splitTextToSize(`- ${msg}`, 180)
+        doc.text(lines, 14, yPos)
+        yPos += lines.length * 5
+      })
+      yPos += 2
+    }
+
+    if (props.planDetails.constraint_report.actions?.length) {
+      doc.setFont('helvetica', 'bold')
+      doc.text('Required Actions:', 14, yPos)
+      yPos += 5
+      doc.setFont('helvetica', 'normal')
+      props.planDetails.constraint_report.actions.forEach((act) => {
+        const lines = doc.splitTextToSize(`- ${act}`, 180)
+        doc.text(lines, 14, yPos)
+        yPos += lines.length * 5
+      })
+    }
+    yPos += 5
+  }
+
+  // Protocols
+  if (props.planDetails.protocols) {
+    props.planDetails.protocols.forEach((protocol) => {
+      // Check for page break
+      if (yPos > 250) {
+        doc.addPage()
+        yPos = 20
+      }
+
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0)
+      doc.text(`Protocol Composition`, 14, yPos)
+      yPos += 7
+
+      doc.setFontSize(10)
+      doc.setTextColor(100)
+      doc.text(`ID: ${protocol.protocol_id}`, 14, yPos)
+      yPos += 5
+
+      if (protocol.hero_ingredients) {
+        doc.text(`Hero Ingredients: ${protocol.hero_ingredients.join(', ')}`, 14, yPos)
+        yPos += 8
+      }
+
+      // Bags
+      if (protocol.bags) {
+        protocol.bags.forEach((bag, bIdx) => {
+          // Bag Header
+          doc.setFontSize(11)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(0)
+          doc.text(
+            `Bag ${bIdx + 1}: ${bag.carrier} (${bag.bag_size_ml}ml) - ${bag.rate_profile}`,
+            14,
+            yPos,
+          )
+          yPos += 2 // Spacing for table
+
+          // Ingredients Table
+          const tableBody = bag.ingredients.map((ing) => [
+            ing.name,
+            ing.dose_mg_optional ? `${ing.dose_mg_optional}mg` : '-',
+          ])
+
+          autoTable(doc, {
+            startY: yPos,
+            head: [['Ingredient', 'Dose']],
+            body: tableBody,
+            theme: 'grid',
+            headStyles: { fillColor: [25, 118, 210] }, // Primary color
+            styles: { fontSize: 9 },
+            margin: { left: 14, right: 14 },
+          })
+
+          yPos = doc.lastAutoTable.finalY + 10
+        })
+      }
+    })
+  }
+
+  doc.save(`${props.planDetails.name || 'single-session-plan'}.pdf`)
 }
 </script>
 

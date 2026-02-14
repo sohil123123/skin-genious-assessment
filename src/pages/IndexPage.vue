@@ -633,7 +633,6 @@ function finalizeAndExit() {
         message: 'Finalizing and redirecting...',
       })
       setTimeout(() => {
-        // LocalStorage.clear()
         window.location.href = `${process.env.CRM_URL}/users`
       }, 3000)
     })
