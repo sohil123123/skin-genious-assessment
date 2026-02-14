@@ -38,11 +38,11 @@ export function useOpenAI() {
   }
 
   // 💬 2. Run response (send message + get reply)
-  const runResponse = async (convId, input) => {
+  const runResponse = async (convId, input, temp = 0) => {
     try {
       const body = {
         model: 'gpt-5.2',
-        temperature: 0,
+        temperature: temp,
         conversation: convId,
         input,
         prompt_cache_retention: '24h',

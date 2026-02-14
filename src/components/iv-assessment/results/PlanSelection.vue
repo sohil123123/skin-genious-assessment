@@ -14,14 +14,14 @@
               <q-icon
                 :name="plan.icon"
                 size="40px"
-                :color="modelValue === plan.value ? 'primary' : 'grey-7'"
+                :color="modelValue === plan.value ? 'primary' : 'grey-8'"
               />
             </div>
             <div class="col q-pl-md">
-              <div class="text-subtitle1 text-weight-medium">
+              <div class="text-subtitle1 text-weight-bold text-grey-9">
                 {{ plan.label }}
               </div>
-              <div class="text-caption text-grey-7" style="line-height: 1.2">
+              <div class="text-caption text-grey-8 font-medium" style="line-height: 1.4">
                 {{ plan.description }}
               </div>
             </div>
@@ -31,7 +31,7 @@
               flat
               round
               dense
-              color="info"
+              color="primary"
               icon="info"
               size="sm"
               @click.stop="showPlanDetails(plan)"
@@ -45,54 +45,66 @@
 
     <!-- Plan Details Dialog -->
     <q-dialog v-model="detailsDialog" backdrop-filter="blur(4px)">
-      <q-card style="width: 700px; max-width: 90vw" class="rounded-xl">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6 text-weight-bold">{{ selectedPlanDetails?.name }}</div>
+      <q-card style="width: 700px; max-width: 90vw" class="rounded-xl shadow-24">
+        <q-card-section class="row items-center q-pb-none bg-grey-1 border-b-grey">
+          <div class="text-h6 text-weight-bold text-grey-9 text-uppercase letter-spacing-1">
+            {{ selectedPlanDetails?.name }}
+          </div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn icon="close" flat round dense v-close-popup color="grey-8" />
         </q-card-section>
 
-        <q-card-section>
-          <q-scroll-area style="height: 60vh">
-            <div v-if="selectedPlanDetails" class="q-pa-sm">
+        <q-card-section class="q-pa-none">
+          <q-scroll-area style="height: 60vh" class="q-pa-md">
+            <div v-if="selectedPlanDetails">
               <!-- Protocols Section -->
-              <div v-if="selectedPlanDetails.protocols" class="q-mb-md">
-                <div class="text-subtitle2 text-primary q-mb-sm">Treatment Protocols</div>
+              <div v-if="selectedPlanDetails.protocols" class="q-mb-lg">
+                <div
+                  class="text-subtitle2 text-primary text-uppercase q-mb-sm font-bold letter-spacing-1"
+                >
+                  Treatment Protocols
+                </div>
                 <div
                   v-for="protocol in selectedPlanDetails.protocols"
                   :key="protocol.protocol_id"
-                  class="bg-grey-1 rounded-borders q-pa-md q-mb-sm"
+                  class="bg-blue-grey-1 rounded-borders q-pa-md q-mb-md border-blue-grey"
                 >
-                  <div class="text-weight-bold">{{ protocol.label_short }}</div>
+                  <div class="text-subtitle1 text-weight-bold text-blue-grey-9">
+                    {{ protocol.label_short }}
+                  </div>
 
                   <!-- Hero Ingredients -->
-                  <div class="q-mt-sm">
-                    <span class="text-caption text-grey-8 text-weight-medium"
+                  <div class="q-mt-md">
+                    <span class="text-caption text-grey-8 text-weight-bold text-uppercase"
                       >Key Ingredients:</span
                     >
                     <div class="row q-gutter-xs q-mt-xs">
-                      <q-chip
+                      <q-badge
                         v-for="ing in protocol.hero_ingredients"
                         :key="ing"
-                        class="gredient"
-                        text-color="white"
-                        size="md"
+                        color="teal-1"
+                        text-color="teal-9"
+                        class="q-px-sm q-py-xs font-medium"
                       >
                         {{ ing }}
-                      </q-chip>
+                      </q-badge>
                     </div>
                   </div>
 
                   <!-- Intended Benefits -->
                   <div class="q-mt-md" v-if="protocol.intended_benefits_tags">
-                    <span class="text-caption text-grey-8 text-weight-medium">Benefits:</span>
+                    <span class="text-caption text-grey-8 text-weight-bold text-uppercase"
+                      >Benefits:</span
+                    >
                     <div class="row q-gutter-xs q-mt-xs">
                       <q-chip
                         v-for="tag in protocol.intended_benefits_tags"
                         :key="tag"
-                        outline
-                        color="green"
-                        size="md"
+                        dense
+                        size="sm"
+                        color="blue-1"
+                        text-color="blue-9"
+                        class="font-medium"
                       >
                         {{ tag }}
                       </q-chip>
@@ -101,16 +113,19 @@
 
                   <!-- Axis Targeting -->
                   <div class="q-mt-md" v-if="protocol.axis_targeting_intent">
-                    <div class="text-caption text-grey-8 text-weight-medium">Targeting:</div>
-                    <div class="text-caption text-grey-7">
+                    <div class="text-caption text-grey-8 text-weight-bold text-uppercase">
+                      Targeting:
+                    </div>
+                    <div class="text-caption text-grey-9 q-mb-sm leading-snug">
                       {{ protocol.axis_targeting_intent.why_these_axes }}
                     </div>
-                    <div class="row q-gutter-xs q-mt-xs">
+                    <div class="row q-gutter-xs">
                       <q-badge
                         v-for="axis in protocol.axis_targeting_intent.primary_axes"
                         :key="axis"
-                        color="accent"
-                        outline
+                        color="purple-1"
+                        text-color="purple-9"
+                        class="q-px-sm q-py-xs font-medium"
                       >
                         {{ axis }}
                       </q-badge>
@@ -120,24 +135,29 @@
               </div>
 
               <!-- Constraint Report -->
-              <div v-if="selectedPlanDetails.constraint_report" class="q-mb-md">
+              <div v-if="selectedPlanDetails.constraint_report" class="q-mb-lg">
                 <q-banner
                   rounded
-                  class="bg-orange-1 text-orange-9"
+                  class="bg-orange-1 text-brown-9 border-orange"
                   v-if="selectedPlanDetails.constraint_report.status !== 'allowed'"
                 >
                   <template v-slot:avatar>
-                    <q-icon name="warning" color="warning" />
+                    <q-icon name="warning" color="orange-9" />
                   </template>
-                  <div class="text-weight-medium">Constraints Applied</div>
-                  <ul class="q-my-none q-pl-md" style="font-size: 0.9em">
-                    <li v-for="msg in selectedPlanDetails.constraint_report.messages" :key="msg">
+                  <div class="text-weight-bold q-mb-xs">Constraints Applied</div>
+                  <ul class="q-my-none q-pl-md text-body2">
+                    <li
+                      v-for="msg in selectedPlanDetails.constraint_report.messages"
+                      :key="msg"
+                      class="q-mb-xs"
+                    >
                       {{ msg }}
                     </li>
                     <li
                       v-for="cap in selectedPlanDetails.constraint_report
                         .applied_caps_or_restrictions"
                       :key="cap"
+                      class="q-mb-xs"
                     >
                       {{ cap }}
                     </li>
@@ -147,28 +167,43 @@
 
               <!-- Scheduling (Multi-session specific) -->
               <div v-if="selectedPlanDetails.sessions" class="q-mb-md">
-                <div class="text-subtitle2 text-primary q-mb-sm">
+                <div
+                  class="text-subtitle2 text-primary text-uppercase q-mb-sm font-bold letter-spacing-1"
+                >
                   Session Schedule ({{ selectedPlanDetails.plan_duration_weeks }} Weeks)
                 </div>
-                <q-timeline color="secondary" layout="dense">
+                <q-timeline color="primary" layout="dense">
                   <q-timeline-entry
                     v-for="session in selectedPlanDetails.sessions"
                     :key="session.week_index"
-                    :title="`Week ${session.week_index}: ${session.session_goal_summary}`"
-                    :subtitle="formatPhase(session.phase_id)"
                     icon="event"
                   >
-                    <div class="text-caption text-grey-8">
+                    <template v-slot:title>
+                      <div class="text-subtitle2 text-weight-bold text-grey-9">
+                        Week {{ session.week_index }}: {{ session.session_goal_summary }}
+                      </div>
+                    </template>
+                    <template v-slot:subtitle>
+                      <div class="text-caption text-uppercase text-primary font-medium">
+                        {{ formatPhase(session.phase_id) }}
+                      </div>
+                    </template>
+
+                    <div class="text-body2 text-grey-8 q-mb-sm">
                       {{ session.candidate_generation_hint }}
                     </div>
-                    <div v-if="session.recommended_protocol_week_optional" class="q-mt-xs">
+                    <div v-if="session.recommended_protocol_week_optional" class="q-mt-sm">
+                      <div class="text-caption text-weight-bold text-grey-7 q-mb-xs">
+                        Recommended:
+                      </div>
                       <q-chip
                         v-for="hero in session.recommended_protocol_week_optional.hero_ingredients"
                         :key="hero"
                         dense
                         size="xs"
-                        color="grey-3"
-                        text-color="black"
+                        color="teal-1"
+                        text-color="teal-9"
+                        class="font-medium"
                         >{{ hero }}</q-chip
                       >
                     </div>
@@ -235,10 +270,6 @@ const configuredOptions = computed(() => {
     // Find matching detailed plan
     const detail = props.detailedPlans.find((p) => p.option_type === opt.value)
 
-    // If detail exists, we can override label/description if desired,
-    // or just attach the detail for the popup.
-    // For now, let's keep the UI config label unless we want to use the detailed name.
-    // Let's use the detailed name if available, it's more descriptive usually.
     return {
       ...opt,
       label: detail ? detail.name.split('_')[0] : opt.label, // Simplified name parsing or use opt.label
@@ -267,15 +298,40 @@ function formatPhase(phaseId) {
   border-radius: 16px;
 }
 .plan-card {
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   border-radius: 12px;
+  border: 1px solid #e0e0e0;
 }
 .plan-card:hover {
-  box-shadow: 0 0 12px rgba(25, 118, 210, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
+  border-color: #bdbdbd;
 }
 .plan-card--active {
-  border: 2px solid #1976d2 !important;
-  background-color: #e3f2fd !important;
+  border: 2px solid var(--q-primary) !important;
+  background-color: #f5f9ff !important;
+  box-shadow: 0 0 0 1px var(--q-primary);
+}
+
+.font-medium {
+  font-weight: 500;
+}
+.font-bold {
+  font-weight: 700;
+}
+.letter-spacing-1 {
+  letter-spacing: 0.05em;
+}
+.border-b-grey {
+  border-bottom: 1px solid #eee;
+}
+.border-blue-grey {
+  border: 1px solid #cfd8dc;
+}
+.border-orange {
+  border: 1px solid #ffe0b2;
+}
+.leading-snug {
+  line-height: 1.4;
 }
 </style>
