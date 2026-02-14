@@ -29,6 +29,17 @@
             <q-icon name="schedule" size="16px" class="q-mr-xs" />
             {{ formatSchedule(planDetails.schedule_description) }}
           </span>
+          <q-btn
+            flat
+            round
+            dense
+            color="white"
+            icon="download"
+            class="q-ml-auto"
+            @click="downloadPDF"
+          >
+            <q-tooltip>Download PDF</q-tooltip>
+          </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -131,8 +142,9 @@
 
 <script setup>
 import { startCase } from 'lodash'
+import jsPDF from 'jspdf'
 
-defineProps({
+const props = defineProps({
   planDetails: {
     type: Object,
     required: true,
@@ -155,6 +167,106 @@ const getRateColor = (rate) => {
   if (rate === 'SLOW') return 'orange'
   if (rate === 'MODERATE') return 'blue'
   return 'green'
+}
+
+const downloadPDF = () => {
+  const doc = new jsPDF()
+  let yPos = 20
+
+  // Header
+  doc.setFontSize(10)
+  doc.setTextColor(100)
+  doc.text('LONG-TERM AI PROTOCOL', 14, 15)
+
+  doc.setFontSize(18)
+  doc.setTextColor(0)
+  doc.setFont('helvetica', 'bold')
+  doc.text(props.planDetails.name, 14, 25)
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(50)
+  doc.text(
+    `${props.planDetails.plan_duration_weeks} Weeks - ${formatSchedule(props.planDetails.schedule_description)}`,
+    14,
+    32,
+  )
+
+  yPos = 40
+
+  // Timeline Sessions
+  if (props.planDetails.sessions) {
+    props.planDetails.sessions.forEach((session) => {
+      // Check page break
+      if (yPos > 250) {
+        doc.addPage()
+        yPos = 20
+      }
+
+      // Session Header
+      doc.setFillColor(240, 240, 240)
+      doc.rect(14, yPos - 5, 182, 12, 'F')
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0)
+      doc.text(`Week ${session.week_index}: ${formatPhase(session.phase_id)}`, 16, yPos + 2)
+      yPos += 12
+
+      // Goal
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      const goalText = `Goal: ${session.session_goal_summary}`
+      const goalLines = doc.splitTextToSize(goalText, 180)
+      doc.text(goalLines, 16, yPos)
+      yPos += goalLines.length * 5 + 3
+
+      // Protocol or Hint
+      if (session.recommended_protocol_week_optional) {
+        const proto = session.recommended_protocol_week_optional
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Recommended Protocol:', 16, yPos)
+        yPos += 5
+
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.text(`ID: ${proto.protocol_id}`, 16, yPos)
+        yPos += 5
+
+        if (proto.bags) {
+          proto.bags.forEach((bag, bIdx) => {
+            // Bag info
+            doc.text(`Bag ${bIdx + 1}: ${bag.carrier} (${bag.rate_profile})`, 16, yPos)
+            yPos += 4
+
+            // Ingredients
+            const ingredients = bag.ingredients
+              .map(
+                (ing) => `${ing.name}${ing.dose_mg_optional ? ` (${ing.dose_mg_optional}mg)` : ''}`,
+              )
+              .join(', ')
+
+            const ingLines = doc.splitTextToSize(`- ${ingredients}`, 170)
+            doc.text(ingLines, 20, yPos)
+            yPos += ingLines.length * 4 + 2
+          })
+        }
+      } else if (session.candidate_generation_hint) {
+        doc.setFont('helvetica', 'italic')
+        doc.setTextColor(100)
+        const hintLines = doc.splitTextToSize(`Hint: ${session.candidate_generation_hint}`, 180)
+        doc.text(hintLines, 16, yPos)
+        yPos += hintLines.length * 5
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(0)
+      }
+
+      yPos += 8
+    })
+  }
+
+  doc.save(`${props.planDetails.name || 'multi-session-plan'}.pdf`)
 }
 </script>
 

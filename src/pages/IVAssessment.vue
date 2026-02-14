@@ -265,15 +265,14 @@ async function finalizeAndExit() {
   })
     .onOk(() => {
       console.log(formData.value)
-      // formData.value.status = 'completed'
-      // submit(['status'])
-      // Loading.show({
-      //   message: 'Finalizing and redirecting...',
-      // })
-      // setTimeout(() => {
-      //   // LocalStorage.clear()
-      //   window.location.href = `${process.env.CRM_URL}/users`
-      // }, 3000)
+      formData.value.status = 'completed'
+      submit(['status'])
+      Loading.show({
+        message: 'Finalizing and redirecting...',
+      })
+      setTimeout(() => {
+        window.location.href = `${process.env.CRM_URL}/users`
+      }, 3000)
     })
     .onCancel(() => {
       console.log('User cancelled')
