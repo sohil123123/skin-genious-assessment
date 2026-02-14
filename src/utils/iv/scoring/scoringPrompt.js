@@ -1,4 +1,4 @@
-import ivScoringEngine from 'src/utils/iv/scoring/IVScoringEngine.json'
+import ivScoringEngine from 'src/utils/iv/scoring/ivScoringEngine.json'
 import aiIVClinicalScoringEngine from 'src/utils/iv/scoring/AIIVClinicalScoringEngine.json'
 import { encode } from '@toon-format/toon'
 
