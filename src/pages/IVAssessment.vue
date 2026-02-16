@@ -138,7 +138,7 @@ const userId = route.params.user_id
 const currentStep = ref(route.params.step || 'step-1')
 const isPostAssessment = ref(false)
 
-const steps = ['step-1', 'step-2', 'step-3', 'step-4']
+const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5']
 const currentIndex = computed(() => steps.indexOf(currentStep.value))
 const isFirstStep = computed(() => steps.indexOf(currentStep.value) === 0)
 const isLastStep = computed(() => steps.indexOf(currentStep.value) === steps.length - 1)
@@ -366,6 +366,49 @@ async function goNext() {
       Notify.create({ type: 'negative', message: 'Failed to process assessment data.' })
       return
     }
+  }
+
+  if (currentStep.value === 'step-4') {
+    // Transitioning from Plan Selection to Run Sheet
+    const treatmentPlan = formData.value.iv_treatment_plan
+    const selected = treatmentPlan?.selected_option
+
+    if (!selected) {
+      Notify.create({
+        type: 'warning',
+        message: 'Please select a treatment plan option to proceed.',
+      })
+      return
+    }
+
+    // Extract the protocol for the immediate session
+    let sessionProtocol = null
+
+    // Case A: Single Session or Budget Option (has 'protocols' array)
+    if (selected.protocols && selected.protocols.length > 0) {
+      sessionProtocol = selected.protocols[0]
+    }
+    // Case B: Plan Option (has 'sessions' array)
+    else if (selected.sessions && selected.sessions.length > 0) {
+      // Use the first session's recommended protocol
+      const firstSession = selected.sessions[0]
+      sessionProtocol = firstSession.recommended_protocol_week_optional || null
+    }
+
+    if (!sessionProtocol) {
+      Notify.create({
+        type: 'negative',
+        message: 'Selected option does not have a valid protocol for this session.',
+      })
+      return
+    }
+
+    // Populate treatment_sessions for the Nurse Run Sheet
+    // The Run Sheet expects { treatments: [ protocol ] }
+    formData.value.treatment_sessions = {
+      treatments: [sessionProtocol],
+    }
+    await submit(['treatment_sessions'])
   }
 
   if (!isLastStep.value) {
