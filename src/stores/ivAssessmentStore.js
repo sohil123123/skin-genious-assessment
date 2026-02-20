@@ -189,7 +189,7 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
             total_body_water: null,
             body_fat_percentage: null,
             lean_muscle_mass_kg: null,
-            visceral_fat_kg: null,
+            visceral_fat_rating: null,
             basal_metabolic_rate_optional: null,
           },
           hand_grip_dynamometer: {
@@ -405,7 +405,7 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
           total_body_water: null,
           body_fat_percentage: null,
           lean_muscle_mass_kg: null,
-          visceral_fat_kg: null,
+          visceral_fat_rating: null,
           basal_metabolic_rate_optional: null,
         },
         hand_grip_dynamometer: {
@@ -505,16 +505,11 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
       payload._method = 'PUT'
       const config = {
         indices: true,
-        nullAsUndefined: true,
-        transformRequest: [
-          (data) =>
-            serialize(data, {
-              indices: true,
-              noFilesWithArrayNotation: true,
-              emptyArraysAsNull: false,
-              allowEmptyArrays: true,
-            }),
-        ],
+        nullAsUndefined: false,
+        nullsAsUndefineds: false,
+        noFilesWithArrayNotation: true,
+        emptyArraysAsNull: false,
+        allowEmptyArrays: true,
       }
 
       Object.keys(payload).forEach((key) => {
@@ -522,7 +517,7 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
           payload[key] = null
         }
       })
-
+      console.log(payload)
       const formData = serialize(payload, config)
 
       await api
@@ -575,16 +570,18 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
 
       // Ensure iv_inputs is also merged if it exists in data
       if (data.iv_inputs) {
-        this.formData.iv_inputs = { ...this.formData.iv_inputs, ...data.iv_inputs }
+        this.formData.iv_inputs = data.iv_inputs
 
-        this.formData.iv_inputs.section_3_dermatological_ai_inputs.oxidative_stress_score_oss =
-          data.parameters_with_abnormal_scores?.scores?.OSS?.score_0_100
-        this.formData.iv_inputs.section_3_dermatological_ai_inputs.glycation_metabolic_score_gms =
-          data.parameters_with_abnormal_scores?.scores?.GMS?.score_0_100
-        this.formData.iv_inputs.section_3_dermatological_ai_inputs.vascularity_inflammation_index_mvi =
-          data.parameters_with_abnormal_scores?.scores?.MVI?.score_0_100
-        this.formData.iv_inputs.section_3_dermatological_ai_inputs.barrier_hydration_stress_score_bhs =
-          data.parameters_with_abnormal_scores?.scores?.BHS?.score_0_100
+        if (this.formData.iv_inputs.section_3_dermatological_ai_inputs) {
+          this.formData.iv_inputs.section_3_dermatological_ai_inputs.oxidative_stress_score_oss =
+            data.parameters_with_abnormal_scores?.scores?.OSS?.score_0_100
+          this.formData.iv_inputs.section_3_dermatological_ai_inputs.glycation_metabolic_score_gms =
+            data.parameters_with_abnormal_scores?.scores?.GMS?.score_0_100
+          this.formData.iv_inputs.section_3_dermatological_ai_inputs.vascularity_inflammation_index_mvi =
+            data.parameters_with_abnormal_scores?.scores?.MVI?.score_0_100
+          this.formData.iv_inputs.section_3_dermatological_ai_inputs.barrier_hydration_stress_score_bhs =
+            data.parameters_with_abnormal_scores?.scores?.BHS?.score_0_100
+        }
       }
     },
     async storeFaceImages(file, assessment_type) {

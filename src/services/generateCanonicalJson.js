@@ -128,7 +128,7 @@ export function generateCanonicalJson(input) {
           machines2.body_composition_analyzer_8_electrode.body_fat_percentage,
         muscle_mass_kg_optional:
           machines2.body_composition_analyzer_8_electrode.lean_muscle_mass_kg,
-        visceral_fat_rating: machines2.body_composition_analyzer_8_electrode.visceral_fat_kg,
+        visceral_fat_rating: machines2.body_composition_analyzer_8_electrode.visceral_fat_rating,
         bmr_kcal_optional:
           machines2.body_composition_analyzer_8_electrode.basal_metabolic_rate_optional,
       },

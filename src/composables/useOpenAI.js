@@ -1,5 +1,12 @@
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
+import config from 'src/config.js'
+
+// Response Examples
+import ivScore from 'src/response-examples/iv-score.json'
+import clinicalScore from 'src/response-examples/clinical-score.json'
+import treatmentPlan from 'src/response-examples/treatment-plans.json'
+import nurseRunSheet from 'src/response-examples/nurse-runsheet-single-session.json'
 
 export function useOpenAI() {
   const $q = useQuasar()
@@ -39,6 +46,67 @@ export function useOpenAI() {
 
   // 💬 2. Run response (send message + get reply)
   const runResponse = async (convId, input, temp = 0) => {
+    // --- TEST MODE INTERCEPTION ---
+    if (config.is_test_mode) {
+      console.log('🚧 TEST MODE: Intercepting OpenAI Call')
+      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate network latency
+
+      const inputStr = JSON.stringify(input)
+
+      // 1. IV SCORING STAGES Check
+      // Stage 1 (Analysing images)
+      if (inputStr.includes('Image 1 = UV MODE')) {
+        console.log('🚧 TEST MODE: Returning mock for IV Scoring Stage 1')
+        return { message: 'Stage 1 mock complete' } // Intermediate, just needs to return something
+      }
+      // Stage 2 (Refining analysis)
+      if (
+        inputStr.includes('Stage 1 mock complete') ||
+        inputStr.includes('"message":"Stage 1 mock complete"')
+      ) {
+        console.log('🚧 TEST MODE: Returning mock for IV Scoring Stage 2')
+        return { message: 'Stage 2 mock complete' }
+      }
+      // Stage 3 (Final Output Generation - Dermatological AI)
+      if (
+        inputStr.includes('Stage 2 mock complete') ||
+        inputStr.includes('"message":"Stage 2 mock complete"')
+      ) {
+        console.log('🚧 TEST MODE: Returning IV Score (Dermatological)', ivScore)
+        return ivScore
+      }
+
+      // 2. CLINICAL SCORING (Stage 4 / "generateIVScoring" / "Clinical Vitality Profiling")
+      // Check for iv_score content being passed or specific prompts
+      if (
+        inputStr.includes('AI_IV_ClinicalScoring') // from Stage 4 prompt if visible, but we rely on data passed
+      ) {
+        // This is likely the Clinical Scoring step because it usually receives the IV Score result
+        console.log('🚧 TEST MODE: Returning Clinical Score', clinicalScore)
+        return clinicalScore
+      }
+
+      // 3. TREATMENT GENERATION
+      if (
+        inputStr.includes('AI_IV_TreatmentGeneration') ||
+        inputStr.includes('AI_IV_TreatmentGeneration Engine v2.1')
+      ) {
+        console.log('🚧 TEST MODE: Returning Treatment Plan', treatmentPlan)
+        return treatmentPlan
+      }
+
+      // 4. NURSE RUN SHEET
+      if (inputStr.includes('Nurse Run Sheet') || inputStr.includes('clinic_sop_defaults')) {
+        console.log('🚧 TEST MODE: Returning Nurse Run Sheet', nurseRunSheet)
+        return nurseRunSheet
+      }
+
+      // Default fallback if no match found
+      console.warn('🚧 TEST MODE: No specific mock matched. Returning empty object.')
+      return {}
+    }
+
+    // --- REAL API CALL ---
     try {
       const body = {
         model: 'gpt-5.2',

@@ -68,7 +68,7 @@ watch(
       treatmentPlan.value = val.treatment_sessions
     }
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 )
 
 function saveData(field) {
