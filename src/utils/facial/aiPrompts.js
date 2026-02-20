@@ -2976,10 +2976,34 @@ If key diagnostic signals for a parameter are not visible in any of the 6 lighti
 Ensure all scores, descriptions, and interpretations remain aligned with real-world dermatological behavior.
 
 You are provided a Feature Packet (pose-invariant measurement output).
-Treat all Feature Packet indices/proxies as GROUND TRUTH for backend indices and regional metrics.
-Do NOT invent float values from images.
-If a needed metric is null, follow the scoring instruction: return "insufficient_data" for that parameter.
-Images should be used only for: selecting affected_area_image and writing score_explanation consistent with the Feature Packet.
+
+Treat all NON-NULL Feature Packet indices/proxies as GROUND TRUTH.
+You may use the images ONLY to:
+1) select affected_area_image, and
+2) write score_explanation consistent with the Feature Packet.
+
+COMPLETENESS REQUIREMENT (CLIENT-FACING):
+- You MUST output a 1–5 score for ALL 15 parameters.
+- "insufficient_data" is NOT allowed in the final client report.
+
+FALLBACK ESTIMATION RULE (WHEN A REQUIRED METRIC IS NULL):
+- If a required metric is null/missing, you MUST estimate it using:
+  (a) other available Feature Packet fields that correlate, and/or
+  (b) direct visual inference from the 6 images,
+  while staying conservative.
+- Any estimated value must be clearly flagged.
+
+For every parameter output include:
+"data_quality": {
+  "is_estimated": true|false,
+  "estimated_fields": [],
+  "estimation_basis": "feature_packet_correlates|direct_image_inference|mixed",
+  "confidence_0_1": 0.0
+}
+
+Conservatism rule for estimates:
+- If uncertain, choose the milder severity band (lower score) but never null.
+- confidence_0_1 must be <= 0.55 for any parameter that required estimation.
 
 ---
 
@@ -3291,6 +3315,61 @@ E) ENERGY / PEEL NECESSITY RULE (MANDATORY — OUTCOME DOMINANCE LOGIC)
   • Supportive-only plans (hydrafacial, massage, serums, LED, oxygen alone)
     are INVALID for this primary concern.
   • Time allocation MUST prioritize the corrective modality over supportive steps.
+
+  E1) PRIMARY CONCERNS = OUTCOME STACK (MANDATORY — WOW + ACCOUNTABILITY)
+
+    For EACH parameter where is_primary_concern = true, you MUST guarantee ALL of the following
+    within the SAME session plan (single/express) OR within EACH session that claims to address it (multiple):
+
+    1) Corrective Step Mapping (MANDATORY)
+      • The session MUST contain at least ONE step whose primary purpose is to CORRECT this concern.
+      • If Rule E triggered for this concern (deviation_from_target >= 1 AND improvability_index >= 0.4 AND no denial):
+          - The corrective step MUST be a high-efficacy modality (energy / peel / laser / RF / microneedling etc. as permitted).
+          - Supportive-only handling for this concern is INVALID.
+      • The corrective step MUST be explicitly linked to the concern in the step "script"
+        using the exact token format:
+          "PRIMARY_CONCERN_TARGET: <parameter_name>"
+
+    2) Support / Protection Step (CONDITIONAL BUT STRONGLY PREFERRED)
+      • If the plan includes any step that increases irritation risk (peel/energy/microneedling),
+        you MUST include at least ONE barrier-protection / calming / recovery-oriented step in the same session,
+        and link it using:
+          "PRIMARY_CONCERN_SUPPORT: <parameter_name>"
+      • This support step must respect avoid_zones and sensitivity constraints.
+
+    3) Measurable KPI & Reveal (MANDATORY — FUTURE CLINIC EFFECT)
+      For EACH primary concern, define:
+      • 1 immediate KPI (expected to show same-day or within 24–72 hours)
+      • 1 delayed KPI (expected to show 7–21 days)
+      Each KPI must include:
+        - what changes (plain language)
+        - where it changes (zones/hotspots)
+        - which capture evidence to use (from the 6 imaging modes) OR which objective index available in backend scoring
+
+      Implementation requirement WITHOUT changing output schema:
+      • In EACH session, you MUST include ONE dedicated step near the end titled in the step "script" as:
+          "AI MEASUREMENT & REVEAL"
+        In that step’s "how_to_do", include:
+          - exactly what images to recapture (which modes) and from what angles
+          - a concise checklist for therapist to show client the before/after deltas
+        In that step’s "script", include a compact mapping for ALL primary concerns in this session in this exact format:
+
+          "OUTCOME_STACK_MAP:
+          - <parameter_1>: corrective_steps=[#,#], support_steps=[#,#], immediate_kpi=<...>, delayed_kpi=<...>, evidence=<mode/index>
+          - <parameter_2>: corrective_steps=[#,#], support_steps=[#,#], immediate_kpi=<...>, delayed_kpi=<...>, evidence=<mode/index>"
+
+    4) Anti-Template Guard (MANDATORY — prevents hydrafacial-style layering)
+      If Rule E triggers for ANY primary concern in a session:
+      • Generic spa steps (simple cleanse + mild exfoliation + mask + massage + hydration-only infusion)
+        cannot be the structural backbone of the session.
+      • The plan MUST clearly prioritize the corrective step(s) in time and specificity.
+      • Ensure step durations and techniques reflect this (corrective steps should NOT be token 2-minute mentions).
+
+    5) If conflicts arise:
+      • If constraints deny high-efficacy modalities for a primary concern, you MUST:
+          - still include the best allowed corrective alternative
+          - explicitly justify the omission in modality_omission_explanation
+          - and still include KPI + evidence plan (with realistic expectations).
 
 F) REGIONAL DIFFERENTIATION REQUIREMENT (MANDATORY)
   For any primary concern where a regional_burden_map or grid_map exists:
@@ -3788,7 +3867,120 @@ CRITICAL RULES:
    - bins: majority vote
    - indices: median, rounded to 0.05
    - if disagreement > 1 bin => borderline=true and choose conservative value
-4) If uncertain, set field to null and record in missing_data.
+4) If uncertain, DO NOT set numeric proxy fields to null. Instead, compute a conservative deterministic fallback value (rounded to 0.05) per the DETERMINISTIC FALLBACK ESTIMATION TABLE and set the proxy’s "borderline": true; log the uncertainty in missing_data.notes as "FALLBACK_USED:<field_name>" (use null ONLY if the region is truly unobservable due to occlusion/out-of-frame/severe blur, and in that case list it in missing_data.fields_set_null_due_to_unobservability).
+5) Eyes closed is NORMAL for scans. Do NOT treat closed eyes as a reason to set peri_orbital fields to null.
+   Use infraorbital + upper-cheek junction + eyelid skin texture as measurement zones.
+   Only set peri_orbital fields to null if the periocular area is occluded by hair, glare, or out-of-frame.
+
+DETERMINISTIC FALLBACK ESTIMATION TABLE (MANDATORY — NO NULLS IN CLIENT PIPELINE)
+
+Objective:
+- The Feature Packet MUST be COMPLETE: do NOT output null for any numeric proxy field inside "proxies".
+- If uncertain, you MUST still output the closest conservative estimate using the deterministic rules below.
+- Mark "borderline": true for any proxy computed via fallback (not directly confident).
+- All numeric outputs must be rounded to nearest 0.05 and clipped to [0.00, 1.00] unless otherwise stated.
+- Do NOT use “assume 0.00 because missing”. Use the mapping below.
+
+General helper functions (apply conceptually):
+- clip01(x) = min(1.00, max(0.00, x))
+- round005(x) = round to nearest 0.05
+- bin_to_midpoint mappings (deterministic):
+  redness.diffuse_redness_bin: none=0.05, mild=0.20, moderate=0.40, high=0.65, severe=0.85
+  redness.vascular_pattern_bin: none=0.05, mild=0.20, moderate=0.40, high=0.65, severe=0.85
+  pores_texture.pore_visibility_bin: none=0.10, mild=0.30, moderate=0.55, marked=0.80
+  pores_texture.texture_roughness_bin: none=0.10, mild=0.30, moderate=0.55, marked=0.80
+  acne.porphyrin_load_bin: none=0.05, low=0.20, moderate=0.45, high=0.70, very_high=0.90
+  sebum_oiliness.t_zone_oil_bin: none=0.05, mild=0.25, moderate=0.55, strong=0.80
+  sebum_oiliness.cheek_oil_bin: none=0.05, mild=0.25, moderate=0.55, strong=0.80
+  pigmentation.coverage_band: very_low=0.10, low=0.25, moderate=0.50, high=0.75, very_high=0.90
+  pigmentation.intensity_band: light=0.15, mild=0.30, moderate=0.50, marked=0.70, severe=0.90
+  wrinkles.wrinkle_line_count_bin: 0-10=0.15, 11-30=0.35, 31-60=0.60, 60+=0.85
+
+A) Peri-orbital (eyes closed is NORMAL; never null purely due to eyes closed)
+If you cannot confidently measure any peri-orbital proxy directly, compute:
+- under_eye_pigment_index =
+    round005( 0.60*mid(pigmentation.intensity_band) + 0.40*mid(pigmentation.coverage_band) )
+- vascular_congestion_index =
+    round005( 0.70*mid(redness.vascular_pattern_bin) + 0.30*mid(redness.diffuse_redness_bin) )
+- hollow_shadow_index =
+    round005( 0.60*wrinkles.wrinkle_depth_index + 0.40*wrinkles.chronicity_uv_index )
+- puffiness_index =
+    round005( 0.50*mid(redness.subclinical_hotspots_bin: none=0.05, low=0.25, moderate=0.55, high=0.80)
+              + 0.50*(1.00 - combined_barrier_sensitivity.barrier_uniformity_index) )
+- fine_line_texture_index =
+    round005( 0.60*hydration.microline_density_index + 0.40*wrinkles.wrinkle_depth_index )
+
+Set peri_orbital.borderline=true if any of the above were used as fallback.
+
+B) Jawline sagging (NO NULLS; output conservative even if uncertain)
+First compute visibility signals deterministically from framing:
+- lower_face_visibility_ratio =
+    round005( 0.85 ) unless clearly cropped below chin OR strong shadow occlusion; if cropped, set 0.55.
+- jawline_edge_confidence =
+    round005( 0.80 ) unless jawline border is visibly merged into dark shroud; if merged, set 0.55.
+
+If you can measure jawline contour directly, do it. If not, fallback:
+- mandibular_line_deflection_index_0_1 =
+    round005( clip01( 0.55*wrinkles.chronicity_uv_index + 0.45*wrinkles.wrinkle_depth_index ) )
+- mandibular_line_deflection_angle_deg =
+    round005( 12.0 * mandibular_line_deflection_index_0_1 )  // output in degrees
+- pre_jowl_sulcus_depth_index =
+    round005( clip01( 0.50*mandibular_line_deflection_index_0_1
+                      + 0.30*mid(pores_texture.texture_roughness_bin)
+                      + 0.20*mid(pigmentation.coverage_band) ) )
+- jowl_bulge_prominence_index =
+    round005( clip01( 0.55*mandibular_line_deflection_index_0_1
+                      + 0.45*mid(sebum_oiliness.cheek_oil_bin) ) )
+- submental_fullness_index =
+    round005( clip01( 0.60*mandibular_line_deflection_index_0_1
+                      + 0.40*mid(sebum_oiliness.t_zone_oil_bin) ) )
+- dermal_collagen_thinning_index =
+    round005( clip01( 0.70*wrinkles.chronicity_uv_index + 0.30*wrinkles.wrinkle_depth_index ) )
+- left_right_asymmetry_index =
+    round005( 0.15 ) unless clear asymmetry is visible; if visible, set 0.35.
+
+Set jawline_sagging.borderline=true if any of the above were used as fallback OR jawline_edge_confidence<0.70.
+
+C) Firmness / elasticity (NO NULLS; computed as consistent proxies)
+If you cannot confidently measure directly, fallback:
+- micro_laxity_pattern_index =
+    round005( clip01( 0.45*hydration.microline_density_index
+                      + 0.35*wrinkles.wrinkle_depth_index
+                      + 0.20*mid(pores_texture.texture_roughness_bin) ) )
+- collagen_reflectance_uniformity =
+    round005( clip01( 0.55*hydration.surface_reflectance_index
+                      + 0.25*combined_barrier_sensitivity.barrier_uniformity_index
+                      + 0.20*(1.00 - mid(pigmentation.uniformity_band: even=0.15, mottled=0.50, uneven=0.80)) ) )
+- dermal_density_proxy_index =
+    round005( clip01( 0.60*(1.00 - dermal_collagen_thinning_index)
+                      + 0.40*collagen_reflectance_uniformity ) )
+- elastic_recoil_proxy_index =
+    round005( clip01( 0.65*(1.00 - micro_laxity_pattern_index)
+                      + 0.35*dermal_density_proxy_index ) )
+- firmness_uniformity_index =
+    round005( clip01( 0.60*collagen_reflectance_uniformity
+                      + 0.40*(1.00 - mid(pores_texture.texture_roughness_bin)) ) )
+
+Set firmness_elasticity.borderline=true if any fallback formulas were used.
+
+D) Wrinkles+/Pores+ (if you add these fields)
+- wrinkles_plus.regional_uniformity_index =
+    round005( clip01( 0.55*combined_barrier_sensitivity.barrier_uniformity_index
+                      + 0.45*(1.00 - mid(pigmentation.uniformity_band)) ) )
+- wrinkles_plus.wrinkle_microline_density_index =
+    round005( clip01( 0.70*hydration.microline_density_index
+                      + 0.30*wrinkles.wrinkle_depth_index ) )
+
+- pores_texture_plus.pore_density_index =
+    round005( mid(pores_texture.pore_visibility_bin) )
+- pores_texture_plus.pore_diameter_index =
+    round005( clip01( 0.70*mid(pores_texture.pore_visibility_bin) + 0.30*mid(sebum_oiliness.t_zone_oil_bin) ) )
+- pores_texture_plus.pore_clarity_index =
+    round005( clip01( 1.00 - 0.60*mid(pores_texture.texture_roughness_bin) - 0.40*mid(sebum_oiliness.t_zone_oil_bin) ) )
+
+E) Missing-data logging (still required)
+- Instead of setting numeric fields to null, add the field name into missing_data.fields_set_null_due_to_uncertainty ONLY if it is truly unobservable.
+- If a fallback formula was used, append a note into missing_data.notes: "FALLBACK_USED: <field_name>"
 
 Output JSON schema:
 {
@@ -3871,6 +4063,47 @@ Output JSON schema:
       "intrinsic_melanin_index": 0.0,
       "vascular_congestion_index": 0.0,
       "pigment_classification": "melanin_dominant|vascular_dominant|mixed_type|cosmetic_mask",
+      "borderline": false
+    },
+    "peri_orbital": {
+      "under_eye_pigment_index": 0.0,
+      "vascular_congestion_index": 0.0,
+      "hollow_shadow_index": 0.0,
+      "puffiness_index": 0.0,
+      "fine_line_texture_index": 0.0,
+      "dominant_side": "left|right|symmetric",
+      "eyes_closed": true,
+      "borderline": false
+    },
+    "jawline_sagging": {
+      "mandibular_line_deflection_angle_deg": 0.0,
+      "mandibular_line_deflection_index_0_1": 0.0,
+      "pre_jowl_sulcus_depth_index": 0.0,
+      "jowl_bulge_prominence_index": 0.0,
+      "submental_fullness_index": 0.0,
+      "dermal_collagen_thinning_index": 0.0,
+      "left_right_asymmetry_index": 0.0,
+      "lower_face_visibility_ratio": 0.0,
+      "jawline_edge_confidence": 0.0,
+      "borderline": false
+    },
+    "firmness_elasticity": {
+      "micro_laxity_pattern_index": 0.0,
+      "collagen_reflectance_uniformity": 0.0,
+      "elastic_recoil_proxy_index": 0.0,
+      "dermal_density_proxy_index": 0.0,
+      "firmness_uniformity_index": 0.0,
+      "borderline": false
+    },
+    "wrinkles_plus": {
+      "regional_uniformity_index": 0.0,
+      "wrinkle_microline_density_index": 0.0,
+      "borderline": false
+    },
+    "pores_texture_plus": {
+      "pore_density_index": 0.0,
+      "pore_diameter_index": 0.0,
+      "pore_clarity_index": 0.0,
       "borderline": false
     }
   },
