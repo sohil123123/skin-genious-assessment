@@ -85,6 +85,7 @@ import MajorConcerns from 'src/components/assessment/MajorConcerns.vue'
 import PostAssessment from 'src/components/assessment/PostAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
 import {
+  SYSTEM_PROMPT_FEATURE_PACKET_V1,
   SYSTEM_PROMPT_DIAGNOSIS,
   D_REPORT_USER_PROMPT,
   SYSTEM_TREATMENT_PLAN_PROMPT,
@@ -428,27 +429,16 @@ async function callApiForDiagnosis(data, images) {
       file_id: item.custom_properties?.openai_file_id ?? null,
     })),
   )
-  console.log(storedFiles)
   // let finalFileIdArray = [...fileArrar, ...storedFiles]
   // console.log(finalFileIdArray)
   const input = [
     {
       role: 'system',
-      content: SYSTEM_PROMPT_DIAGNOSIS,
+      content: SYSTEM_PROMPT_FEATURE_PACKET_V1,
     },
     {
       role: 'user',
       content: [
-        // INFO: This is for Base64 Images
-        // ...base64Images.map((b64) => ({
-        //   type: 'input_image',
-        //   image_url: b64,
-        // })),
-        // // INFO: This is used when images stored in server
-        // ...images.map((img_url) => ({
-        //   type: 'input_image',
-        //   image_url: img_url,
-        // })),
         ...storedFiles,
         {
           type: 'input_text',
@@ -460,9 +450,41 @@ async function callApiForDiagnosis(data, images) {
   processingMessage.value = 'Processing scanned images...'
   console.log('Conv ID:', convId)
   console.log('Diagnosis Input:', input)
-  const result = await runResponse(convId, input)
-  console.log('✅ Diagnosis:', result)
-  return result
+  assessmentData.value.feature_packet = await runResponse(convId, input)
+  submit(['feature_packet'])
+  console.log('✅ Feature Packet:', assessmentData.value.feature_packet)
+
+  const input2 = [
+    {
+      role: 'system',
+      content: [
+        {
+          type: 'input_text',
+          text: SYSTEM_PROMPT_DIAGNOSIS,
+        },
+        {
+          type: 'input_text',
+          text: encode(assessmentData.value.feature_packet),
+        },
+      ],
+    },
+    {
+      role: 'user',
+      content: [
+        ...storedFiles,
+        {
+          type: 'input_text',
+          text: D_REPORT_USER_PROMPT,
+        },
+      ],
+    },
+  ]
+
+  console.log('Diagnosis Input:', input2)
+  const result2 = await runResponse(convId, input2)
+  console.log('✅ Diagnosis:', result2)
+
+  return result2
 }
 
 async function callApiForTreatmentPlan(selected, treatmentType) {
@@ -518,6 +540,10 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
         {
           type: 'input_text',
           text: encode(patientData),
+        },
+        {
+          type: 'input_text',
+          text: encode(assessmentData.value.feature_packet),
         },
         {
           type: 'input_text',

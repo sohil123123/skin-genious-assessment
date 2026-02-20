@@ -286,7 +286,7 @@ const formData = reactive({
       total_body_water: null,
       body_fat_percentage: null,
       lean_muscle_mass_kg: null,
-      visceral_fat_kg: null,
+      visceral_fat_rating: null,
       basal_metabolic_rate_optional: null,
     },
     hand_grip_dynamometer: {

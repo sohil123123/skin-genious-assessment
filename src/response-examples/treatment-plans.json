@@ -1,0 +1,491 @@
+{
+  "treatment_generation_output": {
+    "options": [
+      {
+        "option_type": "single_session_option_1",
+        "name": "Glow+Detox_Vitamin C (High Dose)+Glutathione",
+        "protocols": [
+          {
+            "protocol_id": "SS1_GLOW_DETOX_VITC_GSH_250NS_SLOW",
+            "label_short": "Glow/Detox (gentle antioxidant)",
+            "bags": [
+              {
+                "bag_id": "bag_1",
+                "carrier": "Normal Saline (0.9%)",
+                "bag_size_ml": 250,
+                "rate_profile": "SLOW",
+                "min_duration_minutes": 60,
+                "ingredients": [
+                  {
+                    "name": "Vitamin C (High Dose)",
+                    "dose_mg_optional": 2000,
+                    "dose_units_optional": "mg"
+                  },
+                  {
+                    "name": "Glutathione",
+                    "dose_mg_optional": 1200,
+                    "dose_units_optional": "mg"
+                  }
+                ],
+                "admin_notes_optional": ["Vitamin C + Glutathione allowed in same bag."]
+              }
+            ],
+            "hero_ingredients": ["Vitamin C (High Dose)", "Glutathione"],
+            "intended_benefits_tags": ["Glow", "Detox", "Recovery"],
+            "axis_targeting_intent": {
+              "primary_axes": ["DGS", "ODS", "ILS"],
+              "why_these_axes": "Primary goal is Skin glow with modest oxidative/inflammation signals; gentle antioxidant support aligns with DGS/ODS while keeping session simple."
+            },
+            "budget_candidate_optional": {
+              "is_budget": false,
+              "budget_rule": null
+            },
+            "ui_summary": {
+              "total_bags": 1,
+              "estimated_total_duration_minutes": 60,
+              "contains_nad": false,
+              "hero_count": 2,
+              "display_hero_string": "Vitamin C (High Dose) + Glutathione",
+              "display_benefits_string": "Glow + Detox"
+            }
+          }
+        ],
+        "constraint_report": {
+          "status": "allowed_with_cautions",
+          "actions": ["system_error"],
+          "messages": [
+            "Constraints schema expects safety_and_contraindications keys as Yes/No/Unsure strings and requires additional keys (e.g., asthma/anaphylaxis/seizures). Upstream mapping appears non-conformant; treat as system_error until fixed."
+          ],
+          "applied_caps_or_restrictions": [],
+          "patched_protocol_optional": null
+        },
+        "client_facing_explanation": {
+          "why_today": "A gentle glow-focused antioxidant session designed to support near-term brightness and recovery while keeping the ingredient list simple.",
+          "what_you_may_feel_today": [
+            "Typically minimal immediate sensation; some people notice a subtle “refreshed” feeling."
+          ],
+          "what_you_may_see_over_7_14_days": [
+            "Gradual improvement in overall glow/brightness and a more even-looking tone."
+          ],
+          "who_should_not_take_today": [
+            "Anyone with chest pain or shortness of breath right now.",
+            "Anyone with known G6PD deficiency (Vitamin C may be restricted).",
+            "Anyone pregnant/breastfeeding should get clinician approval first."
+          ]
+        },
+        "ui_constraint_flags": {
+          "hard_block": false,
+          "doctor_approval_required": false,
+          "rate_restricted": false,
+          "dose_caps_applied": false
+        }
+      },
+      {
+        "option_type": "single_session_option_2",
+        "name": "Glow+Recovery_Glutathione+Zinc",
+        "protocols": [
+          {
+            "protocol_id": "SS2_GLOW_RECOVERY_GSH_ZN_250LR_SLOW",
+            "label_short": "Glow/Recovery (simple support)",
+            "bags": [
+              {
+                "bag_id": "bag_1",
+                "carrier": "Lactated Ringer's",
+                "bag_size_ml": 250,
+                "rate_profile": "SLOW",
+                "min_duration_minutes": 60,
+                "ingredients": [
+                  {
+                    "name": "Glutathione",
+                    "dose_mg_optional": 1200,
+                    "dose_units_optional": "mg"
+                  },
+                  {
+                    "name": "Zinc",
+                    "dose_mg_optional": 5,
+                    "dose_units_optional": "mg"
+                  }
+                ],
+                "admin_notes_optional": []
+              }
+            ],
+            "hero_ingredients": ["Glutathione", "Zinc"],
+            "intended_benefits_tags": ["Glow", "Recovery"],
+            "axis_targeting_intent": {
+              "primary_axes": ["DGS", "ILS"],
+              "why_these_axes": "Glow goal with modest inflammation signal; keep session gentle and supportive with a minimal antioxidant + skin-support mineral pairing."
+            },
+            "budget_candidate_optional": {
+              "is_budget": false,
+              "budget_rule": null
+            },
+            "ui_summary": {
+              "total_bags": 1,
+              "estimated_total_duration_minutes": 60,
+              "contains_nad": false,
+              "hero_count": 2,
+              "display_hero_string": "Glutathione + Zinc",
+              "display_benefits_string": "Glow + Recovery"
+            }
+          }
+        ],
+        "constraint_report": {
+          "status": "allowed_with_cautions",
+          "actions": ["system_error"],
+          "messages": [
+            "Constraints schema expects safety_and_contraindications keys as Yes/No/Unsure strings and requires additional keys (e.g., asthma/anaphylaxis/seizures). Upstream mapping appears non-conformant; treat as system_error until fixed."
+          ],
+          "applied_caps_or_restrictions": [],
+          "patched_protocol_optional": null
+        },
+        "client_facing_explanation": {
+          "why_today": "A simpler glow + recovery option that stays gentle and avoids higher-dose vitamin combinations.",
+          "what_you_may_feel_today": [
+            "Usually very tolerable; hydration can feel subtly refreshing."
+          ],
+          "what_you_may_see_over_7_14_days": [
+            "Gradual improvement in skin clarity and overall “freshness.”"
+          ],
+          "who_should_not_take_today": [
+            "Anyone with chest pain or shortness of breath right now.",
+            "Anyone pregnant/breastfeeding should get clinician approval first."
+          ]
+        },
+        "ui_constraint_flags": {
+          "hard_block": false,
+          "doctor_approval_required": false,
+          "rate_restricted": false,
+          "dose_caps_applied": false
+        }
+      },
+      {
+        "option_type": "plan_option",
+        "name": "14-Week Plan (Adaptive)_Glow+Recovery",
+        "protocols": [
+          {
+            "protocol_id": "PLAN_W1_GLOW_DETOX_VITC_GSH_250NS_SLOW",
+            "label_short": "Week 1 example (gentle glow)",
+            "bags": [
+              {
+                "bag_id": "bag_1",
+                "carrier": "Normal Saline (0.9%)",
+                "bag_size_ml": 250,
+                "rate_profile": "SLOW",
+                "min_duration_minutes": 60,
+                "ingredients": [
+                  {
+                    "name": "Vitamin C (High Dose)",
+                    "dose_mg_optional": 2000,
+                    "dose_units_optional": "mg"
+                  },
+                  {
+                    "name": "Glutathione",
+                    "dose_mg_optional": 1200,
+                    "dose_units_optional": "mg"
+                  }
+                ],
+                "admin_notes_optional": ["Vitamin C + Glutathione allowed in same bag."]
+              }
+            ],
+            "hero_ingredients": ["Vitamin C (High Dose)", "Glutathione"],
+            "intended_benefits_tags": ["Glow", "Detox", "Recovery"],
+            "axis_targeting_intent": {
+              "primary_axes": ["DGS", "ODS", "ILS"],
+              "why_these_axes": "Week 1 starts with a gentle antioxidant glow session; future weeks adapt to updated scores/symptoms."
+            },
+            "budget_candidate_optional": {
+              "is_budget": false,
+              "budget_rule": null
+            },
+            "ui_summary": {
+              "total_bags": 1,
+              "estimated_total_duration_minutes": 60,
+              "contains_nad": false,
+              "hero_count": 2,
+              "display_hero_string": "Vitamin C (High Dose) + Glutathione",
+              "display_benefits_string": "Glow + Detox"
+            }
+          }
+        ],
+        "constraint_report": {
+          "status": "allowed_with_cautions",
+          "actions": ["system_error"],
+          "messages": [
+            "Constraints schema expects safety_and_contraindications keys as Yes/No/Unsure strings and requires additional keys (e.g., asthma/anaphylaxis/seizures). Upstream mapping appears non-conformant; treat as system_error until fixed."
+          ],
+          "applied_caps_or_restrictions": [],
+          "patched_protocol_optional": null
+        },
+        "client_facing_explanation": {
+          "why_today": "A 14-week adaptive plan that prioritizes glow and recovery while keeping sessions gentle; each visit is re-generated based on updated vitals/symptoms and re-checked against constraints.",
+          "what_you_may_feel_today": [
+            "Most sessions are designed to feel comfortable and not overly intense."
+          ],
+          "what_you_may_see_over_7_14_days": [
+            "More consistent glow and tone stability as sessions are repeated and adjusted."
+          ],
+          "who_should_not_take_today": [
+            "Anyone with chest pain or shortness of breath right now.",
+            "Anyone pregnant/breastfeeding should get clinician approval first."
+          ]
+        },
+        "ui_constraint_flags": {
+          "hard_block": false,
+          "doctor_approval_required": false,
+          "rate_restricted": false,
+          "dose_caps_applied": false
+        },
+        "plan_duration_weeks": 14,
+        "schedule_description": "Weekly for 4 weeks, then every 2 weeks for 10 weeks (adaptive each visit).",
+        "sessions": [
+          {
+            "week_index": 1,
+            "phase_id": "phase_1_reset_4_weeks",
+            "session_goal_summary": "Gentle glow + antioxidant support; establish baseline tolerability.",
+            "candidate_generation_hint": "Prefer 1 bag, gentle antioxidant_glow template; keep total ingredients conservative.",
+            "recommended_protocol_week_optional": {
+              "protocol_id": "PLAN_W1_GLOW_DETOX_VITC_GSH_250NS_SLOW",
+              "label_short": "Week 1 example (gentle glow)",
+              "bags": [
+                {
+                  "bag_id": "bag_1",
+                  "carrier": "Normal Saline (0.9%)",
+                  "bag_size_ml": 250,
+                  "rate_profile": "SLOW",
+                  "min_duration_minutes": 60,
+                  "ingredients": [
+                    {
+                      "name": "Vitamin C (High Dose)",
+                      "dose_mg_optional": 2000,
+                      "dose_units_optional": "mg"
+                    },
+                    {
+                      "name": "Glutathione",
+                      "dose_mg_optional": 1200,
+                      "dose_units_optional": "mg"
+                    }
+                  ],
+                  "admin_notes_optional": ["Vitamin C + Glutathione allowed in same bag."]
+                }
+              ],
+              "hero_ingredients": ["Vitamin C (High Dose)", "Glutathione"],
+              "intended_benefits_tags": ["Glow", "Detox", "Recovery"],
+              "axis_targeting_intent": {
+                "primary_axes": ["DGS", "ODS", "ILS"],
+                "why_these_axes": "Week 1 starts with a gentle antioxidant glow session; future weeks adapt to updated scores/symptoms and re-checked against constraints."
+              },
+              "budget_candidate_optional": {
+                "is_budget": false,
+                "budget_rule": null
+              },
+              "ui_summary": {
+                "total_bags": 1,
+                "estimated_total_duration_minutes": 60,
+                "contains_nad": false,
+                "hero_count": 2,
+                "display_hero_string": "Vitamin C (High Dose) + Glutathione",
+                "display_benefits_string": "Glow + Detox"
+              }
+            },
+            "note": "Weeks 2–14 are regenerated on the day using updated intake + machine data and constraints validation."
+          },
+          {
+            "week_index": 2,
+            "phase_id": "phase_1_reset_4_weeks",
+            "session_goal_summary": "Maintain glow support; keep gentle and tolerable.",
+            "candidate_generation_hint": "Hydration + light antioxidant support; consider simplifying if any sensitivity.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 3,
+            "phase_id": "phase_1_reset_4_weeks",
+            "session_goal_summary": "Continue glow/recovery; adjust based on skin AI + symptoms.",
+            "candidate_generation_hint": "Antioxidant_glow template; keep heroes ≤2 if patient prefers gentle.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 4,
+            "phase_id": "phase_1_reset_4_weeks",
+            "session_goal_summary": "Consolidate early improvements; keep session simple.",
+            "candidate_generation_hint": "Consider LR carrier if comfort/electrolyte feel desired; keep ingredient count low.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 5,
+            "phase_id": "phase_2_build_6_weeks",
+            "session_goal_summary": "Target persistent drivers (if any) while maintaining glow.",
+            "candidate_generation_hint": "If ODS/DGS remain elevated, continue antioxidants; if ASLS rises, add calm-support (constraints permitting).",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 6,
+            "phase_id": "phase_2_build_6_weeks",
+            "session_goal_summary": "Build phase: refine based on updated scores.",
+            "candidate_generation_hint": "Keep max 3 heroes; avoid complexity unless a clear axis driver emerges.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 7,
+            "phase_id": "phase_2_build_6_weeks",
+            "session_goal_summary": "Build phase: maintain consistency.",
+            "candidate_generation_hint": "Antioxidant_glow template; consider rotating supportive cofactors if fatigue appears.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 8,
+            "phase_id": "phase_2_build_6_weeks",
+            "session_goal_summary": "Build phase: adjust for lifestyle stressors if present.",
+            "candidate_generation_hint": "If stress/sleep worsens, prioritize hydration_ans_comfort template.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 9,
+            "phase_id": "phase_2_build_6_weeks",
+            "session_goal_summary": "Build phase: continue targeted support.",
+            "candidate_generation_hint": "Keep gentle intensity; prefer 1 bag unless constraints suggest otherwise.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 10,
+            "phase_id": "phase_2_build_6_weeks",
+            "session_goal_summary": "Build phase: reassess glow + inflammation balance.",
+            "candidate_generation_hint": "If ILS increases, keep antioxidants conservative and avoid adding multiple new actives.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 11,
+            "phase_id": "phase_3_maintain_4_weeks",
+            "session_goal_summary": "Maintenance: simpler session to sustain results.",
+            "candidate_generation_hint": "Prefer minimal ingredient set; 1–2 heroes max.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 12,
+            "phase_id": "phase_3_maintain_4_weeks",
+            "session_goal_summary": "Maintenance: keep consistent and gentle.",
+            "candidate_generation_hint": "Hydration base + single antioxidant hero if still desired.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 13,
+            "phase_id": "phase_3_maintain_4_weeks",
+            "session_goal_summary": "Maintenance: adjust to seasonal/lifestyle changes.",
+            "candidate_generation_hint": "If travel/stress increases, shift toward hydration_ans_comfort template.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          },
+          {
+            "week_index": 14,
+            "phase_id": "phase_3_maintain_4_weeks",
+            "session_goal_summary": "Maintenance: consolidate and plan next cycle if needed.",
+            "candidate_generation_hint": "Keep simplest effective protocol; reassess goals.",
+            "recommended_protocol_week_optional": null,
+            "note": "Regenerate on visit day."
+          }
+        ]
+      },
+      {
+        "option_type": "budget_option",
+        "name": "Budget Option_Glow_Glutathione",
+        "protocols": [
+          {
+            "protocol_id": "BUDGET_GLOW_GSH_250NS_SLOW",
+            "label_short": "Budget glow (single hero)",
+            "bags": [
+              {
+                "bag_id": "bag_1",
+                "carrier": "Normal Saline (0.9%)",
+                "bag_size_ml": 250,
+                "rate_profile": "SLOW",
+                "min_duration_minutes": 60,
+                "ingredients": [
+                  {
+                    "name": "Glutathione",
+                    "dose_mg_optional": 1200,
+                    "dose_units_optional": "mg"
+                  }
+                ],
+                "admin_notes_optional": []
+              }
+            ],
+            "hero_ingredients": ["Glutathione"],
+            "intended_benefits_tags": ["Glow", "Recovery"],
+            "axis_targeting_intent": {
+              "primary_axes": ["DGS", "ODS"],
+              "why_these_axes": "Budget-friendly single-hero antioxidant support aligned to glow goal."
+            },
+            "budget_candidate_optional": {
+              "is_budget": true,
+              "budget_rule": "Exactly 1 hero ingredient; no NAD+ anywhere."
+            },
+            "ui_summary": {
+              "total_bags": 1,
+              "estimated_total_duration_minutes": 60,
+              "contains_nad": false,
+              "hero_count": 1,
+              "display_hero_string": "Glutathione",
+              "display_benefits_string": "Glow + Recovery"
+            }
+          }
+        ],
+        "constraint_report": {
+          "status": "allowed_with_cautions",
+          "actions": ["system_error"],
+          "messages": [
+            "Constraints schema expects safety_and_contraindications keys as Yes/No/Unsure strings and requires additional keys (e.g., asthma/anaphylaxis/seizures). Upstream mapping appears non-conformant; treat as system_error until fixed."
+          ],
+          "applied_caps_or_restrictions": [],
+          "patched_protocol_optional": null
+        },
+        "client_facing_explanation": {
+          "why_today": "A minimal, budget-friendly glow option using a single hero ingredient.",
+          "what_you_may_feel_today": ["Usually very tolerable; minimal immediate sensation."],
+          "what_you_may_see_over_7_14_days": ["Gradual improvement in overall glow/brightness."],
+          "who_should_not_take_today": [
+            "Anyone with chest pain or shortness of breath right now.",
+            "Anyone pregnant/breastfeeding should get clinician approval first."
+          ]
+        },
+        "ui_constraint_flags": {
+          "hard_block": false,
+          "doctor_approval_required": false,
+          "rate_restricted": false,
+          "dose_caps_applied": false
+        }
+      }
+    ],
+    "meta": {
+      "generated_from_scores": {
+        "FENS": 0,
+        "PCCS": 22,
+        "ASLS": 4,
+        "MONS": 1,
+        "ODS": 15,
+        "ILS": 19,
+        "MSGS": 7,
+        "DGS": 12
+      },
+      "goal_primary": "Skin glow",
+      "intensity": "Gentle",
+      "notes": [
+        "Generative planner: composes protocols freely inside constraints + ingredient menu.",
+        "Max 3 hero ingredients in any protocol.",
+        "Option 1 and 2 are top-2 single-session choices; NAD+ is not preferred but can win if truly ideal.",
+        "If one of Option 1/2 contains NAD+, the other must not contain NAD+.",
+        "Budget option: exactly 1 hero ingredient and never NAD+ anywhere.",
+        "After client selection, execution engine generates step-by-step nurse/therapist run sheet."
+      ]
+    }
+  }
+}

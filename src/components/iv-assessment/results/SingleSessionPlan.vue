@@ -5,21 +5,21 @@
       <div class="col-12 col-md-6 flex column gap-4">
         <!-- Plan Header -->
         <q-card class="plan-header-card overflow-hidden relative-position shadow-1 bg-white">
-          <div class="bg-gradient-primary absolute-full z-0 opacity-10"></div>
+          <div class="bg-blue-1 absolute-full z-0 opacity-30"></div>
           <q-card-section class="relative-position z-1 q-pa-md">
-            <div class="text-overline text-primary q-mb-none font-medium opacity-80">
+            <div class="text-overline text-grey-9 q-mb-none font-medium opacity-100">
               SELECTED PROTOCOL
             </div>
-            <div class="text-h5 text-weight-bold text-primary q-my-xs leading-tight">
+            <div class="text-h5 text-weight-bold text-dark q-my-xs leading-tight">
               {{ planDetails.name }}
             </div>
             <div class="flex items-center q-gutter-x-sm q-mt-sm">
               <q-chip
                 v-if="planDetails.option_type"
-                color="blue-1"
+                color="white"
                 text-color="primary"
                 size="sm"
-                class="font-semibold"
+                class="font-semibold shadow-1"
               >
                 {{ formatOptionType(planDetails.option_type) }}
               </q-chip>
@@ -29,7 +29,7 @@
                 :text-color="constraintTextColor"
                 size="sm"
                 :icon="constraintIcon"
-                class="font-semibold"
+                class="font-semibold shadow-1"
               >
                 {{ constraintStatusLabel }}
               </q-chip>
@@ -63,8 +63,8 @@
             >
               <!-- Messages -->
               <div v-if="planDetails.constraint_report.messages?.length" class="q-mb-sm">
-                <div class="text-weight-bold q-mb-xs opacity-70">Analysis Details</div>
-                <ul class="q-pl-md q-mt-none q-mb-none">
+                <div class="text-weight-bold q-mb-xs opacity-100">Analysis Details</div>
+                <ul class="q-pl-md q-mt-none q-mb-none text-body2">
                   <li
                     v-for="(msg, i) in planDetails.constraint_report.messages"
                     :key="i"
@@ -76,8 +76,8 @@
               </div>
               <!-- Actions -->
               <div v-if="planDetails.constraint_report.actions?.length">
-                <div class="text-weight-bold q-mb-xs opacity-70">Required Actions</div>
-                <ul class="q-pl-md q-mt-none q-mb-none">
+                <div class="text-weight-bold q-mb-xs opacity-100">Required Actions</div>
+                <ul class="q-pl-md q-mt-none q-mb-none text-body2">
                   <li
                     v-for="(act, i) in planDetails.constraint_report.actions"
                     :key="i"
@@ -94,8 +94,8 @@
 
       <!-- Right Column: Protocol Composition -->
       <div class="col-12 col-md-6">
-        <div class="text-subtitle1 text-weight-bold text-grey-9 q-mb-sm flex items-center">
-          <q-icon name="medication_liquid" color="secondary" class="q-mr-sm" />
+        <div class="text-subtitle1 text-weight-bold text-dark q-mb-sm flex items-center">
+          <q-icon name="medication_liquid" color="primary" class="q-mr-sm" />
           Protocol Composition
         </div>
 
@@ -105,13 +105,13 @@
             :key="protocol.protocol_id"
             flat
             bordered
-            class="protocol-card rounded-borders shadow-sm bg-grey-1"
+            class="protocol-card rounded-borders shadow-sm bg-white"
           >
             <!-- Protocol ID & Hero -->
-            <q-card-section class="q-pa-sm border-b-grey">
-              <div class="row items-center justify-between no-wrap">
+            <q-card-section class="q-pa-sm border-b-grey bg-grey-1">
+              <div class="row items-center justify-between">
                 <div
-                  class="text-caption text-grey-6 text-uppercase ellipsis"
+                  class="text-caption text-grey-9 text-uppercase ellipsis text-weight-medium"
                   style="max-width: 60%"
                 >
                   ID: {{ protocol.protocol_id }}
@@ -121,12 +121,15 @@
                     v-for="hero in protocol.hero_ingredients.slice(0, 2)"
                     :key="hero"
                     outline
-                    color="secondary"
-                    class="q-px-xs text-caption"
+                    class="q-px-xs text-caption text-primary bg-blue-1 border-primary"
                   >
                     <q-icon name="star" size="10px" class="q-mr-xs" />{{ hero }}
                   </q-badge>
-                  <q-badge v-if="protocol.hero_ingredients.length > 2" outline color="secondary">
+                  <q-badge
+                    v-if="protocol.hero_ingredients.length > 2"
+                    outline
+                    class="text-primary bg-blue-1 border-primary"
+                  >
                     +{{ protocol.hero_ingredients.length - 2 }}
                   </q-badge>
                 </div>
@@ -143,44 +146,46 @@
                 >
                   <!-- Bag Header -->
                   <div class="row items-center justify-between q-mb-xs">
-                    <div class="text-subtitle2 text-primary flex items-center">
-                      <q-icon name="local_pharmacy" class="q-mr-xs" size="xs" />
+                    <div class="text-subtitle2 text-dark flex items-center text-weight-bold">
+                      <q-icon name="local_pharmacy" class="q-mr-xs text-primary" size="xs" />
                       Bag {{ idx + 1 }}
                     </div>
                     <div class="flex items-center gap-2">
-                      <div class="text-caption text-weight-bold">{{ bag.bag_size_ml }}ml</div>
+                      <div class="text-caption text-weight-bold text-dark">
+                        {{ bag.bag_size_ml }}ml
+                      </div>
                       <q-badge
                         :color="getRateColor(bag.rate_profile)"
                         :label="bag.rate_profile"
                         rounded
-                        class="q-px-sm text-xxs"
+                        class="q-px-sm text-xxs shadow-1"
                       />
                     </div>
                   </div>
 
-                  <div class="text-caption text-grey-8 q-mb-xs">
-                    <span class="text-grey-6">Carrier:</span> {{ bag.carrier }}
+                  <div class="text-body2 text-grey-9 q-mb-xs">
+                    <span class="text-grey-8 text-weight-medium">Carrier:</span> {{ bag.carrier }}
                   </div>
 
                   <!-- Ingredients -->
-                  <q-list dense class="q-mt-xs">
+                  <q-list dense class="q-mt-sm">
                     <q-item
                       v-for="(ing, i) in bag.ingredients"
                       :key="i"
                       class="q-px-none min-h-0 q-py-none"
                     >
                       <q-item-section avatar style="min-width: 20px" class="q-pr-xs">
-                        <q-icon name="check" color="positive" size="14px" />
+                        <q-icon name="check_circle" color="positive" size="14px" />
                       </q-item-section>
                       <q-item-section>
-                        <div class="row justify-between items-center text-caption w-full">
-                          <span class="text-grey-9 text-weight-medium">{{ ing.name }}</span>
+                        <div class="row justify-between items-center text-body2 w-full">
+                          <span class="text-grey-10 text-weight-medium">{{ ing?.name }}</span>
                           <span
-                            v-if="ing.dose_mg_optional"
-                            class="text-grey-7 bg-grey-2 q-px-xs rounded-borders"
-                            style="font-size: 11px"
+                            v-if="ing?.dose_mg_optional"
+                            class="text-grey-9 bg-grey-2 q-px-xs rounded-borders"
+                            style="font-size: 12px"
                           >
-                            {{ ing.dose_mg_optional }}mg
+                            {{ ing?.dose_mg_optional }}mg
                           </span>
                         </div>
                       </q-item-section>
@@ -251,9 +256,9 @@ const formatOptionType = (type) => {
 }
 
 const getRateColor = (rate) => {
-  if (rate === 'SLOW') return 'deep-orange' // Darker orange for better contrast
-  if (rate === 'MODERATE') return 'primary'
-  return 'positive'
+  if (rate === 'SLOW') return 'orange-9'
+  if (rate === 'MODERATE') return 'blue-9'
+  return 'green-9'
 }
 
 const downloadPDF = () => {
@@ -394,10 +399,6 @@ const downloadPDF = () => {
   border: 1px solid #e0e0e0;
 }
 
-.bg-gradient-primary {
-  background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
-}
-
 /* Constraint Colors - Compact & Readable */
 .bg-warning-light {
   background-color: #fff8e1; /* Very light amber */
@@ -406,10 +407,10 @@ const downloadPDF = () => {
   background-color: #ffecb3; /* Slightly darker header */
 }
 .text-warning-dark {
-  color: #8d6e63; /* Brownish contrast */
+  color: #5d4037; /* Darker brown for text */
 }
 .text-warning-darker {
-  color: #5d4037; /* Darker brown for text */
+  color: #3e2723; /* Even Darker brown for text */
 }
 .border-warning {
   border: 1px solid #ffca28;
@@ -419,20 +420,21 @@ const downloadPDF = () => {
 }
 
 .border-b-grey {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #e0e0e0;
 }
 .border-grey {
-  border: 1px solid #eee;
+  border: 1px solid #e0e0e0;
 }
 
-.opacity-10 {
-  opacity: 0.1;
+.border-primary {
+  border: 1px solid var(--q-primary);
 }
-.opacity-80 {
-  opacity: 0.8;
+
+.opacity-30 {
+  opacity: 0.3;
 }
-.opacity-70 {
-  opacity: 0.7;
+.opacity-100 {
+  opacity: 1;
 }
 
 .leading-tight {

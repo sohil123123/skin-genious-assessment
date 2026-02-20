@@ -126,6 +126,7 @@ import ScoringResults from 'src/components/iv-assessment/results/ScoringResults.
 import TreatmentPlanComponent from 'src/components/iv-assessment/results/TreatmentPlanComponent.vue'
 import NurseRunSheet from 'src/components/iv-assessment/results/NurseRunSheet.vue'
 import { encode } from '@toon-format/toon'
+import ivTreatmentGenerationEngine from 'src/utils/iv/treatment/ivTreatmentGenerationEngine.json'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 const $q = useQuasar()
@@ -403,10 +404,23 @@ async function goNext() {
       return
     }
 
-    // Populate treatment_sessions for the Nurse Run Sheet
-    // The Run Sheet expects { treatments: [ protocol ] }
+    // Populate treatment_sessions with metadata for the new iv_sessions table
+    const planWeekIndex =
+      selected.option_type === 'plan_option' ? selected.sessions?.[0]?.week_index || 1 : null
+
+    const ivSessionData = {
+      selected_protocol_id: sessionProtocol.protocol_id,
+      selected_option_type: selected.option_type,
+      is_plan: selected.option_type === 'plan_option',
+      plan_week_index: planWeekIndex,
+      engine_versions: {
+        generation_engine: ivTreatmentGenerationEngine.version,
+      },
+    }
+
     formData.value.treatment_sessions = {
       treatments: [sessionProtocol],
+      iv_session_data: ivSessionData,
     }
     await submit(['treatment_sessions'])
   }

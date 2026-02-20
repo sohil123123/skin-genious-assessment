@@ -132,7 +132,7 @@ watch(
       faceImages.value = desiredImages.map((img) => img.url)
     }
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 )
 
 watch(audioStatus, (newVal) => {

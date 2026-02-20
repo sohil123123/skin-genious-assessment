@@ -178,7 +178,7 @@ watch(
       treatmentType.value = val.selected_plan_type
     }
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 )
 
 const generatePlan = () => {

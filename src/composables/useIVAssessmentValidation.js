@@ -615,7 +615,7 @@ export function useIVAssessmentValidation(formData) {
           total_body_water: { required },
           body_fat_percentage: { required },
           lean_muscle_mass_kg: { required },
-          visceral_fat_kg: { required },
+          visceral_fat_rating: { required },
         },
         hand_grip_dynamometer: {
           dominant_hand_grip_strength_kg: { required },

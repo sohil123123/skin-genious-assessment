@@ -35,7 +35,7 @@
             v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
               .lean_muscle_mass_kg.$error ||
             v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
-              .visceral_fat_kg.$error,
+              .visceral_fat_rating.$error,
         }"
       />
       <q-tab
@@ -196,16 +196,16 @@
             <q-input
               v-model.number="
                 localFormData.section_2_machine_objective_inputs_part_2
-                  .body_composition_analyzer_8_electrode.visceral_fat_kg
+                  .body_composition_analyzer_8_electrode.visceral_fat_rating
               "
               type="number"
               step="0.1"
-              label="Visceral fat (Kg) *"
+              label="Visceral fat (Rating) *"
               outlined
               dense
               :error="
                 v.section_2_machine_objective_inputs_part_2.body_composition_analyzer_8_electrode
-                  .visceral_fat_kg.$error
+                  .visceral_fat_rating.$error
               "
               @update:model-value="emitUpdate"
             >

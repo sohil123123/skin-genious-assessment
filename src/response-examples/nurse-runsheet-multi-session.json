@@ -1,0 +1,77 @@
+{
+  "header": {
+    "protocol_id": "PLAN_W1_GLOW_DETOX_VITC_GSH_250NS_SLOW",
+    "option_type": "plan_option",
+    "display_name": "14-Week Plan (Adaptive)_Glow+Recovery (Week 1)",
+    "bag_count": 1,
+    "expected_total_duration_minutes": 60,
+    "special_flags": [
+      "Plan session: Week 1 example protocol",
+      "Gentle intensity preference",
+      "No NAD+ in protocol",
+      "Vitamin C (High Dose) + Glutathione in same bag (allowed)"
+    ]
+  },
+  "preflight_checks": [
+    "Confirm patient name + DOB (or clinic ID).",
+    "Confirm consent for IV session and selected option (plan session Week 1).",
+    "Baseline vitals required: BP, HR, SpO2, Temp; record baseline values before starting infusion.",
+    "Baseline symptom check required: dizziness (yes/no), nausea (yes/no), anxiety/palpitations (yes/no), headache (yes/no).",
+    "Hard stop screen: confirm NO chest pain now, NO shortness of breath now, NO fainting episode today, NO confusion or severe weakness now; if any present, do not proceed and call clinician.",
+    "Review key safety items: pregnancy/breastfeeding status, kidney disease, G6PD status, severe allergy/anaphylaxis history, asthma/reactive airway history, seizure history; if any are Yes/Unsure or unclear, escalate to clinician before proceeding.",
+    "Verify today’s vitals are acceptable for infusion: BP 100/70, HR 72, SpO2 98%; confirm patient feels well to proceed."
+  ],
+  "setup_steps": [
+    "Gather equipment: IV cannula (20–24G), tourniquet, antiseptic prep, sterile gauze, transparent dressing, tape, extension line, saline flush syringes, sharps container, IV administration set, IV stand, labels/marker, gloves; ensure emergency supplies are available per clinic policy.",
+    "Prepare Bag 1: 250 ml Normal Saline (0.9%); label with patient identifiers, date/time, and additives.",
+    "Add ingredients to Bag 1: Vitamin C (High Dose) 2000 mg and Glutathione 1200 mg; mix gently and confirm clarity/compatibility.",
+    "Note admin guidance: Vitamin C + Glutathione allowed in same bag; follow clinic mixing order and aseptic technique.",
+    "Prime IV tubing with the prepared bag; remove air from line.",
+    "Establish IV access using aseptic technique; confirm patency with saline flush and secure with transparent dressing."
+  ],
+  "administration_steps": [
+    "Start infusion of Bag 1 (250 ml Normal Saline with Vitamin C 2000 mg + Glutathione 1200 mg) using SLOW rate profile with minimum duration 60 minutes.",
+    "Set pump or drip rate to meet 250 ml over at least 60 minutes; adjust only within SLOW profile unless clinician directs otherwise.",
+    "Ask patient to report immediately: chest tightness, shortness of breath, dizziness, nausea, headache, flushing, itching/rash, or IV site pain/burning.",
+    "If mild discomfort occurs, slow the rate and reassess; if symptoms persist or worsen, pause infusion and follow escalation rules."
+  ],
+  "monitoring_plan": {
+    "baseline_measurements": ["BP", "HR", "SpO2", "Temp"],
+    "during_infusion_checks": [
+      "Comfort check every 10–15 min (ask about nausea, dizziness, headache, palpitations/anxiety, chest symptoms).",
+      "IV site check every 10–15 min (pain/burning, swelling, redness, infiltration).",
+      "Recheck BP/HR/SpO2 as needed if symptomatic or if baseline BP is low-normal."
+    ],
+    "stop_rules": [
+      "Stop immediately and call clinician if: chest pain, shortness of breath, fainting / near-fainting, rapidly worsening symptoms."
+    ],
+    "escalation_rules": [
+      "Pause infusion and reassess if: moderate nausea, moderate dizziness, moderate headache, IV site pain/burning, or patient asks to stop.",
+      "If symptoms improve after pause/slow rate, resume at slower rate; if not improving, stop and call clinician."
+    ]
+  },
+  "post_care": [
+    "At end of infusion, stop drip/pump and flush line per clinic protocol.",
+    "Record end-of-session vitals: BP, HR, SpO2.",
+    "Remove IV cannula if no further therapy planned; apply pressure and dressing; provide aftercare instructions for site care.",
+    "Ask patient about post-infusion symptoms (lightheadedness, nausea, headache, palpitations) and document; provide oral water and allow seated recovery before standing.",
+    "Schedule next plan visit per clinic plan cadence and note that next session protocol is regenerated on the visit day using updated intake + machine data."
+  ],
+  "documentation": [
+    "protocol_id and option selected",
+    "carrier + bag size",
+    "all additives and final doses actually administered",
+    "start time, end time, total duration",
+    "rate profile used and any rate changes",
+    "baseline vitals + end vitals",
+    "any symptoms and actions taken",
+    "constraints status + any restrictions applied",
+    "clinician signoff events (if any)"
+  ],
+  "clinician_signoff_required_if": [
+    "Any hard-stop symptom is present at baseline (chest pain now, shortness of breath now, fainting episode today, confusion or severe weakness now).",
+    "Any moderate or severe reaction occurs during infusion (worsening nausea/dizziness/headache, rash/itching, breathing symptoms, near-syncope).",
+    "Any key safety item is Yes/Unsure or unclear (pregnancy/breastfeeding, kidney disease, G6PD deficiency, severe allergy/anaphylaxis, asthma/reactive airway, seizures).",
+    "Any significant abnormal vital sign trend occurs during infusion (symptomatic hypotension, new tachycardia, or SpO2 drop)."
+  ]
+}
