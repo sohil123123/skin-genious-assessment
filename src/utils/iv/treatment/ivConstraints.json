@@ -74,6 +74,21 @@
       "history_of_severe_allergy_anaphylaxis",
       "history_of_seizures_epilepsy"
     ],
+    "value_sanity_checks": [
+      {
+        "path": "session_machines_raw.body_composition.visceral_fat_rating",
+        "expected": "Tanita-style rating (typically ~1 to 59). NOT kilograms.",
+        "if": "session_machines_raw.body_composition.visceral_fat_rating is not null && (session_machines_raw.body_composition.visceral_fat_rating < 0 || session_machines_raw.body_composition.visceral_fat_rating > 80)",
+        "then": {
+          "emit": { "action": "system_error", "severity": "high" },
+          "message": "visceral_fat_rating is out of plausible rating range (expected ~1–59). Likely wrong units (kg vs rating) or mapping bug. Fix upstream mapping before generating treatment."
+        }
+      }
+    ],
+    "on_value_sanity_check_fail": {
+      "emit": { "action": "system_error", "severity": "high" },
+      "message": "Upstream value sanity check failed; do not proceed without correcting intake/machine mapping."
+    },
     "on_missing_required_path": {
       "emit": { "action": "system_error", "severity": "high" },
       "message": "Missing required upstream fields for constraints evaluation; do not proceed without fixing intake mapping."
