@@ -163,39 +163,26 @@ E) ENERGY / PEEL NECESSITY RULE (MANDATORY — OUTCOME DOMINANCE LOGIC)
           "PRIMARY_CONCERN_SUPPORT: <parameter_name>"
       • This support step must respect avoid_zones and sensitivity constraints.
 
-    3) Measurable KPI & Reveal (MANDATORY — FUTURE CLINIC EFFECT)
-      For EACH primary concern, define:
-      • 1 immediate KPI (expected to show same-day or within 24–72 hours)
-      • 1 delayed KPI (expected to show 7–21 days)
-      Each KPI must include:
-        - what changes (plain language)
-        - where it changes (zones/hotspots)
-        - which capture evidence to use (from the 6 imaging modes) OR which objective index available in backend scoring
-
-      Implementation requirement WITHOUT changing output schema:
-      • In EACH session, you MUST include ONE dedicated step near the end titled in the step "script" as:
-          "AI MEASUREMENT & REVEAL"
-        In that step’s "how_to_do", include:
-          - exactly what images to recapture (which modes) and from what angles
-          - a concise checklist for therapist to show client the before/after deltas
-        In that step’s "script", include a compact mapping for ALL primary concerns in this session in this exact format:
-
-          "OUTCOME_STACK_MAP:
-          - <parameter_1>: corrective_steps=[#,#], support_steps=[#,#], immediate_kpi=<...>, delayed_kpi=<...>, evidence=<mode/index>
-          - <parameter_2>: corrective_steps=[#,#], support_steps=[#,#], immediate_kpi=<...>, delayed_kpi=<...>, evidence=<mode/index>"
-
-    4) Anti-Template Guard (MANDATORY — prevents hydrafacial-style layering)
+    3) Anti-Template Guard (MANDATORY — prevents hydrafacial-style layering)
       If Rule E triggers for ANY primary concern in a session:
       • Generic spa steps (simple cleanse + mild exfoliation + mask + massage + hydration-only infusion)
         cannot be the structural backbone of the session.
       • The plan MUST clearly prioritize the corrective step(s) in time and specificity.
       • Ensure step durations and techniques reflect this (corrective steps should NOT be token 2-minute mentions).
 
-    5) If conflicts arise:
+    4) If conflicts arise:
       • If constraints deny high-efficacy modalities for a primary concern, you MUST:
           - still include the best allowed corrective alternative
           - explicitly justify the omission in modality_omission_explanation
           - and still include KPI + evidence plan (with realistic expectations).
+
+    5) HYDRAFACIAL BACKBONE LIMIT (MANDATORY — PREVENTS TEMPLATE PLANS)
+      If ANY primary concern has deviation_from_target >= 1 AND improvability_index >= 0.4:
+      • Hydrafacial steps may be used only as supportive prep (max 3 steps total).
+      • The plan must include ONE distinct HERO corrective block that is NOT hydrafacial-based
+        (energy / peel ladder / microneedling / targeted pigment protocol / vascular protocol etc. as allowed),
+        and that block must consume the largest single time allocation.
+      • If hydrafacial appears in >3 steps, the plan is INVALID and must be regenerated.
 
 F) REGIONAL DIFFERENTIATION REQUIREMENT (MANDATORY)
   For any primary concern where a regional_burden_map or grid_map exists:

@@ -44,6 +44,9 @@ CRITICAL RULES:
 5) Eyes closed is NORMAL for scans. Do NOT treat closed eyes as a reason to set peri_orbital fields to null.
    Use infraorbital + upper-cheek junction + eyelid skin texture as measurement zones.
    Only set peri_orbital fields to null if the periocular area is occluded by hair, glare, or out-of-frame.
+6) HARD DETERMINISM: The ONLY values you may infer directly from images are categorical bins/bands and region ordering (dominant_regions). You MUST NOT directly estimate any 0–1 continuous index from pixels.
+7) ALL continuous 0–1 indices in "proxies" MUST be computed deterministically from the bins/bands using the fixed midpoint mapping + formulas below (round to 0.05). If a required bin is missing, choose the conservative bin and set borderline=true.
+8) STRICT JSON TYPES: booleans must be true/false (not "true"/"false"). Numbers must be numbers (not "0.6"). Do not quote numeric values.
 
 DETERMINISTIC FALLBACK ESTIMATION TABLE (MANDATORY — NO NULLS IN CLIENT PIPELINE)
 
@@ -68,6 +71,39 @@ General helper functions (apply conceptually):
   pigmentation.coverage_band: very_low=0.10, low=0.25, moderate=0.50, high=0.75, very_high=0.90
   pigmentation.intensity_band: light=0.15, mild=0.30, moderate=0.50, marked=0.70, severe=0.90
   wrinkles.wrinkle_line_count_bin: 0-10=0.15, 11-30=0.35, 31-60=0.60, 60+=0.85
+
+  ADDITIONAL BIN MIDPOINTS (deterministic):
+    - hydration.surface_reflectance_bin: very_low=0.10, low=0.25, moderate=0.50, high=0.75, very_high=0.90
+    - hydration.subsurface_diffusion_bin: very_low=0.10, low=0.25, moderate=0.50, high=0.75, very_high=0.90
+    - hydration.microline_density_bin: none=0.10, mild=0.30, moderate=0.55, marked=0.80
+    - hydration.dry_patch_fluorescence_bin: none=0.05, low=0.25, moderate=0.55, high=0.80
+
+    - barrier.erythema_intensity_bin: none=0.05, mild=0.20, moderate=0.40, high=0.65, severe=0.85
+    - barrier.erythema_coverage_bin: none=0.05, low=0.25, moderate=0.55, high=0.80
+    - barrier.flaking_texture_bin: none=0.10, mild=0.30, moderate=0.55, marked=0.80
+    - barrier.barrier_uniformity_bin: poor=0.80, mixed=0.55, good=0.30, excellent=0.15
+    - barrier.hydration_signal_bin: very_low=0.85, low=0.65, moderate=0.45, high=0.25, very_high=0.10
+
+    - sebum.shine_intensity_bin: none=0.05, mild=0.25, moderate=0.55, strong=0.80
+    - sebum.shine_coverage_bin: none=0.05, low=0.25, moderate=0.55, high=0.80
+
+    DETERMINISTIC INDEX COMPUTATION (MANDATORY — ALWAYS USE THESE FORMULAS):
+    Hydration indices:
+    - hydration.surface_reflectance_index = round005( mid(hydration.surface_reflectance_bin) )
+    - hydration.subsurface_diffusion_index = round005( mid(hydration.subsurface_diffusion_bin) )
+    - hydration.microline_density_index = round005( mid(hydration.microline_density_bin) )
+    - hydration.dry_patch_fluorescence_index = round005( mid(hydration.dry_patch_fluorescence_bin) )
+
+    Barrier/sensitivity indices:
+    - combined_barrier_sensitivity.erythema_intensity_index = round005( mid(barrier.erythema_intensity_bin) )
+    - combined_barrier_sensitivity.erythema_coverage_ratio = round005( mid(barrier.erythema_coverage_bin) )
+    - combined_barrier_sensitivity.flaking_texture_index = round005( mid(barrier.flaking_texture_bin) )
+    - combined_barrier_sensitivity.barrier_uniformity_index = round005( 1.00 - mid(barrier.barrier_uniformity_bin) )
+    - combined_barrier_sensitivity.hydration_signal_index = round005( 1.00 - mid(barrier.hydration_signal_bin) )
+
+    Sebum indices:
+    - sebum_oiliness.shine_intensity_index = round005( mid(sebum.shine_intensity_bin) )
+    - sebum_oiliness.shine_coverage_ratio = round005( mid(sebum.shine_coverage_bin) )
 
 A) Peri-orbital (eyes closed is NORMAL; never null purely due to eyes closed)
 If you cannot confidently measure any peri-orbital proxy directly, compute:
@@ -167,6 +203,10 @@ Output JSON schema:
   "regions": ["forehead","nose","left_cheek","right_cheek","chin","perioral"],
   "proxies": {
     "hydration": {
+      "surface_reflectance_bin": "none|low|moderate|high|very_high",
+      "subsurface_diffusion_bin": "none|low|moderate|high|very_high",
+      "microline_density_bin": "none|low|moderate|high|very_high",
+      "dry_patch_fluorescence_bin": "none|low|moderate|high|very_high",
       "surface_reflectance_index": 0.0,
       "subsurface_diffusion_index": 0.0,
       "microline_density_index": 0.0,
@@ -178,6 +218,11 @@ Output JSON schema:
       "borderline": false
     },
     "combined_barrier_sensitivity": {
+      "erythema_intensity_bin": "none|low|moderate|high|very_high",
+      "erythema_coverage_bin": "none|low|moderate|high|very_high",
+      "flaking_texture_bin": "none|low|moderate|high|very_high",
+      "barrier_uniformity_bin": "none|low|moderate|high|very_high",
+      "hydration_signal_bin": "none|low|moderate|high|very_high",
       "erythema_intensity_index": 0.0,
       "erythema_coverage_ratio": 0.0,
       "flaking_texture_index": 0.0,
@@ -198,6 +243,8 @@ Output JSON schema:
       "shine_coverage_ratio": 0.0,
       "t_zone_oil_bin": "none|mild|moderate|strong",
       "cheek_oil_bin": "none|mild|moderate|strong",
+      "shine_intensity_bin": "none|low|moderate|high|very_high",
+      "shine_coverage_bin": "none|low|moderate|high|very_high",
       "borderline": false
     },
     "redness": {
