@@ -26,7 +26,7 @@
         <p class="text-caption q-mt-sm q-mb-md">{{ param.description }}</p>
 
         <q-card-section class="bg-grey-2 rounded-borders q-pa-md">
-          {{ param.score_explanation }}
+          {{ param.client_description }}
         </q-card-section>
 
         <div class="q-mt-md">
@@ -248,7 +248,7 @@ const exportToPDF = async () => {
       // Score Explanation (wrapped)
       doc.setFont('helvetica', 'normal')
       const scoreExpLines = doc.splitTextToSize(
-        param.score_explanation.replaceAll(/[‑-–→]/g, '-'),
+        param.client_description.replaceAll(/[‑-–→]/g, '-'),
         85,
       )
       doc.text(scoreExpLines, 102, currentY + 13)
