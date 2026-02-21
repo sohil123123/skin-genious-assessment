@@ -115,6 +115,19 @@
         "messages": ["string"],
         "applied_caps_or_restrictions": ["string"]
       },
+      "dominant_axis_explainability": {
+        "dominant_axis": "FENS|PCCS|ASLS|MONS|ODS|ILS|MSGS|DGS",
+        "top_axes_ranked": ["FENS|PCCS|ASLS|MONS|ODS|ILS|MSGS|DGS"],
+        "dominant_axis_driver_keys": ["string"],
+        "dominant_axis_driver_source": "iv_scoring_output.telemetry.primary_driver_per_axis[dominant_axis]",
+        "dominant_axis_driver_sentence": "string"
+      },
+      "outcome_intent_structured": {
+        "same_day_goals": ["string"],
+        "same_day_feel_markers": ["string"],
+        "days_7_14_goals": ["string"],
+        "days_7_14_visible_markers": ["string"]
+      },
       "client_facing_explanation": {
         "why_today": "string",
         "what_you_may_feel_today": ["string"],
@@ -144,6 +157,17 @@
     ]
   },
 
+  "supportive_policy": {
+    "min_supportives_per_protocol_default": 1,
+    "nad_exception": "If protocol contains NAD+ anywhere, keep it standalone unless constraints explicitly allow additives.",
+    "gentle_intensity_relaxation": "If desired_intensity is Gentle AND safety fields are sparse/unknown, allow 0–1 supportives but prefer 1 when allowed.",
+    "quality_bar": [
+      "Supportives do not count toward hero cap.",
+      "Supportives must map to (top_axes coverage OR tolerability OR synergy).",
+      "Never add supportives that do not have a clear purpose."
+    ]
+  },
+
   "naming_rules": {
     "single_session_and_plan": {
       "format": "benefits provided by the IV treatment_Hero Ingredients",
@@ -169,7 +193,8 @@
       "Single-session Option 1 and Option 2 must be different protocols.",
       "If one of Option 1/2 contains NAD+, the other MUST NOT contain NAD+.",
       "Budget option must have exactly one hero ingredient and MUST NOT contain NAD+ anywhere.",
-      "If NAD+ is used: it must be standalone session; NS carrier only; slow-only; spacing rules enforced by constraints."
+      "If NAD+ is used: it must be standalone session; NS carrier only; slow-only; spacing rules enforced by constraints.",
+      "All non-NAD+ protocols MUST include at least 1 supportive ingredient (not counting carrier fluid) unless constraints prevent; supportives must be justified by (top_axes coverage OR tolerability OR synergy)."
     ],
 
     "degrees_of_freedom": [
