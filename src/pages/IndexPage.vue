@@ -84,20 +84,20 @@ import MajorConcerns from 'src/components/assessment/MajorConcerns.vue'
 // import PreparationStep from 'src/components/assessment/PreparationStep.vue'
 import PostAssessment from 'src/components/assessment/PostAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
+import { SYSTEM_PROMPT_FEATURE_PACKET_V1 } from 'src/utils/facial/scoring/aiPrompts'
 import {
-  SYSTEM_PROMPT_FEATURE_PACKET_V1,
   SYSTEM_PROMPT_DIAGNOSIS,
   D_REPORT_USER_PROMPT,
-  SYSTEM_TREATMENT_PLAN_PROMPT,
-  POST_DIAGNOSIS_USER_PROMPT,
-} from 'src/utils/facial/aiPrompts'
+} from 'src/utils/facial/scoring/scoringPrompt'
+import { SYSTEM_TREATMENT_PLAN_PROMPT } from 'src/utils/facial/treatment/treatmentPrompt'
+import { POST_DIAGNOSIS_USER_PROMPT } from 'src/utils/facial/reassessment/postAssessmentPrompt'
 import { Loading, Notify, QSpinnerFacebook, useQuasar } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from 'src/boot/axios'
 import _ from 'lodash'
-import constraints from 'src/utils/facial/constraints'
+import constraints from 'src/utils/facial/treatment/constraints.json'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
 
