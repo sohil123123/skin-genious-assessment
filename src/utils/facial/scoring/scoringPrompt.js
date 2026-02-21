@@ -2803,6 +2803,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Skin Type Classification',
       description:
         'Classifies your skin into oily, dry, combination, or normal based on sebum distribution, shine patterns, pore visibility, and hydration cues across the 6 imaging modes.',
+      client_description:
+        '<A simple, jargon-free explanation of your skin type (e.g., oily, dry) and what it means for your daily care.>',
       score_or_label: '<Skin Type>',
       score_explanation: '<Why this skin type was chosen>',
       affected_area_image: '<1-6>',
@@ -2813,6 +2815,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Barrier Health + Sensitivity (Combined Score)',
       description:
         'Evaluates redness, flaking, micro-irritation, hydration integrity, and overall resilience of the skin barrier using white, Woods, negative-mode, and PPL cues.',
+      client_description:
+        '<A simple explanation of how strong and protected your skin barrier is, and if your skin is showing signs of sensitivity.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Dominant barrier + sensitivity findings and why this score was chosen>',
       affected_area_image: '<1-6>',
@@ -2823,6 +2827,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Visual Acne Grading (v5.1 Spatial)',
       description:
         'Assesses acne severity by counting, classifying, and mapping lesions (comedones, papules, pustules, nodules) across the face using white, UV, Woods, blue, and contrast modes.',
+      client_description:
+        '<A simple summary of your current breakouts, congestion, or acne activity in a way that is easy to understand.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Key lesion patterns, clusters, inflammation signatures>',
       affected_area_image: '<1-6>',
@@ -2833,6 +2839,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Skin Sebum Index (v6.0)',
       description:
         'Quantifies visible shine, blue-mode fluorescence, porphyrin load, and subclinical congestion to assess overall sebum production and distribution.',
+      client_description:
+        "<A simple explanation of your skin's oil production levels and how it affects your complexion.>",
       score_or_label: '<Score 1-5>',
       score_explanation: '<Shine patterns, fluorescence, congestion indicators>',
       affected_area_image: '<1-6>',
@@ -2843,6 +2851,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Vascularity / Redness Scoring (v6)',
       description:
         'Evaluates visible erythema, vascular prominence, diffuse redness, and inflammatory hotspots using white, PPL-positive, XPL-negative, UV, and Woods imaging.',
+      client_description:
+        '<A simple explanation of any redness or visible blood vessels on your skin and what that means for your skin health.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Which component—vascular, inflammatory, diffuse—dominated>',
       affected_area_image: '<1-6>',
@@ -2853,6 +2863,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Skin Hydration Score',
       description:
         'Assesses hydration level by analyzing surface reflectance, smoothness, scattering patterns, and dryness cues in white and negative lighting.',
+      client_description:
+        "<A simple explanation of your skin's moisture levels and whether it is well-hydrated or showing signs of dryness.>",
       score_or_label: '<Score 1-5>',
       score_explanation: '<Hydration markers and dryness indicators>',
       affected_area_image: '<1-6>',
@@ -2863,6 +2875,7 @@ const diagnosis_json_structure = {
       parameter_name: 'Skin Luminosity / Glow Index',
       description:
         'Measures radiance, evenness of reflectance, and overall surface optical quality under white and positive-mode lighting.',
+      client_description: "<A simple explanation of your skin's natural glow and radiance levels.>",
       score_or_label: '<Score 1-5>',
       score_explanation: '<What improved or reduced luminosity>',
       affected_area_image: '<1-6>',
@@ -2873,6 +2886,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Superficial Pigmentation Scoring',
       description:
         'Identifies freckles, tanning, PIH, and pigmentation clusters using Woods and UV imaging plus white-light clinical cues.',
+      client_description:
+        '<A simple explanation of any sun spots, marks, or uneven skin tone on the surface of your skin.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Cluster intensity, distribution, detectability>',
       affected_area_image: '<1-6>',
@@ -2883,6 +2898,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Peri-Orbital Health Score',
       description:
         'Combined assessment of under-eye pigmentation, vascularity, hollowness, and puffiness using multi-light analysis including negative and white mode.',
+      client_description:
+        '<A simple explanation of the health of the skin around your eyes, including concerns like dark circles or puffiness.>',
       score_or_label: '<Score 1-5>',
       score_explanation:
         '<Which factor (pigmentation, vascularity, hollowness, puffiness) most influenced the score>',
@@ -2894,6 +2911,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Lip Pigmentation Score',
       description:
         'Evaluates natural lip pigmentation using Woods, UV, and white modes even when lipstick partially obscures color.',
+      client_description:
+        '<A simple explanation of your natural lip color and any pigmentation patterns observed.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Why this pigmentation severity was chosen>',
       affected_area_image: '<1-6>',
@@ -2904,6 +2923,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Texture & Open Pores Score',
       description:
         'Assesses pore size, distribution, and surface irregularity using positive-mode and white-light contrast.',
+      client_description:
+        '<A simple explanation of how smooth your skin surface is and how visible your pores appear.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Texture and pore pattern characteristics>',
       affected_area_image: '<1-6>',
@@ -2914,6 +2935,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Superficial Wrinkles Score',
       description:
         'Measures fine lines, etched lines, and early wrinkle patterns using negative-mode shadow mapping and white-light visibility.',
+      client_description:
+        '<A simple explanation of any fine lines or surface wrinkles detected on your skin.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Depth, density, and visibility factors>',
       affected_area_image: '<1-6>',
@@ -2924,6 +2947,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Jawline Sagging Score',
       description:
         'Assesses jawline definition, tissue descent, and contour smoothness using white & negative-mode structural cues.',
+      client_description:
+        '<A simple explanation of the firmness and definition of your jawline area.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Which structural findings determined the score>',
       affected_area_image: '<1-6>',
@@ -2934,6 +2959,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Skin Firmness & Elasticity Index',
       description:
         'Evaluates collagen integrity, recoil patterns, and micro-tension in the skin using positive- and white-mode mapping.',
+      client_description:
+        '<A simple explanation of how firm and "bouncy" your skin is, which often relates to collagen levels.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Elasticity, firmness, micro-ptosis indicators>',
       affected_area_image: '<1-6>',
@@ -2944,6 +2971,8 @@ const diagnosis_json_structure = {
       parameter_name: 'Textural Radiance Index',
       description:
         'Measures optical smoothness, microtexture brightness, and light-scatter harmony across the face.',
+      client_description:
+        '<A simple summary of how smooth and uniformly glowing your skin looks overall.>',
       score_or_label: '<Score 1-5>',
       score_explanation: '<Microtexture + radiance harmony explanation>',
       affected_area_image: '<1-6>',
@@ -3105,6 +3134,7 @@ ${JSON.stringify(diagnosis_json_structure)}
 
 ### Rules:
 - ALL diagnostic reasoning must remain *inside* “score_explanation”.
+- "client_description" must be written in simple, non-technical language that a customer can easily understand, focusing on what the result means for their skin.
 - Do NOT output anything outside the JSON.
 - If multiple features appear, select the dominant grading pattern.
 - Follow the parameter order exactly as defined:
