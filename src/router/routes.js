@@ -37,7 +37,7 @@ const routes = [
         component: () => import('src/pages/AppointmentCalander.vue'),
       },
       {
-        path: 'iv-assessment/:user_id/:step/:appointment_id?',
+        path: 'iv-assessment/:user_id/:step/:assessment_id?/:appointment_id?',
         name: 'iv-assessment',
         component: () => import('src/pages/IVAssessment.vue'),
       },
