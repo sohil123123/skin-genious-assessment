@@ -143,6 +143,8 @@
 <script setup>
 import { startCase } from 'lodash'
 import jsPDF from 'jspdf'
+import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
+import { storeToRefs } from 'pinia'
 
 const props = defineProps({
   planDetails: {
@@ -150,6 +152,9 @@ const props = defineProps({
     required: true,
   },
 })
+
+const store = useIVAssessmentStore()
+const { formData } = storeToRefs(store)
 
 const formatSchedule = (desc) => {
   if (!desc) return ''
@@ -181,18 +186,21 @@ const downloadPDF = () => {
   doc.setFontSize(18)
   doc.setTextColor(0)
   doc.setFont('helvetica', 'bold')
-  doc.text(props.planDetails.name, 14, 25)
+  const nameLines = doc.splitTextToSize(props.planDetails.name, 180)
+  doc.text(nameLines, 14, 25)
+
+  yPos = 25 + nameLines.length * 9
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(50)
-  doc.text(
-    `${props.planDetails.plan_duration_weeks} Weeks - ${formatSchedule(props.planDetails.schedule_description)}`,
-    14,
-    32,
-  )
+  const scheduleText = `${props.planDetails.plan_duration_weeks} Weeks - ${formatSchedule(
+    props.planDetails.schedule_description,
+  )}`
+  const scheduleLines = doc.splitTextToSize(scheduleText, 180)
+  doc.text(scheduleLines, 14, yPos)
 
-  yPos = 40
+  yPos += scheduleLines.length * 5 + 10
 
   // Timeline Sessions
   if (props.planDetails.sessions) {
@@ -210,8 +218,10 @@ const downloadPDF = () => {
       doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(0)
-      doc.text(`Week ${session.week_index}: ${formatPhase(session.phase_id)}`, 16, yPos + 2)
-      yPos += 12
+      const sessionHeader = `Week ${session.week_index}: ${formatPhase(session.phase_id)}`
+      const sessionHeaderLines = doc.splitTextToSize(sessionHeader, 175)
+      doc.text(sessionHeaderLines, 16, yPos + 2)
+      yPos += (sessionHeaderLines.length > 1 ? sessionHeaderLines.length * 6 : 2) + 10
 
       // Goal
       doc.setFontSize(10)
@@ -231,14 +241,18 @@ const downloadPDF = () => {
 
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(9)
-        doc.text(`ID: ${proto.protocol_id}`, 16, yPos)
-        yPos += 5
+        const protoIdText = `ID: ${proto.protocol_id}`
+        const protoIdLines = doc.splitTextToSize(protoIdText, 175)
+        doc.text(protoIdLines, 16, yPos)
+        yPos += protoIdLines.length * 5
 
         if (proto.bags) {
           proto.bags.forEach((bag, bIdx) => {
             // Bag info
-            doc.text(`Bag ${bIdx + 1}: ${bag.carrier} (${bag.rate_profile})`, 16, yPos)
-            yPos += 4
+            const bagText = `Bag ${bIdx + 1}: ${bag.carrier} (${bag.rate_profile})`
+            const bagLines = doc.splitTextToSize(bagText, 175)
+            doc.text(bagLines, 16, yPos)
+            yPos += bagLines.length * 5
 
             // Ingredients
             const ingredients = bag.ingredients
@@ -266,7 +280,9 @@ const downloadPDF = () => {
     })
   }
 
-  doc.save(`${props.planDetails.name || 'multi-session-plan'}.pdf`)
+  const patientName = formData.value?.iv_inputs?.meta?.profile?.name || ''
+  const fileName = `${patientName ? patientName + ' - ' : ''}${props.planDetails.name || 'multi-session-plan'}.pdf`
+  doc.save(fileName)
 }
 </script>
 

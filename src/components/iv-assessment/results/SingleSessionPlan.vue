@@ -206,6 +206,8 @@ import { computed } from 'vue'
 import { startCase } from 'lodash'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
+import { storeToRefs } from 'pinia'
 
 const props = defineProps({
   planDetails: {
@@ -213,6 +215,9 @@ const props = defineProps({
     required: true,
   },
 })
+
+const store = useIVAssessmentStore()
+const { formData } = storeToRefs(store)
 
 const hasConstraints = computed(() => {
   const report = props.planDetails.value?.constraint_report || props.planDetails?.constraint_report
@@ -272,12 +277,13 @@ const downloadPDF = () => {
   doc.setFontSize(18)
   doc.setTextColor(0)
   doc.setFont('helvetica', 'bold')
-  doc.text(props.planDetails.name, 14, 23)
+  const nameLines = doc.splitTextToSize(props.planDetails.name, 180)
+  doc.text(nameLines, 14, 23)
 
   // Chips / Status
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  let yPos = 30
+  let yPos = 23 + nameLines.length * 9
 
   if (props.planDetails.option_type) {
     doc.text(`Type: ${formatOptionType(props.planDetails.option_type)}`, 14, yPos)
@@ -349,8 +355,10 @@ const downloadPDF = () => {
       yPos += 5
 
       if (protocol.hero_ingredients) {
-        doc.text(`Hero Ingredients: ${protocol.hero_ingredients.join(', ')}`, 14, yPos)
-        yPos += 8
+        const heroText = `Hero Ingredients: ${protocol.hero_ingredients.join(', ')}`
+        const heroLines = doc.splitTextToSize(heroText, 180)
+        doc.text(heroLines, 14, yPos)
+        yPos += heroLines.length * 5 + 3
       }
 
       // Bags
@@ -360,12 +368,10 @@ const downloadPDF = () => {
           doc.setFontSize(11)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(0)
-          doc.text(
-            `Bag ${bIdx + 1}: ${bag.carrier} (${bag.bag_size_ml}ml) - ${bag.rate_profile}`,
-            14,
-            yPos,
-          )
-          yPos += 2 // Spacing for table
+          const bagHeader = `Bag ${bIdx + 1}: ${bag.carrier} (${bag.bag_size_ml}ml) - ${bag.rate_profile}`
+          const bagHeaderLines = doc.splitTextToSize(bagHeader, 180)
+          doc.text(bagHeaderLines, 14, yPos)
+          yPos += bagHeaderLines.length * 5 + 2
 
           // Ingredients Table
           const tableBody = bag.ingredients.map((ing) => [
@@ -389,7 +395,9 @@ const downloadPDF = () => {
     })
   }
 
-  doc.save(`${props.planDetails.name || 'single-session-plan'}.pdf`)
+  const patientName = formData.value?.iv_inputs?.meta?.profile?.name || ''
+  const fileName = `${patientName ? patientName + ' - ' : ''}${props.planDetails.name || 'single-session-plan'}.pdf`
+  doc.save(fileName)
 }
 </script>
 
