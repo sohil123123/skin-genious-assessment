@@ -328,16 +328,25 @@ onMounted(async () => {
 const session = computed(() => store.currentSession)
 const dailyRoutine = computed(() => {
   const routine = session.value?.daily_home_care_routine
-  if (!routine) return { morning: [], evening: [] }
+  let result = { morning: [], evening: [] }
+
+  if (!routine) return result
+
   if (typeof routine === 'string') {
     try {
-      return JSON.parse(routine)
+      result = JSON.parse(routine)
     } catch (e) {
       console.error('Failed to parse daily_home_care_routine', e)
-      return { morning: [], evening: [] }
+      return result
     }
+  } else {
+    result = routine
   }
-  return routine
+
+  return {
+    morning: result?.morning || [],
+    evening: result?.evening || [],
+  }
 })
 const nextSession = computed(() => {
   const idx = store.currentSessionIndex + 1
@@ -592,7 +601,7 @@ function downloadRoutinePDF() {
   }
 
   doc.save(
-    `Home_Care_Routine_Session_${session.value.session_number}_${assessmentData.value.name.replace(/\s+/g, '_')}.pdf`,
+    `Home_Care_Routine_Session_${session.value?.session_number || 'N/A'}_${assessmentData.value.name.replace(/\s+/g, '_')}.pdf`,
   )
 }
 
