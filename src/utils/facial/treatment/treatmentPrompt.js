@@ -238,16 +238,6 @@ ________________________________________
 • Home-care routines must use only products from available_skincare_products.
 • Home-care routines must support post-treatment recovery and must not interfere with in-clinic procedures performed the same day.
 ________________________________________
-5. Daily Home-Care Routine Generation
-• For every session, generate a structured AM and PM skincare routine.
-• Select products strictly from available_skincare_products.
-• Match products to session concerns, skin type, and pregnancy safety.
-• Respect AM/PM eligibility defined in product data.
-• keep routine effective yet minimal  for the person's skin  and non-conflicting with in-clinic treatment.
-• Use chief_ingredients and full_ingredients to justify product selection.
-• Avoid ingredient-level conflicts with in-clinic treatments (e.g., retinoids post peel, photosensitizers in AM).
-• Daily home-care routines are post-clinical treatment routines starting after the in-clinic session.
-________________________________________
 🧰 THERAPIST-FACING REQUIREMENTS
 For every session, provide two structured sections:
 ________________________________________
@@ -353,25 +343,7 @@ If ANY answer is "NO":
             "how_to_do": "<clear zone-wise technique>",
             "script": "<description of concerns addressed in this step and how therapiest will improve the patient's condition>"
           }
-        ],
-        "daily_home_care_routine": {
-          "morning": [
-            {
-              "step_number": <number>,
-              "product_name": "<string>",
-              "how_to_use": "<clear usage instructions>",
-              "clinical_purpose": "<why this product is chosen>"
-            }
-          ],
-          "evening": [
-            {
-              "step_number": <number>,
-              "product_name": "<string>",
-              "how_to_use": "<clear usage instructions>",
-              "clinical_purpose": "<why this product is chosen>"
-            }
-          ]
-        }
+        ]
       },
     ],
     "modality_omission_explanation": {
@@ -383,4 +355,42 @@ If ANY answer is "NO":
   }
 }`
 
-export const USER_TREATMENT_PLAN_PROMPT = `Based on previous analysis, generate a structured JSON treatment plan including: primary_focus, in_clinic_sessions (name, frequency, sessions), homecare (product, usage), contraindications, and follow_up. Consider patient's age, skin type, and allergies.`
+export const USER_TREATMENT_PLAN_PROMPT = `Based on previous analysis, generate a structured JSON treatment plan including: primary_focus, in_clinic_sessions (name, frequency, sessions) and follow_up. Consider patient's age, skin type, and allergies.`
+
+export const SYSTEM_DAILY_HOME_CARE_ROUTINE_PROMPT = `
+Generate a structured AM and PM daily home-care skincare routine.
+________________________________________
+Daily Home-Care Routine Generation
+• For this session, generate a structured AM and PM skincare routine.
+• Select products strictly from available_skincare_products.
+• Match products to session concerns, skin type, and pregnancy safety.
+• Respect AM/PM eligibility defined in product data.
+• keep routine effective yet minimal  for the person's skin  and non-conflicting with in-clinic treatment.
+• Use chief_ingredients and full_ingredients to justify product selection.
+• Avoid ingredient-level conflicts with in-clinic treatments (e.g., retinoids post peel, photosensitizers in AM).
+• Daily home-care routines are post-clinical treatment routines starting after the in-clinic session.
+
+OUTPUT FORMAT (STRICT JSON):
+{
+  "daily_home_care_routine": {
+    "morning": [
+      {
+        "step_number": <number>,
+        "product_name": "<string>",
+        "how_to_use": "<clear usage instructions>",
+        "clinical_purpose": "<why this product was chosen based on ingredients and patient needs>"
+      }
+    ],
+    "evening": [
+      {
+        "step_number": <number>,
+        "product_name": "<string>",
+        "how_to_use": "<clear usage instructions>",
+        "clinical_purpose": "<why this product was chosen based on ingredients and patient needs>"
+      }
+    ]
+  }
+}
+`
+
+export const USER_DAILY_HOME_CARE_ROUTINE_PROMPT = `Based on the patient profile (age, skin type, allergies) and the session details, generate a structured JSON for the post-treatment homecare routine. Please detail the product names, safe usage instructions, and the clinical purpose for each step.`

@@ -98,21 +98,50 @@
             </div>
 
             <!-- Daily Home Care Routine Section -->
-            <div v-if="dailyRoutine.morning.length || dailyRoutine.evening.length" class="col-12">
+            <div class="col-12">
               <q-card flat class="section-card q-pa-md soft-bg">
                 <div class="row items-center justify-between q-mb-md">
                   <div class="text-h5 q-my-none">Daily Home Care Routine</div>
-                  <q-btn
-                    color="black"
-                    outline
-                    icon="download"
-                    label="Download PDF"
-                    no-caps
-                    @click="downloadRoutinePDF"
-                  />
+                  <div class="flex gap-2">
+                    <q-btn
+                      v-if="!dailyRoutine.morning.length && !dailyRoutine.evening.length"
+                      color="black"
+                      icon="auto_awesome"
+                      label="Generate Routine with AI"
+                      no-caps
+                      @click="generateDailyRoute"
+                      :loading="isGeneratingRoutine"
+                    />
+                    <q-btn
+                      v-else
+                      color="black"
+                      outline
+                      icon="auto_awesome"
+                      label="Re-generate with AI"
+                      no-caps
+                      @click="generateDailyRoute"
+                      :loading="isGeneratingRoutine"
+                    />
+                    <q-btn
+                      v-if="dailyRoutine.morning.length || dailyRoutine.evening.length"
+                      color="black"
+                      outline
+                      icon="download"
+                      label="Download PDF"
+                      no-caps
+                      @click="downloadRoutinePDF"
+                    />
+                  </div>
                 </div>
 
-                <div class="row q-col-gutter-md">
+                <div
+                  v-if="!dailyRoutine.morning.length && !dailyRoutine.evening.length"
+                  class="text-center q-pa-lg text-grey-7"
+                >
+                  No daily home care routine generated yet. Click the button above to generate one.
+                </div>
+
+                <div v-else class="row q-col-gutter-md">
                   <!-- Morning Routine -->
                   <div v-if="dailyRoutine.morning.length" class="col-md-6 col-sm-12">
                     <div class="text-h6 q-mb-sm text-orange-8 flex items-center gap-2">
@@ -256,6 +285,14 @@ import { storeToRefs } from 'pinia'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+import { useOpenAI } from 'src/composables/useOpenAI'
+import {
+  SYSTEM_DAILY_HOME_CARE_ROUTINE_PROMPT,
+  USER_DAILY_HOME_CARE_ROUTINE_PROMPT,
+} from 'src/utils/facial/treatment/treatmentPrompt'
+import { available_skincare_products } from 'src/utils/facial/treatment/productJson'
+import { encode } from '@toon-format/toon'
+
 const $q = useQuasar()
 const assessmentStore = useAssessmentStore()
 const { showDialog, assessmentData } = storeToRefs(assessmentStore)
@@ -264,6 +301,8 @@ const loading = computed(() => assessmentStore.loading)
 const route = useRoute()
 const router = useRouter()
 const store = useTreatmentFlowStore()
+const { getOrCreateConversation, runResponse } = useOpenAI()
+const isGeneratingRoutine = ref(false)
 const appointmentData = ref({
   datetime: '',
   notes: '',
@@ -289,16 +328,25 @@ onMounted(async () => {
 const session = computed(() => store.currentSession)
 const dailyRoutine = computed(() => {
   const routine = session.value?.daily_home_care_routine
-  if (!routine) return { morning: [], evening: [] }
+  let result = { morning: [], evening: [] }
+
+  if (!routine) return result
+
   if (typeof routine === 'string') {
     try {
-      return JSON.parse(routine)
+      result = JSON.parse(routine)
     } catch (e) {
       console.error('Failed to parse daily_home_care_routine', e)
-      return { morning: [], evening: [] }
+      return result
     }
+  } else {
+    result = routine
   }
-  return routine
+
+  return {
+    morning: result?.morning || [],
+    evening: result?.evening || [],
+  }
 })
 const nextSession = computed(() => {
   const idx = store.currentSessionIndex + 1
@@ -343,6 +391,114 @@ async function confirmBooking() {
   const isFormCorrect = await v$.value.$validate()
   if (!isFormCorrect) return
   await assessmentStore.bookNextAppointment(appointmentData.value, nextSession.value.id)
+}
+
+async function generateDailyRoute() {
+  try {
+    isGeneratingRoutine.value = true
+    Loading.show({ message: 'Generating Daily Home Care Routine...' })
+
+    let convId = assessmentData.value.conversation_id
+    if (!convId) {
+      convId = await getOrCreateConversation(
+        assessmentData.value.user_id,
+        assessmentData.value.conversation_id,
+        assessmentData.value.name,
+        assessmentData.value.id,
+      )
+      assessmentData.value.conversation_id = convId
+      await assessmentStore.updateAssessment({ conversation_id: convId })
+    }
+
+    const patientData = {
+      name: assessmentData.value.name,
+      age: assessmentData.value.age,
+      gender: assessmentData.value.gender,
+      allergies: assessmentData.value.allergies,
+      is_pregnant: assessmentData.value.is_pregnant,
+      breastfeeding: assessmentData.value.breastfeeding,
+    }
+
+    // Prepare inputs
+    const input = [
+      {
+        role: 'system',
+        content: [
+          { type: 'input_text', text: SYSTEM_DAILY_HOME_CARE_ROUTINE_PROMPT },
+          {
+            type: 'input_text',
+            text: 'available_skincare_products JSON:\n' + encode(available_skincare_products),
+          },
+        ],
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'input_text', text: USER_DAILY_HOME_CARE_ROUTINE_PROMPT },
+          { type: 'input_text', text: 'Patient Profile JSON:\n' + encode(patientData) },
+          {
+            type: 'input_text',
+            text:
+              'Session Details JSON:\n' +
+              encode({
+                title: session.value?.title,
+                treatment_time: session.value?.treatment_time,
+                concerns_addressed: session.value?.concerns_addressed,
+                steps: session.value?.steps,
+              }),
+          },
+        ],
+      },
+    ]
+
+    const result = await runResponse(convId, input)
+    console.log('Daily Routine Response:', result)
+
+    if (result.error) {
+      $q.notify({ type: 'negative', message: 'Failed to generate Daily Home Care Routine' })
+      return
+    }
+
+    let parsedRoutine = result
+    if (typeof result === 'string') {
+      try {
+        parsedRoutine = JSON.parse(result)
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (parsedRoutine.daily_home_care_routine) {
+      parsedRoutine = parsedRoutine.daily_home_care_routine
+    }
+
+    const sessionObj = store.sessions.find((s) => s.id === session.value.id)
+    if (sessionObj) {
+      sessionObj.daily_home_care_routine = parsedRoutine
+
+      // Update store and assessmentData consistency
+      assessmentData.value.treatment_sessions = store.treatmentPlan
+      assessmentData.value.treatment_plans = {
+        treatment_plan: store.treatmentPlan,
+      }
+
+      // Submit using 'treatment_plans' key as expected by backend
+      await assessmentStore.updateAssessment({
+        treatment_plans: assessmentData.value.treatment_plans,
+      })
+
+      $q.notify({ type: 'positive', message: 'Daily Home Care Routine successfully generated.' })
+    }
+  } catch (error) {
+    console.error('Failed to generate daily routine', error)
+    $q.notify({
+      type: 'negative',
+      message: 'An error occurred while generating Daily Home Care Routine.',
+    })
+  } finally {
+    isGeneratingRoutine.value = false
+    Loading.hide()
+  }
 }
 
 function downloadRoutinePDF() {
@@ -445,7 +601,7 @@ function downloadRoutinePDF() {
   }
 
   doc.save(
-    `Home_Care_Routine_Session_${session.value.session_number}_${assessmentData.value.name.replace(/\s+/g, '_')}.pdf`,
+    `Home_Care_Routine_Session_${session.value?.session_number || 'N/A'}_${assessmentData.value.name.replace(/\s+/g, '_')}.pdf`,
   )
 }
 
