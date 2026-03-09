@@ -108,6 +108,15 @@ const skin_type_criteria = {
       },
     },
 
+    polarity_metadata: {
+      score_semantics: 'label',
+      score_polarity: 'label_only',
+      ideal_score_direction: 'maintain',
+      continuous_index_name: null,
+      continuous_index_polarity: 'not_applicable',
+      comparison_mode: 'label_mapping',
+    },
+
     output_format: {
       skin_type: 'Dry / Oily / Combination / Balanced (+ Sensitive modifiers)',
       fitzpatrick_type: 'I-VI',
@@ -277,6 +286,15 @@ const combined_barrier_sensitivity = {
         label: 'Highly Sensitive / Barrier Breakdown',
         anchor: 'Severe redness, scaling, burning-prone skin; urgent barrier repair needed.',
       },
+    },
+
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      continuous_index_name: 'BSI_continuous',
+      continuous_index_polarity: 'higher_is_worse',
+      comparison_mode: 'direct_numeric',
     },
 
     output_format: {
@@ -525,6 +543,15 @@ const visual_acne_scoring = {
       ],
     },
 
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      continuous_index_name: 'ASI_continuous',
+      continuous_index_polarity: 'higher_is_worse',
+      comparison_mode: 'direct_numeric',
+    },
+
     output_format: {
       final_score: 'integer 1-5',
       ASI_continuous: 'float 0-1',
@@ -706,6 +733,15 @@ const sebum_content_scoring = {
       ],
     },
 
+    polarity_metadata: {
+      score_semantics: 'state_spectrum',
+      score_polarity: 'distance_to_target',
+      ideal_score_direction: 'move_toward_target',
+      continuous_index_name: 'SSI_continuous',
+      continuous_index_polarity: 'depends_on_target',
+      comparison_mode: 'target_distance',
+    },
+
     output_format: {
       final_score: 'integer 1-5',
       SSI_continuous: 'float 0-1',
@@ -859,6 +895,15 @@ const vascularity_redness_scoring = {
         'UV/Woods hotspots refine whether redness is inflammatory or vascular.',
         'Final score reflects the highest clinically meaningful severity, not a mathematical mean.',
       ],
+    },
+
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      continuous_index_name: 'BIBI_index',
+      continuous_index_polarity: 'higher_is_worse',
+      comparison_mode: 'direct_numeric',
     },
   },
 }
@@ -1035,6 +1080,14 @@ const skin_hydration_scoring = {
         '5. Map HSI to 1-5 hydration score.',
         '6. Generate backend indices (hydration type, barrier compromise, recovery potential).',
       ],
+    },
+
+    polarity_metadata: {
+      score_semantics: 'health',
+      score_polarity: 'higher_is_better',
+      ideal_score_direction: 'increase',
+      continuous_index_polarity: 'higher_is_better',
+      comparison_mode: 'direct_numeric',
     },
 
     output_format: {
@@ -1229,6 +1282,14 @@ const skin_luminosity_index = {
         label: 'Luminous / High Radiance',
         anchor: 'Strong surface + subsurface glow, minimal dullness.',
       },
+    },
+
+    polarity_metadata: {
+      score_semantics: 'health',
+      score_polarity: 'higher_is_better',
+      ideal_score_direction: 'increase',
+      continuous_index_polarity: 'higher_is_better',
+      comparison_mode: 'direct_numeric',
     },
 
     output_format: {
@@ -1506,6 +1567,13 @@ const superficial_pigmentation_scoring = {
       ],
     },
 
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      comparison_mode: 'direct_numeric',
+    },
+
     output_format: {
       final_score: 'integer 1-5 representing perceived superficial pigment load (PPL category).',
       backend_details: {
@@ -1682,6 +1750,13 @@ const peri_orbital_skin_health_scoring = {
         },
       },
     },
+
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      comparison_mode: 'direct_numeric',
+    },
   },
 }
 
@@ -1839,6 +1914,13 @@ const lip_pigmentation_scoring = {
           'Extensive involvement of vermilion + border',
         ],
       },
+    },
+
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      comparison_mode: 'direct_numeric',
     },
 
     decision_logic: {
@@ -2084,6 +2166,13 @@ const texture_pores_scoring = {
       ],
     },
 
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      comparison_mode: 'direct_numeric',
+    },
+
     output_format: {
       final_score: '1-5',
       TPB_continuous: '0-1',
@@ -2287,6 +2376,13 @@ const superficial_wrinkles_scoring = {
       ],
     },
 
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      comparison_mode: 'direct_numeric',
+    },
+
     output_format: {
       final_score: 'integer 1-5',
       backend_details: {
@@ -2465,6 +2561,13 @@ const jawline_sagging_scoring = {
       },
     },
 
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      comparison_mode: 'direct_numeric',
+    },
+
     decision_logic: {
       steps: [
         '1. Measure mandibular deflection line in white + positive mode.',
@@ -2588,6 +2691,13 @@ const skin_firmness_elasticity_index = {
       ],
     },
 
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      comparison_mode: 'direct_numeric',
+    },
+
     output_format: {
       final_score: '1-5',
       continuous_firmness_index: '0-1',
@@ -2690,6 +2800,13 @@ const textural_radiance_index = {
         '5. Map TRI to 1-5.',
         '6. Fill backend indices.',
       ],
+    },
+
+    polarity_metadata: {
+      score_semantics: 'severity',
+      score_polarity: 'higher_is_worse',
+      ideal_score_direction: 'decrease',
+      comparison_mode: 'direct_numeric',
     },
 
     output_format: {
@@ -2809,6 +2926,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Why this skin type was chosen>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     barrier_health_sensitivity: {
@@ -2821,6 +2946,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Dominant barrier + sensitivity findings and why this score was chosen>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     visual_acne_grading: {
@@ -2833,6 +2966,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Key lesion patterns, clusters, inflammation signatures>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     skin_sebum_index: {
@@ -2845,6 +2986,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Shine patterns, fluorescence, congestion indicators>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     vascularity_redness_score: {
@@ -2857,6 +3006,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Which component—vascular, inflammatory, diffuse—dominated>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     skin_hydration_score: {
@@ -2869,6 +3026,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Hydration markers and dryness indicators>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     skin_luminosity_glow: {
@@ -2880,6 +3045,14 @@ const diagnosis_json_structure = {
       score_explanation: '<What improved or reduced luminosity>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     superficial_pigmentation_scoring: {
@@ -2892,6 +3065,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Cluster intensity, distribution, detectability>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     peri_orbital_health_score: {
@@ -2905,6 +3086,14 @@ const diagnosis_json_structure = {
         '<Which factor (pigmentation, vascularity, hollowness, puffiness) most influenced the score>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     lip_pigmentation_score: {
@@ -2917,6 +3106,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Why this pigmentation severity was chosen>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     texture_open_pores_scoring: {
@@ -2929,6 +3126,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Texture and pore pattern characteristics>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     superficial_wrinkles_scoring: {
@@ -2941,6 +3146,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Depth, density, and visibility factors>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     jawline_sagging_score: {
@@ -2953,6 +3166,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Which structural findings determined the score>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     skin_firmness_elasticity_index: {
@@ -2965,6 +3186,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Elasticity, firmness, micro-ptosis indicators>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
 
     textural_radiance_index: {
@@ -2977,6 +3206,14 @@ const diagnosis_json_structure = {
       score_explanation: '<Microtexture + radiance harmony explanation>',
       affected_area_image: '<1-6>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
+      score_semantics: '<severity | health | label | state_spectrum>',
+      score_polarity: '<higher_is_worse | higher_is_better | label_only | depends_on_target>',
+      ideal_score_direction: '<increase | decrease | maintain | move_toward_target>',
+      continuous_index_name: '<BSI_continuous | ASI_continuous | SSI_continuous | null>',
+      continuous_index_polarity:
+        '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
+      comparison_mode: '<direct_numeric | label_mapping | target_distance>',
+      normalized_burden_0_to_1: '<0-1>',
     },
   },
   script:
@@ -3034,6 +3271,15 @@ Conservatism rule for estimates:
 - confidence_0_1 must be <= 0.55 for any parameter that required estimation.
 
 ---
+
+Every parameter must declare:
+  - score_semantics
+  - score_polarity
+  - ideal_score_direction
+  - continuous_index_name
+  - continuous_index_polarity
+  - comparison_mode
+  - target_interpretation_rule
 
 ### 1. Skin Type Criteria:
 ${encode(skin_type_criteria)}
@@ -3173,7 +3419,11 @@ Append this section after the diagnosis_report asa new JSON object named "treata
       "current_score": "<Score or Label>",
       "target_single_session_score": "<Realistically Achievable Score or Label>",
       "is_primary_concern": false,
-      "reason_for_selection": "<Short explanation based on diagnosis backend data>"
+      "reason_for_selection": "<Short explanation based on diagnosis backend data>",
+      "score_semantics": "<label>",
+      "score_polarity": "<label>",
+      "ideal_score_direction": "<label>",
+      "comparison_mode": "<label>",
     }
   ]
 }
