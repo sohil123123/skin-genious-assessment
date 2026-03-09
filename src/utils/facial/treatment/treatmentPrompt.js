@@ -24,6 +24,10 @@ ________________________________________
         "parameter": "<Parameter Name>",
         "current_score": "<Score or Label>",
         "target_score": "<Expected Normal Single-Session Score or Label>",
+        "score_semantics": "<...>",
+        "score_polarity": "<...>",
+        "ideal_score_direction": "<...>",
+        "comparison_mode": "<...>",
         "is_primary_concern": "<true or false>"
       }
     ]
@@ -121,19 +125,14 @@ D) If treatment_plan_type = "express":
 • Never downgrade modality strength—only reduce time allocation.
 • Express sessions must not reduce clinical effectiveness—only duration.
 
+Polarity-aware Rule
+  For each parameter:
+    • if comparison_mode = direct_numeric, interpret direction from score_polarity
+    • if comparison_mode = label_mapping, do not use numeric delta semantics
+    • if comparison_mode = target_distance, evaluate movement relative to the target, not merely up/down
+
 E) ENERGY / PEEL NECESSITY RULE (MANDATORY — OUTCOME DOMINANCE LOGIC)
   For EACH parameter marked as is_primary_concern = true:
-
-  1. Compute deviation_from_target as:
-    deviation_from_target = absolute_difference(current_score, target_score)
-
-  2. Evaluate improvability_index for this parameter.
-
-  If ALL of the following are true:
-  • deviation_from_target >= 1
-  • improvability_index >= 0.4
-  • NO explicit patient-history denial applies
-  • NO numeric / safety / timing constraint applies
 
   THEN:
   • The treatment plan MUST include at least ONE high-efficacy corrective modality
@@ -141,6 +140,26 @@ E) ENERGY / PEEL NECESSITY RULE (MANDATORY — OUTCOME DOMINANCE LOGIC)
   • Supportive-only plans (hydrafacial, massage, serums, LED, oxygen alone)
     are INVALID for this primary concern.
   • Time allocation MUST prioritize the corrective modality over supportive steps.
+
+  1. Compute deviation_from_target as:
+    deviation_from_target = absolute_difference(current_score, target_score)
+    deviation_from_target is a distance metric only. It does not itself define improvement direction. Direction must be read from comparison_mode and score_polarity.
+
+  2. Evaluate improvability_index for this parameter.
+
+    If ALL of the following are true:
+    • deviation_from_target >= 1
+    • improvability_index >= 0.4
+    • NO explicit patient-history denial applies
+    • NO numeric / safety / timing constraint applies
+
+  3. Special rule for distance_to_target
+    For any parameter with:
+      • score_polarity = distance_to_target
+      • comparison_mode = target_distance
+    Treatment should evaluate success as:
+      • smaller absolute distance to target = improvement
+      • larger absolute distance to target = decline
 
   E1) PRIMARY CONCERNS = OUTCOME STACK (MANDATORY — WOW + ACCOUNTABILITY)
 
