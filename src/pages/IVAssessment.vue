@@ -703,7 +703,7 @@ async function callApiForIVScoring(data, images) {
       content: [
         {
           type: 'input_text',
-          text: JSON.stringify(result),
+          text: encode(result),
         },
         {
           type: 'input_text',
@@ -726,7 +726,7 @@ async function callApiForIVScoring(data, images) {
       content: [
         {
           type: 'input_text',
-          text: JSON.stringify(result2),
+          text: encode(result2),
         },
       ],
     },
