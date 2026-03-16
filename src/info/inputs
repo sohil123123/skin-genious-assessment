@@ -1,0 +1,149 @@
+{
+  "session_intake_raw": {
+    "demographics": {
+      "age_years": 35,
+      "sex": "Male"
+    },
+    "goals_and_intent": {
+      "primary_goal": "Skin glow",
+      "secondary_goal_optional": "None",
+      "desired_intensity_preference": "Gentle"
+    },
+    "safety_and_contraindications": {
+      "pregnant_or_breastfeeding": false,
+      "active_infection_or_fever": false,
+      "known_kidney_disease": false,
+      "known_liver_disease": false,
+      "known_g6pd_deficiency": false,
+      "known_heart_disease_or_arrhythmia": false,
+      "history_of_anaphylaxis_or_severe_allergy": false,
+      "currently_on_anticoagulants": false
+    },
+    "lifestyle_last_24h": {
+      "sleep_hours_last_night": 8,
+      "caffeine_servings_today": 0,
+      "alcohol_category_last_24h": "None",
+      "exercise_category_last_24h": "None",
+      "perceived_stress_level_optional": "Low"
+    },
+    "symptoms": {
+      "fatigue_severity": "none",
+      "brain_fog_present": false,
+      "headache_severity": "none",
+      "nausea_severity": "none",
+      "vomiting_today_optional": false,
+      "dizziness_on_standing_present": false,
+      "muscle_cramps_present": false,
+      "palpitations_present": false,
+      "palpitations_timing_optional": null,
+      "chest_pain_or_sob_right_now_optional": false,
+      "swelling_or_puffiness_present": false,
+      "shortness_of_breath_present": false,
+      "constipation_or_sluggish_digestion_today": false,
+      "constipation_type_optional": null
+    },
+    "acute_metabolic_status_optional": {
+      "time_since_last_meal_hours_optional": 12,
+      "diet_type_optional": "Vegetarian"
+    },
+    "nad_specific_optional": {
+      "previous_nad_experience_optional": false,
+      "nad_tolerance_optional": null,
+      "symptoms_improve_when_slowed_optional": false,
+      "preferred_nad_experience_optional": null,
+      "nad_primary_reason_optional": null
+    }
+  },
+  "session_machines_raw": {
+    "vitals": {
+      "systolic_bp_mmHg": 120,
+      "diastolic_bp_mmHg": 80,
+      "heart_rate_bpm": 72,
+      "spo2_percent": 98,
+      "systemic_temperature_c_optional": null,
+      "facial_temps_c_optional": {
+        "forehead_surface_c": 34.5,
+        "left_cheek_surface_c": 33.8,
+        "right_cheek_surface_c": 34
+      }
+    },
+    "body_composition": {
+      "weight_kg_optional": 68,
+      "height_cm_optional": 125,
+      "bmi_optional": 23.5,
+      "tbw_percent": 58,
+      "body_fat_percent_optional": 18,
+      "muscle_mass_kg_optional": 32,
+      "visceral_fat_rating": 6,
+      "bmr_kcal_optional": 1650
+    }
+  },
+  "skin_ai_raw": {
+    "scores": {
+      "OSS": {
+        "score_0_100": 11
+      },
+      "GMS": {
+        "score_0_100": 5
+      },
+      "MVI": {
+        "score_0_100": 35
+      },
+      "BHS": {
+        "score_0_100": 12
+      }
+    },
+    "optional_primitives": {
+      "uv_haze_index_0_1": 0.05,
+      "uv_fluorescence_load_0_1": null,
+      "uv_fluorescence_coverage_0_1": 0,
+      "redness_level_0_1": 0.54,
+      "redness_coverage_0_1": 0.06,
+      "barrier_instability_0_1": 0.22,
+      "dry_sink_fraction_0_1": 0.03,
+      "texture_roughness_0_1": 0.1
+    },
+    "confidence_0_1": 0.9
+  },
+  "optional": {
+    "medications_and_flags": {
+      "safety": {
+        "pregnant_or_breastfeeding": "No",
+        "known_kidney_disease": "No",
+        "known_heart_disease_or_heart_failure": "No",
+        "history_uncontrolled_hypertension": "No",
+        "diabetes": "No",
+        "known_g6pd_deficiency": "No",
+        "history_seizures_epilepsy": "No",
+        "history_asthma": "No",
+        "history_severe_allergy": "No",
+        "known_liver_disease": "No",
+        "history_kidney_stones": "No",
+        "known_electrolyte_disorder": "No",
+        "known_allergy_to_iv_vitamins_minerals": "No",
+        "previous_adverse_reaction_to_iv_therapy": "No",
+        "current_fever_or_infection_symptoms_today": "No"
+      },
+      "symptoms": {
+        "fatigue": "None",
+        "headache": "None",
+        "nausea": "None",
+        "vomiting_if_nausea": "No",
+        "dizziness_on_standing": "No",
+        "muscle_cramps": "No",
+        "palpitations": "No",
+        "swelling_or_puffiness_today": "No",
+        "constipation_or_sluggish_digestion_today": "No",
+        "brain_fog_today": "No",
+        "shortness_of_breath_today": "No"
+      },
+      "lifestyle": {
+        "alcohol_intake_last_24h": "None",
+        "exercise_last_24h": "None",
+        "sleep_duration_last_night_hours": 8,
+        "perceived_stress_level": "Low",
+        "caffeine_intake_today": "0"
+      }
+    }
+  }
+}

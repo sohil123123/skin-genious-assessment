@@ -94,8 +94,8 @@ function selectOption(option) {
     // Just modify the local object in store.
     // Ideally we should structure "selected_option" properly in the schema.
     // For now we attach it to the iv_treatment_plan object.
-    formData.value.iv_treatment_plan.selected_option = option
-    emit('save_data', ['iv_treatment_plan'])
+    formData.value.iv_selected_option = option
+    emit('save_data', ['iv_selected_option'])
   }
 }
 

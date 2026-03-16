@@ -1,4 +1,5 @@
 import generationEngine from 'src/utils/iv/treatment/ivTreatmentGenerationEngine.json'
+import { encode } from '@toon-format/toon'
 
 /**
  * Builds the chat messages for generating a Nurse Run Sheet.
@@ -17,10 +18,10 @@ Your task is to generate a comprehensive "Nurse Run Sheet" (JSON) based on:
 3. The Patient Context (vitals, symptoms)
 
 Here are the Clinic SOP Defaults:
-${JSON.stringify(generationEngine.clinic_sop_defaults)}
+${encode(generationEngine.clinic_sop_defaults)}
 
 Here is the Treatment Execution Engine definition (Schema Reference):
-${JSON.stringify(generationEngine.treatment_execution_engine)}
+${encode(generationEngine.treatment_execution_engine)}
 
 Generate the output strictly in JSON format matching the "run_sheet" structure in the execution engine definition.
 The Output JSON Structure MUST be:
@@ -46,10 +47,10 @@ IMPORTANT: Ensure all list items (preflight_checks, setup_steps, administration_
 
   const userPrompt = `
 Patient Context:
-${JSON.stringify(patientContext)}
+${encode(patientContext)}
 
 Selected Protocol:
-${JSON.stringify(protocol)}
+${encode(protocol)}
 
 Generate the Nurse Run Sheet JSON now.
 `

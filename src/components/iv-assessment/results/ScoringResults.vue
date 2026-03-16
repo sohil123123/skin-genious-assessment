@@ -189,7 +189,7 @@ const emit = defineEmits(['handleTreatmentPlan'])
 //         phase_id: 'phase_1_reset_4_weeks',
 //         session_goal_summary: 'Restore hydration and improve autonomic tolerance',
 //         candidate_generation_hint: 'Hydration-first, magnesium-based, slow infusion',
-//         recommended_protocol_week_optional: {
+//         recommended_protocol: {
 //           protocol_id: 'PLAN-W1-001',
 //           bags: [
 //             {

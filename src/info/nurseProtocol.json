@@ -1,0 +1,86 @@
+{
+  "header": {
+    "protocol_id": "SS1_GLOW_ANTIOX_250NS_GSH_VITC_GLY",
+    "option_type": "single_session_option_1",
+    "display_name": "Glow+Detox_Glutathione+Vitamin C (High Dose)",
+    "bag_count": 1,
+    "expected_total_duration_minutes": 60,
+    "special_flags": [
+      "Gentle intensity preference: keep SLOW rate and prioritize comfort",
+      "Antioxidant-focused session (Vitamin C + Glutathione)",
+      "If any warmth/headache/nausea occurs, slow or pause and reassess"
+    ]
+  },
+  "preflight_checks": [
+    "Confirm patient identity: name + DOB (or clinic ID).",
+    "Confirm consent for IV session and selected option (Glow Antioxidant).",
+    "Baseline vitals required: BP, HR, SpO2, Temp (confirm Temp is not fever-range; if systemic temp available, ensure <37.5°C).",
+    "Baseline symptoms required: dizziness (yes/no), nausea (yes/no), anxiety/palpitations (yes/no), headache (yes/no).",
+    "Hard-stop screen: confirm NO chest pain now, NO shortness of breath now, NO fainting episode today, NO confusion or severe weakness now.",
+    "Confirm safety screen: not pregnant/breastfeeding; no kidney disease; no G6PD deficiency; no severe allergy/anaphylaxis history; no asthma; no seizure history.",
+    "Confirm no current fever/infection symptoms today."
+  ],
+  "setup_steps": [
+    "Gather supplies: IV cannula (20–24G as appropriate), tourniquet, antiseptic prep, sterile gauze, transparent dressing, extension set, saline flushes, sharps container, gloves, IV administration set, IV stand, labels/marker, and infusion pump if available for controlled SLOW delivery.",
+    "Prepare 250 ml Normal Saline (0.9%) bag; label with patient name/ID, date/time, and additives: Vitamin C (High Dose) 2000 mg + Glutathione 1200 mg + Glycine 500 mg.",
+    "Add ingredients using aseptic technique; gently invert to mix; visually inspect bag for clarity/particulates/leaks.",
+    "Prime IV tubing with the prepared bag; remove air from line.",
+    "Establish IV access; secure cannula with transparent dressing; confirm patency with saline flush and check for pain/swelling."
+  ],
+  "administration_steps": [
+    "Start infusion at SLOW rate with planned minimum duration 60 minutes for 250 ml; adjust slower if patient prefers or if any discomfort occurs.",
+    "At start, explain expected sensations and to report immediately: chest tightness, shortness of breath, dizziness, nausea, headache, flushing/warmth, or IV site burning/pain.",
+    "If mild warmth or mild headache occurs: reduce rate and continue with comfort checks; offer oral water if appropriate.",
+    "If moderate nausea, moderate dizziness, moderate headache, IV site pain/burning, or patient asks to stop: pause infusion and reassess before resuming at a slower rate.",
+    "If infiltration suspected (swelling, pain, coolness at site): stop infusion, disconnect, manage site per clinic policy, and restart in a new vein only if clinically appropriate.",
+    "Complete infusion; flush line per clinic policy; discontinue IV and apply pressure dressing when stable."
+  ],
+  "monitoring_plan": {
+    "baseline_measurements": [
+      "Record baseline BP, HR, SpO2, Temp.",
+      "Record baseline symptoms: dizziness, nausea, anxiety/palpitations, headache.",
+      "Confirm hard-stop symptoms are absent: chest pain now, shortness of breath now, fainting today, confusion/severe weakness now."
+    ],
+    "during_infusion_checks": [
+      "Comfort check every 10–15 min (ask about nausea, headache, dizziness, warmth/flushing, anxiety/palpitations).",
+      "IV site check every 10–15 min (pain, burning, swelling, redness, leakage).",
+      "If any symptoms develop, re-check BP/HR/SpO2 as needed and adjust rate accordingly."
+    ],
+    "stop_rules": [
+      "Stop immediately and call clinician if: chest pain.",
+      "Stop immediately and call clinician if: shortness of breath.",
+      "Stop immediately and call clinician if: fainting / near-fainting.",
+      "Stop immediately and call clinician if: rapidly worsening symptoms."
+    ],
+    "escalation_rules": [
+      "Pause and reassess if: moderate nausea.",
+      "Pause and reassess if: moderate dizziness.",
+      "Pause and reassess if: moderate headache.",
+      "Pause and reassess if: IV site pain/burning.",
+      "Pause and reassess if: patient asks to stop."
+    ]
+  },
+  "post_care": [
+    "Re-check end-of-session vitals: BP, HR, SpO2.",
+    "Assess patient’s overall tolerance and symptom status before discharge (dizziness, nausea, headache, palpitations).",
+    "Provide basic aftercare: encourage oral hydration as tolerated; advise to avoid strenuous activity if lightheaded; keep dressing on per clinic policy; report delayed rash, swelling, shortness of breath, or worsening symptoms to clinic/urgent care per policy."
+  ],
+  "documentation": [
+    "protocol_id and option selected: SS1_GLOW_ANTIOX_250NS_GSH_VITC_GLY (single_session_option_1).",
+    "carrier + bag size: 250 ml Normal Saline (0.9%).",
+    "all additives and final doses actually administered: Vitamin C (High Dose) 2000 mg; Glutathione 1200 mg; Glycine 500 mg.",
+    "start time, end time, total duration (target 60 minutes) and any pauses.",
+    "rate profile used (SLOW) and any rate changes with reasons.",
+    "baseline vitals + end vitals (BP/HR/SpO2/Temp baseline; BP/HR/SpO2 end).",
+    "any symptoms during infusion and actions taken (slowdown/pause/stop, vitals re-checks).",
+    "constraints status + any restrictions applied (Vitamin C within cap; Glutathione at/above floor; SLOW for gentle preference).",
+    "clinician signoff events (if any)."
+  ],
+  "clinician_signoff_required_if": [
+    "Any hard-stop symptom occurs (chest pain, shortness of breath, fainting/near-fainting, rapidly worsening symptoms).",
+    "Any suspected allergic reaction or anaphylaxis concern.",
+    "IV infiltration/extravasation requiring clinical decision to restart or discontinue.",
+    "Baseline vitals are outside clinic policy thresholds or systemic temperature is ≥37.5°C.",
+    "Patient requests to stop early or has persistent moderate symptoms despite rate reduction."
+  ]
+}

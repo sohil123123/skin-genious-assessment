@@ -385,15 +385,15 @@ async function goNext() {
     // Extract the protocol for the immediate session
     let sessionProtocol = null
 
-    // Case A: Single Session or Budget Option (has 'protocols' array)
-    if (selected.protocols && selected.protocols.length > 0) {
-      sessionProtocol = selected.protocols[0]
-    }
-    // Case B: Plan Option (has 'sessions' array)
-    else if (selected.sessions && selected.sessions.length > 0) {
+    // Case A: Plan Option (has 'sessions' array) - PRIORITY IF PLAN
+    if (selected.option_type === 'plan_option' && selected.sessions?.length > 0) {
       // Use the first session's recommended protocol
       const firstSession = selected.sessions[0]
-      sessionProtocol = firstSession.recommended_protocol_week_optional || null
+      sessionProtocol = firstSession.recommended_protocol || null
+    }
+    // Case B: Single Session or Budget Option (has 'protocols' array)
+    else if (selected.protocols && selected.protocols.length > 0) {
+      sessionProtocol = selected.protocols[0]
     }
 
     if (!sessionProtocol) {
@@ -413,6 +413,9 @@ async function goNext() {
       selected_option_type: selected.option_type,
       is_plan: selected.option_type === 'plan_option',
       plan_week_index: planWeekIndex,
+      plan_duration_weeks: selected.plan_duration_weeks || null,
+      schedule_description: selected.schedule_description || null,
+      all_plan_sessions: selected.sessions || [],
       engine_versions: {
         generation_engine: ivTreatmentGenerationEngine.version,
       },
@@ -703,7 +706,7 @@ async function callApiForIVScoring(data, images) {
       content: [
         {
           type: 'input_text',
-          text: JSON.stringify(result),
+          text: encode(result),
         },
         {
           type: 'input_text',
@@ -726,7 +729,7 @@ async function callApiForIVScoring(data, images) {
       content: [
         {
           type: 'input_text',
-          text: JSON.stringify(result2),
+          text: encode(result2),
         },
       ],
     },
