@@ -72,27 +72,27 @@
 
             <q-separator
               color="grey-2"
-              v-if="session.recommended_protocol_week_optional || session.candidate_generation_hint"
+              v-if="session.recommended_protocol || session.candidate_generation_hint"
             />
 
             <!-- Detailed Protocol (if available) -->
-            <q-card-section v-if="session.recommended_protocol_week_optional" class="bg-grey-1">
+            <q-card-section v-if="session.recommended_protocol" class="bg-grey-1">
               <div class="text-caption text-weight-bold text-grey-7 q-mb-xs text-uppercase">
                 Recommended Protocol
               </div>
 
               <!-- Protocol ID -->
               <div class="text-caption text-grey-6 q-mb-sm">
-                ID: {{ session.recommended_protocol_week_optional.protocol_id }}
+                ID: {{ session.recommended_protocol.protocol_id }}
               </div>
 
               <!-- Hero Ingredients -->
               <div
                 class="flex q-gutter-xs q-mb-sm"
-                v-if="session.recommended_protocol_week_optional.hero_ingredients"
+                v-if="session.recommended_protocol.hero_ingredients"
               >
                 <q-badge
-                  v-for="hero in session.recommended_protocol_week_optional.hero_ingredients"
+                  v-for="hero in session.recommended_protocol.hero_ingredients"
                   :key="hero"
                   outline
                   class="gredient"
@@ -103,7 +103,7 @@
 
               <!-- Bag Details Preview -->
               <div
-                v-for="(bag, bIdx) in session.recommended_protocol_week_optional.bags"
+                v-for="(bag, bIdx) in session.recommended_protocol.bags"
                 :key="bIdx"
                 class="bg-white q-pa-xs rounded-borders border-grey q-mb-xs"
               >
@@ -232,8 +232,8 @@ const downloadPDF = () => {
       yPos += goalLines.length * 5 + 3
 
       // Protocol or Hint
-      if (session.recommended_protocol_week_optional) {
-        const proto = session.recommended_protocol_week_optional
+      if (session.recommended_protocol) {
+        const proto = session.recommended_protocol
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.text('Recommended Protocol:', 16, yPos)

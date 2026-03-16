@@ -192,12 +192,12 @@
                     <div class="text-body2 text-grey-8 q-mb-sm">
                       {{ session.candidate_generation_hint }}
                     </div>
-                    <div v-if="session.recommended_protocol_week_optional" class="q-mt-sm">
+                    <div v-if="session.recommended_protocol" class="q-mt-sm">
                       <div class="text-caption text-weight-bold text-grey-7 q-mb-xs">
                         Recommended:
                       </div>
                       <q-chip
-                        v-for="hero in session.recommended_protocol_week_optional.hero_ingredients"
+                        v-for="hero in session.recommended_protocol.hero_ingredients"
                         :key="hero"
                         dense
                         size="xs"

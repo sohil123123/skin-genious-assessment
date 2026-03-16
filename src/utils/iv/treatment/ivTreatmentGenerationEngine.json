@@ -432,7 +432,7 @@
             "phase_id": "string",
             "session_goal_summary": "string",
             "candidate_generation_hint": "string",
-            "recommended_protocol_week_optional": "protocol object (only for Week 1 by default)",
+            "recommended_protocol": "protocol object (generated for every week)",
             "note": "Each later session is re-generated on its day using updated inputs and re-validated by constraints."
           }
         ]
@@ -460,7 +460,7 @@
       "5) Constraints-evaluate each candidate; apply patched_protocol_optional when present; enforce hero cap (<=3 heroes).",
       "6) Select Option 1 and Option 2 per selection rules (including NAD mutual exclusion).",
       "7) Generate Budget option using candidate_generation_loop.budget_option; constraints-evaluate; enforce budget rules (1 hero, no NAD+ anywhere).",
-      "8) Generate Plan option scaffold for 14 weeks with phase objectives and week-by-week session intents; include Week 1 recommended protocol as an example, produced via the same candidate loop and constraints validation.",
+      "8) Generate full 14-week plan. For EACH week: Run candidate_generation_loop.single_session, Apply phase objectives, Call constraints.evaluate(), Enforce hero cap and supportive coverage audit, Attach recommended_protocol for that week",
       "9) Build option names using naming_rules.",
       "10) Emit only allowed/allowed_with_cautions options; if doctor_approval_required, mark clearly and include constraint messages."
     ]

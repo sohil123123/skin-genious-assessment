@@ -243,7 +243,7 @@
             "phase_id": "phase_1_reset_4_weeks",
             "session_goal_summary": "Gentle glow + antioxidant support; establish baseline tolerability.",
             "candidate_generation_hint": "Prefer 1 bag, gentle antioxidant_glow template; keep total ingredients conservative.",
-            "recommended_protocol_week_optional": {
+            "recommended_protocol": {
               "protocol_id": "PLAN_W1_GLOW_DETOX_VITC_GSH_250NS_SLOW",
               "label_short": "Week 1 example (gentle glow)",
               "bags": [
@@ -294,7 +294,7 @@
             "phase_id": "phase_1_reset_4_weeks",
             "session_goal_summary": "Maintain glow support; keep gentle and tolerable.",
             "candidate_generation_hint": "Hydration + light antioxidant support; consider simplifying if any sensitivity.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -302,7 +302,7 @@
             "phase_id": "phase_1_reset_4_weeks",
             "session_goal_summary": "Continue glow/recovery; adjust based on skin AI + symptoms.",
             "candidate_generation_hint": "Antioxidant_glow template; keep heroes ≤2 if patient prefers gentle.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -310,7 +310,7 @@
             "phase_id": "phase_1_reset_4_weeks",
             "session_goal_summary": "Consolidate early improvements; keep session simple.",
             "candidate_generation_hint": "Consider LR carrier if comfort/electrolyte feel desired; keep ingredient count low.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -318,7 +318,7 @@
             "phase_id": "phase_2_build_6_weeks",
             "session_goal_summary": "Target persistent drivers (if any) while maintaining glow.",
             "candidate_generation_hint": "If ODS/DGS remain elevated, continue antioxidants; if ASLS rises, add calm-support (constraints permitting).",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -326,7 +326,7 @@
             "phase_id": "phase_2_build_6_weeks",
             "session_goal_summary": "Build phase: refine based on updated scores.",
             "candidate_generation_hint": "Keep max 3 heroes; avoid complexity unless a clear axis driver emerges.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -334,7 +334,7 @@
             "phase_id": "phase_2_build_6_weeks",
             "session_goal_summary": "Build phase: maintain consistency.",
             "candidate_generation_hint": "Antioxidant_glow template; consider rotating supportive cofactors if fatigue appears.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -342,7 +342,7 @@
             "phase_id": "phase_2_build_6_weeks",
             "session_goal_summary": "Build phase: adjust for lifestyle stressors if present.",
             "candidate_generation_hint": "If stress/sleep worsens, prioritize hydration_ans_comfort template.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -350,7 +350,7 @@
             "phase_id": "phase_2_build_6_weeks",
             "session_goal_summary": "Build phase: continue targeted support.",
             "candidate_generation_hint": "Keep gentle intensity; prefer 1 bag unless constraints suggest otherwise.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -358,7 +358,7 @@
             "phase_id": "phase_2_build_6_weeks",
             "session_goal_summary": "Build phase: reassess glow + inflammation balance.",
             "candidate_generation_hint": "If ILS increases, keep antioxidants conservative and avoid adding multiple new actives.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -366,7 +366,7 @@
             "phase_id": "phase_3_maintain_4_weeks",
             "session_goal_summary": "Maintenance: simpler session to sustain results.",
             "candidate_generation_hint": "Prefer minimal ingredient set; 1–2 heroes max.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -374,7 +374,7 @@
             "phase_id": "phase_3_maintain_4_weeks",
             "session_goal_summary": "Maintenance: keep consistent and gentle.",
             "candidate_generation_hint": "Hydration base + single antioxidant hero if still desired.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -382,7 +382,7 @@
             "phase_id": "phase_3_maintain_4_weeks",
             "session_goal_summary": "Maintenance: adjust to seasonal/lifestyle changes.",
             "candidate_generation_hint": "If travel/stress increases, shift toward hydration_ans_comfort template.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           },
           {
@@ -390,7 +390,7 @@
             "phase_id": "phase_3_maintain_4_weeks",
             "session_goal_summary": "Maintenance: consolidate and plan next cycle if needed.",
             "candidate_generation_hint": "Keep simplest effective protocol; reassess goals.",
-            "recommended_protocol_week_optional": null,
+            "recommended_protocol": null,
             "note": "Regenerate on visit day."
           }
         ]
