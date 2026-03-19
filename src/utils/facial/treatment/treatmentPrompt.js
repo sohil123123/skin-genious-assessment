@@ -1,6 +1,151 @@
 import { encode } from '@toon-format/toon'
 import { available_skincare_products } from './productJson'
 
+const HERO_CORRECTIVE_SELECTION_PROTOCOL = {
+  HERO_CORRECTIVE_SELECTION_PROTOCOL: {
+    purpose:
+      'Force explicit ranking among all allowed corrective modalities so the plan chooses the highest expected single-session visible improvement, not merely any valid corrective option.',
+    mandatory_internal_step:
+      'Before writing any treatment steps, rank all allowed corrective modalities for each PRIMARY concern and choose exactly one HERO corrective modality for that concern.',
+    required_candidate_modalities_by_bucket: {
+      pigmentation_related: [
+        'Q-Switch Laser',
+        'Carbon Facial',
+        'Party Peel',
+        'Gel Based Pumpkin Peel',
+        'Gel Based Mandelic Peel',
+        'Fusion Peel-E',
+        'Whitening Peel',
+        'TCA Peel',
+        'Yellow Peel / Formula 1614',
+        'Combination Peel',
+      ],
+      acne_related: [
+        'Carbon Facial',
+        'Q-Switch Laser (low fluence if allowed)',
+        'High Frequency',
+        'Sali DS Peel',
+        'Salicylic Acid 30% Peel',
+        '20% Salicylic Acid Peel',
+        'Combination Peel',
+        'Theraderm Black Peel',
+        'Gel Based Mandelic Peel',
+      ],
+      texture_related: [
+        'Glyco Peel 35',
+        'TCA Peel',
+        'Microneedling',
+        'RF',
+        'Combination Peel',
+        'Gel Based Pumpkin Peel',
+      ],
+      laxity_related: ['RF', 'HiFU', 'Microneedling RF', 'Microneedling'],
+      redness_vascular_related: ['LED Light Therapy', 'Targeted Laser (if allowed)'],
+    },
+    ranking_method: {
+      instruction:
+        'For EACH PRIMARY concern, create an internal ranking table for every clinically relevant allowed candidate modality.',
+      columns: [
+        'modality_name',
+        'concern_fit_score_0_to_5',
+        'single_session_visible_delta_score_0_to_5',
+        'regional_precision_score_0_to_5',
+        'downtime_fit_score_0_to_5',
+        'safety_clearance_score_0_to_5',
+        'backend_support_score_0_to_5',
+        'total_score_0_to_30',
+      ],
+      scoring_notes: [
+        'concern_fit_score = how directly the modality treats the dominant pathology',
+        'single_session_visible_delta_score = expected visible change in one session, not long-term theoretical efficacy',
+        'regional_precision_score = ability to target hotspot zones while sparing cool/avoid zones',
+        "downtime_fit_score = suitability to the patient's social/travel/sun-exposure context",
+        'safety_clearance_score = whether history + barrier + erythema + temperature policies allow it comfortably',
+        'backend_support_score = how strongly the backend indices/maps support this modality',
+      ],
+    },
+    hard_selection_rule: [
+      'The HERO corrective modality MUST be the allowed modality with the highest total_score for that PRIMARY concern.',
+      'It is INVALID to choose a lower-efficacy modality merely because it is generic, familiar, easy to combine, or lower-risk if the higher-ranked modality is still allowed.',
+      'If the winning modality is energy-based or a peel, it must consume the largest single corrective time allocation in the session.',
+      'If two modalities are close, prefer the one with the greater expected single-session visible delta for the PRIMARY concern.',
+    ],
+    mandatory_loss_explanation: [
+      'If Q-Switch Laser is not chosen for a pigmentation or acne-related concern, state exactly why it lost the ranking.',
+      'If Carbon Facial is not chosen for an acne/oil/pigment-related concern, state exactly why it lost the ranking.',
+      'If a chemical peel is chosen, the planner MUST still explain why all higher-precision energy options did not outrank it.',
+      'If Gel Based Mandelic Peel is chosen, the planner MUST explicitly justify why it outranked Party Peel, Gel Based Pumpkin Peel, Fusion Peel-E, Combination Peel, and any relevant laser/carbon option.',
+    ],
+  },
+}
+
+const CHEMICAL_PEEL_SUBTYPE_DECISION_RULES = {
+  CHEMICAL_PEEL_SUBTYPE_DECISION_RULES: {
+    purpose:
+      'Prevent generic defaulting to mandelic by forcing named-peel selection based on the actual dominant pathology and one-session goal.',
+    hard_rule: [
+      'Chemical Peel is NOT a valid final modality label by itself.',
+      'Whenever a peel is chosen, the planner MUST choose a named peel from constraints JSON and justify why that exact peel is the highest-ranked peel for this patient.',
+      'Gel Based Mandelic Peel must NEVER be used as a default fallback peel unless it explicitly ranks first among named peels for the concern and safety context.',
+    ],
+    named_peel_prioritization: {
+      instant_glow_event_readiness_brightening: [
+        'Party Peel',
+        'Gel Based Pumpkin Peel',
+        'Whitening Peel',
+        'Gel Based Mandelic Peel',
+      ],
+      gentle_brightening_with_borderline_sensitivity_or_low_tolerance: [
+        'Gel Based Pumpkin Peel',
+        'Gel Based Mandelic Peel',
+        'Party Peel',
+      ],
+      post_acne_pigmentation_or_piH: [
+        'Fusion Peel-E',
+        'Combination Peel',
+        'Yellow Peel / Formula 1614',
+        'Gel Based Mandelic Peel',
+      ],
+      oily_comedonal_acne_or_follicular_congestion: [
+        'Sali DS Peel',
+        'Salicylic Acid 30% Peel',
+        '20% Salicylic Acid Peel',
+        'Combination Peel',
+        'Theraderm Black Peel',
+        'Gel Based Mandelic Peel',
+      ],
+      mixed_acne_plus_pigmentation: [
+        'Combination Peel',
+        'Fusion Peel-E',
+        'Sali DS Peel',
+        'Gel Based Mandelic Peel',
+      ],
+      texture_roughness_rejuvenation: [
+        'Glyco Peel 35',
+        'TCA Peel',
+        'Gel Based Pumpkin Peel',
+        'Gel Based Mandelic Peel',
+      ],
+      melasma_or_stubborn_pigment_when_peel_route_is_chosen: [
+        'Yellow Peel / Formula 1614',
+        'TCA Peel',
+        'Whitening Peel',
+        'Fusion Peel-E',
+      ],
+    },
+    mandelic_use_cases_only: [
+      'Choose Gel Based Mandelic Peel only when a gentler broad-spectrum exfoliative corrective is more appropriate than stronger or more targeted peels.',
+      "Mandelic may win when sensitivity tolerance is limited, irritation risk is meaningfully elevated, acne is mild-to-moderate without strong inflammatory burden, or when brighter alternatives are not best-fit for the patient's barrier/history context.",
+      "Mandelic must NOT win for convenience, familiarity, or because 'chemical peel' was selected generically.",
+    ],
+    forced_comparison_rule: [
+      'If Party Peel or Gel Based Pumpkin Peel is clinically relevant for glow/brightness, compare them explicitly against Gel Based Mandelic Peel before choosing.',
+      'If Fusion Peel-E or Combination Peel is clinically relevant for post-acne pigmentation or acne-plus-pigment, compare them explicitly against Gel Based Mandelic Peel before choosing.',
+      'If a salicylic-family peel is clinically relevant for oily/comedonal/acne burden, compare it explicitly against Gel Based Mandelic Peel before choosing.',
+    ],
+  },
+}
+
 // INFO: ------------------- Treatment Plan -------------------
 
 export const SYSTEM_TREATMENT_PLAN_PROMPT = `🧠 ROLE & OBJECTIVE
@@ -67,6 +212,10 @@ NOTE: the below json is just a PLANNER JSON. It is not scoring, not constraints.
     "Targeted Laser (if allowed)"
   ]
 }
+
+${encode(HERO_CORRECTIVE_SELECTION_PROTOCOL)}
+
+${encode(CHEMICAL_PEEL_SUBTYPE_DECISION_RULES)}
 
 🧠 CORE INTELLIGENCE LOGIC—READ CAREFULLY
 1. Always use the FULL backend scoring data
@@ -203,6 +352,27 @@ E) ENERGY / PEEL NECESSITY RULE (MANDATORY — OUTCOME DOMINANCE LOGIC)
         and that block must consume the largest single time allocation.
       • If hydrafacial appears in >3 steps, the plan is INVALID and must be regenerated.
 
+    6) LASER / CARBON WIN-CONDITION (MANDATORY — DO NOT UNDER-SELECT ENERGY MODALITIES)
+      For pigmentation-related or acne-related PRIMARY concerns:
+
+      If ALL of the following are true:
+      • the modality is NOT explicitly denied by patient-history rules
+      • numeric proxy safety gates do NOT deny it
+      • temperature policy does NOT block it
+      • deviation_from_target >= 1
+      • improvability_index >= 0.4
+
+      THEN:
+      • Q-Switch Laser and/or Carbon Facial MUST be actively ranked as HERO candidates.
+      • They may be omitted ONLY if another allowed modality scores higher on expected single-session visible improvement for THIS exact concern.
+      • It is INVALID to omit laser/carbon simply because a peel is easier to pair with supportive steps.
+
+      Additional hard rule:
+      • If deviation_from_target >= 2 and improvability_index >= 0.5 for superficial_pigmentation or acne_severity,
+        and no denial applies,
+        then at least one energy-based candidate (Q-Switch / Carbon / other allowed energy option) MUST appear in the final HERO ranking comparison.
+      • If no energy-based modality is chosen after that comparison, the omission explanation MUST explicitly state why the chosen modality is expected to outperform it in this specific one-session context.
+
 F) REGIONAL DIFFERENTIATION REQUIREMENT (MANDATORY)
   For any primary concern where a regional_burden_map or grid_map exists:
 
@@ -235,6 +405,24 @@ H) HOTSPOT COMPILER (MANDATORY PRE-STEP)
     • modality: peel / laser / MN / etc
     • intensity_rung: 1/2/3
     • notes: “avoid heat due to redness”, “spot treat malar only”, etc.
+
+H1) HERO MODALITY RANKING OUTPUT (MANDATORY PRE-STEP, INTERNAL ONLY)
+  Before writing steps, output internally a hero_modality_ranking object for each PRIMARY concern.
+
+  For each PRIMARY concern include:
+    • concern_name
+    • candidate_modalities_considered
+    • denied_modalities_with_reason
+    • top_ranked_modality
+    • second_best_modality
+    • why_top_ranked_won
+    • why_second_best_lost
+    • if chosen_modality_is_peel: named_peel_selected
+    • if named_peel_selected_is_mandelic: explicit_reason_mandelic_outranked_party_pumpkin_and_other_relevant_options
+
+  Hard rule:
+    • Do NOT write treatment steps until this internal ranking is complete.
+    • The chosen HERO corrective block in the final plan MUST match the top_ranked_modality from this ranking.
 
 I) MULTI-SESSION ESCALATION RULE (MANDATORY)
   For each primary concern:
@@ -288,16 +476,22 @@ ________________________________________
 
 FINAL PLAN VALIDATION (MANDATORY):
 
-For each PRIMARY concern:
+  For each PRIMARY concern:
 
-Ask:
-1. Does at least one step directly act on the root pathology?
-2. Is modality strength proportional to deviation_from_target?
-3. Would a dermatologist reasonably expect visible improvement?
+  Ask:
+  1. Does at least one step directly act on the root pathology?
+  2. Is modality strength proportional to deviation_from_target?
+  3. Would a dermatologist reasonably expect visible improvement?
+  4. Did the chosen HERO corrective modality actually rank #1 among all allowed clinically relevant modalities for this concern?
+  5. If a peel was chosen, was a NAMED peel selected and did that named peel rank #1 among relevant peels?
+  6. If Gel Based Mandelic Peel was chosen, was there an explicit reason it beat Party Peel, Gel Based Pumpkin Peel, Fusion Peel-E, Combination Peel, salicylic-family peels, and any relevant energy options?
+  7. If Q-Switch Laser or Carbon Facial was allowed for a pigmentation/acne concern, were they explicitly considered in the ranking?
+  8. If Q-Switch Laser or Carbon Facial was not used despite being allowed, was the loss explained as lower expected one-session efficacy for this exact case rather than generic caution?
+  9. Is the largest single corrective time block assigned to the chosen HERO modality rather than to prep/supportive steps?
 
-If ANY answer is "NO":
-→ Regenerate the plan with higher-efficacy modalities,
-  unless explicitly denied by constraints.
+  If ANY answer is "NO":
+  → Regenerate the plan with higher-efficacy or better-ranked modalities,
+    unless explicitly denied by constraints.
 
 **MINIMUM EFFECTIVE DOSE RULE (MANDATORY)**
 
@@ -324,12 +518,24 @@ If ANY answer is "NO":
     - Carbon Facial
     - Chemical Peel
     - RF / HiFU / Microneedling (as relevant to concerns)
+
   Reason must include these if applicable:
     - whether it was considered (yes/no)
-    - omission_reason_category: one of ["contraindicated_by_history", "blocked_by_proxy_gates", "blocked_by_temperature_policy", "not_best_efficacy_for_this_concern", "insufficient_data -> defaulted_to_caution_alternative"]
+    - omission_reason_category: one of ["contraindicated_by_history", "blocked_by_proxy_gates", "blocked_by_temperature_policy", "not_best_efficacy_for_this_concern", "not_best_one_session_visible_delta", "insufficient_data -> defaulted_to_caution_alternative"]
     - the specific rule/proxy that caused omission (if applicable)
     - the chosen alternative modality
     - expected tradeoff (1 sentence)
+
+  Additional peel-specific rule:
+    - If a chemical peel IS used, specify:
+      • named_peel_selected
+      • named_peels_considered_and_not_chosen
+      • why_named_peel_selected_won
+    - If Gel Based Mandelic Peel is selected, explanation MUST include:
+      • why Party Peel did not win
+      • why Gel Based Pumpkin Peel did not win
+      • why other pathology-relevant peels did not win
+      • why relevant energy modalities did not win (if allowed)
 
 
 📤 OUTPUT FORMAT (STRICT JSON)
