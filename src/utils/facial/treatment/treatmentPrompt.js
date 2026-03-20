@@ -310,68 +310,203 @@ E) ENERGY / PEEL NECESSITY RULE (MANDATORY — OUTCOME DOMINANCE LOGIC)
       • smaller absolute distance to target = improvement
       • larger absolute distance to target = decline
 
-  E1) PRIMARY CONCERNS = OUTCOME STACK (MANDATORY — WOW + ACCOUNTABILITY)
+E0) COMBINATION CORRECTIVE LOGIC (MANDATORY — STACKED OUTCOME MAXIMIZATION)
 
-    For EACH parameter where is_primary_concern = true, you MUST guarantee ALL of the following
-    within the SAME session plan (single/express) OR within EACH session that claims to address it (multiple):
+  For EACH primary concern, before writing steps, decide whether the best same-session strategy is:
 
-    1) Corrective Step Mapping (MANDATORY)
-      • The session MUST contain at least ONE step whose primary purpose is to CORRECT this concern.
-      • If Rule E triggered for this concern (deviation_from_target >= 1 AND improvability_index >= 0.4 AND no denial):
-          - The corrective step MUST be a high-efficacy modality (energy / peel / laser / RF / microneedling etc. as permitted).
-          - Supportive-only handling for this concern is INVALID.
-      • The corrective step MUST be explicitly linked to the concern in the step "script"
-        using the exact token format:
-          "PRIMARY_CONCERN_TARGET: <parameter_name>"
+  • SINGLE_HERO
+  • HERO_PLUS_SECONDARY_CORRECTIVE
+  • HERO_PLUS_SECONDARY_PLUS_TERTIARY
 
-    2) Support / Protection Step (CONDITIONAL BUT STRONGLY PREFERRED)
-      • If the plan includes any step that increases irritation risk (peel/energy/microneedling),
-        you MUST include at least ONE barrier-protection / calming / recovery-oriented step in the same session,
-        and link it using:
-          "PRIMARY_CONCERN_SUPPORT: <parameter_name>"
-      • This support step must respect avoid_zones and sensitivity constraints.
+  Default decision principle:
+  • Choose the option that produces the highest expected single-session visible improvement
+    while remaining clinically coherent, non-redundant, safe, and compatible with an overall customized facial flow.
 
-    3) Anti-Template Guard (MANDATORY — prevents hydrafacial-style layering)
-      If Rule E triggers for ANY primary concern in a session:
-      • Generic spa steps (simple cleanse + mild exfoliation + mask + massage + hydration-only infusion)
-        cannot be the structural backbone of the session.
-      • The plan MUST clearly prioritize the corrective step(s) in time and specificity.
-      • Ensure step durations and techniques reflect this (corrective steps should NOT be token 2-minute mentions).
+  Combination eligibility test (check in sequence):
+  1. Would adding a second corrective modality produce meaningful incremental visible benefit
+     beyond the HERO modality alone?
+  2. Would adding a third corrective modality produce further clear non-redundant visible benefit
+     beyond the first two?
+  3. Does each added modality act through a different mechanism, different zone emphasis,
+     or meaningfully different corrective objective?
+  4. Is the combined same-session arrangement clinically coherent?
+  5. Is the total irritation / downtime / barrier burden acceptable?
+  6. Can the session still preserve an overall coherent and intelligently customized facial flow,
+     including support / infusion / calming / recovery logic where useful?
+  7. Is each added corrective modality meaningful and not token?
 
-    4) If conflicts arise:
-      • If constraints deny high-efficacy modalities for a primary concern, you MUST:
-          - still include the best allowed corrective alternative
-          - explicitly justify the omission in modality_omission_explanation
-          - and still include KPI + evidence plan (with realistic expectations).
+  Mode selection:
+  • If only HERO clearly improves same-session outcome best → choose SINGLE_HERO
+  • If HERO + one added corrective is clearly superior for same-session visible improvement → choose HERO_PLUS_SECONDARY_CORRECTIVE
+  • If HERO + second + third corrective is clearly superior for same-session visible improvement and still coherent → choose HERO_PLUS_SECONDARY_PLUS_TERTIARY
+  • If additional corrective modalities are considered but not included, the engine must explicitly conclude that they are redundant, insufficiently additive, poorly fitting for this same session, or create disproportionate burden
 
-    5) HYDRAFACIAL BACKBONE LIMIT (MANDATORY — PREVENTS TEMPLATE PLANS)
-      If ANY primary concern has deviation_from_target >= 1 AND improvability_index >= 0.4:
-      • Hydrafacial steps may be used only as supportive prep (max 3 steps total).
-      • The plan must include ONE distinct HERO corrective block that is NOT hydrafacial-based
-        (energy / peel ladder / microneedling / targeted pigment protocol / vascular protocol etc. as allowed),
-        and that block must consume the largest single time allocation.
-      • If hydrafacial appears in >3 steps, the plan is INVALID and must be regenerated.
+  Hard rules:
+  • Default maximum meaningful corrective modalities in one session = 2
+  • A third meaningful corrective modality may be added ONLY if it provides clear non-redundant incremental visible benefit beyond the first two modalities
+  • Corrective hierarchy must be:
+      - HERO_CORRECTIVE
+      - SECONDARY_CORRECTIVE
+      - TERTIARY_CORRECTIVE (only if explicitly justified)
+  • HERO_CORRECTIVE must be the modality expected to contribute the greatest share of the session’s visible corrective delta
+  • SECONDARY_CORRECTIVE must be clearly additive, non-redundant, and expected to contribute a smaller share of visible corrective delta than HERO_CORRECTIVE
+  • TERTIARY_CORRECTIVE, if used, must be clearly additive, highly targeted, non-redundant, and expected to contribute a smaller share of visible corrective delta than HERO_CORRECTIVE and SECONDARY_CORRECTIVE
+  • HERO / SECONDARY / TERTIARY describe corrective contribution hierarchy, not mandatory chronology and not strict time duration
+  • Do NOT stack multiple corrective modalities if they are largely redundant
+  • Do NOT add a third corrective modality if the incremental gain is marginal
+  • Do NOT add a third corrective modality if it creates disproportionate irritation, downtime, barrier burden, or sequencing complexity
+  • Do NOT add extra corrective modalities only for sophistication, comprehensiveness, or cosmetic over-design
+  • If one or two modalities already sufficiently maximize one-session outcome, stop there
+  • If a possible added corrective modality is awkward, unsafe, low-yield, redundant, or inelegant for this same session, do not include it; instead, keep the strongest same-session stack that remains coherent and high-yield
 
-    6) LASER / CARBON WIN-CONDITION (MANDATORY — DO NOT UNDER-SELECT ENERGY MODALITIES)
-      For pigmentation-related or acne-related PRIMARY concerns:
+  Valid examples of stacked logic:
+  • pigment correction + pore/oil/congestion correction
+  • post-acne pigmentation + active acne lesion management
+  • glow/resurfacing + carbon-based pore/oil refinement
+  • broad corrective modality + spot corrective lesion or hotspot modality
+  • peel + carbon + spot sali, if all three are clearly additive and safe
 
-      If ALL of the following are true:
-      • the modality is NOT explicitly denied by patient-history rules
-      • numeric proxy safety gates do NOT deny it
-      • temperature policy does NOT block it
-      • deviation_from_target >= 1
-      • improvability_index >= 0.4
+  Invalid stacked logic:
+  • peel + peel + peel without strong non-redundant justification
+  • multiple modalities serving nearly the same purpose with no clear additive benefit
+  • adding extra corrective modalities only for perceived sophistication
+  • stacked correction that crowds out necessary support/recovery flow
 
-      THEN:
-      • Q-Switch Laser and/or Carbon Facial MUST be actively ranked as HERO candidates.
-      • They may be omitted ONLY if another allowed modality scores higher on expected single-session visible improvement for THIS exact concern.
-      • It is INVALID to omit laser/carbon simply because a peel is easier to pair with supportive steps.
+E0A) SESSION FLOW COHERENCE RULE (MANDATORY — PRESERVE INTELLIGENT CUSTOMIZATION)
 
-      Additional hard rule:
-      • If deviation_from_target >= 2 and improvability_index >= 0.5 for superficial_pigmentation or acne_severity,
-        and no denial applies,
-        then at least one energy-based candidate (Q-Switch / Carbon / other allowed energy option) MUST appear in the final HERO ranking comparison.
-      • If no energy-based modality is chosen after that comparison, the omission explanation MUST explicitly state why the chosen modality is expected to outperform it in this specific one-session context.
+  The engine must preserve an overall clinically coherent facial flow, but it must NOT assume one rigid universal sequence.
+
+  Core principle:
+  • Step placement should remain flexible and fully customized to the case, as long as the final session is coherent, safe, non-redundant, and optimized for visible outcome.
+
+  This means:
+  • infusion steps may appear earlier, mid-session, or later if that improves outcome, tolerance, penetration, recovery, or overall session logic
+  • lymphatic massage may appear in the first half, middle, or later half if that better serves edema reduction, drainage, calming, contour refinement, or flow coherence
+  • corrective modalities do NOT need to be grouped into one uninterrupted block if smarter positioning improves the session
+  • calming, barrier-support, hydration, or recovery steps may be interleaved where clinically useful rather than forced only to the end
+
+  Hard rules:
+  • The final treatment must still read as one coherent customized facial, not a disconnected list of procedures
+  • Stacked corrective logic must not crowd out essential support, calming, hydration, barrier, or finish logic when those are needed
+  • Flexible sequencing is allowed and encouraged, but every major step should have a role in maximizing outcome, safety, tolerance, or flow quality
+  • Do NOT force a rigid order unless a specific modality or safety rule requires one
+
+E0B) INFUSION / SUPPORT / RECOVERY INTEGRATION RULE (MANDATORY)
+
+  If the session includes peel, energy, microneedling, RF, or any irritation-risk modality,
+  the planner must evaluate whether infusion, calming, hydration, barrier-support, recovery, or lymphatic steps are useful within the same session.
+
+  Core principle:
+  • These steps may be placed wherever they are most clinically useful for that specific session.
+  • They do NOT need to occur only after the corrective core.
+
+  Hard rules:
+  • Do NOT omit infusion / support / recovery logic merely because multiple corrective modalities were selected
+  • Do NOT add infusion / support / recovery as token steps; they must have a real function
+  • If irritation burden is moderate or higher, at least one meaningful support / calming / barrier-oriented step should usually be present unless clearly unnecessary
+  • If infusion / calming / recovery is omitted, the engine must internally conclude that it adds no meaningful benefit in that session
+
+
+E1) PRIMARY CONCERNS = OUTCOME STACK (MANDATORY — WOW + ACCOUNTABILITY)
+
+  For EACH parameter where is_primary_concern = true, you MUST guarantee ALL of the following
+  within the SAME session plan (single/express) OR within EACH session that claims to address it (multiple):
+
+  1) Corrective Step Mapping (MANDATORY)
+    • The session MUST contain at least ONE step whose primary purpose is to CORRECT this concern.
+    • If Rule E triggered for this concern (deviation_from_target >= 1 AND improvability_index >= 0.4 AND no denial):
+        - The corrective step MUST be a high-efficacy modality (energy / peel / laser / RF / microneedling etc. as permitted).
+        - Supportive-only handling for this concern is INVALID.
+    • The corrective step MUST be explicitly linked to the concern in the step "script"
+      using the exact token format:
+        "PRIMARY_CONCERN_TARGET: <parameter_name>"
+
+  2) Support / Protection Step (CONDITIONAL BUT STRONGLY PREFERRED)
+    • If the plan includes any step that increases irritation risk (peel/energy/microneedling),
+      you MUST include at least ONE barrier-protection / calming / recovery-oriented step in the same session,
+      and link it using:
+        "PRIMARY_CONCERN_SUPPORT: <parameter_name>"
+    • This support step must respect avoid_zones and sensitivity constraints.
+
+  3) Anti-Template Guard (MANDATORY — prevents hydrafacial-style layering)
+    If Rule E triggers for ANY primary concern in a session:
+    • Generic spa steps (simple cleanse + mild exfoliation + mask + massage + hydration-only infusion)
+      cannot be the structural backbone of the session.
+    • The plan MUST clearly prioritize the corrective step(s) in time and specificity.
+    • Ensure step durations and techniques reflect this (corrective steps should NOT be token 2-minute mentions).
+
+  4) If conflicts arise:
+    • If constraints deny high-efficacy modalities for a primary concern, you MUST:
+        - still include the best allowed corrective alternative
+        - explicitly justify the omission in modality_omission_explanation
+        - and still include KPI + evidence plan (with realistic expectations).
+
+  5) HYDRAFACIAL BACKBONE LIMIT + HERO STRUCTURE (MANDATORY — PREVENTS TEMPLATE PLANS)
+    If ANY primary concern has deviation_from_target>= 1 AND improvability_index>= 0.4:
+    • Hydrafacial steps may be used only as supportive prep/support (max 4 steps total).
+    • The plan must include:
+        - ONE distinct HERO corrective block that is NOT hydrafacial-based
+        - and MAY include ONE SECONDARY_CORRECTIVE block if E0 combination logic shows superior same-session outcome
+        - and MAY include ONE TERTIARY_CORRECTIVE block only if it adds further clear non-redundant visible benefit
+    • HERO_CORRECTIVE must be the dominant corrective contributor to the session’s visible outcome
+    • SECONDARY_CORRECTIVE must be meaningfully corrective, non-redundant, and lower in expected corrective contribution than HERO_CORRECTIVE
+    • TERTIARY_CORRECTIVE must be clearly additive, highly targeted, non-redundant, and lower in expected corrective contribution than HERO_CORRECTIVE and SECONDARY_CORRECTIVE
+    • HERO / SECONDARY / TERTIARY define corrective importance hierarchy, not mandatory step order and not strict time duration
+    • If no meaningful incremental gain exists from stacking, do NOT add extra corrective modalities
+    • Even when multiple corrective modalities are used, the session must still preserve coherent customized facial flow
+    • If hydrafacial appears in >4 steps, the plan is INVALID and must be regenerated
+
+  5A) ACTIVE ACNE LESION OVERRIDE (MANDATORY — SPOT SALI RULE)
+
+    If ANY active acne lesions are visible anywhere on the face
+    (including papules, pustules, inflamed acne bumps, or clearly active inflammatory lesions),
+    then the session MUST include a lesion-directed spot corrective step using a salicylic peel.
+
+    Default lesion-directed modality:
+      • use spot Sali peel on active lesions / acne hotspots
+
+    Allowed salicylic choices from constraints:
+      • Sali DS Peel
+      • Salicylic Acid 30% Peel
+      • 20% Salicylic Acid Peel
+
+    Selection logic:
+      • choose the salicylic option that best matches lesion activity, oiliness, tolerance, and safety context
+      • this spot step may coexist with the main HERO modality
+      • this step is mandatory even if acne is not the top aesthetic concern, as long as active lesions are visible
+
+    Zone rule:
+      • apply only to lesion-bearing zones / hotspots, not full-face by default
+      • avoid under-eye, lip, and any explicitly sensitive / barrier-risk / broken-skin zones
+      • if a zone_action_map exists, lesion-bearing cells must be marked as spot_corrective
+
+    Safety override:
+      • do NOT use spot Sali peel if salicylic use is explicitly blocked by patient-history rules or if barrier/sensitivity logic makes it unsafe
+      • if blocked, the plan MUST state the exact reason and choose the closest allowed lesion-directed alternative
+
+    Invalid plan conditions:
+      • If active lesions are visible and no spot sali peel step is present, the plan is INVALID unless a specific denial rule is triggered.
+
+  6) LASER / CARBON WIN-CONDITION (MANDATORY — DO NOT UNDER-SELECT ENERGY MODALITIES)
+    For pigmentation-related or acne-related PRIMARY concerns:
+
+    If ALL of the following are true:
+    • the modality is NOT explicitly denied by patient-history rules
+    • numeric proxy safety gates do NOT deny it
+    • temperature policy does NOT block it
+    • deviation_from_target >= 1
+    • improvability_index >= 0.4
+
+    THEN:
+    • Q-Switch Laser and/or Carbon Facial MUST be actively ranked as HERO candidates.
+    • They may be omitted ONLY if another allowed modality scores higher on expected single-session visible improvement for THIS exact concern.
+    • It is INVALID to omit laser/carbon simply because a peel is easier to pair with supportive steps.
+
+    Additional hard rule:
+    • If deviation_from_target >= 2 and improvability_index >= 0.5 for superficial_pigmentation or acne_severity,
+      and no denial applies,
+      then at least one energy-based candidate (Q-Switch / Carbon / other allowed energy option) MUST appear in the final HERO ranking comparison.
+    • If no energy-based modality is chosen after that comparison, the omission explanation MUST explicitly state why the chosen modality is expected to outperform it in this specific one-session context.
 
 F) REGIONAL DIFFERENTIATION REQUIREMENT (MANDATORY)
   For any primary concern where a regional_burden_map or grid_map exists:
@@ -405,24 +540,65 @@ H) HOTSPOT COMPILER (MANDATORY PRE-STEP)
     • modality: peel / laser / MN / etc
     • intensity_rung: 1/2/3
     • notes: “avoid heat due to redness”, “spot treat malar only”, etc.
+    • if active acne lesions are present in a zone/cell, that zone/cell must be tagged as spot_corrective unless contraindicated
 
-H1) HERO MODALITY RANKING OUTPUT (MANDATORY PRE-STEP, INTERNAL ONLY)
-  Before writing steps, output internally a hero_modality_ranking object for each PRIMARY concern.
+H1) CORRECTIVE STACK DECISION OUTPUT (MANDATORY PRE-STEP, INTERNAL ONLY)
 
-  For each PRIMARY concern include:
-    • concern_name
-    • candidate_modalities_considered
-    • denied_modalities_with_reason
-    • top_ranked_modality
-    • second_best_modality
-    • why_top_ranked_won
-    • why_second_best_lost
-    • if chosen_modality_is_peel: named_peel_selected
-    • if named_peel_selected_is_mandelic: explicit_reason_mandelic_outranked_party_pumpkin_and_other_relevant_options
+  Before writing treatment steps, output internally:
 
-  Hard rule:
-    • Do NOT write treatment steps until this internal ranking is complete.
-    • The chosen HERO corrective block in the final plan MUST match the top_ranked_modality from this ranking.
+  corrective_strategy_decision = {
+    primary_concern: <name>,
+    selected_mode: SINGLE_HERO | HERO_PLUS_SECONDARY_CORRECTIVE | HERO_PLUS_SECONDARY_PLUS_TERTIARY,
+    hero_modality: <name>,
+    secondary_corrective_modality: <name_or_null>,
+    tertiary_corrective_modality: <name_or_null>,
+    expected_incremental_benefit_of_secondary: <1 sentence or "not applicable">,
+    expected_incremental_benefit_of_tertiary: <1 sentence or "not applicable">,
+    why_secondary_is_not_redundant: <1 sentence or "not applicable">,
+    why_tertiary_is_not_redundant: <1 sentence or "not applicable">,
+    why_combination_is_safe_or_not_safe: <1 sentence>,
+    why_this_outperforms_hero_alone: <1 sentence or "not applicable">,
+    session_flow_preserved: yes/no,
+    infusion_or_recovery_needed: yes/no,
+    why_infusion_or_recovery_is_or_is_not_needed: <1 sentence>
+  }
+
+  Hard rules:
+  • Do NOT write final steps until this decision is complete
+  • If selected_mode = HERO_PLUS_SECONDARY_CORRECTIVE, the final step list must clearly contain both corrective blocks
+  • If selected_mode = HERO_PLUS_SECONDARY_PLUS_TERTIARY, the final step list must clearly contain all three corrective blocks in hierarchy
+  • If selected_mode = SINGLE_HERO, do not add token corrective modalities
+  • HERO / SECONDARY / TERTIARY describe corrective importance and expected contribution, not mandatory chronological order
+
+H2) STACK POSITIONING LOGIC (MANDATORY WHEN 2 OR 3 CORRECTIVE MODALITIES ARE USED)
+
+  If selected_mode = HERO_PLUS_SECONDARY_CORRECTIVE or HERO_PLUS_SECONDARY_PLUS_TERTIARY:
+
+  • The engine must position all steps in the order that maximizes visible outcome, tolerance, and overall facial coherence for that specific case.
+  • Do NOT assume one universal sequence for stacked sessions.
+
+  Positioning may vary based on:
+    - mechanism order
+    - barrier burden
+    - edema / lymphatic needs
+    - oil / congestion state
+    - penetration logic
+    - hotspot / zone logic
+    - visible result optimization
+    - recovery needs
+    - overall treatment elegance and flow
+
+  Flexible examples:
+  • infusion may come before a corrective modality if it improves tissue readiness, glide, tolerance, or planned outcome
+  • lymphatic massage may come before, between, or after major corrective steps if that placement is more intelligent
+  • a secondary or tertiary corrective step may appear later in the session if it works better after earlier prep, decongestion, or surface change
+  • calming or barrier-support steps may be interleaved between corrective layers if this improves tolerance and session quality
+
+  Hard rules:
+  • HERO / SECONDARY / TERTIARY define strategic importance, not a mandatory step order
+  • TERTIARY, if used, should remain the least dominant corrective contribution even if positioned earlier or mid-session
+  • Flexible positioning must still produce one coherent, customized, dermatologist-rational session
+  • If a possible extra corrective step weakens overall session coherence, do not include it
 
 I) MULTI-SESSION ESCALATION RULE (MANDATORY)
   For each primary concern:
@@ -488,6 +664,21 @@ FINAL PLAN VALIDATION (MANDATORY):
   7. If Q-Switch Laser or Carbon Facial was allowed for a pigmentation/acne concern, were they explicitly considered in the ranking?
   8. If Q-Switch Laser or Carbon Facial was not used despite being allowed, was the loss explained as lower expected one-session efficacy for this exact case rather than generic caution?
   9. Is the largest single corrective time block assigned to the chosen HERO modality rather than to prep/supportive steps?
+  10. Was stacked corrective logic considered before finalizing a single-HERO plan?
+  11. If two corrective modalities together would likely produce greater same-session visible improvement than hero alone, was the stacked option used?
+  12. If three corrective modalities together would likely produce further clear non-redundant visible improvement beyond the first two, was the tertiary option correctly considered?
+  13. If a stacked option was NOT used, was the reason one of:
+    - redundancy
+    - insufficient incremental benefit
+    - excessive irritation / downtime / barrier burden
+    - poor same-session fit
+    - weak contribution to final visible delta
+  14. If a stacked option WAS used, is each added corrective modality genuinely non-redundant and lower in expected corrective contribution than the modality above it in hierarchy?
+  15. Does the stacked session preserve an overall coherent, customized facial flow without forcing a rigid template?
+  16. Are infusion, lymphatic, calming, hydration, barrier-support, and recovery steps positioned intelligently for this specific case when they are used?
+  17. Are HERO / SECONDARY / TERTIARY treated as importance hierarchy rather than incorrectly forced chronological order?
+  18. Is the final step order clinically coherent and directed toward maximizing visible one-session delta, tolerance, and overall session elegance?
+  19. If active acne lesions were visible, was a lesion-directed spot salicylic peel step included unless explicitly contraindicated?
 
   If ANY answer is "NO":
   → Regenerate the plan with higher-efficacy or better-ranked modalities,
@@ -511,32 +702,32 @@ FINAL PLAN VALIDATION (MANDATORY):
   - If constraints indicate "allowed_with_caution", you may reduce intensity/coverage, but you must still provide
     (a) or (b) or (c) to ensure the modality is delivered meaningfully.
 
-**MODALITY OMISSION EXPLANATION (MANDATORY)**
+**MODALITY / STACK OMISSION EXPLANATION (MANDATORY)**
 
-  If any of these modalities are NOT used in the plan:
-    - Q-Switch Laser
-    - Carbon Facial
-    - Chemical Peel
-    - RF / HiFU / Microneedling (as relevant to concerns)
+  For each clinically relevant corrective modality and each clinically relevant stacked option:
 
-  Reason must include these if applicable:
-    - whether it was considered (yes/no)
-    - omission_reason_category: one of ["contraindicated_by_history", "blocked_by_proxy_gates", "blocked_by_temperature_policy", "not_best_efficacy_for_this_concern", "not_best_one_session_visible_delta", "insufficient_data -> defaulted_to_caution_alternative"]
-    - the specific rule/proxy that caused omission (if applicable)
-    - the chosen alternative modality
-    - expected tradeoff (1 sentence)
+  state:
+    • considered: yes/no
+    • selected_as: HERO_CORRECTIVE | SECONDARY_CORRECTIVE | TERTIARY_CORRECTIVE | not_selected
+    • omission_reason_category:
+        - contraindicated_by_history
+        - blocked_by_proxy_gates
+        - blocked_by_temperature_policy
+        - redundant_with_higher_ranked_modality
+        - insufficient_incremental_benefit
+        - not_best_one_session_visible_delta
+        - not_best_for_zone_distribution
+        - poor_same_session_fit
+        - would_disrupt_session_flow
+        - would_disproportionately_increase_irritation_or_downtime
+    • chosen_alternative
+    • expected_tradeoff
 
-  Additional peel-specific rule:
-    - If a chemical peel IS used, specify:
-      • named_peel_selected
-      • named_peels_considered_and_not_chosen
-      • why_named_peel_selected_won
-    - If Gel Based Mandelic Peel is selected, explanation MUST include:
-      • why Party Peel did not win
-      • why Gel Based Pumpkin Peel did not win
-      • why other pathology-relevant peels did not win
-      • why relevant energy modalities did not win (if allowed)
-
+  Additional hard rule:
+    • If an eligible stacked corrective option was considered but not chosen,
+      the engine must explain why HERO alone, HERO + SECONDARY, or HERO + SECONDARY + TERTIARY was superior for this same session.
+    • If infusion / calming / recovery was omitted despite meaningful irritation burden,
+      the engine must explain why omission was acceptable.
 
 📤 OUTPUT FORMAT (STRICT JSON)
 {
