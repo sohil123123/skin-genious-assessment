@@ -591,6 +591,7 @@
           },
           "preflight_checks": ["step"],
           "setup_steps": ["step"],
+          "bag_preparation_steps": ["step"],
           "administration_steps": ["step"],
           "monitoring_plan": {
             "baseline_measurements": ["string"],

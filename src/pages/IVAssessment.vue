@@ -371,8 +371,7 @@ async function goNext() {
 
   if (currentStep.value === 'step-4') {
     // Transitioning from Plan Selection to Run Sheet
-    const treatmentPlan = formData.value.iv_treatment_plan
-    const selected = treatmentPlan?.selected_option
+    const selected = formData.value.iv_selected_option
 
     if (!selected) {
       Notify.create({
@@ -506,10 +505,10 @@ async function generateTreatmentPlan() {
 async function handleTreatmentPlan() {
   if (currentStep.value === 'step-3') {
     // Transitioning from Safety to Treatment Generation
-    if (!formData.value.treatment_sessions || formData.value.treatment_sessions.length === 0) {
-      const success = await generateTreatmentPlan()
-      if (!success) return
-    }
+    // if (!formData.value.treatment_sessions || formData.value.treatment_sessions.length === 0) {
+    const success = await generateTreatmentPlan()
+    if (!success) return
+    // }
 
     if (!isLastStep.value) {
       navigateToStep(steps[currentIndex.value + 1])

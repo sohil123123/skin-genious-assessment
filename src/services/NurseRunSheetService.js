@@ -24,11 +24,42 @@ Here is the Treatment Execution Engine definition (Schema Reference):
 ${encode(generationEngine.treatment_execution_engine)}
 
 Generate the output strictly in JSON format matching the "run_sheet" structure in the execution engine definition.
+
+BAG PREPARATION REQUIREMENTS (MANDATORY):
+
+You MUST generate a separate section "bag_preparation_steps".
+
+This section must include step-by-step sterile compounding instructions for EACH IV bag.
+
+For EACH bag, include:
+- Verify correct fluid (NS / LR) and volume
+- Inspect bag for leaks/clarity
+- Label bag (patient name, ingredients, date/time)
+- Use aseptic technique at all times
+- Alcohol swab port before every entry
+- Add each ingredient in correct order
+- Mention if ingredient should be added LAST (e.g., B12)
+- Gently invert bag to mix (DO NOT SHAKE)
+- Prime IV line after preparation
+- Ensure no air bubbles
+- Final visual inspection before administration
+
+Rules:
+- Steps must be sequential and nurse-friendly
+- Each step must be a SINGLE STRING (no objects)
+- If multiple bags exist → clearly separate them (e.g., "Bag 1:", "Bag 2:")
+- If NAD+ → explicitly state "prepare as standalone bag, no mixing"
+- If protocol contains ingredients, you MUST reflect them inside bag_preparation_steps.
+  Do not generate generic preparation steps — tie steps to actual ingredients and bags.
+
+DO NOT skip this section.
+
 The Output JSON Structure MUST be:
 {
   "header": { ... },
   "preflight_checks": ["string step 1", ...],
   "setup_steps": ["string step 1", ...],
+  "bag_preparation_steps": ["string step 1", ...],
   "administration_steps": ["string step 1", ...],
   "monitoring_plan": {
     "baseline_measurements": [...],

@@ -254,6 +254,45 @@
 
         <!-- 3. Right Column: Execution Timeline -->
         <div class="col-12 col-md-7">
+          <!-- Bag Preparation Steps -->
+          <section v-if="runSheetData.bag_preparation_steps?.length">
+            <div class="flex items-center justify-between q-mb-sm">
+              <div class="text-h6 text-slate-800 font-bold flex items-center">
+                <q-icon name="local_pharmacy" color="teal-7" class="q-mr-sm" size="20px" />
+                Bag Preparation
+              </div>
+              <q-badge
+                color="teal-1"
+                text-color="teal-8"
+                :label="runSheetData.bag_preparation_steps.length + ' Steps'"
+              />
+            </div>
+            <q-card flat bordered class="rounded-xl border-slate-200 shadow-sm bg-white">
+              <q-list separator>
+                <q-item
+                  v-for="(step, idx) in runSheetData.bag_preparation_steps"
+                  :key="'bag' + idx"
+                  tag="label"
+                  v-ripple
+                  class="q-py-md hover:bg-slate-50 transition-colors"
+                  :class="{ 'bg-teal-50': checks.bag[idx] }"
+                >
+                  <q-item-section avatar top>
+                    <q-checkbox v-model="checks.bag[idx]" color="teal" size="md" />
+                  </q-item-section>
+                  <q-item-section>
+                    <div
+                      class="text-body2 text-slate-700"
+                      :class="{ 'text-strike text-slate-400': checks.bag[idx] }"
+                    >
+                      {{ step }}
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-card>
+          </section>
+
           <div class="flex items-center justify-between q-mb-lg">
             <div class="text-h6 text-slate-800 font-bold flex items-center">
               <q-icon name="play_circle_filled" color="teal-7" class="q-mr-sm" size="24px" />
@@ -311,75 +350,75 @@
               </q-card>
             </div>
           </div>
+        </div>
+      </div>
 
-          <!-- Post Care Section -->
-          <div class="q-mt-xl q-pl-sm">
-            <div class="text-h6 text-slate-800 font-bold flex items-center q-mb-md">
-              <q-icon name="logout" color="indigo-6" class="q-mr-sm" size="24px" />
-              Post-Care Sequence
-            </div>
-
-            <q-card flat bordered class="rounded-xl border-indigo-100 bg-indigo-50 overflow-hidden">
-              <q-list separator>
-                <q-item
-                  v-for="(step, idx) in runSheetData.post_care"
-                  :key="'pc' + idx"
-                  tag="label"
-                  v-ripple
-                  class="q-py-md hover:bg-indigo-100 transition-colors"
-                >
-                  <q-item-section avatar>
-                    <q-checkbox v-model="checks.post[idx]" color="indigo" size="sm" />
-                  </q-item-section>
-                  <q-item-section>
-                    <div class="text-body2 text-indigo-900">{{ step }}</div>
-                  </q-item-section>
-                </q-item>
-
-                <q-separator color="indigo-200" />
-
-                <div
-                  class="bg-indigo-100 q-px-md q-py-sm text-xs font-bold text-indigo-800 uppercase tracking-widest flex items-center"
-                >
-                  <q-icon name="edit_document" class="q-mr-xs" /> Required Documentation
-                </div>
-
-                <q-item
-                  v-for="(doc, idx) in runSheetData.documentation"
-                  :key="'doc' + idx"
-                  tag="label"
-                  v-ripple
-                  class="q-py-sm hover:bg-indigo-100 transition-colors"
-                >
-                  <q-item-section avatar>
-                    <q-checkbox v-model="checks.doc[idx]" color="indigo-8" size="sm" />
-                  </q-item-section>
-                  <q-item-section>
-                    <div class="text-sm text-slate-700">{{ doc }}</div>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </q-card>
+      <div class="row q-col-gutter-md">
+        <!-- Post Care Section -->
+        <div class="q-mt-xl q-pl-sm">
+          <div class="text-h6 text-slate-800 font-bold flex items-center q-mb-md">
+            <q-icon name="logout" color="indigo-6" class="q-mr-sm" size="24px" />
+            Post-Care Sequence
           </div>
 
-          <!-- Conditional Signoff -->
-          <div v-if="runSheetData.clinician_signoff_required_if?.length" class="q-mt-xl">
-            <div
-              class="rounded-xl border border-orange-200 bg-orange-50 p-4 flex items-start gap-4"
-            >
-              <div class="bg-white p-2 rounded-full shadow-sm text-orange-600">
-                <q-icon name="notification_important" size="24px" />
+          <q-card flat bordered class="rounded-xl border-indigo-100 bg-indigo-50 overflow-hidden">
+            <q-list separator>
+              <q-item
+                v-for="(step, idx) in runSheetData.post_care"
+                :key="'pc' + idx"
+                tag="label"
+                v-ripple
+                class="q-py-md hover:bg-indigo-100 transition-colors"
+              >
+                <q-item-section avatar>
+                  <q-checkbox v-model="checks.post[idx]" color="indigo" size="sm" />
+                </q-item-section>
+                <q-item-section>
+                  <div class="text-body2 text-indigo-900">{{ step }}</div>
+                </q-item-section>
+              </q-item>
+
+              <q-separator color="indigo-200" />
+
+              <div
+                class="bg-indigo-100 q-px-md q-py-sm text-xs font-bold text-indigo-800 uppercase tracking-widest flex items-center"
+              >
+                <q-icon name="edit_document" class="q-mr-xs" /> Required Documentation
               </div>
-              <div>
-                <div class="text-subtitle2 font-bold text-orange-900 q-mb-xs">
-                  Clinician Sign-off Required If:
-                </div>
-                <ul class="q-pl-md q-my-none text-sm text-orange-900 leading-relaxed">
-                  <li v-for="(cond, i) in runSheetData.clinician_signoff_required_if" :key="i">
-                    {{ cond }}
-                  </li>
-                </ul>
+
+              <q-item
+                v-for="(doc, idx) in runSheetData.documentation"
+                :key="'doc' + idx"
+                tag="label"
+                v-ripple
+                class="q-py-sm hover:bg-indigo-100 transition-colors"
+              >
+                <q-item-section avatar>
+                  <q-checkbox v-model="checks.doc[idx]" color="indigo-8" size="sm" />
+                </q-item-section>
+                <q-item-section>
+                  <div class="text-sm text-slate-700">{{ doc }}</div>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card>
+        </div>
+
+        <!-- Conditional Signoff -->
+        <div v-if="runSheetData.clinician_signoff_required_if?.length" class="q-mt-xl">
+          <div class="rounded-xl border border-orange-200 bg-orange-50 p-4 flex items-start gap-4">
+            <div class="bg-white p-2 rounded-full shadow-sm text-orange-600">
+              <q-icon name="notification_important" size="24px" />
+            </div>
+            <div>
+              <div class="text-subtitle2 font-bold text-orange-900 q-mb-xs">
+                Clinician Sign-off Required If:
               </div>
+              <ul class="q-pl-md q-my-none text-sm text-orange-900 leading-relaxed">
+                <li v-for="(cond, i) in runSheetData.clinician_signoff_required_if" :key="i">
+                  {{ cond }}
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -435,6 +474,7 @@ const checks = reactive({
   preflight: {},
   setup: {},
   admin: {},
+  bag: {},
   post: {},
   doc: {},
 })
@@ -494,6 +534,7 @@ const initiateRunSheetGeneration = async () => {
     checks.preflight = {}
     checks.setup = {}
     checks.admin = {}
+    checks.bag = {}
     checks.post = {}
     checks.doc = {}
   } catch (err) {
