@@ -517,7 +517,7 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
           payload[key] = null
         }
       })
-      console.log(payload)
+
       const formData = serialize(payload, config)
 
       await api
