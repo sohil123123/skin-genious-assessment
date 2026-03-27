@@ -264,14 +264,10 @@ const emit = defineEmits(['handleTreatmentPlan'])
 // }
 
 const processedScores = computed(() => {
-  if (!props.ivScores) return {}
-  // Check if we have the nested structure as per the new JSON format
-  // JSON path: iv_scoring_output.scores_public_0_100
   if (props.ivScores?.iv_scoring_output?.scores_public_0_100) {
     return props.ivScores.iv_scoring_output.scores_public_0_100
   }
-  // Fallback if it's already the scores object (legacy or simplified)
-  return props.ivScores
+  return []
 })
 
 // const drivers = computed(() => {
