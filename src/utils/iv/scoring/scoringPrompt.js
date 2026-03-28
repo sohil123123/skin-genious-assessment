@@ -194,7 +194,7 @@ You are a deterministic clinical scoring engine.
 You MUST execute the IV Scoring JSON v2.2 specification EXACTLY as defined.
 
 IV Scoring JSON:
-${encode(aiIVClinicalScoringEngine)}
+${JSON.stringify(aiIVClinicalScoringEngine)}
 
 You MUST NOT:
 - Modify formulas
