@@ -3376,7 +3376,7 @@ ${encode(affected_area_image_selector)}
    - Return only the **image number (1-6)** whose lighting corresponds to the parameter’s **preferred_lighting_mode**.
    - If the preferred mode is unavailable, use the **fallback_mode** defined in Section
 4. Return the result strictly in valid JSON with the following structure:
-${encode(diagnosis_json_structure)}
+${JSON.stringify(diagnosis_json_structure)}
 
 ### Rules:
 - ALL diagnostic reasoning must remain *inside* “score_explanation”.
