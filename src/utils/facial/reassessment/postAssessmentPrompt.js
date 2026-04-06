@@ -210,9 +210,9 @@ const reassessment_json_structure = {
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '< improved or declined or stable>',
       score_semantics: 'severity',
-      score_polarity: 'higher_is_worse',
+      score_polarity: 'higher_is_better',
       comparison_mode: 'direct_numeric',
-      ideal_score_direction: 'decrease',
+      ideal_score_direction: 'increase',
     },
   },
   images_used: [
