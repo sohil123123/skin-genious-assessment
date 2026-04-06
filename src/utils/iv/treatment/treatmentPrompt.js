@@ -75,53 +75,60 @@ CORE OPERATING LOGIC
    - If patched_protocol_optional returned → use patched version.
 
 ---------------------------------------------------
-POST-GENERATION COVERAGE AUDIT (MANDATORY)
+POST-GENERATION COVERAGE + POWER AUDIT (MANDATORY)
 ---------------------------------------------------
 
 Before finalizing Option 1, Option 2, and Budget option:
 
 For each chosen protocol (excluding NAD+ standalone):
+
 1) Compute supportive_count:
    supportive_count = (all additives in all bags) minus (carrier fluid) minus (hero_ingredients).
 
-2) If supportive_count == 0:
-   - Attempt to add 1 supportive ingredient aligned to:
-     (i) the #2 or #3 axis, OR
-     (ii) tolerability for today's symptoms (stress, cramps, headache, nausea, low hydration),
-     using only allowlisted ingredients.
-   - Re-run constraints.evaluate() on the modified protocol.
-   - If it becomes blocked, revert and try the next-best supportive.
-   - If all attempts fail, allow supportive_count=0 but you MUST explain in constraint_report.messages
-     that "No supportive ingredient could be safely added under constraints."
+2) Supportive layering upgrade:
+   - If protocol is NON-NAD and supportive_count == 0:
+     attempt to add the best supportive ingredient aligned to:
+       (i) #2 or #3 axis, OR
+       (ii) tolerability / hydration feel / ANS calm / recovery comfort, OR
+       (iii) synergy with the chosen hero(s).
+   - Re-run constraints.evaluate() after each modification.
 
-3) Axis coverage check:
-   - Ensure at least 2 of top_axes are addressed by (heroes + supportives) in the same protocol.
-   - If not, swap in a better-ranked candidate that passes this audit.
+3) Premium layering expectation:
+   - If desired_intensity_preference == "Strong" AND top_axes has 2 or more meaningful burdens:
+     do NOT stop at a 1-supportive build by default.
+   - Attempt to build toward at least 2 meaningful supportives total for NON-NAD protocols,
+     unless constraints block them or additional supportives become redundant.
 
-5) Select:
-   - single_session_option_1
-   - single_session_option_2 (must differ)
-   - budget_option
-   - plan_option (14-week scaffold)
+4) Axis coverage audit:
+   - If top_axes has 3 axes, at least 2 must be meaningfully addressed in the SAME protocol.
+   - If top_axes has 2 axes, both should be meaningfully addressed unless constraints prevent.
+   - "Meaningfully addressed" means not tokenized by a decorative additive.
 
-6) NAD rules:
-   - NAD must be standalone.
-   - NAD allowed carrier: Normal Saline (0.9%) only.
-   - NAD must be SLOW_ONLY.
-   - If Option 1 contains NAD, Option 2 must NOT contain NAD.
-   - Budget option MUST NOT contain NAD anywhere.
+5) Protocol power audit:
+   Ask:
+   - Does this protocol feel clinically strong enough for today's burden pattern?
+   - Is this just a tidy dominant-axis bag?
+   - Would a richer safe protocol produce better same-day felt benefit and stronger overall session quality?
+   - Are secondary burdens being meaningfully covered, not merely acknowledged?
 
-7) Budget option:
-   - Exactly 1 hero ingredient.
-   - No NAD anywhere.
+6) If protocol fails the power audit:
+   - swap in a stronger candidate, OR
+   - enrich the candidate with additional non-redundant supportives,
+   - then re-run constraints.evaluate().
+
+7) Budget option exception:
+   - Budget option should remain simple.
+   - Do not force premium-style layering into budget.
 
 ---------------------------------------------------
 SUPPORTIVE LAYERING RULE (MANDATORY — OUTCOME + EXPERIENCE)
 ---------------------------------------------------
 
 Problem to solve:
-Single-session options are currently over-indexing on hero ingredients only, which reduces
-(1) secondary axis coverage and (2) same-day tolerability/experience.
+Single-session options are still over-indexing on hero ingredients only, which reduces:
+(1) secondary axis coverage,
+(2) same-day felt benefit,
+(3) overall protocol strength.
 
 Definitions:
 - "Hero ingredients" = protocol.hero_ingredients (max 3).
@@ -129,31 +136,54 @@ Definitions:
 - Supportives DO NOT count toward hero cap, but must still be constraints-allowed.
 
 MANDATORY RULES:
-A) For every NON-NAD+ protocol (all options including budget), you MUST include:
-   - at least 1 supportive ingredient
-   EXCEPT when one of the following is true:
-   - constraints.evaluate() blocks all reasonable supportives, OR
-   - desired_intensity_preference == "Gentle" AND multiple safety fields are unknown/uncertain,
-     in which case supportives may be 0 or 1 (prefer 1 if allowed).
+
+A) For every NON-NAD+ premium single-session protocol:
+   - include enough supportives to make the protocol meaningfully layered and clinically strong.
+   - minimum default target = 2 supportives total when:
+       • desired_intensity_preference == "Strong", OR
+       • top_axes has 2 or more meaningful burdens, OR
+       • the case has mixed same-day and recovery objectives.
+   - You may use only 1 supportive if:
+       • the case is genuinely simple, OR
+       • extra supportives are blocked, redundant, or weakly additive.
 
 B) Supportives must not be random.
    Each supportive ingredient MUST satisfy at least one:
-   - Axis-support: targets one of top_axes (rank 2 or 3) not already meaningfully addressed by heroes, OR
-   - Tolerability: improves comfort / hydration retention / ANS calm / nausea-headache tendency (as relevant), OR
-   - Synergy: clinically supports the chosen hero(s) (cofactor/precursor/stack rationale).
+   - Axis-support
+   - Tolerability / comfort / hydration feel / ANS calm / recovery
+   - Synergy with heroes
+   - Meaningful protocol-depth improvement
 
-C) Supportive coverage expectation for Single-Session Options 1/2:
-   - If top_axes has 3 axes, then at least 2 of the 3 axes must be addressed across
-     (heroes + supportives) in the SAME protocol.
-   - If top_axes has 2 axes, then both should be addressed across (heroes + supportives)
-     unless constraints prevent.
+C) Do NOT increase hero count just to look stronger.
+   Keep hero_ingredients <= 3 always.
+   Use supportives for additive coverage and session depth.
 
-D) Do NOT increase hero count to solve coverage.
-   Keep hero_ingredients <= 3 always. Use supportives for coverage.
+D) Budget option exception:
+   - Keep budget as simple as possible.
+   - Do not force premium layering into budget.
 
 E) NAD+ exception:
-   - If protocol contains NAD+ anywhere: it must remain standalone session (no other additives unless
-     explicitly allowed by constraints); do not force supportives into NAD+ protocols.
+   - If protocol contains NAD+ anywhere: it must remain standalone unless constraints explicitly allow otherwise.
+
+---------------------------------------------------
+ANTI-THIN PROTOCOL RULE (MANDATORY)
+---------------------------------------------------
+
+For Single-Session Option 1 and Option 2:
+
+- A protocol must NOT win merely because it is neat, simple, or easy to explain.
+- If a richer protocol is safe, coherent, non-redundant, and clearly stronger for same-session benefit, it should outrank the thinner protocol.
+- Thin protocols are acceptable only when:
+  • the case is truly simple,
+  • added ingredients are blocked,
+  • added ingredients are redundant,
+  • or additional layering adds little meaningful benefit.
+
+Red flags for thinness:
+- only 1 hero + 1 supportive in a mixed-burden strong-intensity case
+- dominant axis addressed but secondary burdens tokenized
+- protocol feels generic rather than tailored
+- protocol underdelivers on same-day feel despite safe room for stronger layering
 
 ---------------------------------------------------
 UI DISPLAY CONTRACT (MANDATORY)

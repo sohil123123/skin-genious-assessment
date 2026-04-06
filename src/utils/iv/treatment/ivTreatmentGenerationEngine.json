@@ -158,13 +158,22 @@
   },
 
   "supportive_policy": {
-    "min_supportives_per_protocol_default": 1,
+    "default_min_supportives_non_nad_single_session": 2,
+    "premium_layering_target_when_case_is_mixed_or_multi_axis": "2_to_4_supportives_total_if_non_redundant_and_constraints_allow",
     "nad_exception": "If protocol contains NAD+ anywhere, keep it standalone unless constraints explicitly allow additives.",
-    "gentle_intensity_relaxation": "If desired_intensity is Gentle AND safety fields are sparse/unknown, allow 0–1 supportives but prefer 1 when allowed.",
+    "gentle_intensity_relaxation": "If desired_intensity is Gentle AND safety fields are sparse/unknown, allow 0-1 supportives and prefer the lower-complexity safe build.",
+    "strong_intensity_expectation": "If desired_intensity is Strong and the case has >=2 meaningful burden axes, do not stop at a single-supportive build unless extra additives are redundant, blocked, or weakly additive.",
     "quality_bar": [
       "Supportives do not count toward hero cap.",
-      "Supportives must map to (top_axes coverage OR tolerability OR synergy).",
-      "Never add supportives that do not have a clear purpose."
+      "Supportives must map to (top_axes coverage OR tolerability OR synergy OR protocol depth).",
+      "Each supportive must have a clear purpose.",
+      "For non-NAD single-session options, supportives should collectively make the protocol feel materially stronger, not merely satisfy a minimum rule.",
+      "Do not add decorative supportives.",
+      "Prefer multiple non-redundant supportives when they improve same-session felt benefit and overall protocol strength."
+    ],
+    "anti_thin_protocol_rule": [
+      "A non-NAD premium single-session option is weak by default if it contains only 1 hero and 1 supportive while 2 or more meaningful axes remain insufficiently covered.",
+      "If the case is mixed (e.g. hydration/recovery + oxidative + metabolic or ANS burden), the engine should try a richer layered build before accepting a thin protocol."
     ]
   },
 
@@ -241,6 +250,22 @@
         "These examples do NOT override constraints, safety checks, or hero caps.",
         "Ingredient selection, dosing, and rates remain fully governed by constraints and clinical logic."
       ]
+    },
+
+    "protocol_power_validator": {
+      "purpose": "Prevent thin, tidy, underpowered premium protocols from winning when a stronger layered build is clinically superior.",
+      "rules": [
+        "Before finalizing Option 1 and Option 2, ask whether the protocol feels clinically meaningful for the actual same-session burden pattern.",
+        "Reject protocols that merely match the dominant axis but leave relevant secondary burdens weakly addressed.",
+        "Reject protocols that look neat but feel too thin for a Strong-intensity mixed-burden case.",
+        "If a richer non-redundant protocol is safe and meaningfully stronger, it should outrank a simpler thinner protocol."
+      ],
+      "thin_protocol_flags": [
+        "1 hero + 1 supportive in a mixed-burden strong-intensity case",
+        "dominant axis covered but #2/#3 axes only tokenized",
+        "same-day felt benefit likely weaker than a richer safe build",
+        "protocol reads like generic metabolic or antioxidant support rather than a targeted session"
+      ]
     }
   },
 
@@ -308,31 +333,46 @@
 
       "candidate_design_templates": [
         {
-          "template_id": "hydration_ans_comfort",
-          "when": "PCCS or ASLS is among top_axes OR desired_intensity is Gentle",
+          "template_id": "dominant_axis_focused",
+          "when": "always",
           "composition_guidance": [
-            "Prefer 1 bag",
-            "Choose NS or LR based on hydration/electrolyte theme",
-            "Use 1–3 hero ingredients max (e.g., Magnesium/Taurine can be heroes if they drive benefit)",
-            "Keep total ingredients conservative"
+            "Generate a clean candidate focused tightly on the dominant axis and primary goal.",
+            "This candidate may remain relatively simple, but must still include meaningful supportives if non-NAD.",
+            "Use this as one candidate family, not as the default winner."
           ]
         },
         {
-          "template_id": "metabolic_energy",
-          "when": "MONS is among top_axes OR primary_goal indicates Energy/Focus",
+          "template_id": "multi_axis_layered_recovery",
+          "when": "top_axes has 2 or 3 meaningful burdens OR desired_intensity is Strong",
           "composition_guidance": [
-            "Prefer 1 bag",
-            "Choose a metabolic cofactor set; cap heroes at 3",
-            "Avoid incompatible mixes; constraints will enforce"
+            "Generate a layered candidate that addresses the dominant axis plus at least one secondary axis in the SAME session.",
+            "Prioritize additive felt benefit and stronger same-session effect.",
+            "Do not force minimalism if extra ingredients are justified and non-redundant.",
+            "Prefer elegant layering over sparse neatness."
           ]
         },
         {
-          "template_id": "antioxidant_glow",
-          "when": "ODS or DGS is among top_axes OR primary_goal indicates Glow/Detox",
+          "template_id": "same_day_reset_feel",
+          "when": "ASLS or PCCS or FENS is among top_axes OR recent stressors/sleep debt/recovery burden are present",
           "composition_guidance": [
-            "Prefer 1 bag",
-            "Choose 1–3 antioxidant heroes (max 3)",
-            "Keep doses conservative; constraints will cap/patch"
+            "Generate a candidate optimized for same-day felt improvement: hydration feel, calm/ANS, recovery comfort, less drained feeling, better reset quality.",
+            "Layer supportives if they materially improve same-session experience."
+          ]
+        },
+        {
+          "template_id": "oxidative_metabolic_repair",
+          "when": "ODS or MSGS or ILS is among top_axes",
+          "composition_guidance": [
+            "Generate a candidate that meaningfully combines antioxidant / metabolic repair logic when clinically justified.",
+            "Do not reduce this family to a single antioxidant plus token metabolic support if multiple burdens are relevant."
+          ]
+        },
+        {
+          "template_id": "performance_energy_build",
+          "when": "MONS is among top_axes OR primary_goal indicates Energy/Focus/Performance",
+          "composition_guidance": [
+            "Generate a candidate centered on energy and output, but still address hydration/ANS burden if relevant.",
+            "Avoid making B-complex-only style builds the automatic answer."
           ]
         },
         {
@@ -356,8 +396,8 @@
         "5) Run constraints.evaluate(candidate, full_upstream_payload).",
         "6) Discard blocked candidates. Keep allowed and allowed_with_cautions. Keep doctor_approval_required but rank lower for consumer options.",
         "7) If constraints returns patched_protocol_optional, replace candidate with patched protocol and re-check hero_count<=3; if patch breaks hero cap, adjust heroes (not ingredients) to max 3 while keeping protocol unchanged.",
-        "8) Rank candidates using qualitative scoring: top_axes overlap + goal alignment + intensity match + same-day perceived benefit + simplicity.",
-        "9) If insufficient allowed candidates, iterate (simplify builds: fewer ingredients, slower rate, smaller bag) and re-evaluate; stop at max_iterations."
+        "8) Rank candidates using qualitative scoring: dominant-axis correction strength + secondary-axis coverage + goal alignment + intensity match + same-day perceived benefit + protocol coherence + additive layering quality + elegance. Simplicity may help only when extra ingredients are redundant, weakly additive, or poorly tolerated.",
+        "9) If insufficient allowed candidates, iterate by simplifying only where complexity is redundant or blocked. Do not automatically collapse to fewer ingredients if a richer build is still safe, coherent, and meaningfully stronger."
       ],
 
       "selection_rules_for_top2": [
