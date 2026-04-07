@@ -21,14 +21,26 @@ export const IV_INGREDIENTS_LIST = [
     ingredients: [
       {
         ingredient: 'Glutathione',
-        ai_parameters_targeted: ['Tone Homogeneity', 'Pigment Instability'],
-        clinical_function: 'Master antioxidant; clears "muddy" tone & melanin.',
-        label: 'Hero',
+        ai_parameters_targeted: [
+          'Oxidative Stress Index',
+          'Detox Load',
+          'Inflammation/recovery burden',
+          'Tone/clarity support',
+        ],
+        clinical_function:
+          'Major antioxidant and redox-support ingredient; supports oxidative recovery, detox capacity, and cleaner tone/clarity when oxidative burden is relevant.',
+        label: 'Flexible',
       },
       {
         ingredient: 'Vitamin C (High Dose)',
-        ai_parameters_targeted: ['Oxidative Stress', 'UV Damage', 'Collagen'],
-        clinical_function: '"Mops up" free radicals; essential for collagen synthesis.',
+        ai_parameters_targeted: [
+          'Oxidative Stress',
+          'Immune support',
+          'Recovery burden',
+          'Collagen/tissue support',
+        ],
+        clinical_function:
+          'High-value antioxidant and recovery ingredient; supports immune resilience, oxidative burden reduction, and tissue repair while also contributing to collagen support.',
         label: 'Hero',
       },
       {
@@ -42,30 +54,36 @@ export const IV_INGREDIENTS_LIST = [
         ai_parameters_targeted: [
           'Oxidative Stress Index',
           'Detox Load',
-          'Alcohol (last 72h)',
-          'Poor Glutathione Response',
+          'Alcohol/recovery burden',
+          'Poor glutathione reserve',
         ],
         clinical_function:
-          'Glutathione precursor; supports hepatic antioxidant capacity and phase II detox; reduces oxidative stress.',
-        label: 'Supportive',
+          'Glutathione precursor with strong oxidative-recovery and detox-support value; especially useful when alcohol load, post-stressor burden, or recovery strain are relevant.',
+        label: 'Flexible',
       },
       {
         ingredient: 'Glycine',
         ai_parameters_targeted: [
           'Oxidative Stress Index',
           'Detox Load',
-          'Sleep/Recovery',
-          'Poor Glutathione Response',
+          'Sleep/recovery quality',
+          'Calm-repair support',
         ],
         clinical_function:
-          'Glutathione co-substrate (Glu–Cys–Gly); supports phase II conjugation; calming neurotransmitter support and tissue repair.',
+          'Glutathione-building and recovery-supportive amino acid; supports detox conjugation, repair, and a calmer recovery profile when oxidative or sleep-recovery burden is present.',
         label: 'Supportive',
       },
       {
         ingredient: 'Methylcobalamin (B12)',
-        ai_parameters_targeted: ['Dark Circles', 'Cell Turnover'],
-        clinical_function: 'Energy for cell replication; fixes "pale/tired" look.',
-        label: 'Supportive',
+        ai_parameters_targeted: [
+          'Energy support',
+          'Neurologic fatigue',
+          'Recovery / low reserve states',
+          'Cellular turnover',
+        ],
+        clinical_function:
+          'Supports energy metabolism, neurologic function, and recovery in low-reserve or fatigue-prone states; often complements broader metabolic support rather than standing alone.',
+        label: 'Flexible',
       },
     ],
   },
@@ -74,10 +92,15 @@ export const IV_INGREDIENTS_LIST = [
     ingredients: [
       {
         ingredient: 'B-Complex (B1/B2/B3/B5/B6)',
-        ai_parameters_targeted: ['Fatigue / Energy Score', 'Mitochondrial Support', 'Stress Load'],
+        ai_parameters_targeted: [
+          'Functional fatigue/energy support',
+          'Stress load',
+          'Metabolic cofactor need',
+          'Recovery from depletion',
+        ],
         clinical_function:
-          'Core enzymatic cofactors for ATP production; supports nervous system and reduces functional fatigue.',
-        label: 'Hero',
+          'Broad metabolic cofactor support for energy production and stress-recovery states; best used as part of a strong metabolic or recovery build rather than as the automatic answer to all energy cases.',
+        label: 'Flexible',
       },
       {
         ingredient: 'Methylfolate (B9)',
@@ -114,14 +137,14 @@ export const IV_INGREDIENTS_LIST = [
       {
         ingredient: 'Thiamine (B1) – High Dose (optional)',
         ai_parameters_targeted: [
-          'High Fatigue',
-          'High Carb Intake',
-          'Alcohol Use',
-          'Low Energy Reserves',
+          'Alcohol-related depletion',
+          'Low energy reserves',
+          'Carbohydrate metabolic demand',
+          'Recovery from drained states',
         ],
         clinical_function:
-          'Rapid cofactor for carbohydrate metabolism; can meaningfully improve fatigue in depleted states.',
-        label: 'Supportive',
+          'High-value targeted metabolic cofactor, especially useful in depletion, alcohol-related stress, or low-reserve fatigue patterns where stronger B1 support adds meaningful depth.',
+        label: 'Flexible',
       },
     ],
   },
@@ -130,9 +153,15 @@ export const IV_INGREDIENTS_LIST = [
     ingredients: [
       {
         ingredient: 'Magnesium',
-        ai_parameters_targeted: ['Vascularity (Redness)', 'HRV Stress'],
-        clinical_function: 'Relaxes vessels (vasodilation) to reduce flushing.',
-        label: 'Hero',
+        ai_parameters_targeted: [
+          'HRV / autonomic stress',
+          'Recovery burden',
+          'Muscle tension / cramps',
+          'Hydration-electrolyte support',
+        ],
+        clinical_function:
+          'Core calming and recovery-support mineral; useful for autonomic settling, post-stressor recovery, muscle tension/cramp tendency, and broader restoration-oriented protocols.',
+        label: 'Flexible',
       },
       {
         ingredient: 'Zinc',
@@ -161,12 +190,13 @@ export const IV_INGREDIENTS_LIST = [
         ingredient: 'L-Carnitine',
         ai_parameters_targeted: [
           'Mitochondrial Output Need (MONS)',
+          'Recovery / stamina support',
           'Metabolic Stability (MSGS)',
-          'Fatigue/Recovery signals',
+          'Performance-oriented fatigue',
         ],
         clinical_function:
-          'Transports fatty acids into mitochondria for energy production; supports stamina, recovery, and mental clarity.',
-        label: 'Supportive',
+          'Supports mitochondrial fuel transport and can strengthen performance, stamina, and recovery-oriented energy protocols when true output need is present.',
+        label: 'Flexible',
       },
     ],
   },
@@ -175,8 +205,14 @@ export const IV_INGREDIENTS_LIST = [
     ingredients: [
       {
         ingredient: 'L-Glutamine',
-        ai_parameters_targeted: ['Hydration', 'Gut-Skin Axis'],
-        clinical_function: 'Helps cells hold water; supports gut barrier.',
+        ai_parameters_targeted: [
+          'Hydration support',
+          'Recovery / tissue stress',
+          'Gut-repair support',
+          'Post-stressor restoration',
+        ],
+        clinical_function:
+          'Supportive recovery amino acid that can add tissue-restoration and hydration-support depth when the case has depletion or recovery features.',
         label: 'Supportive',
       },
       {
@@ -193,9 +229,15 @@ export const IV_INGREDIENTS_LIST = [
       },
       {
         ingredient: 'Taurine',
-        ai_parameters_targeted: ['Cellular Hydration', 'Electrolyte Balance'],
-        clinical_function: 'Osmoregulator; keeps water inside the cell.',
-        label: 'Supportive',
+        ai_parameters_targeted: [
+          'Cellular hydration',
+          'Electrolyte balance',
+          'Recovery quality',
+          'Autonomic / calming support',
+        ],
+        clinical_function:
+          'High-value osmoregulatory and recovery-supportive amino acid; helps strengthen hydration feel, cellular fluid balance, and calmer restoration-oriented protocols.',
+        label: 'Flexible',
       },
     ],
   },
