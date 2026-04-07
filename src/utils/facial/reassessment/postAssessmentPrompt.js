@@ -12,7 +12,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Skin Type>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'label',
       score_polarity: 'label_only',
       comparison_mode: 'label_mapping',
@@ -26,7 +26,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Barrier Health Status>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -40,7 +40,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Acne Grade>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -54,7 +54,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Sebum Level>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'state_spectrum',
       score_polarity: 'distance_to_target',
       comparison_mode: 'target_distance',
@@ -68,7 +68,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Redness or Vascularity Score>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -82,7 +82,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Hydration Level>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'health',
       score_polarity: 'higher_is_better',
       comparison_mode: 'direct_numeric',
@@ -96,7 +96,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Glow Index>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'health',
       score_polarity: 'higher_is_better',
       comparison_mode: 'direct_numeric',
@@ -110,7 +110,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Pigmentation Score>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -124,7 +124,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Periorbital Score>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -138,7 +138,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Lip Pigmentation Level>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -152,7 +152,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Texture or Pores Grade>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -166,7 +166,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Wrinkle Score>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -180,7 +180,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Sagging Level>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -194,7 +194,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Skin Firmness Elasticity Range>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -208,7 +208,7 @@ const reassessment_json_structure = {
       post_treatment_score_or_label: '<Enter Post-Treatment Textural Readiance Range>',
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
-      result: '< improved or declined or stable>',
+      result: '<Short clinical description of observed condition and changes (max 2 lines)>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_better',
       comparison_mode: 'direct_numeric',
@@ -250,7 +250,11 @@ Strictly follow the predefined JSON structure below and fill all fields:
 ${encode(reassessment_json_structure)}
 
 For all reassessment parameters:
-* The result field MUST be one of: improved, declined, or stable.
+* The result field MUST be a concise clinical summary (max 2 lines) describing observed condition and changes.
+* It MUST clearly indicate improvement, worsening, or stability in sentence form (NOT single words).
+* Use professional dermatological language with specific observations.
+* Do NOT output single words like "improved", "declined", or "stable".
+* Always include observable features (e.g., pigmentation, inflammation, texture, hydration, pores).
 * If polarity metadata exists in the baseline diagnosis report, the reassessment engine must use that metadata and must not re-infer directionality from general dermatology intuition.
 * No explanations, no additional text, no null values
 
@@ -284,7 +288,17 @@ If the post-treatment images are EXACTLY IDENTICAL to baseline (true re-upload /
 
 If the post-treatment images are NOT exactly identical:
 - You MUST compute post_treatment_score_or_label by scoring the post-treatment images (fresh scoring)
-- Then compare to baseline to set result = improved / declined / stable
+- Then compare to baseline and generate the result as a concise clinical description (max 2 lines)
+- The description MUST include:
+  • what changed (e.g., acne, pigmentation, texture, hydration)
+  • direction of change (improved / worsened / stable expressed in sentence form)
+- Do NOT output single words like "improved", "declined", or "stable"
+
+RESULT WRITING STYLE:
+- Mention WHAT changed
+- Mention DIRECTION of change
+- Keep it short (max 2 lines)
+- No generic phrases
 
 IMPORTANT — IMAGE NUMBER CONSISTENCY RULE:
 
