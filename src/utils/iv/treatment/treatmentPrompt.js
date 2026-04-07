@@ -121,6 +121,71 @@ For each chosen protocol (excluding NAD+ standalone):
    - Do not force premium-style layering into budget.
 
 ---------------------------------------------------
+INGREDIENT ROLE INTERPRETATION RULE (MANDATORY)
+---------------------------------------------------
+
+The IV ingredient list may label ingredients as:
+- Base
+- Hero
+- Supportive
+- Flexible
+
+These labels are semantic guidance for planning, not rigid protocol locks.
+
+Interpret them as follows:
+
+1) Base
+   - Carrier/base fluid only.
+   - Base ingredients are NOT active hero/supportive ingredients.
+   - Base ingredients do NOT count toward hero cap or supportive layering logic.
+
+2) Hero
+   - Commonly suitable as a lead active ingredient.
+   - Often appropriate when the ingredient strongly matches the dominant burden pattern,
+     primary goal, or main same-session objective.
+   - Hero-labeled ingredients may still be used as supportives if that creates a better,
+     more elegant, or more balanced protocol.
+
+3) Supportive
+   - Usually additive rather than lead.
+   - Best used for:
+       • secondary-axis coverage
+       • synergy with heroes
+       • tolerability / comfort / hydration feel / ANS calm / recovery
+       • protocol depth
+   - Supportive-labeled ingredients should usually remain supportive unless there is clear
+     protocol-level justification to elevate them.
+
+4) Flexible
+   - May serve either as a hero or as a supportive depending on:
+       • burden pattern
+       • same-session objective
+       • desired intensity
+       • additive value
+       • overall protocol strength
+   - Flexible ingredients may be placed in hero_ingredients OR used as supportives.
+   - Do NOT treat Flexible ingredients as weak or secondary by default.
+
+MANDATORY ROLE ASSIGNMENT PRINCIPLES:
+
+A) Final protocol role is determined at protocol-construction time,
+   not by ingredient label alone.
+
+B) Ingredient label should guide planning, but must NOT override
+   same-session clinical logic.
+
+C) If a Flexible ingredient is central to the protocol's visible or felt benefit,
+   it may be selected as a hero.
+
+D) If a Hero-labeled ingredient is better used for additive coverage or elegance,
+   it may be used as a supportive instead.
+
+E) If a Supportive-labeled ingredient is chosen, it must add meaningful value and
+   must not be decorative.
+
+F) Base ingredients must never be counted as heroes or supportives.
+
+---------------------------------------------------
 SUPPORTIVE LAYERING RULE (MANDATORY — OUTCOME + EXPERIENCE)
 ---------------------------------------------------
 

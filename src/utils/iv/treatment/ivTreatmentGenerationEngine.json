@@ -28,6 +28,29 @@
     "naming_rule": "Ingredient names must match the allowlist by exact string."
   },
 
+  "ingredient_role_semantics": {
+    "purpose": "Define how ingredient-list labels influence, but do not rigidly determine, protocol role assignment.",
+    "label_definitions": {
+      "Base": "Carrier/base fluid only. Base ingredients are not active hero/supportive ingredients and do not count toward hero/supportive logic.",
+      "Hero": "Commonly suitable as a lead active ingredient when it strongly matches the dominant burden pattern or primary goal.",
+      "Supportive": "Usually additive rather than lead. Best used to improve secondary-axis coverage, synergy, tolerability, hydration feel, calm/recovery quality, or protocol depth.",
+      "Flexible": "May serve either as a hero or as a supportive depending on burden pattern, same-session objective, protocol strength needs, and additive value."
+    },
+    "role_assignment_rules": [
+      "Ingredient-list labels are semantic guidance, not hard locks.",
+      "Final protocol role is determined at protocol-construction time, not by label alone.",
+      "A Flexible ingredient may be assigned either to hero_ingredients or to supportive ingredients.",
+      "A Hero-labeled ingredient is commonly lead, but may still be used as supportive if that creates a stronger or more elegant protocol.",
+      "A Supportive-labeled ingredient should usually remain supportive unless explicitly justified by the burden pattern and protocol objective.",
+      "A Base-labeled ingredient must not be treated as a hero or supportive active."
+    ],
+    "priority_principle": [
+      "Protocol role assignment must follow same-session clinical value, not rigid label literalism.",
+      "If an ingredient is better used as supportive for protocol depth and additive coverage, do not force it into hero_ingredients merely because it is Hero-labeled.",
+      "If an ingredient is Flexible and clearly central to the protocol's corrective value, it may be promoted to hero_ingredients."
+    ]
+  },
+
   "helpers": {
     "uniq": "unique(arr)",
     "contains": "arrayContains(arr, value)",
