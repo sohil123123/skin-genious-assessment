@@ -433,6 +433,29 @@ async function goNext() {
 }
 
 async function generateIVScoring(data, canonical) {
+  const coerceToNumeric = (obj) => {
+    if (Array.isArray(obj)) {
+      return obj.map(coerceToNumeric)
+    }
+    if (obj !== null && typeof obj === 'object') {
+      const coercedObj = {}
+      for (const key in obj) {
+        coercedObj[key] = coerceToNumeric(obj[key])
+      }
+      return coercedObj
+    }
+    if (typeof obj === 'string') {
+      const num = Number(obj)
+      if (!isNaN(num) && obj.trim() !== '') {
+        return num
+      }
+    }
+    return obj
+  }
+
+  const coercedCanonical = coerceToNumeric(canonical)
+  const coercedParams = coerceToNumeric(data.parameters_with_abnormal_scores)
+
   const convId = await getOrCreateConversation(
     `${data.user_id}`,
     data.conversation_id,
@@ -441,7 +464,7 @@ async function generateIVScoring(data, canonical) {
   )
   formData.value.conversation_id = convId
 
-  const IV_SCORING_USER_PROMPT = encode(canonical)
+  const IV_SCORING_USER_PROMPT = encode(coercedCanonical)
   const input = [
     {
       role: 'system',
@@ -456,7 +479,7 @@ async function generateIVScoring(data, canonical) {
         },
         {
           type: 'input_text',
-          text: encode(data.parameters_with_abnormal_scores),
+          text: encode(coercedParams),
         },
       ],
     },
