@@ -13,6 +13,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'label',
       score_polarity: 'label_only',
       comparison_mode: 'label_mapping',
@@ -27,6 +28,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -41,6 +43,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -55,6 +58,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'state_spectrum',
       score_polarity: 'distance_to_target',
       comparison_mode: 'target_distance',
@@ -69,6 +73,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -83,6 +88,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'health',
       score_polarity: 'higher_is_better',
       comparison_mode: 'direct_numeric',
@@ -97,6 +103,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'health',
       score_polarity: 'higher_is_better',
       comparison_mode: 'direct_numeric',
@@ -111,6 +118,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -125,6 +133,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -139,6 +148,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -153,6 +163,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -167,6 +178,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -181,6 +193,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -195,6 +208,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
       comparison_mode: 'direct_numeric',
@@ -209,6 +223,7 @@ const reassessment_json_structure = {
       post_treatment_image:
         'Return the  image number (1-6) from the uploaded face scan images that best represents the area analyzed for this parameter from newly analyzed post-treatment results.',
       result: '<Short clinical description of observed condition and changes (max 2 lines)>',
+      status: '< improved or declined or stable>',
       score_semantics: 'severity',
       score_polarity: 'higher_is_better',
       comparison_mode: 'direct_numeric',
@@ -250,8 +265,8 @@ Strictly follow the predefined JSON structure below and fill all fields:
 ${encode(reassessment_json_structure)}
 
 For all reassessment parameters:
-* The result field MUST be a concise clinical summary (max 2 lines) describing observed condition and changes.
-* It MUST clearly indicate improvement, worsening, or stability in sentence form (NOT single words).
+* The result field MUST be a concise clinical summary (max 2 lines) describing observed condition and changes. It MUST clearly indicate improvement, worsening, or stability in sentence form (NOT single words).
+* The status field MUST be one of: improved, declined, or stable.
 * Use professional dermatological language with specific observations.
 * Do NOT output single words like "improved", "declined", or "stable".
 * Always include observable features (e.g., pigmentation, inflammation, texture, hydration, pores).
