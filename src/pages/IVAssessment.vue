@@ -463,6 +463,7 @@ async function generateIVScoring(data, canonical) {
     data.id,
   )
   formData.value.conversation_id = convId
+  submit(['conversation_id'])
 
   const IV_SCORING_USER_PROMPT = encode(coercedCanonical)
   const input = [
