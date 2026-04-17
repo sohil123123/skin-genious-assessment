@@ -155,6 +155,8 @@ onMounted(async () => {
 
 function playAudio(text) {
   fabOpened.value = true
+  // Remove HTML tags and asterisks for cleaner audio
+  text = text.replace(/<[^>]*>/g, '').replace(/\*/g, '')
   handleAudioAction(text)
 }
 

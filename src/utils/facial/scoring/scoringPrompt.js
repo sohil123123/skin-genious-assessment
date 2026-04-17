@@ -3217,7 +3217,7 @@ const diagnosis_json_structure = {
     },
   },
   script:
-    'pateint centric, script, about the patient scoring values pt : pateint centric, script, about the patient scoring values',
+    'A patient-centric script summarizing the overall findings. YOU MUST use markdown bolding (**text**) to highlight key parts relevant for improvements and recommended actions for the patient.',
 }
 
 export const SYSTEM_PROMPT_DIAGNOSIS = `Act as an expert AI Skin Diagnostic Assistant.
@@ -3381,6 +3381,7 @@ ${JSON.stringify(diagnosis_json_structure)}
 ### Rules:
 - ALL diagnostic reasoning must remain *inside* “score_explanation”.
 - "client_description" must be written in simple, non-technical language that a customer can easily understand, focusing on what the result means for their skin.
+- In the "script" field, provide an empathetic summary of the results, and use markdown bolding (**text**) to highlight areas that are relevant for improvements or corrective actions.
 - Do NOT output anything outside the JSON.
 - If multiple features appear, select the dominant grading pattern.
 - Follow the parameter order exactly as defined:
