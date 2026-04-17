@@ -303,6 +303,28 @@ Return ONLY valid JSON in this exact shape:
       "...per_axis_named_subindices..."
     },
 
+    "what_it_means": {
+      "FENS": "[GENERATE ultra-short summary max 10-12 words (e.g., 'Hydration and electrolyte support may improve comfort.')]",
+      "PCCS": "[GENERATE ultra-short summary max 10-12 words (e.g., 'Session should remain comfort-led, not aggressive.')]",
+      "ASLS": "[GENERATE ultra-short summary max 10-12 words (e.g., 'Autonomic strain is a major driver today.')]",
+      "MONS": "[GENERATE ultra-short summary max 10-12 words (e.g., 'Benefit from stronger metabolic and output support.')]",
+      "ODS": "[GENERATE ultra-short summary max 10-12 words (e.g., 'Strong antioxidant and recovery need present.')]",
+      "ILS": "[GENERATE ultra-short summary max 10-12 words based on immune/inflammation score]",
+      "MSGS": "[GENERATE ultra-short summary max 10-12 words based on metabolic score]",
+      "DGS": "[GENERATE ultra-short summary max 10-12 words based on dermal score]"
+    },
+
+    "primary_signals_reviewed": {
+      "FENS": "[GENERATE extremely brief list max 4 items (e.g., 'Lower TBW%, dizziness, cramps')]",
+      "PCCS": "[GENERATE extremely brief list max 4 items (e.g., 'Vitals, perfusion index, HR trend')]",
+      "ASLS": "[GENERATE extremely brief list max 4 items (e.g., 'Sleep debt, HRV, fatigue')]",
+      "MONS": "[GENERATE extremely brief list max 4 items (e.g., 'Fatigue, brain fog, HRV')]",
+      "ODS": "[GENERATE extremely brief list max 4 items (e.g., 'Alcohol burden, oxidative proxies, strain')]",
+      "ILS": "[GENERATE extremely brief list max 4 items evaluated]",
+      "MSGS": "[GENERATE extremely brief list max 4 items evaluated]",
+      "DGS": "[GENERATE extremely brief list max 4 items evaluated]"
+    },
+
     "passthrough_raw_all": { ...exactly as defined... },
 
     "passthrough_normalized_for_logic": { ...exactly as defined... },
