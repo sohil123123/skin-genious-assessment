@@ -1,6 +1,18 @@
 <template>
   <div class="plan-selection-list">
-    <div class="text-h6 q-mb-md text-grey-9">Select a Treatment Plan</div>
+    <div class="row items-center justify-between q-mb-md">
+      <div class="text-h6 text-grey-9">Select a Treatment Plan</div>
+      <q-btn
+        flat
+        dense
+        label="Download Report"
+        color="black"
+        icon="download"
+        @click="downloadReport"
+      >
+        <q-tooltip>Download All Options Report</q-tooltip>
+      </q-btn>
+    </div>
     <div class="row q-col-gutter-md">
       <div v-for="(option, idx) in options" :key="idx" class="col-12 col-md-6">
         <q-card
@@ -130,6 +142,10 @@
 
 <script setup>
 import { startCase } from 'lodash'
+import { api } from 'src/boot/axios'
+import { Loading, Notify } from 'quasar'
+import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
+import { storeToRefs } from 'pinia'
 
 defineProps({
   options: {
@@ -143,7 +159,41 @@ defineProps({
   },
 })
 
+const store = useIVAssessmentStore()
+const { formData } = storeToRefs(store)
+
 defineEmits(['select'])
+
+const downloadReport = async () => {
+  Loading.show({ message: 'Generating PDF report...' })
+  try {
+    const response = await api.get(`download-iv-report/plans/${formData.value.id}`, {
+      responseType: 'blob',
+    })
+
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `${formData.value.name}_IV_Treatment_Plan_Report.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('PDF generation failed:', error)
+
+    Notify.create({
+      type: 'negative',
+      message:
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to generate PDF. Please try again.',
+    })
+  } finally {
+    // 🔥 ALWAYS hide loader
+    Loading.hide()
+  }
+}
 
 const formatOptionType = (type) => {
   if (!type) return ''

@@ -59,6 +59,14 @@
               size="md"
               @click="emit('handleTreatmentPlan')"
             />
+            <q-btn
+              color="primary"
+              label="Download Wellness Analysis Report"
+              no-caps
+              icon="download"
+              size="md"
+              @click="downloadReport"
+            />
           </q-card-actions>
         </q-card>
       </div>
@@ -84,7 +92,14 @@
 
 <script setup>
 import { computed } from 'vue'
+import { api } from 'src/boot/axios'
+import { Loading, Notify } from 'quasar'
+import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
+import { storeToRefs } from 'pinia'
 // import PlanSelection from './PlanSelection.vue'
+
+const store = useIVAssessmentStore()
+const { formData } = storeToRefs(store)
 
 const props = defineProps({
   ivScores: {
@@ -301,6 +316,37 @@ const getScoreProgressColor = (score) => {
   if (score < 40) return 'positive'
   if (score < 70) return 'warning'
   return 'negative'
+}
+
+const downloadReport = async () => {
+  Loading.show({ message: 'Generating PDF report...' })
+  try {
+    const response = await api.get(`download-iv-report/skin-analysis/${formData.value.id}`, {
+      responseType: 'blob',
+    })
+
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `${formData.value.name}_IV_Wellness_Analysis_Report.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('PDF generation failed:', error)
+
+    Notify.create({
+      type: 'negative',
+      message:
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to generate PDF. Please try again.',
+    })
+  } finally {
+    // 🔥 ALWAYS hide loader
+    Loading.hide()
+  }
 }
 </script>
 

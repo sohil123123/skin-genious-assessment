@@ -30,9 +30,8 @@
             {{ formatSchedule(planDetails.schedule_description) }}
           </span>
           <q-btn
-            flat
-            round
-            dense
+            outline
+            label="Download Report"
             color="white"
             icon="download"
             class="q-ml-auto"
@@ -142,9 +141,13 @@
 
 <script setup>
 import { startCase } from 'lodash'
-import jsPDF from 'jspdf'
+import { api } from 'src/boot/axios'
 import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
 import { storeToRefs } from 'pinia'
+import { Loading, Notify } from 'quasar'
+
+const store = useIVAssessmentStore()
+const { formData } = storeToRefs(store)
 
 const props = defineProps({
   planDetails: {
@@ -152,9 +155,6 @@ const props = defineProps({
     required: true,
   },
 })
-
-const store = useIVAssessmentStore()
-const { formData } = storeToRefs(store)
 
 const formatSchedule = (desc) => {
   if (!desc) return ''
@@ -174,115 +174,35 @@ const getRateColor = (rate) => {
   return 'green'
 }
 
-const downloadPDF = () => {
-  const doc = new jsPDF()
-  let yPos = 20
-
-  // Header
-  doc.setFontSize(10)
-  doc.setTextColor(100)
-  doc.text('LONG-TERM AI PROTOCOL', 14, 15)
-
-  doc.setFontSize(18)
-  doc.setTextColor(0)
-  doc.setFont('helvetica', 'bold')
-  const nameLines = doc.splitTextToSize(props.planDetails.name, 180)
-  doc.text(nameLines, 14, 25)
-
-  yPos = 25 + nameLines.length * 9
-
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(50)
-  const scheduleText = `${props.planDetails.plan_duration_weeks} Weeks - ${formatSchedule(
-    props.planDetails.schedule_description,
-  )}`
-  const scheduleLines = doc.splitTextToSize(scheduleText, 180)
-  doc.text(scheduleLines, 14, yPos)
-
-  yPos += scheduleLines.length * 5 + 10
-
-  // Timeline Sessions
-  if (props.planDetails.sessions) {
-    props.planDetails.sessions.forEach((session) => {
-      // Check page break
-      if (yPos > 250) {
-        doc.addPage()
-        yPos = 20
-      }
-
-      // Session Header
-      doc.setFillColor(240, 240, 240)
-      doc.rect(14, yPos - 5, 182, 12, 'F')
-
-      doc.setFontSize(11)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(0)
-      const sessionHeader = `Week ${session.week_index}: ${formatPhase(session.phase_id)}`
-      const sessionHeaderLines = doc.splitTextToSize(sessionHeader, 175)
-      doc.text(sessionHeaderLines, 16, yPos + 2)
-      yPos += (sessionHeaderLines.length > 1 ? sessionHeaderLines.length * 6 : 2) + 10
-
-      // Goal
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      const goalText = `Goal: ${session.session_goal_summary}`
-      const goalLines = doc.splitTextToSize(goalText, 180)
-      doc.text(goalLines, 16, yPos)
-      yPos += goalLines.length * 5 + 3
-
-      // Protocol or Hint
-      if (session.recommended_protocol) {
-        const proto = session.recommended_protocol
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.text('Recommended Protocol:', 16, yPos)
-        yPos += 5
-
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9)
-        const protoIdText = `ID: ${proto.protocol_id}`
-        const protoIdLines = doc.splitTextToSize(protoIdText, 175)
-        doc.text(protoIdLines, 16, yPos)
-        yPos += protoIdLines.length * 5
-
-        if (proto.bags) {
-          proto.bags.forEach((bag, bIdx) => {
-            // Bag info
-            const bagText = `Bag ${bIdx + 1}: ${bag.carrier} (${bag.rate_profile})`
-            const bagLines = doc.splitTextToSize(bagText, 175)
-            doc.text(bagLines, 16, yPos)
-            yPos += bagLines.length * 5
-
-            // Ingredients
-            const ingredients = bag.ingredients
-              .map(
-                (ing) => `${ing.name}${ing.dose_mg_optional ? ` (${ing.dose_mg_optional}mg)` : ''}`,
-              )
-              .join(', ')
-
-            const ingLines = doc.splitTextToSize(`- ${ingredients}`, 170)
-            doc.text(ingLines, 20, yPos)
-            yPos += ingLines.length * 4 + 2
-          })
-        }
-      } else if (session.candidate_generation_hint) {
-        doc.setFont('helvetica', 'italic')
-        doc.setTextColor(100)
-        const hintLines = doc.splitTextToSize(`Hint: ${session.candidate_generation_hint}`, 180)
-        doc.text(hintLines, 16, yPos)
-        yPos += hintLines.length * 5
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(0)
-      }
-
-      yPos += 8
+const downloadPDF = async () => {
+  Loading.show({ message: 'Generating PDF report...' })
+  try {
+    const response = await api.get(`download-iv-report/program-roadmap/${formData.value.id}`, {
+      responseType: 'blob',
     })
-  }
 
-  const patientName = formData.value?.iv_inputs?.meta?.profile?.name || ''
-  const fileName = `${patientName ? patientName + ' - ' : ''}${props.planDetails.name || 'multi-session-plan'}.pdf`
-  doc.save(fileName)
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `${formData.value.name}_${props.planDetails.option_type}.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('PDF generation failed:', error)
+
+    Notify.create({
+      type: 'negative',
+      message:
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to generate PDF. Please try again.',
+    })
+  } finally {
+    // 🔥 ALWAYS hide loader
+    Loading.hide()
+  }
 }
 </script>
 
