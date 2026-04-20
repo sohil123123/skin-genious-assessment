@@ -18,18 +18,8 @@
             unelevated
             rounded
             no-caps
+            @click="downloadReport"
           >
-            <q-menu transition-show="jump-down" transition-hide="jump-up">
-              <q-list style="min-width: 100px">
-                <q-item clickable @click="downloadReport">
-                  <q-item-section>Core Report</q-item-section>
-                </q-item>
-                <q-item clickable @click="downloadVisualReport">
-                  <q-item-section>Visual Comparison Report</q-item-section>
-                </q-item>
-                <q-separator />
-              </q-list>
-            </q-menu>
           </q-btn>
           <!-- <q-btn
             class="gredient"
@@ -126,20 +116,17 @@
 </template>
 <script setup>
 // import post_diagnosis from 'src/info/reassessment.json'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import { api } from 'src/boot/axios'
 import { storeToRefs } from 'pinia'
-import { useQuasar, Loading, LocalStorage, Notify } from 'quasar'
+import { Loading, Notify } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { ref, watch } from 'vue'
 import config from 'src/config.js'
 
-const $q = useQuasar()
-
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
-const emit = defineEmits(['save_data'])
+defineEmits(['save_data'])
 
 const post_diagnosis = ref(null)
 const faceImages = ref(null)
@@ -167,325 +154,38 @@ watch(
   { immediate: true },
 )
 
-const downloadReport = () => {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'pt',
-    format: 'a4',
-  })
-
-  const metadata = post_diagnosis.value.metadata
-  const reassessment = post_diagnosis.value.reassessment
-
-  // Title
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  doc.text(`AI AESTHETICS`, doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' })
-
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
-  doc.text(
-    `${assessmentData.value.name} - Baseline vs Post-Treatment (${metadata?.treatment_session}) Comparative Score Report`,
-    doc.internal.pageSize.getWidth() / 2,
-    60,
-    { align: 'center' },
-  )
-
-  // Patient Info (if you have)
-  doc.setFontSize(10)
-  doc.text(
-    `Patient: ${assessmentData.value.name} | Age/Gender: ${assessmentData.value.age} ${assessmentData.value.gender}`,
-    200,
-    90,
-  )
-
-  // Prepare table rows
-  const rows = []
-  Object.values(reassessment).forEach((param) => {
-    const before = param.before_treatment_score_or_label
-    const after = param.post_treatment_score_or_label
-    const change = param.result
-    rows.push([param.parameter_name, before || '-', after || '-', change])
-  })
-
-  // ✅ Correct jsPDF-Autotable usage
-  autoTable(doc, {
-    startY: 110,
-    head: [['Parameter', 'Before Treatment', 'Post Treatment', 'Change / Interpretation']],
-    body: rows,
-    theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 5 },
-    headStyles: {
-      fillColor: [38, 70, 83],
-      textColor: 255,
-      halign: 'center',
-    },
-    columnStyles: {
-      0: { cellWidth: 150 },
-      1: { halign: 'center', cellWidth: 100 },
-      2: { halign: 'center', cellWidth: 100 },
-      3: { halign: 'center', cellWidth: 150 },
-    },
-  })
-
-  // Summary section
-  // const finalY = doc.lastAutoTable.finalY + 20
-  // doc.setFont('helvetica', 'bold')
-  // doc.text('Summary:', 40, finalY)
-  // doc.setFont('helvetica', 'normal')
-  // doc.text(
-  //   'Most parameters show improvement with visible gains in hydration, pigmentation, and luminosity.',
-  //   40,
-  //   finalY + 15,
-  //   { maxWidth: 500 },
-  // )
-
-  // Footer
-  doc.setFontSize(9)
-  doc.setTextColor(100)
-  doc.text(
-    'Generated via AI Aesthetics Skin Reassessment System',
-    doc.internal.pageSize.getWidth() / 2,
-    doc.internal.pageSize.getHeight() - 20,
-    { align: 'center' },
-  )
-
-  // Save file
-  const filename = `${assessmentData.value.name} Reassessment_Report_${metadata?.treatment_session.replace(/\s+/g, '_')}.pdf`
-  doc.save(filename)
-}
-
-const downloadVisualReport = async () => {
+const downloadReport = async () => {
   Loading.show({ message: 'Generating PDF report...' })
   try {
-    await new Promise((r) => setTimeout(r, 1000))
+    const response = await api.get(
+      `download-facial-report/reassessment/${assessmentData.value.id}`,
+      {
+        responseType: 'blob',
+      },
+    )
 
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'pt',
-      format: 'a4',
-    })
-
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const pageHeight = doc.internal.pageSize.getHeight()
-
-    const marginX = 48
-    const topPadding = 32
-    // const bottomPadding = 40
-    const contentWidth = pageWidth - marginX * 2
-
-    const primaryRgb = [25, 118, 210]
-
-    const comparisonTitles = [
-      'White Light',
-      'Positive',
-      'Negative',
-      'Blue Light',
-      'UV Light',
-      'Woods Light',
-    ]
-
-    // const sectionGap = 18
-    const cardPadding = 10
-    const cardWidth = (contentWidth - 24) / 2
-    const cardHeight = 300
-
-    // ----------------------------
-    // COVER PAGE (Style D)
-    // ----------------------------
-    ;(() => {
-      // Title
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(28)
-      doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2])
-      doc.text('AI AESTHETICS', pageWidth / 2, pageHeight * 0.23, { align: 'center' })
-
-      doc.setFontSize(20)
-      doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2])
-      doc.text('BEFORE vs AFTER', pageWidth / 2, pageHeight * 0.28, { align: 'center' })
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(18)
-      doc.text('VISUAL COMPARISON REPORT', pageWidth / 2, pageHeight * 0.32, { align: 'center' })
-
-      // Patient Info
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(12)
-      doc.setTextColor(50)
-
-      const patientName = assessmentData.value.name || ''
-      const patientAge = assessmentData.value.age || ''
-      const patientGender = assessmentData.value.gender || ''
-
-      doc.text(`Patient: ${patientName}`, pageWidth / 2, pageHeight * 0.42, { align: 'center' })
-
-      doc.text(`Age / Gender: ${patientAge} ${patientGender}`, pageWidth / 2, pageHeight * 0.46, {
-        align: 'center',
-      })
-
-      doc.text(
-        `Treatment Session: ${post_diagnosis.value.metadata?.treatment_session}`,
-        pageWidth / 2,
-        pageHeight * 0.5,
-        { align: 'center' },
-      )
-    })()
-
-    // Add page for content
-    doc.addPage()
-
-    // ----------------------------
-    // MAIN PAGES — 1 COMPARISON PER PAGE
-    // ----------------------------
-    for (let idx = 0; idx < 6; idx++) {
-      // Start new page for every comparison (except first content page)
-      if (idx !== 0) {
-        doc.addPage()
-      }
-
-      let cursorY = topPadding
-
-      // Section title
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(14)
-      doc.setTextColor(22, 63, 120)
-      doc.text(comparisonTitles[idx], marginX, cursorY)
-
-      doc.setDrawColor(200)
-      doc.line(marginX, cursorY + 4, marginX + 180, cursorY + 4)
-
-      cursorY += 18
-
-      // Labels
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10)
-      doc.setTextColor(100)
-      doc.text('Before (Baseline)', marginX, cursorY)
-      doc.text('After (Post)', marginX + cardWidth + 24, cursorY)
-
-      cursorY += 8
-
-      // Card positions
-      const leftCardX = marginX
-      const rightCardX = marginX + cardWidth + 24
-      const topY = cursorY
-
-      // LEFT card
-      doc.setFillColor(240, 240, 240)
-      doc.rect(leftCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
-      doc.setFillColor(255, 255, 255)
-      doc.rect(leftCardX, topY, cardWidth, cardHeight, 'F')
-      doc.setDrawColor(220)
-      doc.rect(leftCardX, topY, cardWidth, cardHeight, 'S')
-
-      // RIGHT card
-      doc.setFillColor(240, 240, 240)
-      doc.rect(rightCardX + 4, topY + 4, cardWidth, cardHeight, 'F')
-      doc.setFillColor(255, 255, 255)
-      doc.rect(rightCardX, topY, cardWidth, cardHeight, 'F')
-      doc.setDrawColor(220)
-      doc.rect(rightCardX, topY, cardWidth, cardHeight, 'S')
-
-      // Images
-      const imgW = cardWidth - cardPadding * 2
-      const imgH = cardHeight - cardPadding * 2
-      const imgY = topY + cardPadding
-
-      const beforeImg = faceImages.value[idx]
-      const afterImg = postTreatmentImages.value[idx]
-
-      const addImage = (img, x, y) => {
-        if (!img) return
-        try {
-          doc.addImage(img, 'PNG', x, y, imgW, imgH)
-        } catch {
-          try {
-            doc.addImage(img, 'JPEG', x, y, imgW, imgH)
-          } catch (e) {
-            console.log(e)
-          }
-        }
-      }
-
-      addImage(beforeImg, leftCardX + cardPadding, imgY)
-      addImage(afterImg, rightCardX + cardPadding, imgY)
-
-      // Divider
-      let dividerY = topY + cardHeight + 42
-      doc.setDrawColor(225)
-      doc.line(marginX, dividerY, pageWidth - marginX, dividerY)
-    }
-
-    // ----------------------------
-    // FOOTER (Except Cover Page)
-    // ----------------------------
-    const pageCount = doc.internal.getNumberOfPages()
-    for (let p = 2; p <= pageCount; p++) {
-      doc.setPage(p)
-
-      const footerY = pageHeight - 24
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.setTextColor(140)
-      doc.text('AI AESTHETICS — Generated Report', marginX, footerY)
-
-      doc.text(`Page ${p - 1} of ${pageCount - 1}`, pageWidth / 2, footerY, { align: 'center' })
-    }
-
-    Loading.hide()
-    const filename = `${assessmentData.value.name}_Visual_Comparison_Report_${post_diagnosis.value.metadata?.treatment_session.replace(/\s+/g, '_')}.pdf`
-    doc.save(filename)
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `${assessmentData.value.name}_Reassessment_Report.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
   } catch (error) {
     console.error('PDF generation failed:', error)
 
     Notify.create({
       type: 'negative',
-      message: error?.message || 'Failed to generate PDF. Please try again.',
+      message:
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to generate PDF. Please try again.',
     })
   } finally {
     // 🔥 ALWAYS hide loader
     Loading.hide()
   }
-}
-
-function finalizeAndExit() {
-  $q.dialog({
-    title: 'Confirm',
-    message: 'Would you like to confirm the treatment plan and return to CRM?',
-    persistent: true,
-
-    ok: {
-      label: 'Yes, Confirm & Exit',
-      color: 'positive',
-      icon: 'check_circle',
-      unelevated: true,
-    },
-    cancel: {
-      label: 'Cancel',
-      color: 'negative',
-      flat: true,
-      icon: 'close',
-    },
-  })
-    .onOk(() => {
-      LocalStorage.removeItem(`treatment_flow_state_v1_${assessmentData.value.id}`)
-      assessmentData.value.status = 'completed'
-      emit('save_data', ['status'])
-      Loading.show({
-        message: 'Finalizing and redirecting...',
-      })
-      setTimeout(() => {
-        // LocalStorage.clear()
-        window.location.href = `${process.env.CRM_URL}/users`
-      }, 3000)
-    })
-    .onCancel(() => {
-      console.log('User cancelled')
-    })
-    .onDismiss(() => {
-      console.log('Dialog closed (OK or Cancel)')
-    })
 }
 </script>
 
