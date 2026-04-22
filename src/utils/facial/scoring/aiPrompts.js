@@ -46,6 +46,10 @@ CRITICAL RULES:
    Only set peri_orbital fields to null if the periocular area is occluded by hair, glare, or out-of-frame.
 6) HARD DETERMINISM: The ONLY values you may infer directly from images are categorical bins/bands and region ordering (dominant_regions). You MUST NOT directly estimate any 0–1 continuous index from pixels.
 7) ALL continuous 0–1 indices in "proxies" MUST be computed deterministically from the bins/bands using the fixed midpoint mapping + formulas below (round to 0.05). If a required bin is missing, choose the conservative bin and set borderline=true.
+7A) REASSESSMENT SENSITIVITY RULE:
+When these images are being used for before-vs-after reassessment, preserve sensitivity to real visible treatment response even if the anatomical distribution of a finding remains similar.
+If a feature remains present in the same location but is visibly softer, lighter, less contrasty, smoother, less shiny, less rough, less inflamed, or more even, choose the lower-severity bin when justified by the images rather than anchoring only to distribution persistence.
+This rule must remain deterministic and image-grounded; do not invent improvement that is not visible.
 8) For pigmentation reassessment, preserve sensitivity to visible lightening even when patch distribution remains similar. If pigmentation patches remain in similar locations but appear less dark and/or less contrasty against surrounding skin, this MUST be expressed by a lower pigmentation.intensity_band and/or lower pigmentation.contrast_band when justified by the images.
 9) STRICT JSON TYPES: booleans must be true/false (not "true"/"false"). Numbers must be numbers (not "0.6"). Do not quote numeric values.
 
