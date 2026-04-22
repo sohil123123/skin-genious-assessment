@@ -46,7 +46,8 @@ CRITICAL RULES:
    Only set peri_orbital fields to null if the periocular area is occluded by hair, glare, or out-of-frame.
 6) HARD DETERMINISM: The ONLY values you may infer directly from images are categorical bins/bands and region ordering (dominant_regions). You MUST NOT directly estimate any 0–1 continuous index from pixels.
 7) ALL continuous 0–1 indices in "proxies" MUST be computed deterministically from the bins/bands using the fixed midpoint mapping + formulas below (round to 0.05). If a required bin is missing, choose the conservative bin and set borderline=true.
-8) STRICT JSON TYPES: booleans must be true/false (not "true"/"false"). Numbers must be numbers (not "0.6"). Do not quote numeric values.
+8) For pigmentation reassessment, preserve sensitivity to visible lightening even when patch distribution remains similar. If pigmentation patches remain in similar locations but appear less dark and/or less contrasty against surrounding skin, this MUST be expressed by a lower pigmentation.intensity_band and/or lower pigmentation.contrast_band when justified by the images.
+9) STRICT JSON TYPES: booleans must be true/false (not "true"/"false"). Numbers must be numbers (not "0.6"). Do not quote numeric values.
 
 DETERMINISTIC FALLBACK ESTIMATION TABLE (MANDATORY — NO NULLS IN CLIENT PIPELINE)
 
@@ -69,7 +70,9 @@ General helper functions (apply conceptually):
   sebum_oiliness.t_zone_oil_bin: none=0.05, mild=0.25, moderate=0.55, strong=0.80
   sebum_oiliness.cheek_oil_bin: none=0.05, mild=0.25, moderate=0.55, strong=0.80
   pigmentation.coverage_band: very_low=0.10, low=0.25, moderate=0.50, high=0.75, very_high=0.90
-  pigmentation.intensity_band: light=0.15, mild=0.30, moderate=0.50, marked=0.70, severe=0.90
+  pigmentation.intensity_band: very_light=0.10, light=0.20, mild=0.32, moderate=0.48, marked=0.66, severe=0.85
+  pigmentation.contrast_band: very_low=0.10, low=0.22, moderate=0.40, high=0.62, very_high=0.85
+  pigmentation.coverage_change_sensitivity_band: minimal=0.10, mild=0.25, moderate=0.50, high=0.75
   wrinkles.wrinkle_line_count_bin: 0-10=0.15, 11-30=0.35, 31-60=0.60, 60+=0.85
 
   ADDITIONAL BIN MIDPOINTS (deterministic):
@@ -104,6 +107,15 @@ General helper functions (apply conceptually):
     Sebum indices:
     - sebum_oiliness.shine_intensity_index = round005( mid(sebum.shine_intensity_bin) )
     - sebum_oiliness.shine_coverage_ratio = round005( mid(sebum.shine_coverage_bin) )
+
+    Pigmentation indices:
+    - pigmentation.visible_mean_intensity_index = round005( mid(pigmentation.intensity_band) )
+    - pigmentation.contrast_to_surrounding_skin_index = round005( mid(pigmentation.contrast_band) )
+    - pigmentation.coverage_index = round005( mid(pigmentation.coverage_band) )
+    - pigmentation.intensity_weighted_burden_index =
+        round005( clip01( 0.55*mid(pigmentation.intensity_band)
+                        + 0.25*mid(pigmentation.contrast_band)
+                        + 0.20*mid(pigmentation.coverage_band) ) )
 
 A) Peri-orbital (eyes closed is NORMAL; never null purely due to eyes closed)
 If you cannot confidently measure any peri-orbital proxy directly, compute:
@@ -255,11 +267,29 @@ Output JSON schema:
     },
     "pigmentation": {
       "coverage_band": "very_low|low|moderate|high|very_high",
-      "intensity_band": "light|mild|moderate|marked|severe",
+      "intensity_band": "very_light|light|mild|moderate|marked|severe",
+      "contrast_band": "very_low|low|moderate|high|very_high",
       "uniformity_band": "even|mottled|uneven",
       "depth_band": "superficial|mixed|deep",
+      "visible_mean_intensity_index": 0.0,
+      "contrast_to_surrounding_skin_index": 0.0,
+      "coverage_index": 0.0,
+      "intensity_weighted_burden_index": 0.0,
       "region_loads_0_1": {
-        "forehead": 0.0, "nose": 0.0, "left_cheek": 0.0, "right_cheek": 0.0, "chin": 0.0, "perioral": 0.0
+        "forehead": 0.0,
+        "nose": 0.0,
+        "left_cheek": 0.0,
+        "right_cheek": 0.0,
+        "chin": 0.0,
+        "perioral": 0.0
+      },
+      "regional_intensity_map": {
+        "forehead": 0.0,
+        "nose": 0.0,
+        "left_cheek": 0.0,
+        "right_cheek": 0.0,
+        "chin": 0.0,
+        "perioral": 0.0
       },
       "borderline": false
     },
