@@ -357,8 +357,10 @@ async function goNext() {
         formData.value.parameters_with_abnormal_scores?.Skin_score_data?.scores || {}
 
       // Save results to store
-      formData.value.diagnosis = ivScores.value
-      await submit(['diagnosis'])
+      if (!ivScores.value.error) {
+        formData.value.diagnosis = ivScores.value
+        await submit(['diagnosis'])
+      }
 
       Loading.hide()
     } catch (e) {
