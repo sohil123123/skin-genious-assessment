@@ -1346,17 +1346,32 @@ const superficial_pigmentation_scoring = {
           very_high: '>60%',
         },
       },
+
       mean_intensity_index: {
         description:
           'Average melanin-related intensity in pigmented pixels (white + woods), normalized 0-1.',
         bands: {
-          light: '<0.30',
-          mild: '0.30-0.50',
-          moderate: '0.50-0.65',
-          marked: '0.65-0.80',
-          severe: '>0.80',
+          very_light: '<0.20',
+          light: '0.20-0.32',
+          mild: '0.32-0.48',
+          moderate: '0.48-0.62',
+          marked: '0.62-0.78',
+          severe: '>0.78',
         },
       },
+
+      contrast_to_surrounding_skin_index: {
+        description:
+          'How strongly pigmented regions stand out against adjacent non-pigmented skin in visible-light appearance. Primary determinant of perceived improvement when pigment location remains similar but intensity softens.',
+        bands: {
+          very_low: '<0.15',
+          low: '0.15-0.28',
+          moderate: '0.28-0.45',
+          high: '0.45-0.68',
+          very_high: '>0.68',
+        },
+      },
+
       uniformity_index: {
         description:
           'How even the pigmentation is across the face. 1 = perfectly even, 0 = highly mottled.',
@@ -1366,29 +1381,10 @@ const superficial_pigmentation_scoring = {
           uneven: '<0.60',
         },
       },
+
       border_definition_score: {
         description:
           'Sharpness of lesion edges derived from positive/negative contrast; 0-1 (0 = indistinct, 1 = sharply demarcated).',
-        note: 'Higher values correspond to well-defined macules/patches.',
-      },
-      woods_cluster_density: {
-        description:
-          'Density of discrete Woods clusters (freckles/macules) per unit area, normalized 0-1.',
-        bands: {
-          sparse: '<0.20',
-          scattered: '0.20-0.40',
-          clustered: '0.40-0.70',
-          dense: '>0.70',
-        },
-      },
-      depth_indicator_ratio: {
-        description:
-          'Depth bias based on UV:woods and blue:positive relationships; 0 = superficial, 1 = predominantly deep.',
-        bands: {
-          superficial: '<0.35',
-          mixed: '0.35-0.65',
-          deep: '>0.65',
-        },
       },
     },
 
@@ -1509,13 +1505,21 @@ const superficial_pigmentation_scoring = {
           method: 'Piecewise linear mapping: 0 at 0-5%, 1 at >=70%.',
           equation: 'coverage_norm = clip((coverage_area_percent - 5) / (70 - 5), 0, 1)',
         },
+
         mean_intensity_normalized: {
           method: 'Direct 0-1 normalization using defined bands.',
-          note: "0 at 'light', 1 at 'severe', linear interpolation between bands.",
+          note: "0 at 'very_light', 1 at 'severe', linear interpolation between bands.",
         },
+
+        contrast_to_surrounding_skin_normalized: {
+          method: 'Use contrast_to_surrounding_skin_index directly (0-1).',
+          note: 'Higher values mean pigment stands out more strongly against surrounding skin and appears more obvious to patient/doctor.',
+        },
+
         woods_cluster_normalized: {
           method: 'Use woods_cluster_density directly (0-1).',
         },
+
         uniformity_penalty: {
           description: 'Higher penalty for mottled/uneven tone.',
           equation: 'uniformity_penalty = 1 - uniformity_index',
@@ -1524,9 +1528,9 @@ const superficial_pigmentation_scoring = {
 
       perceived_pigment_load_equation: {
         description:
-          'Core continuous load metric (0-1) that the 1-5 score is derived from. Coverage and intensity are primary drivers; mottling and regional variation add penalty.',
+          'Core continuous load metric (0-1) that the 1-5 score is derived from. Visible intensity and contrast are allowed to drive score change even when pigment distribution remains broadly similar after treatment.',
         equation:
-          'PPL = 0.35 * coverage_area_normalized + 0.35 * mean_intensity_normalized + 0.20 * woods_cluster_normalized + 0.10 * ((uniformity_penalty + region_variation_index) / 2)',
+          'PPL = 0.25 * coverage_area_normalized + 0.40 * mean_intensity_normalized + 0.15 * contrast_to_surrounding_skin_normalized + 0.15 * woods_cluster_normalized + 0.05 * ((uniformity_penalty + region_variation_index) / 2)',
       },
 
       score_bins: {
@@ -1556,14 +1560,59 @@ const superficial_pigmentation_scoring = {
         },
       },
 
+      reassessment_response_logic: {
+        description:
+          'Allows subtle but real post-treatment pigment lightening to register even when patch geography is largely unchanged.',
+        inputs_required: [
+          'before.mean_intensity_normalized',
+          'after.mean_intensity_normalized',
+          'before.contrast_to_surrounding_skin_normalized',
+          'after.contrast_to_surrounding_skin_normalized',
+          'before.coverage_area_normalized',
+          'after.coverage_area_normalized',
+          'before.woods_cluster_normalized',
+          'after.woods_cluster_normalized',
+        ],
+
+        delta_definitions: {
+          delta_intensity: 'before.mean_intensity_normalized - after.mean_intensity_normalized',
+          delta_contrast:
+            'before.contrast_to_surrounding_skin_normalized - after.contrast_to_surrounding_skin_normalized',
+          delta_coverage: 'before.coverage_area_normalized - after.coverage_area_normalized',
+          delta_woods_cluster: 'before.woods_cluster_normalized - after.woods_cluster_normalized',
+        },
+
+        pigment_response_index: {
+          description:
+            'Composite reassessment improvement metric emphasizing visible lightening over mere redistribution.',
+          equation:
+            'PRI = 0.50*delta_intensity + 0.25*delta_contrast + 0.15*delta_woods_cluster + 0.10*delta_coverage',
+        },
+
+        shift_guidance: {
+          no_shift: 'PRI < 0.10',
+          mild_real_response: 'PRI 0.10-0.17',
+          one_bin_shift_supported: 'PRI >= 0.18',
+          strong_response: 'PRI >= 0.28',
+        },
+
+        guardrails: [
+          'Do not allow a >1 bin improvement from PRI alone.',
+          'If coverage worsens materially (>0.08 increase in normalized coverage), suppress shift unless intensity improvement is very strong.',
+          'If scan quality is caution/fail or expression mismatch is substantial, reduce confidence but do not erase true intensity improvement.',
+        ],
+      },
+
       steps: [
         '1. From 6-mode images, segment pigmented vs non-pigmented areas in white + woods.',
-        '2. Compute global coverage_area_percent, mean_intensity_index, uniformity_index, woods_cluster_density.',
+        '2. Compute global coverage_area_percent, mean_intensity_index, contrast_to_surrounding_skin_index, uniformity_index, woods_cluster_density.',
         '3. Compute region_pigment_loads for forehead, malar_left, malar_right, nose, chin and derive region_variation_index.',
         '4. Construct pigment_grid_map (4×6) from spatial distribution of pigmented pixels in white + woods.',
         '5. Normalize metrics to 0-1 and compute PPL using perceived_pigment_load_equation.',
         '6. Assign final_score 1-5 based on score_bins.',
-        '7. Independently compute backend_indices (depth_index_uv_to_woods, superficial_fraction_index, improvability_index, regional_burden_map, pigment_grid_map, etc.).',
+        '7. On reassessment, compute PRI using delta_intensity, delta_contrast, delta_woods_cluster, and delta_coverage.',
+        '8. Use PRI to support a 1-bin post-treatment shift when visible lightening is real even if patch distribution remains similar.',
+        '9. Independently compute backend_indices (depth_index_uv_to_woods, superficial_fraction_index, improvability_index, regional_burden_map, pigment_grid_map, etc.).',
       ],
     },
 
@@ -1582,6 +1631,8 @@ const superficial_pigmentation_scoring = {
         coverage_area_normalized: 'float 0-1',
         mean_intensity_index: 'float 0-1',
         mean_intensity_normalized: 'float 0-1',
+        contrast_to_surrounding_skin_index: 'float 0-1',
+        contrast_to_surrounding_skin_normalized: 'float 0-1',
         uniformity_index: 'float 0-1',
         woods_cluster_density: 'float 0-1',
         border_definition_score: 'float 0-1',
@@ -1593,8 +1644,9 @@ const superficial_pigmentation_scoring = {
         uv_enhancement_ratio: 'float 0-2',
         superficial_fraction_index: 'float 0-1',
         improvability_index: 'float 0-1',
+        pigment_response_index: 'float -1 to +1',
         regional_burden_map:
-          'dict per region with coverage, intensity, woods_cluster_density, regional_PPL',
+          'dict per region with coverage, intensity, contrast, woods_cluster_density, regional_PPL',
         pigment_grid_map:
           'object with grid_size [4,6], grid_values[rows][cols] 0-1, grid_column_map, grid_row_map',
       },
