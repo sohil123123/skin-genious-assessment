@@ -14,60 +14,166 @@
           </div>
         </div>
 
-        <PatientIntake v-if="currentStep === 'step-1'" @save_data="submit" />
-        <UploadFaceImages
-          v-if="currentStep === 'step-2'"
-          v-model:startProcessingStep="startProcessingStep"
-          :assessmentData="assessmentData"
-          :processingMessage="processingMessage"
-          @process="handleProcess"
-        />
-        <DiagnosisComponent
-          v-if="currentStep === 'step-3'"
-          @show-major-concerns="handleMajorConcerns"
-          @previous="goPrev"
-        />
-        <MajorConcerns
-          v-if="currentStep === 'step-4'"
-          @previous="goPrev"
-          @generate-treatment="handleGenerateTreatment"
-          @save_data="submit"
-        />
-        <TreatmentPlanComponent
-          v-if="currentStep === 'step-5'"
-          @previous="goPrev"
-          @post_assessment="goNext"
-          @save_data="submit"
-        />
-        <UploadFaceImages
-          v-if="currentStep === 'step-6'"
-          :isPostAssessment="true"
-          :assessmentData="assessmentData"
-          v-model:startProcessingStep="startProcessingStep"
-          @process="handleProcess"
-        />
+        <div v-if="!isInitializing">
+          <PatientIntake v-if="currentStep === 'step-1'" @save_data="submit" />
 
-        <PostAssessment v-if="currentStep === 'step-7'" @save_data="submit" />
+          <!-- Assessment Mode Selection -->
+          <div v-if="currentStep === 'selection'" class="text-center py-12">
+            <h1 class="text-4xl font-serif mb-4">Select Assessment Type</h1>
+            <p class="text-grey-7 text-lg mb-12 max-w-2xl mx-auto">
+              Choose the depth of analysis for your skin journey today. Select Comprehensive for a
+              full treatment plan, or Instant for a quick AI diagnosis.
+            </p>
 
-        <!-- Navigation Buttons -->
-        <div class="q-mt-lg flex justify-between">
-          <q-btn color="black" label="Previous" :disable="isFirstStep" @click="goPrev" />
-          <q-btn
-            v-if="!isLastStep"
-            color="positive"
-            label="Next"
-            :disable="isLastStep"
-            @click="goNext"
+            <div
+              class="row q-col-gutter-lg justify-center items-stretch"
+              style="max-width: 900px; margin: 0 auto"
+            >
+              <div class="col-12 col-sm-6">
+                <q-card
+                  flat
+                  bordered
+                  class="selection-card full-height column cursor-pointer transition-all bg-grey-1"
+                  @click="selectMode('normal')"
+                >
+                  <q-card-section class="col column q-pa-xl">
+                    <div class="row items-center q-mb-lg no-wrap">
+                      <div class="icon-wrapper q-mr-md flex flex-center shadow-1 bg-white">
+                        <q-icon name="analytics" size="36px" color="black" />
+                      </div>
+                      <div
+                        class="text-h6 font-serif text-weight-bold text-left leading-tight"
+                        style="line-height: 1.2"
+                      >
+                        Comprehensive<br />Analysis
+                      </div>
+                    </div>
+
+                    <p class="text-body1 text-grey-8 text-left q-mb-xl" style="line-height: 1.6">
+                      Full clinical assessment including detailed intake, personalized treatment
+                      plans, and post-session tracking.
+                    </p>
+
+                    <q-space />
+
+                    <q-btn
+                      label="Start Full Assessment"
+                      color="black"
+                      size="16px"
+                      padding="12px 24px"
+                      unelevated
+                      no-caps
+                      rounded
+                      class="full-width text-weight-medium"
+                    />
+                  </q-card-section>
+                </q-card>
+              </div>
+
+              <div class="col-12 col-sm-6">
+                <q-card
+                  flat
+                  bordered
+                  class="selection-card full-height column cursor-pointer transition-all border-amber-3 bg-amber-50"
+                  @click="selectMode('instant-facial')"
+                >
+                  <q-card-section class="col column q-pa-xl">
+                    <div class="row items-center q-mb-lg no-wrap">
+                      <div class="icon-wrapper q-mr-md flex flex-center shadow-1 bg-white">
+                        <q-icon name="bolt" size="36px" color="amber-9" />
+                      </div>
+                      <div
+                        class="text-h6 font-serif text-weight-bold text-left leading-tight text-amber-10"
+                        style="line-height: 1.2"
+                      >
+                        Instant AI<br />Diagnosis
+                      </div>
+                    </div>
+
+                    <p
+                      class="text-body1 text-amber-10 text-left q-mb-xl"
+                      style="line-height: 1.6; opacity: 0.85"
+                    >
+                      Fast-track your diagnosis. Quick patient intake followed by an AI-powered
+                      diagnostic skin report.
+                    </p>
+
+                    <q-space />
+
+                    <q-btn
+                      label="Start Quick Scan"
+                      color="amber-9"
+                      size="16px"
+                      padding="12px 24px"
+                      unelevated
+                      no-caps
+                      rounded
+                      class="full-width text-weight-medium"
+                    />
+                  </q-card-section>
+                </q-card>
+              </div>
+            </div>
+          </div>
+
+          <UploadFaceImages
+            v-if="currentStep === 'step-2'"
+            v-model:startProcessingStep="startProcessingStep"
+            :assessmentData="assessmentData"
+            :processingMessage="processingMessage"
+            @process="handleProcess"
           />
-          <q-btn
-            v-if="isLastStep"
-            color="accent"
-            outline
-            label="Finalize & Exit"
-            unelevated
-            rounded
-            @click="finalizeAndExit"
+          <DiagnosisComponent
+            v-if="currentStep === 'step-3'"
+            @show-major-concerns="handleMajorConcerns"
+            @previous="goPrev"
           />
+          <MajorConcerns
+            v-if="currentStep === 'step-4'"
+            @previous="goPrev"
+            @generate-treatment="handleGenerateTreatment"
+            @save_data="submit"
+          />
+          <TreatmentPlanComponent
+            v-if="currentStep === 'step-5'"
+            @previous="goPrev"
+            @post_assessment="goNext"
+            @save_data="submit"
+          />
+          <UploadFaceImages
+            v-if="currentStep === 'step-6'"
+            :isPostAssessment="true"
+            :assessmentData="assessmentData"
+            v-model:startProcessingStep="startProcessingStep"
+            @process="handleProcess"
+          />
+
+          <PostAssessment
+            v-if="currentStep === 'step-7'"
+            @save_data="submit"
+            @finalize_and_exit="finalizeAndExit"
+          />
+
+          <!-- Navigation Buttons -->
+          <div class="q-mt-lg flex justify-between" v-if="currentStep !== 'selection'">
+            <q-btn color="black" label="Previous" :disable="isFirstStep" @click="goPrev" />
+            <q-btn
+              v-if="!isLastStep"
+              color="positive"
+              label="Next"
+              :disable="isLastStep"
+              @click="goNext"
+            />
+            <q-btn
+              v-if="isLastStep"
+              color="accent"
+              outline
+              label="Finalize & Exit"
+              unelevated
+              rounded
+              @click="finalizeAndExit"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -115,7 +221,8 @@ const { assessmentData } = storeToRefs(store)
 
 const route = useRoute()
 const router = useRouter()
-const currentStep = ref(route.params.step || 'step-1')
+const currentStep = ref(route.params.step || 'selection')
+const isInitializing = ref(true)
 
 const faceImages = ref([])
 const postTreatmentImages = ref([])
@@ -147,8 +254,6 @@ onMounted(async () => {
     assessmentData.value.id = route.params.assessment_id
       ? route.params.assessment_id
       : recentStoredId
-  } else {
-    store.createNewAssessment()
   }
 
   if (route.params.step === 'step-6') {
@@ -156,26 +261,48 @@ onMounted(async () => {
   } else {
     isPostAssessment.value = false
   }
+
+  // Force selection if mode not set
+  if (!assessmentData.value.assessment_type && currentStep.value !== 'selection') {
+    currentStep.value = 'selection'
+    navigateToStep('selection')
+  }
+
+  isInitializing.value = false
 })
 
 // Watch for route changes
 watch(
   () => route.params.step,
   (newStep) => {
-    currentStep.value = newStep || 'step-1'
+    currentStep.value = newStep || 'selection'
     if (newStep === 'step-6') {
       isPostAssessment.value = true
     } else {
       isPostAssessment.value = false
     }
+
+    if (!assessmentData.value.assessment_type && currentStep.value !== 'selection') {
+      navigateToStep('selection')
+    }
   },
 )
 
-const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5', 'step-6', 'step-7']
+const steps = computed(() => {
+  if (assessmentData.value.assessment_type === 'instant-facial') {
+    return ['selection', 'step-1', 'step-2', 'step-3']
+  }
+  // Default list, but selection is always first
+  return ['selection', 'step-1', 'step-2', 'step-3', 'step-4', 'step-5', 'step-6', 'step-7']
+})
+
 /* Helpers */
-const currentIndex = computed(() => steps.indexOf(currentStep.value))
-const isFirstStep = computed(() => steps.indexOf(currentStep.value) === 0)
-const isLastStep = computed(() => steps.indexOf(currentStep.value) === steps.length - 1)
+const currentIndex = computed(() => steps.value.indexOf(currentStep.value))
+const isFirstStep = computed(() => steps.value.indexOf(currentStep.value) === 0)
+const isLastStep = computed(() => {
+  const s = steps.value
+  return s.indexOf(currentStep.value) === s.length - 1
+})
 
 /* 🔥 ROUTE-DRIVEN NAVIGATION */
 function navigateToStep(step) {
@@ -191,15 +318,23 @@ function navigateToStep(step) {
 }
 
 function goNext() {
-  if (!isLastStep.value) {
-    navigateToStep(steps[currentIndex.value + 1])
+  if (isLastStep.value) {
+    finalizeAndExit()
+  } else {
+    navigateToStep(steps.value[currentIndex.value + 1])
   }
 }
 
 function goPrev() {
   if (!isFirstStep.value) {
-    navigateToStep(steps[currentIndex.value - 1])
+    navigateToStep(steps.value[currentIndex.value - 1])
   }
+}
+
+async function selectMode(mode) {
+  assessmentData.value.assessment_type = mode
+  await submit(['assessment_type'])
+  goNext()
 }
 
 async function getValidAssessmentId() {
@@ -226,6 +361,11 @@ async function getValidAssessmentId() {
 }
 
 async function submit(field) {
+  if (!assessmentData.value.assessment_type) {
+    console.warn('Preventing submit: assessment type not yet selected.')
+    return
+  }
+
   const activeAssessmentId = route.params.assessment_id || assessmentData.value.id
   if (userId && activeAssessmentId) {
     let data = {}
@@ -670,3 +810,37 @@ function finalizeAndExit() {
     })
 }
 </script>
+
+<style scoped>
+.font-serif {
+  font-family: 'Playfair Display', serif;
+}
+
+.selection-card {
+  border-radius: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.selection-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.bg-amber-50 {
+  background-color: #fffbeb;
+}
+
+.border-amber-3 {
+  border-color: #fcd34d;
+}
+
+.icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+</style>

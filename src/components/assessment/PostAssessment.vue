@@ -45,7 +45,7 @@
             label="Finalize & Exit"
             unelevated
             rounded
-            @click="finalizeAndExit"
+            @click="$emit('finalize_and_exit')"
           />
         </div>
       </div>
@@ -126,7 +126,7 @@ import config from 'src/config.js'
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
-defineEmits(['save_data'])
+defineEmits(['save_data', 'finalize_and_exit'])
 
 const post_diagnosis = ref(null)
 const faceImages = ref(null)
