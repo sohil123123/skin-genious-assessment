@@ -75,7 +75,7 @@
                   flat
                   bordered
                   class="selection-card full-height column cursor-pointer transition-all border-amber-3 bg-amber-50"
-                  @click="selectMode('instant-facial')"
+                  @click="selectMode('instant-normal')"
                 >
                   <q-card-section class="col column q-pa-xl">
                     <div class="row items-center q-mb-lg no-wrap">
@@ -289,7 +289,7 @@ watch(
 )
 
 const steps = computed(() => {
-  if (assessmentData.value.assessment_type === 'instant-facial') {
+  if (assessmentData.value.assessment_type === 'instant-normal') {
     return ['selection', 'step-1', 'step-2', 'step-3']
   }
   // Default list, but selection is always first
