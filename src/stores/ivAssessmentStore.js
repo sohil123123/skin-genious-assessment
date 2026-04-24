@@ -222,7 +222,7 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
         },
       },
       diagnosis: null,
-      assessment_type: 'iv',
+      assessment_type: null,
       parameters_with_abnormal_scores: null,
       selected_plan_type: null,
       treatment_plans: null,

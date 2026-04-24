@@ -14,45 +14,146 @@
           </div>
         </div>
 
-        <UploadFaceImages
-          v-if="currentStep === 'step-1'"
-          v-model:startProcessingStep="startProcessingStep"
-          :assessmentData="formData"
-          :processingMessage="processingMessage"
-          @process="handleProcess"
-        />
+        <div v-if="!isInitializing">
+          <!-- Assessment Mode Selection -->
+          <div v-if="currentStep === 'selection'" class="text-center py-12">
+            <h1 class="text-4xl font-serif mb-4">Select IV Assessment Type</h1>
+            <p class="text-grey-7 text-lg mb-12 max-w-2xl mx-auto">
+              Choose the depth of analysis for your IV therapy journey today. Select Comprehensive
+              for a full clinical assessment, or Instant for a quick AI-powered scoring.
+            </p>
 
-        <ClientInformation
-          v-if="currentStep === 'step-1'"
-          :initial-data="formData.iv_inputs"
-          :v="v$.iv_inputs"
-          @update="updateIVInputs"
-        />
+            <div
+              class="row q-col-gutter-lg justify-center items-stretch"
+              style="max-width: 900px; margin: 0 auto"
+            >
+              <div class="col-12 col-sm-6">
+                <q-card
+                  flat
+                  bordered
+                  class="selection-card full-height column cursor-pointer transition-all bg-grey-1"
+                  @click="selectMode('iv')"
+                >
+                  <q-card-section class="col column q-pa-xl">
+                    <div class="row items-center q-mb-lg no-wrap">
+                      <div class="icon-wrapper q-mr-md flex flex-center shadow-1 bg-white">
+                        <q-icon name="analytics" size="36px" color="black" />
+                      </div>
+                      <div
+                        class="text-h6 font-serif text-weight-bold text-left leading-tight"
+                        style="line-height: 1.2"
+                      >
+                        Comprehensive<br />IV Analysis
+                      </div>
+                    </div>
 
-        <PatientPhysicalAssessment
-          v-if="currentStep === 'step-2'"
-          :form-data="formData.iv_inputs"
-          :v="v$.iv_inputs"
-          @update="updateIVInputs"
-        />
+                    <p class="text-body1 text-grey-8 text-left q-mb-xl" style="line-height: 1.6">
+                      Full clinical assessment including detailed intake, personalized treatment
+                      plans, and post-session tracking.
+                    </p>
 
-        <ScoringResults
-          v-if="currentStep === 'step-3'"
-          :ivScores="formData.diagnosis"
-          :skinScores="skinScores"
-          :initialPlanType="formData.selected_plan_type"
-          @handleTreatmentPlan="handleTreatmentPlan"
-        />
-        <!-- @update:planType="updatePlanType" -->
+                    <q-space />
 
-        <div v-if="currentStep === 'step-4'">
-          <TreatmentPlanComponent @save_data="debouncedSubmit" />
+                    <q-btn
+                      label="Start Full Assessment"
+                      color="black"
+                      size="16px"
+                      padding="12px 24px"
+                      unelevated
+                      no-caps
+                      rounded
+                      class="full-width text-weight-medium"
+                    />
+                  </q-card-section>
+                </q-card>
+              </div>
+
+              <div class="col-12 col-sm-6">
+                <q-card
+                  flat
+                  bordered
+                  class="selection-card full-height column cursor-pointer transition-all border-amber-3 bg-amber-50"
+                  @click="selectMode('instant-iv')"
+                >
+                  <q-card-section class="col column q-pa-xl">
+                    <div class="row items-center q-mb-lg no-wrap">
+                      <div class="icon-wrapper q-mr-md flex flex-center shadow-1 bg-white">
+                        <q-icon name="bolt" size="36px" color="amber-9" />
+                      </div>
+                      <div
+                        class="text-h6 font-serif text-weight-bold text-left leading-tight text-amber-10"
+                        style="line-height: 1.2"
+                      >
+                        Instant IV<br />Scoring
+                      </div>
+                    </div>
+
+                    <p
+                      class="text-body1 text-amber-10 text-left q-mb-xl"
+                      style="line-height: 1.6; opacity: 0.85"
+                    >
+                      Fast-track your diagnosis. Quick patient intake followed by an AI-powered IV
+                      scoring report.
+                    </p>
+
+                    <q-space />
+
+                    <q-btn
+                      label="Start Quick Scan"
+                      color="amber-9"
+                      size="16px"
+                      padding="12px 24px"
+                      unelevated
+                      no-caps
+                      rounded
+                      class="full-width text-weight-medium"
+                    />
+                  </q-card-section>
+                </q-card>
+              </div>
+            </div>
+          </div>
+
+          <UploadFaceImages
+            v-if="currentStep === 'step-1'"
+            v-model:startProcessingStep="startProcessingStep"
+            :assessmentData="formData"
+            :processingMessage="processingMessage"
+            @process="handleProcess"
+          />
+
+          <ClientInformation
+            v-if="currentStep === 'step-1'"
+            :initial-data="formData.iv_inputs"
+            :v="v$.iv_inputs"
+            @update="updateIVInputs"
+          />
+
+          <PatientPhysicalAssessment
+            v-if="currentStep === 'step-2'"
+            :form-data="formData.iv_inputs"
+            :v="v$.iv_inputs"
+            @update="updateIVInputs"
+          />
+
+          <ScoringResults
+            v-if="currentStep === 'step-3'"
+            :ivScores="formData.diagnosis"
+            :skinScores="skinScores"
+            :initialPlanType="formData.selected_plan_type"
+            :mode="formData.assessment_type"
+            @handleTreatmentPlan="handleTreatmentPlan"
+          />
+
+          <div v-if="currentStep === 'step-4'">
+            <TreatmentPlanComponent @save_data="debouncedSubmit" />
+          </div>
+
+          <NurseRunSheet
+            v-if="currentStep === 'step-5'"
+            :treatmentSessions="formData.treatment_sessions"
+          />
         </div>
-
-        <NurseRunSheet
-          v-if="currentStep === 'step-5'"
-          :treatmentSessions="formData.treatment_sessions"
-        />
       </div>
     </div>
 
@@ -64,9 +165,10 @@
         :disable="isFirstStep"
         rounded
         @click="goPrev"
+        v-if="currentStep !== 'selection'"
       />
     </q-page-sticky>
-    <q-page-sticky position="bottom-right" :offset="[18, 18]">
+    <q-page-sticky position="bottom-right" :offset="[18, 18]" v-if="currentStep !== 'selection'">
       <div class="row q-gutter-sm">
         <q-btn
           v-if="currentStep === 'step-1'"
@@ -136,13 +238,19 @@ const { formData } = storeToRefs(store)
 const router = useRouter()
 const route = useRoute()
 const userId = route.params.user_id
-const currentStep = ref(route.params.step || 'step-1')
+const currentStep = ref(route.params.step || 'selection')
 const isPostAssessment = ref(false)
+const isInitializing = ref(true)
 
-const steps = ['step-1', 'step-2', 'step-3', 'step-4', 'step-5']
-const currentIndex = computed(() => steps.indexOf(currentStep.value))
-const isFirstStep = computed(() => steps.indexOf(currentStep.value) === 0)
-const isLastStep = computed(() => steps.indexOf(currentStep.value) === steps.length - 1)
+const steps = computed(() => {
+  if (formData.value.assessment_type === 'instant-iv') {
+    return ['selection', 'step-1', 'step-2', 'step-3']
+  }
+  return ['selection', 'step-1', 'step-2', 'step-3', 'step-4', 'step-5']
+})
+const currentIndex = computed(() => steps.value.indexOf(currentStep.value))
+const isFirstStep = computed(() => steps.value.indexOf(currentStep.value) === 0)
+const isLastStep = computed(() => steps.value.indexOf(currentStep.value) === steps.value.length - 1)
 
 const startProcessingStep = ref(false)
 const processingMessage = ref('')
@@ -150,7 +258,6 @@ const processingMessage = ref('')
 const faceImages = ref([])
 const ivScores = ref({})
 const skinScores = ref({})
-// const safetyResults = ref({ status: 'safe', flags: [] })
 const canonicalPayload = ref(null)
 
 const rules = useIVAssessmentValidation(formData)
@@ -181,8 +288,6 @@ onMounted(async () => {
     let id = route.params.assessment_id ? route.params.assessment_id : recentStoredId
     await store.getSingleAssessment(id)
     formData.value.id = route.params.assessment_id ? route.params.assessment_id : recentStoredId
-  } else {
-    store.createNewAssessment()
   }
 
   if (route.params.step === 'step-6') {
@@ -190,17 +295,28 @@ onMounted(async () => {
   } else {
     isPostAssessment.value = false
   }
+
+  // Force selection if mode not set
+  if (!formData.value.assessment_type && currentStep.value !== 'selection') {
+    currentStep.value = 'selection'
+    navigateToStep('selection')
+  }
+
+  isInitializing.value = false
 })
 
-// Watch for route changes
 watch(
   () => route.params.step,
   (newStep) => {
-    currentStep.value = newStep || 'step-1'
+    currentStep.value = newStep || 'selection'
     if (newStep === 'step-6') {
       isPostAssessment.value = true
     } else {
       isPostAssessment.value = false
+    }
+
+    if (!formData.value.assessment_type && currentStep.value !== 'selection') {
+      navigateToStep('selection')
     }
   },
 )
@@ -214,9 +330,9 @@ function updateIVInputs(updatedIVInputs) {
   debouncedSubmit(['iv_inputs'])
 }
 
-// function updatePlanType(planType) {
-//   formData.value.selected_plan_type = planType
-//   debouncedSubmit(['selected_plan_type'])
+// function navigateToStep(step) {
+//   currentStep.value = step
+//   router.replace({ params: { ...route.params, step } })
 // }
 
 function cancelAssessment() {
@@ -250,7 +366,6 @@ async function finalizeAndExit() {
     title: 'Confirm',
     message: 'Would you like to confirm the treatment plan and return to CRM?',
     persistent: true,
-
     ok: {
       label: 'Yes, Confirm & Exit',
       color: 'positive',
@@ -263,27 +378,34 @@ async function finalizeAndExit() {
       flat: true,
       icon: 'close',
     },
+  }).onOk(() => {
+    formData.value.status = 'completed'
+    submit(['status'])
+    Loading.show({
+      message: 'Finalizing and redirecting...',
+    })
+    setTimeout(() => {
+      window.location.href = `${process.env.CRM_URL}/users`
+    }, 3000)
   })
-    .onOk(() => {
-      console.log(formData.value)
-      formData.value.status = 'completed'
-      submit(['status'])
-      Loading.show({
-        message: 'Finalizing and redirecting...',
-      })
-      setTimeout(() => {
-        window.location.href = `${process.env.CRM_URL}/users`
-      }, 3000)
-    })
-    .onCancel(() => {
-      console.log('User cancelled')
-    })
-    .onDismiss(() => {
-      console.log('Dialog closed (OK or Cancel)')
-    })
+}
+
+async function selectMode(mode) {
+  formData.value.assessment_type = mode
+  await submit(['assessment_type'])
+  goNext()
+}
+
+async function goPrev() {
+  navigateToStep(steps.value[currentIndex.value - 1])
 }
 
 async function submit(field) {
+  if (!formData.value.assessment_type) {
+    console.warn('Preventing submit: assessment type not yet selected.')
+    return
+  }
+
   const activeAssessmentId = route.params.assessment_id || formData.value.id
   if (userId && activeAssessmentId) {
     let data = {}
@@ -328,6 +450,11 @@ const isStepValid = async () => {
 }
 
 async function goNext() {
+  if (currentStep.value === 'selection') {
+    navigateToStep(steps.value[currentIndex.value + 1])
+    return
+  }
+
   const valid = await isStepValid()
   if (!valid) {
     console.log(
@@ -430,7 +557,7 @@ async function goNext() {
   }
 
   if (!isLastStep.value) {
-    navigateToStep(steps[currentIndex.value + 1])
+    navigateToStep(steps.value[currentIndex.value + 1])
   }
 }
 
@@ -537,16 +664,16 @@ async function handleTreatmentPlan() {
     // }
 
     if (!isLastStep.value) {
-      navigateToStep(steps[currentIndex.value + 1])
+      navigateToStep(steps.value[currentIndex.value + 1])
     }
   }
 }
 
-function goPrev() {
-  if (!isFirstStep.value) {
-    navigateToStep(steps[currentIndex.value - 1])
-  }
-}
+// function goPrev() {
+//   if (!isFirstStep.value) {
+//     navigateToStep(steps[currentIndex.value - 1])
+//   }
+// }
 
 function navigateToStep(step) {
   router.push({
@@ -798,3 +925,37 @@ async function getValidAssessmentId() {
   }
 }
 </script>
+
+<style scoped>
+.font-serif {
+  font-family: 'Playfair Display', serif;
+}
+
+.selection-card {
+  border-radius: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.selection-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.bg-amber-50 {
+  background-color: #fffbeb;
+}
+
+.border-amber-3 {
+  border-color: #fcd34d;
+}
+
+.icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+</style>

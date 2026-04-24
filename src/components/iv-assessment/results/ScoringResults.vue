@@ -52,6 +52,7 @@
 
           <q-card-actions align="center" class="q-pa-md">
             <q-btn
+              v-if="mode !== 'instant-iv'"
               color="purple"
               label="Generate Treatment Plan"
               no-caps
@@ -113,6 +114,10 @@ const props = defineProps({
   initialPlanType: {
     type: String,
     default: 'single_session_option_1',
+  },
+  mode: {
+    type: String,
+    default: 'iv',
   },
 })
 
