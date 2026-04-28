@@ -1,13 +1,13 @@
 <template>
-  <div class="q-pa-md max-w-7xl mx-auto">
+  <div class="q-pa-md max-w-7xl mx-auto wrapper">
     <!-- Component Header -->
-    <div class="flex justify-between items-center q-mb-lg border-b border-grey-3 q-pb-md">
+    <div class="flex justify-between items-center q-mb-lg border-b border-slate-200 q-pb-md">
       <div>
         <div class="text-h5 text-weight-bold text-slate-800 flex items-center">
           <q-icon name="medical_services" color="teal-8" size="32px" class="q-mr-sm" />
           Nurse Run Sheet
         </div>
-        <div class="text-caption text-grey-6 q-ml-xl">
+        <div class="text-caption text-slate-500 q-ml-xl">
           AI-Generated Treatment Execution Protocol
         </div>
       </div>
@@ -21,37 +21,37 @@
           outlined
           emit-value
           map-options
-          class="min-w-[150px] bg-white rounded-lg"
+          class="min-w-[150px] bg-white rounded-md"
           label="Select Session"
-          color="teal"
+          color="teal-8"
         />
 
         <q-btn
           v-if="!loading && currentSession"
           unelevated
           outline
-          color="teal"
+          color="teal-8"
           label="Regenerate"
           icon="refresh"
           @click="initiateRunSheetGeneration"
-          class="rounded-lg"
+          class="rounded-md"
         />
         <q-btn
           unelevated
-          color="grey-9"
+          color="slate-8"
           label="Print"
           icon="print"
           @click="printSheet"
-          class="rounded-lg"
+          class="rounded-md bg-slate-800 text-white"
         />
       </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="flex flex-center q-pa-xl column min-h-[400px]">
-      <q-spinner-grid color="teal" size="4em" />
+      <q-spinner-grid color="teal-8" size="4em" />
       <div class="text-h6 text-teal-9 q-mt-md font-medium">Generating Clinical Protocol</div>
-      <div class="text-body2 text-grey-6 q-mt-xs text-center max-w-sm">
+      <div class="text-body2 text-slate-500 q-mt-xs text-center max-w-sm">
         Synthesizing patient vitals, safety constraints, and clinic SOPs into a run sheet...
       </div>
     </div>
@@ -59,7 +59,7 @@
     <!-- Error State -->
     <div
       v-else-if="error"
-      class="q-pa-lg bg-red-50 rounded-xl border border-red-200 flex column items-center text-center"
+      class="q-pa-lg bg-red-50 rounded-lg border border-red-200 flex column items-center text-center"
     >
       <q-icon name="error_outline" color="red-8" size="48px" class="q-mb-md" />
       <div class="text-h6 text-red-9">Generation Failed</div>
@@ -69,61 +69,48 @@
         color="red-8"
         label="Retry Generation"
         @click="initiateRunSheetGeneration"
-        class="rounded-lg"
+        class="rounded-md"
       />
     </div>
 
     <!-- Success State -->
     <div v-else-if="runSheetData" class="run-sheet-content">
-      <!-- 1. Protocol Header Card -->
-      <q-card
-        flat
-        bordered
-        class="rounded-xl bg-white q-mb-lg shadow-sm border-slate-200 overflow-hidden"
-      >
-        <div
-          class="bg-slate-50 q-px-lg q-py-md border-b border-slate-200 flex justify-between items-center"
-        >
-          <div class="text-subtitle2 text-slate-500 uppercase tracking-wider font-bold">
-            Protocol Identity
+      
+      <div class="card main-card">
+        <!-- 1. Protocol Header Card -->
+        <div class="logo-row">
+          <div class="logo-circle">
+            <q-icon name="vaccines" size="20px" />
           </div>
-          <div class="text-xs text-slate-400 font-mono">
-            {{ runSheetData.header?.protocol_id || 'ID_UNKNOWN' }}
+          <div>
+            <span class="brand-name">{{ runSheetData.header?.display_name || 'Custom Protocol' }}</span>
+            <div class="text-caption text-slate-500 font-mono">{{ runSheetData.header?.protocol_id || 'ID_UNKNOWN' }}</div>
           </div>
-        </div>
-        <q-card-section class="q-px-lg q-py-lg">
-          <div class="row items-start q-col-gutter-lg">
-            <div class="col-12 col-md-8">
-              <h1 class="text-h4 text-slate-800 font-bold leading-tight q-my-none q-mb-sm">
-                {{ runSheetData.header?.display_name || 'Custom Protocol' }}
-              </h1>
-              <div class="flex items-center gap-4 text-slate-600">
-                <div class="flex items-center gap-1 bg-slate-100 px-3 py-1 rounded-full text-sm">
-                  <q-icon name="vaccines" size="16px" />
-                  <span class="font-medium">{{ runSheetData.header?.bag_count || 1 }} Bag(s)</span>
-                </div>
-                <div class="flex items-center gap-1 bg-slate-100 px-3 py-1 rounded-full text-sm">
-                  <q-icon name="schedule" size="16px" />
-                  <span class="font-medium"
-                    >{{ runSheetData.header?.expected_total_duration_minutes || '--' }} min
-                    total</span
-                  >
-                </div>
-              </div>
+          <q-space />
+          <div class="flex items-center gap-4 text-slate-600">
+            <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 px-3 py-1 rounded-md text-sm">
+              <q-icon name="vaccines" size="16px" color="teal-8" />
+              <span class="font-medium text-slate-700">{{ runSheetData.header?.bag_count || 1 }} Bag(s)</span>
+            </div>
+            <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 px-3 py-1 rounded-md text-sm">
+              <q-icon name="schedule" size="16px" color="teal-8" />
+              <span class="font-medium text-slate-700"
+                >{{ runSheetData.header?.expected_total_duration_minutes || '--' }} min total</span
+              >
             </div>
           </div>
-        </q-card-section>
+        </div>
 
         <!-- Critical Flags / Alerts Area -->
         <div
           v-if="runSheetData.header?.special_flags && runSheetData.header.special_flags.length > 0"
-          class="q-px-lg q-pb-lg"
+          class="q-mb-lg"
         >
           <q-banner
             v-for="(flag, idx) in runSheetData.header.special_flags"
             :key="idx"
             rounded
-            class="bg-orange-50 text-orange-9 border border-orange-200 q-mb-sm rounded-lg"
+            class="bg-orange-50 text-orange-9 border border-orange-200 q-mb-sm rounded-md"
           >
             <template v-slot:avatar>
               <q-icon name="warning" color="orange-9" />
@@ -131,321 +118,96 @@
             <div class="text-body2 font-medium">{{ flag }}</div>
           </q-banner>
         </div>
-      </q-card>
 
-      <div class="row q-col-gutter-xl">
-        <!-- 2. Left Column: Logistics & Safety -->
-        <div class="col-12 col-md-5 flex column gap-6">
-          <!-- Preflight Checks -->
-          <section>
-            <div class="flex items-center justify-between q-mb-sm">
-              <div class="text-h6 text-slate-800 font-bold flex items-center">
-                <q-icon name="verified_user" color="blue-grey-7" class="q-mr-sm" size="20px" />
-                Safety & Pre-flight
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+          <template v-for="(step, i) in STEPS" :key="'indicator-'+i">
+            <div class="step-dot">
+              <div class="dot" :class="{ 'active': i === currentStep, 'done': i < currentStep }">
+                <span v-if="i < currentStep">✓</span>
+                <span v-else>{{ i + 1 }}</span>
               </div>
-              <q-badge
-                color="blue-grey-1"
-                text-color="blue-grey-7"
-                :label="runSheetData.preflight_checks?.length + ' Checks'"
-              />
-            </div>
-            <q-card flat bordered class="rounded-xl border-slate-200 shadow-sm bg-white">
-              <q-list separator>
-                <q-item
-                  v-for="(check, idx) in runSheetData.preflight_checks"
-                  :key="idx"
-                  tag="label"
-                  v-ripple
-                  class="q-py-md hover:bg-slate-50 transition-colors"
-                  :class="{ 'bg-blue-grey-50': checks.preflight[idx] }"
-                >
-                  <q-item-section avatar top>
-                    <q-checkbox v-model="checks.preflight[idx]" color="blue-grey" size="md" />
-                  </q-item-section>
-                  <q-item-section>
-                    <div
-                      class="text-body2 text-slate-700"
-                      :class="{ 'text-strike text-slate-400': checks.preflight[idx] }"
-                    >
-                      {{ check }}
-                    </div>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </q-card>
-          </section>
-
-          <!-- Setup Steps -->
-          <section>
-            <div class="flex items-center justify-between q-mb-sm">
-              <div class="text-h6 text-slate-800 font-bold flex items-center">
-                <q-icon name="science" color="purple-7" class="q-mr-sm" size="20px" />
-                Setup & Mixing
+              <div class="label" :class="{ 'active': i === currentStep, 'done': i < currentStep }">
+                <span v-html="step.label.replace('\n', '<br>')"></span>
               </div>
             </div>
-            <q-card flat bordered class="rounded-xl border-slate-200 shadow-sm bg-white">
-              <q-list separator>
-                <q-item
-                  v-for="(step, idx) in runSheetData.setup_steps"
-                  :key="idx"
-                  tag="label"
-                  v-ripple
-                  class="q-py-md hover:bg-slate-50 transition-colors"
-                  :class="{ 'bg-purple-50': checks.setup[idx] }"
-                >
-                  <q-item-section avatar top>
-                    <q-checkbox v-model="checks.setup[idx]" color="purple" size="md" />
-                  </q-item-section>
-                  <q-item-section>
-                    <div
-                      class="text-body2 text-slate-700"
-                      :class="{ 'text-strike text-slate-400': checks.setup[idx] }"
-                    >
-                      {{ step }}
-                    </div>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </q-card>
-          </section>
-
-          <!-- Monitoring Plan -->
-          <section>
-            <div class="flex items-center justify-between q-mb-sm">
-              <div class="text-h6 text-slate-800 font-bold flex items-center">
-                <q-icon name="monitor_heart" color="amber-9" class="q-mr-sm" size="20px" />
-                Monitoring Strategy
-              </div>
-            </div>
-            <q-card flat bordered class="rounded-xl border-amber-200 bg-amber-50">
-              <q-card-section>
-                <div class="q-mb-md">
-                  <div class="text-xs font-bold text-amber-800 uppercase tracking-widest q-mb-xs">
-                    Baseline Vitals
-                  </div>
-                  <div
-                    class="text-body2 text-slate-900 bg-white p-2 rounded border border-amber-100 shadow-sm"
-                  >
-                    {{
-                      runSheetData.monitoring_plan?.baseline_measurements?.join(', ') ||
-                      'Standard Standard (BP, HR, SpO2)'
-                    }}
-                  </div>
-                </div>
-
-                <div class="q-mb-md">
-                  <div class="text-xs font-bold text-amber-800 uppercase tracking-widest q-mb-xs">
-                    During Infusion
-                  </div>
-                  <div class="bg-white p-3 rounded border border-amber-100 shadow-sm">
-                    <div
-                      v-for="(check, i) in runSheetData.monitoring_plan?.during_infusion_checks"
-                      :key="i"
-                      class="flex items-start q-mb-xs last:mb-0"
-                    >
-                      <q-icon name="check" size="16px" class="q-mr-xs text-amber-600 q-mt-xs" />
-                      <span class="text-sm text-slate-800">{{ check }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div v-if="runSheetData.monitoring_plan?.stop_rules?.length">
-                  <div
-                    class="text-xs font-bold text-red-800 uppercase tracking-widest q-mb-xs flex items-center"
-                  >
-                    <q-icon name="block" class="q-mr-xs" /> Stop Rules
-                  </div>
-                  <div
-                    class="bg-red-50 p-3 rounded border border-red-100 text-red-900 text-sm font-medium"
-                  >
-                    {{ runSheetData.monitoring_plan.stop_rules.join(' • ') }}
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </section>
+            <div v-if="i < STEPS.length - 1" class="step-line" :class="{ 'done': i < currentStep }"></div>
+          </template>
         </div>
 
-        <!-- 3. Right Column: Execution Timeline -->
-        <div class="col-12 col-md-7">
-          <!-- Bag Preparation Steps -->
-          <section v-if="runSheetData.bag_preparation_steps?.length">
-            <div class="flex items-center justify-between q-mb-sm">
-              <div class="text-h6 text-slate-800 font-bold flex items-center">
-                <q-icon name="local_pharmacy" color="teal-7" class="q-mr-sm" size="20px" />
-                Bag Preparation
-              </div>
-              <q-badge
-                color="teal-1"
-                text-color="teal-8"
-                :label="runSheetData.bag_preparation_steps.length + ' Steps'"
-              />
-            </div>
-            <q-card flat bordered class="rounded-xl border-slate-200 shadow-sm bg-white">
-              <q-list separator>
-                <q-item
-                  v-for="(step, idx) in runSheetData.bag_preparation_steps"
-                  :key="'bag' + idx"
-                  tag="label"
-                  v-ripple
-                  class="q-py-md hover:bg-slate-50 transition-colors"
-                  :class="{ 'bg-teal-50': checks.bag[idx] }"
-                >
-                  <q-item-section avatar top>
-                    <q-checkbox v-model="checks.bag[idx]" color="teal" size="md" />
-                  </q-item-section>
-                  <q-item-section>
-                    <div
-                      class="text-body2 text-slate-700"
-                      :class="{ 'text-strike text-slate-400': checks.bag[idx] }"
-                    >
-                      {{ step }}
-                    </div>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </q-card>
-          </section>
+        <!-- Step Content Wrapper -->
+        <div class="step-content-wrapper min-h-[400px]">
+          <transition name="fade" mode="out-in">
+            <StepPreFlight 
+              v-if="currentStep === 0"
+              :checksList="runSheetData.preflight_checks"
+              v-model="checks.preflight"
+            />
+            
+            <StepSetup 
+              v-else-if="currentStep === 1"
+              :setupSteps="runSheetData.setup_steps"
+              v-model:setupChecks="checks.setup"
+            />
+            
+            <StepBagPrep 
+              v-else-if="currentStep === 2"
+              :bagSteps="runSheetData.bag_preparation_steps"
+              v-model:bagChecks="checks.bag"
+            />
+            
+            <StepExecution 
+              v-else-if="currentStep === 3"
+              :monitoringPlan="runSheetData.monitoring_plan"
+              :adminSteps="runSheetData.administration_steps"
+              v-model:adminChecks="checks.admin"
+            />
 
-          <div class="flex items-center justify-between q-mb-lg">
-            <div class="text-h6 text-slate-800 font-bold flex items-center">
-              <q-icon name="play_circle_filled" color="teal-7" class="q-mr-sm" size="24px" />
-              Administration Timeline
-            </div>
-          </div>
+            <StepPostCareOnly 
+              v-else-if="currentStep === 4"
+              :postCareSteps="runSheetData.post_care"
+              v-model:postChecks="checks.post"
+            />
 
-          <div class="administration-timeline relative q-pl-sm">
-            <!-- Vertical Line -->
-            <div class="absolute left-4 top-4 bottom-4 w-0.5 bg-slate-200 rounded"></div>
-
-            <!-- Steps -->
-            <div
-              v-for="(step, idx) in runSheetData.administration_steps"
-              :key="idx"
-              class="relative q-mb-lg pl-12 group"
-            >
-              <!-- Number Bubble -->
-              <div
-                class="absolute left-0 top-0 w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold z-10 shadow-sm transition-colors text-sm"
-                :class="
-                  checks.admin[idx]
-                    ? 'bg-teal-600 border-teal-600 text-white'
-                    : 'bg-white border-teal-600 text-teal-700'
-                "
-              >
-                <q-icon v-if="checks.admin[idx]" name="check" size="14px" />
-                <span v-else>{{ idx + 1 }}</span>
-              </div>
-
-              <!-- Content Card -->
-              <q-card
-                flat
-                bordered
-                class="rounded-xl border-slate-200 shadow-sm group-hover:shadow-md transition-all cursor-pointer"
-                :class="{ 'bg-teal-50 border-teal-200': checks.admin[idx] }"
-                @click="checks.admin[idx] = !checks.admin[idx]"
-              >
-                <q-card-section class="q-pa-md flex items-start gap-4">
-                  <div class="flex-grow">
-                    <div
-                      class="text-body1 text-slate-800 leading-relaxed"
-                      :class="{ 'text-slate-500': checks.admin[idx] }"
-                    >
-                      {{ step }}
-                    </div>
-                  </div>
-                  <q-checkbox
-                    v-model="checks.admin[idx]"
-                    color="teal"
-                    size="sm"
-                    class="no-pointer-events"
-                  />
-                </q-card-section>
-              </q-card>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row q-col-gutter-md">
-        <!-- Post Care Section -->
-        <div class="q-mt-xl q-pl-sm">
-          <div class="text-h6 text-slate-800 font-bold flex items-center q-mb-md">
-            <q-icon name="logout" color="indigo-6" class="q-mr-sm" size="24px" />
-            Post-Care Sequence
-          </div>
-
-          <q-card flat bordered class="rounded-xl border-indigo-100 bg-indigo-50 overflow-hidden">
-            <q-list separator>
-              <q-item
-                v-for="(step, idx) in runSheetData.post_care"
-                :key="'pc' + idx"
-                tag="label"
-                v-ripple
-                class="q-py-md hover:bg-indigo-100 transition-colors"
-              >
-                <q-item-section avatar>
-                  <q-checkbox v-model="checks.post[idx]" color="indigo" size="sm" />
-                </q-item-section>
-                <q-item-section>
-                  <div class="text-body2 text-indigo-900">{{ step }}</div>
-                </q-item-section>
-              </q-item>
-
-              <q-separator color="indigo-200" />
-
-              <div
-                class="bg-indigo-100 q-px-md q-py-sm text-xs font-bold text-indigo-800 uppercase tracking-widest flex items-center"
-              >
-                <q-icon name="edit_document" class="q-mr-xs" /> Required Documentation
-              </div>
-
-              <q-item
-                v-for="(doc, idx) in runSheetData.documentation"
-                :key="'doc' + idx"
-                tag="label"
-                v-ripple
-                class="q-py-sm hover:bg-indigo-100 transition-colors"
-              >
-                <q-item-section avatar>
-                  <q-checkbox v-model="checks.doc[idx]" color="indigo-8" size="sm" />
-                </q-item-section>
-                <q-item-section>
-                  <div class="text-sm text-slate-700">{{ doc }}</div>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-card>
+            <StepDocumentation 
+              v-else-if="currentStep === 5"
+              :documentationSteps="runSheetData.documentation"
+              v-model:docChecks="checks.doc"
+              :signoffConditions="runSheetData.clinician_signoff_required_if"
+            />
+          </transition>
         </div>
 
-        <!-- Conditional Signoff -->
-        <div v-if="runSheetData.clinician_signoff_required_if?.length" class="q-mt-xl">
-          <div class="rounded-xl border border-orange-200 bg-orange-50 p-4 flex items-start gap-4">
-            <div class="bg-white p-2 rounded-full shadow-sm text-orange-600">
-              <q-icon name="notification_important" size="24px" />
-            </div>
-            <div>
-              <div class="text-subtitle2 font-bold text-orange-900 q-mb-xs">
-                Clinician Sign-off Required If:
-              </div>
-              <ul class="q-pl-md q-my-none text-sm text-orange-900 leading-relaxed">
-                <li v-for="(cond, i) in runSheetData.clinician_signoff_required_if" :key="i">
-                  {{ cond }}
-                </li>
-              </ul>
-            </div>
-          </div>
+        <!-- Navigation Bar -->
+        <div class="nav-bar">
+          <button 
+            class="btn btn-prev" 
+            @click="navigate(-1)"
+            :disabled="currentStep === 0"
+            :style="{ opacity: currentStep === 0 ? '0.35' : '1' }"
+          >
+            ← PREVIOUS
+          </button>
+          
+          <button 
+            class="btn btn-next"
+            :class="{'btn-finalize': currentStep === STEPS.length - 1, 'disabled-btn': !canGoNext}"
+            :disabled="!canGoNext"
+            @click="currentStep === STEPS.length - 1 ? finalize() : navigate(1)"
+          >
+            {{ currentStep === STEPS.length - 1 ? 'FINALIZE SESSION' : 'NEXT →' }}
+          </button>
         </div>
       </div>
     </div>
 
     <!-- Empty State -->
-    <div v-else class="flex flex-center q-pa-xl text-grey-6 min-h-[400px]">
+    <div v-else class="flex flex-center q-pa-xl text-slate-500 min-h-[400px]">
       <div class="text-center">
-        <div class="bg-slate-100 p-6 rounded-full inline-block q-mb-md">
+        <div class="bg-slate-50 border border-slate-200 p-6 rounded-full inline-block q-mb-md">
           <q-icon name="assignment_late" size="48px" color="slate-400" />
         </div>
-        <div class="text-h6 text-slate-600">No session data available</div>
+        <div class="text-h6 text-slate-600 font-medium">No session data available</div>
         <div class="text-body2 text-slate-400 q-mt-sm">
           Please select a treatment plan option to generate the run sheet.
         </div>
@@ -460,6 +222,14 @@ import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
 import { storeToRefs } from 'pinia'
 import { useOpenAI } from 'src/composables/useOpenAI'
 import { buildRunSheetPrompt } from 'src/services/NurseRunSheetService'
+
+// Import Step Components
+import StepPreFlight from './runsheet/StepPreFlight.vue'
+import StepSetup from './runsheet/StepSetup.vue'
+import StepBagPrep from './runsheet/StepBagPrep.vue'
+import StepExecution from './runsheet/StepExecution.vue'
+import StepPostCareOnly from './runsheet/StepPostCareOnly.vue'
+import StepDocumentation from './runsheet/StepDocumentation.vue'
 
 const props = defineProps({
   treatmentSessions: {
@@ -480,6 +250,16 @@ const runSheetData = ref(null)
 const selectedSessionIndex = ref(
   props.treatmentSessions?.iv_session_data?.active_session_index || 0,
 )
+
+const currentStep = ref(0)
+const STEPS = [
+  { label: "Safety &\nPre-flight", short: "Pre-flight" },
+  { label: "Setup &\nMixing", short: "Setup" },
+  { label: "Bag\nPreparation", short: "Bag Prep" },
+  { label: "Admin &\nMonitoring", short: "Execution" },
+  { label: "Post-Care\nSequence", short: "Post-Care" },
+  { label: "Required\nDocumentation", short: "Docs" },
+]
 
 // Available Sessions
 const availableSessions = computed(() => {
@@ -511,6 +291,51 @@ const checks = reactive({
   doc: {},
 })
 
+const canGoNext = computed(() => {
+  if (!runSheetData.value) return false
+
+  if (currentStep.value === 0) {
+    const total = runSheetData.value.preflight_checks?.length || 0
+    const checked = Object.values(checks.preflight).filter(Boolean).length
+    return total === 0 || checked === total
+  } else if (currentStep.value === 1) {
+    const totalSetup = runSheetData.value.setup_steps?.length || 0
+    const checkedSetup = Object.values(checks.setup).filter(Boolean).length
+    return totalSetup === 0 || checkedSetup === totalSetup
+  } else if (currentStep.value === 2) {
+    const totalBag = runSheetData.value.bag_preparation_steps?.length || 0
+    const checkedBag = Object.values(checks.bag).filter(Boolean).length
+    return totalBag === 0 || checkedBag === totalBag
+  } else if (currentStep.value === 3) {
+    const totalAdmin = runSheetData.value.administration_steps?.length || 0
+    const checkedAdmin = Object.values(checks.admin).filter(Boolean).length
+    return totalAdmin === 0 || checkedAdmin === totalAdmin
+  } else if (currentStep.value === 4) {
+    const totalPost = runSheetData.value.post_care?.length || 0
+    const checkedPost = Object.values(checks.post).filter(Boolean).length
+    return totalPost === 0 || checkedPost === totalPost
+  } else if (currentStep.value === 5) {
+    const totalDoc = runSheetData.value.documentation?.length || 0
+    const checkedDoc = Object.values(checks.doc).filter(Boolean).length
+    return totalDoc === 0 || checkedDoc === totalDoc
+  }
+  
+  return true
+})
+
+// Navigation
+const navigate = (dir) => {
+  const newStep = currentStep.value + dir
+  if (newStep >= 0 && newStep < STEPS.length) {
+    currentStep.value = newStep
+  }
+}
+
+const finalize = () => {
+  // Logic to save run sheet progress or exit
+  alert('Session Finalized! (Integration point for saving data)')
+}
+
 // Generation Logic
 const initiateRunSheetGeneration = async () => {
   if (!currentSession.value) return
@@ -518,6 +343,7 @@ const initiateRunSheetGeneration = async () => {
   loading.value = true
   error.value = null
   runSheetData.value = null
+  currentStep.value = 0 // Reset step to beginning
 
   try {
     const protocol = currentSession.value
@@ -534,7 +360,7 @@ const initiateRunSheetGeneration = async () => {
     const messages = buildRunSheetPrompt(protocol, patientContext)
 
     // Get Conversation ID from store
-    const conversationId = formData.value.conversation_id
+    const conversationId = formData.value.conversation_id || 'new-convo-' + Date.now()
 
     // Call AI
     const result = await runResponse(conversationId, messages, 0.2)
@@ -616,39 +442,6 @@ const printSheet = () => {
 .text-slate-400 {
   color: #94a3b8;
 }
-.bg-slate-50 {
-  background-color: #f8fafc;
-}
-.bg-slate-100 {
-  background-color: #f1f5f9;
-}
-.border-slate-200 {
-  border-color: #e2e8f0;
-}
-
-.rounded-xl {
-  border-radius: 12px;
-}
-.rounded-lg {
-  border-radius: 8px;
-}
-.shadow-sm {
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-/* Timeline adjustments */
-.pl-12 {
-  padding-left: 3rem;
-}
-.left-4 {
-  left: 1rem;
-}
-.top-4 {
-  top: 1rem;
-}
-.bottom-4 {
-  bottom: 1rem;
-}
 
 /* Font utilities */
 .font-bold {
@@ -660,39 +453,180 @@ const printSheet = () => {
 .font-mono {
   font-family: 'Roboto Mono', monospace;
 }
-.tracking-wider {
-  letter-spacing: 0.05em;
+
+/* Custom UI - Clinical Styling */
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 32px;
+  margin-bottom: 20px;
 }
-.tracking-widest {
-  letter-spacing: 0.1em;
+
+.main-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
-.leading-tight {
-  line-height: 1.25;
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
 }
-.leading-relaxed {
-  line-height: 1.625;
+.logo-circle {
+  width: 48px;
+  height: 48px;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #115e59;
+}
+.brand-name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #0f172a;
+}
+
+/* Step Indicator */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 40px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.step-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+  position: relative;
+}
+.step-dot .dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  border: 2px solid #e2e8f0;
+  color: #94a3b8;
+  background: #fff;
+  transition: all 0.3s ease;
+  z-index: 2;
+}
+.step-dot .dot.active {
+  background: #115e59;
+  border-color: #115e59;
+  color: #fff;
+  box-shadow: 0 0 0 4px #ccfbf1;
+}
+.step-dot .dot.done {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+.step-dot .label {
+  font-size: 12px;
+  color: #94a3b8;
+  white-space: nowrap;
+  text-align: center;
+  transition: all 0.3s ease;
+  line-height: 1.3;
+}
+.step-dot .label.active {
+  color: #115e59;
+  font-weight: 600;
+}
+.step-dot .label.done {
+  color: #0f766e;
+}
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: #e2e8f0;
+  min-width: 24px;
+  margin-bottom: 30px; /* offset for label height */
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+.step-line.done {
+  background: #0f766e;
+}
+
+/* Navigation Bar */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 0 0;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 32px;
+}
+.btn {
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+.btn-prev {
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.btn-prev:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #0f172a;
+}
+.btn-next {
+  background: #115e59;
+  color: #fff;
+}
+.btn-next:hover:not(:disabled) {
+  background: #0f766e;
+}
+.btn-finalize {
+  background: #0f172a !important;
+  color: #fff;
+  padding: 10px 28px;
+}
+.btn-finalize:hover:not(:disabled) {
+  background: #1e293b !important;
+}
+.disabled-btn {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Transitions */
-.transition-all {
-  transition: all 0.2s ease-in-out;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-.transition-colors {
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
 }
-
-.no-pointer-events {
-  pointer-events: none;
-}
-.cursor-pointer {
-  cursor: pointer;
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 /* Print optimization */
 @media print {
-  .no-print {
+  .no-print, .nav-bar, .step-indicator {
     display: none !important;
   }
   .run-sheet-content {
@@ -700,9 +634,10 @@ const printSheet = () => {
     margin: 0;
     padding: 0;
   }
-  .q-page,
-  .q-layout {
-    min-height: auto !important;
+  .card {
+    border: none;
+    box-shadow: none;
+    padding: 0;
   }
 }
 </style>
