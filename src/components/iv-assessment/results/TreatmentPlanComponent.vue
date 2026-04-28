@@ -23,7 +23,11 @@
         <div class="text-h6 q-ml-sm text-grey-8">Back to Options</div>
       </div>
 
-      <component :is="activeComponent" :planDetails="activePlanDetails" />
+      <component
+        :is="activeComponent"
+        :planDetails="activePlanDetails"
+        @start-session="(idx) => $emit('start-session', idx)"
+      />
     </div>
   </div>
 </template>
@@ -38,7 +42,7 @@ import PlanSelectionList from './PlanSelectionList.vue'
 
 const store = useIVAssessmentStore()
 const { formData } = storeToRefs(store)
-const emit = defineEmits(['save_data'])
+const emit = defineEmits(['save_data', 'start-session'])
 
 const selectedOption = ref(null)
 

@@ -77,13 +77,17 @@ IMPORTANT: Ensure all list items (preflight_checks, setup_steps, administration_
 `
 
   const userPrompt = `
+CRITICAL INSTRUCTION: You MUST completely ignore any previous Nurse Run Sheets generated in this conversation history. 
+Generate a completely NEW Nurse Run Sheet tailored specifically for the EXACT "Selected Protocol" provided below. 
+Do NOT copy or repeat Protocol IDs or names from previous responses!
+
 Patient Context:
 ${encode(patientContext)}
 
 Selected Protocol:
 ${encode(protocol)}
 
-Generate the Nurse Run Sheet JSON now.
+Generate the Nurse Run Sheet JSON now. Ensure the "protocol_id" and "display_name" exactly match the Selected Protocol above.
 `
 
   return [

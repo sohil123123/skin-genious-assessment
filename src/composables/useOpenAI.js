@@ -7,6 +7,7 @@ import ivScore from 'src/response-examples/iv-score.json'
 import clinicalScore from 'src/response-examples/clinical-score.json'
 import treatmentPlan from 'src/response-examples/treatment-plans.json'
 import nurseRunSheet from 'src/response-examples/nurse-runsheet-single-session.json'
+import nurseRunSheetMulti from 'src/response-examples/nurse-runsheet-multi-session.json'
 
 export function useOpenAI() {
   const $q = useQuasar()
@@ -97,6 +98,10 @@ export function useOpenAI() {
 
       // 4. NURSE RUN SHEET
       if (inputStr.includes('Nurse Run Sheet') || inputStr.includes('clinic_sop_defaults')) {
+        if (inputStr.includes('P1-W') || inputStr.includes('plan_option')) {
+          console.log('🚧 TEST MODE: Returning Multi-Session Nurse Run Sheet', nurseRunSheetMulti)
+          return nurseRunSheetMulti
+        }
         console.log('🚧 TEST MODE: Returning Nurse Run Sheet', nurseRunSheet)
         return nurseRunSheet
       }

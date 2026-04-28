@@ -146,7 +146,10 @@
           />
 
           <div v-if="currentStep === 'step-4'">
-            <TreatmentPlanComponent @save_data="debouncedSubmit" />
+            <TreatmentPlanComponent
+              @save_data="debouncedSubmit"
+              @start-session="startSpecificSession"
+            />
           </div>
 
           <NurseRunSheet
@@ -559,6 +562,59 @@ async function goNext() {
   if (!isLastStep.value) {
     navigateToStep(steps.value[currentIndex.value + 1])
   }
+}
+
+async function startSpecificSession(index) {
+  const selected = formData.value.iv_selected_option
+
+  if (!selected) {
+    Notify.create({
+      type: 'warning',
+      message: 'Please select a treatment plan option to proceed.',
+    })
+    return
+  }
+
+  let sessionProtocol = null
+
+  if (selected.option_type === 'plan_option' && selected.sessions?.length > index) {
+    sessionProtocol = selected.sessions[index].recommended_protocol || null
+  } else if (selected.protocols && selected.protocols.length > 0) {
+    sessionProtocol = selected.protocols[0]
+  }
+
+  if (!sessionProtocol) {
+    Notify.create({
+      type: 'negative',
+      message: 'Selected option does not have a valid protocol for this session.',
+    })
+    return
+  }
+
+  const planWeekIndex =
+    selected.option_type === 'plan_option' ? selected.sessions?.[index]?.week_index || 1 : null
+
+  const ivSessionData = {
+    selected_protocol_id: sessionProtocol.protocol_id,
+    selected_option_type: selected.option_type,
+    is_plan: selected.option_type === 'plan_option',
+    plan_week_index: planWeekIndex,
+    plan_duration_weeks: selected.plan_duration_weeks || null,
+    schedule_description: selected.schedule_description || null,
+    all_plan_sessions: selected.sessions || [],
+    active_session_index: index,
+    engine_versions: {
+      generation_engine: ivTreatmentGenerationEngine.version,
+    },
+  }
+
+  formData.value.treatment_sessions = {
+    treatments: [sessionProtocol],
+    iv_session_data: ivSessionData,
+  }
+  await submit(['treatment_sessions'])
+
+  navigateToStep('step-5')
 }
 
 async function generateIVScoring(data, canonical) {

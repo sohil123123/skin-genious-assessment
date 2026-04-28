@@ -132,6 +132,18 @@
                 Hint: {{ session.candidate_generation_hint }}
               </div>
             </q-card-section>
+
+            <!-- Actions -->
+            <q-card-actions align="right" class="q-px-md q-pb-md q-pt-none bg-white">
+              <q-btn
+                unelevated
+                color="teal"
+                text-color="white"
+                icon-right="play_arrow"
+                label="Start Session"
+                @click="$emit('start-session', index)"
+              />
+            </q-card-actions>
           </q-card>
         </q-timeline-entry>
       </q-timeline>
@@ -155,6 +167,8 @@ const props = defineProps({
     required: true,
   },
 })
+
+defineEmits(['start-session'])
 
 const formatSchedule = (desc) => {
   if (!desc) return ''

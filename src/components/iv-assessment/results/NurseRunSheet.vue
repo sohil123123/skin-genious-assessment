@@ -11,7 +11,21 @@
           AI-Generated Treatment Execution Protocol
         </div>
       </div>
-      <div class="flex gap-3">
+      <div class="flex gap-3 items-center">
+        <!-- Session Switcher (if multi-session plan) -->
+        <q-select
+          v-if="availableSessions.length > 1"
+          v-model="selectedSessionIndex"
+          :options="sessionOptions"
+          dense
+          outlined
+          emit-value
+          map-options
+          class="min-w-[150px] bg-white rounded-lg"
+          label="Select Session"
+          color="teal"
+        />
+
         <q-btn
           v-if="!loading && currentSession"
           unelevated
@@ -459,15 +473,33 @@ const store = useIVAssessmentStore()
 const { formData } = storeToRefs(store)
 const { runResponse } = useOpenAI()
 
-// Current Session from Props (Input to AI)
-const currentSession = computed(() => {
-  return props.treatmentSessions?.treatments?.[0] || null
-})
-
 // State
 const loading = ref(false)
 const error = ref(null)
 const runSheetData = ref(null)
+const selectedSessionIndex = ref(
+  props.treatmentSessions?.iv_session_data?.active_session_index || 0,
+)
+
+// Available Sessions
+const availableSessions = computed(() => {
+  return props.treatmentSessions?.iv_session_data?.all_plan_sessions || []
+})
+
+const sessionOptions = computed(() => {
+  return availableSessions.value.map((session, index) => ({
+    label: session.week_index ? `Week ${session.week_index}` : `Session ${index + 1}`,
+    value: index,
+  }))
+})
+
+// Current Session from Props (Input to AI)
+const currentSession = computed(() => {
+  if (availableSessions.value.length > 0) {
+    return availableSessions.value[selectedSessionIndex.value]?.recommended_protocol || null
+  }
+  return props.treatmentSessions?.treatments?.[0] || null
+})
 
 // Checkboxes State
 const checks = reactive({
