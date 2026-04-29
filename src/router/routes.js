@@ -48,6 +48,18 @@ const routes = [
         props: true,
       },
       {
+        path: ':user_id/iv-treatment-prep/:assessment_id/:session_id/:appointment_id?',
+        name: 'IVTreatmentPrep',
+        component: () => import('pages/IVTreatmentPrep.vue'),
+        props: true,
+      },
+      {
+        path: ':user_id/iv-treatment-steps/:assessment_id/:session_id/:step/:appointment_id?',
+        name: 'IVTreatmentSteps',
+        component: () => import('pages/IVTreatmentSteps.vue'),
+        props: true,
+      },
+      {
         path: ':user_id/treatment-steps/:assessment_id/:session_id/:step/:appointment_id?',
         name: 'TreatmentSteps',
         component: () => import('pages/TreatmentSteps.vue'),
@@ -57,6 +69,12 @@ const routes = [
         path: ':user_id/treatment-complete/:assessment_id/:session_id/:appointment_id?',
         name: 'TreatmentComplete',
         component: () => import('pages/TreatmentComplete.vue'),
+        props: true,
+      },
+      {
+        path: ':user_id/iv-treatment-complete/:assessment_id/:session_id/:appointment_id?',
+        name: 'IVTreatmentComplete',
+        component: () => import('pages/IVTreatmentComplete.vue'),
         props: true,
       },
       {
