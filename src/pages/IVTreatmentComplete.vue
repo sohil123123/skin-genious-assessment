@@ -153,7 +153,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
-import { useAssessmentStore } from 'src/stores/assessmentStore'
+import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
 import { Loading, useQuasar } from 'quasar'
 import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
@@ -161,9 +161,9 @@ import moment from 'moment'
 import { storeToRefs } from 'pinia'
 
 const $q = useQuasar()
-const assessmentStore = useAssessmentStore()
-const { showDialog, assessmentData } = storeToRefs(assessmentStore)
-const loading = computed(() => assessmentStore.loading)
+const ivStore = useIVAssessmentStore()
+const { showDialog, formData: assessmentData } = storeToRefs(ivStore)
+const loading = computed(() => ivStore.loading)
 
 const route = useRoute()
 const router = useRouter()
@@ -181,13 +181,18 @@ const v$ = useVuelidate(rules, appointmentData)
 
 onMounted(async () => {
   store.currentSessionId = Number(route.params.session_id)
-  await assessmentStore.getSingleAssessment(route.params.assessment_id)
-  store.treatmentPlan = assessmentStore.assessmentData.treatment_sessions
-  
+  await ivStore.getSingleAssessment(route.params.assessment_id)
+  store.treatmentPlan = ivStore.formData.treatment_sessions
+
   store.markCompleted()
-  
+
   if (route.params.appointment_id) {
-    await assessmentStore.updateStatus(route.params.appointment_id)
+    await ivStore.updateStatus(route.params.appointment_id)
+  }
+
+  // Update treatment session status to completed
+  if (route.params.session_id) {
+    await ivStore.updateTreatmentSessionStatus(route.params.session_id, 'completed')
   }
 })
 
@@ -215,7 +220,7 @@ const allowFutureDates = (calendarDate) => {
 async function confirmBooking() {
   const isFormCorrect = await v$.value.$validate()
   if (!isFormCorrect) return
-  await assessmentStore.bookNextAppointment(appointmentData.value, nextSession.value.id)
+  await ivStore.bookNextAppointment(appointmentData.value, nextSession.value.id)
 }
 
 function finishSession() {
