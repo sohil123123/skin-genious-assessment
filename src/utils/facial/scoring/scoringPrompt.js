@@ -3473,6 +3473,7 @@ Append this section after the diagnosis_report asa new JSON object named "treata
       "target_single_session_score": "<Realistically Achievable Score or Label>",
       "is_primary_concern": false,
       "reason_for_selection": "<Short explanation based on diagnosis backend data>",
+      "short_description": "<client facing language description with 1-2 line>",
       "score_semantics": "<label>",
       "score_polarity": "<label>",
       "ideal_score_direction": "<label>",
