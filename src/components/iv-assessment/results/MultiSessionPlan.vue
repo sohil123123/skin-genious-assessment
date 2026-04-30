@@ -23,11 +23,11 @@
         <div class="row items-center q-gutter-x-md text-body2 q-mt-md">
           <q-badge color="white" text-color="primary" class="q-py-xs q-px-sm text-weight-bold">
             <q-icon name="date_range" size="14px" class="q-mr-xs" />
-            {{ planDetails.plan_duration_weeks }} Weeks
+            {{ planDetails.protocols?.[0]?.plan_duration_weeks || planDetails.plan_duration_weeks }} Weeks
           </q-badge>
           <span class="text-blue-1 opacity-90 flex items-center">
             <q-icon name="schedule" size="16px" class="q-mr-xs" />
-            {{ formatSchedule(planDetails.schedule_description) }}
+            {{ formatSchedule(planDetails.protocols?.[0]?.schedule_description || planDetails.schedule_description) }}
           </span>
           <q-btn
             outline
@@ -47,7 +47,7 @@
     <div class="q-px-sm">
       <q-timeline color="indigo" layout="comfortable">
         <q-timeline-entry
-          v-for="(session, index) in planDetails.sessions"
+          v-for="(session, index) in planDetails.protocols?.[0]?.sessions || planDetails.sessions"
           :key="index"
           :side="index % 2 === 0 ? 'left' : 'right'"
         >

@@ -524,6 +524,7 @@
       "6) Select Option 1 and Option 2 per selection rules (including NAD mutual exclusion).",
       "7) Generate Budget option using candidate_generation_loop.budget_option; constraints-evaluate; enforce budget rules (1 hero, no NAD+ anywhere).",
       "8) Generate full 14-week plan. For EACH week: Run candidate_generation_loop.single_session, Apply phase objectives, Call constraints.evaluate(), Enforce hero cap and supportive coverage audit, Attach recommended_protocol for that week",
+      "8A) For plan_option: MUST generate sessions[] with >= 6 sessions, Each session must contain a newly generated protocol, Each session must pass constraints.evaluate(), MUST NOT reuse same protocol across all sessions",
       "9) Build option names using naming_rules.",
       "10) Emit only allowed/allowed_with_cautions options; if doctor_approval_required, mark clearly and include constraint messages."
     ]

@@ -36,14 +36,6 @@
           @click="initiateRunSheetGeneration"
           class="rounded-md"
         />
-        <q-btn
-          unelevated
-          color="slate-8"
-          label="Print"
-          icon="print"
-          @click="printSheet"
-          class="rounded-md bg-slate-800 text-white"
-        />
       </div>
     </div>
 
@@ -75,7 +67,6 @@
 
     <!-- Success State -->
     <div v-else-if="runSheetData" class="run-sheet-content">
-      
       <div class="card main-card">
         <!-- 1. Protocol Header Card -->
         <div class="logo-row">
@@ -83,16 +74,26 @@
             <q-icon name="vaccines" size="20px" />
           </div>
           <div>
-            <span class="brand-name">{{ runSheetData.header?.display_name || 'Custom Protocol' }}</span>
-            <div class="text-caption text-slate-500 font-mono">{{ runSheetData.header?.protocol_id || 'ID_UNKNOWN' }}</div>
+            <span class="brand-name">{{
+              runSheetData.header?.display_name || 'Custom Protocol'
+            }}</span>
+            <div class="text-caption text-slate-500 font-mono">
+              {{ runSheetData.header?.protocol_id || 'ID_UNKNOWN' }}
+            </div>
           </div>
           <q-space />
           <div class="flex items-center gap-4 text-slate-600">
-            <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 px-3 py-1 rounded-md text-sm">
+            <div
+              class="flex items-center gap-1 bg-slate-50 border border-slate-200 px-3 py-1 rounded-md text-sm"
+            >
               <q-icon name="vaccines" size="16px" color="teal-8" />
-              <span class="font-medium text-slate-700">{{ runSheetData.header?.bag_count || 1 }} Bag(s)</span>
+              <span class="font-medium text-slate-700"
+                >{{ runSheetData.header?.bag_count || 1 }} Bag(s)</span
+              >
             </div>
-            <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 px-3 py-1 rounded-md text-sm">
+            <div
+              class="flex items-center gap-1 bg-slate-50 border border-slate-200 px-3 py-1 rounded-md text-sm"
+            >
               <q-icon name="schedule" size="16px" color="teal-8" />
               <span class="font-medium text-slate-700"
                 >{{ runSheetData.header?.expected_total_duration_minutes || '--' }} min total</span
@@ -104,72 +105,77 @@
         <!-- Critical Flags / Alerts Area -->
         <div
           v-if="runSheetData.header?.special_flags && runSheetData.header.special_flags.length > 0"
-          class="q-mb-lg"
+          class="q-mb-lg bg-orange-1 q-pa-sm rounded-borders"
+          style="border: 1px solid #ffe0b2"
         >
-          <q-banner
-            v-for="(flag, idx) in runSheetData.header.special_flags"
-            :key="idx"
-            rounded
-            class="bg-orange-50 text-orange-9 border border-orange-200 q-mb-sm rounded-md"
-          >
-            <template v-slot:avatar>
-              <q-icon name="warning" color="orange-9" />
-            </template>
-            <div class="text-body2 font-medium">{{ flag }}</div>
-          </q-banner>
+          <div class="row items-center q-mb-xs q-px-xs">
+            <q-icon name="warning_amber" size="18px" class="text-orange-9 q-mr-sm" />
+            <span class="text-caption text-weight-bold text-orange-9 text-uppercase tracking-wide"
+              >Clinical Alerts</span
+            >
+          </div>
+          <ul class="q-pl-lg q-my-none text-body2 text-orange-10 font-medium">
+            <li v-for="(flag, idx) in runSheetData.header.special_flags" :key="idx" class="q-pb-xs">
+              {{ flag }}
+            </li>
+          </ul>
         </div>
 
         <!-- Step Indicator -->
         <div class="step-indicator">
-          <template v-for="(step, i) in STEPS" :key="'indicator-'+i">
+          <template v-for="(step, i) in STEPS" :key="'indicator-' + i">
             <div class="step-dot">
-              <div class="dot" :class="{ 'active': i === currentStep, 'done': i < currentStep }">
+              <div class="dot" :class="{ active: i === currentStep, done: i < currentStep }">
                 <span v-if="i < currentStep">✓</span>
                 <span v-else>{{ i + 1 }}</span>
               </div>
-              <div class="label" :class="{ 'active': i === currentStep, 'done': i < currentStep }">
+              <div class="label" :class="{ active: i === currentStep, done: i < currentStep }">
                 <span v-html="step.label.replace('\n', '<br>')"></span>
               </div>
             </div>
-            <div v-if="i < STEPS.length - 1" class="step-line" :class="{ 'done': i < currentStep }"></div>
+            <div
+              v-if="i < STEPS.length - 1"
+              class="step-line"
+              :class="{ done: i < currentStep }"
+            ></div>
           </template>
         </div>
 
         <!-- Step Content Wrapper -->
         <div class="step-content-wrapper min-h-[400px]">
           <transition name="fade" mode="out-in">
-            <StepPreFlight 
+            <StepPreFlight
               v-if="currentStep === 0"
               :checksList="runSheetData.preflight_checks"
               v-model="checks.preflight"
             />
-            
-            <StepSetup 
+
+            <StepSetup
               v-else-if="currentStep === 1"
               :setupSteps="runSheetData.setup_steps"
               v-model:setupChecks="checks.setup"
             />
-            
-            <StepBagPrep 
+
+            <StepBagPrep
               v-else-if="currentStep === 2"
               :bagSteps="runSheetData.bag_preparation_steps"
               v-model:bagChecks="checks.bag"
             />
-            
-            <StepExecution 
+
+            <StepExecution
               v-else-if="currentStep === 3"
               :monitoringPlan="runSheetData.monitoring_plan"
               :adminSteps="runSheetData.administration_steps"
               v-model:adminChecks="checks.admin"
             />
 
-            <StepPostCareOnly 
+            <StepPostCareOnly
               v-else-if="currentStep === 4"
               :postCareSteps="runSheetData.post_care"
               v-model:postChecks="checks.post"
             />
 
-            <StepDocumentation 
+            <StepDocumentation
               v-else-if="currentStep === 5"
               :documentationSteps="runSheetData.documentation"
               v-model:docChecks="checks.doc"
@@ -180,18 +186,21 @@
 
         <!-- Navigation Bar -->
         <div class="nav-bar">
-          <button 
-            class="btn btn-prev" 
+          <button
+            class="btn btn-prev"
             @click="navigate(-1)"
             :disabled="currentStep === 0"
             :style="{ opacity: currentStep === 0 ? '0.35' : '1' }"
           >
             ← PREVIOUS
           </button>
-          
-          <button 
+
+          <button
             class="btn btn-next"
-            :class="{'btn-finalize': currentStep === STEPS.length - 1, 'disabled-btn': !canGoNext}"
+            :class="{
+              'btn-finalize': currentStep === STEPS.length - 1,
+              'disabled-btn': !canGoNext,
+            }"
             :disabled="!canGoNext"
             @click="currentStep === STEPS.length - 1 ? finalize() : navigate(1)"
           >
@@ -253,12 +262,12 @@ const selectedSessionIndex = ref(
 
 const currentStep = ref(0)
 const STEPS = [
-  { label: "Safety &\nPre-flight", short: "Pre-flight" },
-  { label: "Setup &\nMixing", short: "Setup" },
-  { label: "Bag\nPreparation", short: "Bag Prep" },
-  { label: "Admin &\nMonitoring", short: "Execution" },
-  { label: "Post-Care\nSequence", short: "Post-Care" },
-  { label: "Required\nDocumentation", short: "Docs" },
+  { label: 'Safety &\nPre-flight', short: 'Pre-flight' },
+  { label: 'Setup &\nMixing', short: 'Setup' },
+  { label: 'Bag\nPreparation', short: 'Bag Prep' },
+  { label: 'Admin &\nMonitoring', short: 'Execution' },
+  { label: 'Post-Care\nSequence', short: 'Post-Care' },
+  { label: 'Required\nDocumentation', short: 'Docs' },
 ]
 
 // Available Sessions
@@ -319,7 +328,7 @@ const canGoNext = computed(() => {
     const checkedDoc = Object.values(checks.doc).filter(Boolean).length
     return totalDoc === 0 || checkedDoc === totalDoc
   }
-  
+
   return true
 })
 
@@ -419,10 +428,6 @@ watch(
     }
   },
 )
-
-const printSheet = () => {
-  window.print()
-}
 </script>
 
 <style scoped lang="scss">
@@ -464,7 +469,9 @@ const printSheet = () => {
 }
 
 .main-card {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
 .logo-row {
@@ -613,7 +620,9 @@ const printSheet = () => {
 /* Transitions */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 .fade-enter-from {
   opacity: 0;
@@ -626,7 +635,9 @@ const printSheet = () => {
 
 /* Print optimization */
 @media print {
-  .no-print, .nav-bar, .step-indicator {
+  .no-print,
+  .nav-bar,
+  .step-indicator {
     display: none !important;
   }
   .run-sheet-content {

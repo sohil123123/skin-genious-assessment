@@ -301,6 +301,51 @@ Rules:
 - These are NOT the same as ingredient descriptions.
 
 ---------------------------------------------------
+PLAN OPTION STRICT STRUCTURE RULE (CRITICAL)
+---------------------------------------------------
+
+plan_option MUST NOT behave like a single-session option.
+
+plan_option MUST ALWAYS return a MULTI-SESSION PLAN using the following rules:
+
+1) plan_option.protocols MUST contain EXACTLY ONE object:
+   → a PLAN OBJECT (NOT a protocol)
+
+2) The PLAN OBJECT MUST follow:
+
+{
+  "plan_duration_weeks": integer,
+  "schedule_description": string,
+  "sessions": [ ... ]
+}
+
+3) sessions[] is MANDATORY and MUST:
+   - contain MULTIPLE session objects (minimum 6, typically 8-10+)
+   - each session MUST include:
+     - week_index
+     - phase_id
+     - session_goal_summary
+     - recommended_protocol (FULL protocol object)
+
+4) Each session MUST have its OWN protocol
+   → DO NOT reuse a single protocol
+   → DO NOT collapse into 1 protocol
+
+5) Each session MUST be generated using:
+   candidate_generation_loop.single_session
+   + constraints.evaluate()
+
+6) plan_option MUST NOT look like:
+   - single_session_option_1
+   - single_session_option_2
+   - budget_option
+
+7) If sessions[] is missing OR contains only 1 protocol:
+   → OUTPUT IS INVALID
+
+---------------------------------------------------
+
+---------------------------------------------------
 OUTPUT FORMAT
 ---------------------------------------------------
 

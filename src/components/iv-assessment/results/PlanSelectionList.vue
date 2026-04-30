@@ -111,6 +111,44 @@
             </div>
           </q-card-section>
 
+          <!-- UI Summary Plan Option -->
+          <q-card-section v-else-if="option.option_type === 'plan_option' && option.protocols?.[0]?.sessions" class="q-py-sm col-grow">
+            <div class="row q-col-gutter-x-md q-col-gutter-y-xs text-caption text-grey-7 q-mb-md">
+              <div class="col-auto flex items-center">
+                <q-icon name="calendar_month" size="16px" class="q-mr-xs text-grey-6" />
+                <span class="font-medium">{{ option.protocols[0].plan_duration_weeks }} Weeks</span>
+              </div>
+              <div class="col-auto flex items-center">
+                <q-icon name="event_repeat" size="16px" class="q-mr-xs text-grey-6" />
+                <span class="font-medium">{{ option.protocols[0].sessions.length }} Sessions</span>
+              </div>
+            </div>
+
+            <div class="q-mt-sm">
+              <div class="text-caption text-grey-7 q-mb-xs font-medium">Schedule Overview</div>
+              <div class="text-body2 text-grey-9 leading-snug">
+                {{ option.protocols[0].schedule_description }}
+              </div>
+            </div>
+
+            <div class="q-mt-md" v-if="getPlanPhases(option).length">
+              <div class="text-caption text-grey-7 q-mb-xs font-medium">Plan Phases</div>
+              <div class="flex q-gutter-xs">
+                <q-chip
+                  v-for="phase in getPlanPhases(option)"
+                  :key="phase"
+                  dense
+                  size="sm"
+                  color="teal-1"
+                  text-color="teal-9"
+                  class="q-px-sm font-medium"
+                >
+                  {{ phase }}
+                </q-chip>
+              </div>
+            </div>
+          </q-card-section>
+
           <!-- Constraint Status Footer -->
           <q-card-section
             class="q-py-sm text-caption"
@@ -198,6 +236,14 @@ const downloadReport = async () => {
 const formatOptionType = (type) => {
   if (!type) return ''
   return startCase(type.replace(/_/g, ' '))
+}
+
+const getPlanPhases = (option) => {
+  if (option.option_type === 'plan_option' && option.protocols?.[0]?.sessions) {
+    const phases = option.protocols[0].sessions.map(s => s.phase_id)
+    return [...new Set(phases)].map(p => startCase(p.replace(/_/g, ' ')))
+  }
+  return []
 }
 
 const getDisplayTitle = (option) => {

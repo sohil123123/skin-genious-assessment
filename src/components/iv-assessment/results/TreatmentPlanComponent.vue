@@ -82,7 +82,7 @@ const activeComponent = computed(() => {
   if (!details) return null
 
   // Check if it's a multi-session plan structure
-  if (details.option_type === 'plan_option' && details.sessions) {
+  if (details.option_type === 'plan_option' && (details.sessions || details.protocols?.[0]?.sessions)) {
     return MultiSessionPlan
   }
   // Fallback to SingleSessionPlan for all other cases (including plan_option if flattened)
