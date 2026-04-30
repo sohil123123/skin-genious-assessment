@@ -1,0 +1,18 @@
+{
+  "uv": {
+    "mean_luminance_0_1": 0.26,
+    "bright_pixel_fraction_gt_0_80": 0,
+    "mean_bright_luminance_gt_0_80": 0.86
+  },
+  "positive": {
+    "mean_a_channel_equivalent_0_1": 0.52,
+    "red_pixel_fraction_gt_threshold": 0.06
+  },
+  "white": {
+    "mean_local_variance_estimate_0_1": 0.18,
+    "dark_pixel_fraction_lt_0_20": 0.02
+  },
+  "blue": {
+    "laplacian_variance_estimate_0_1": 0.06
+  }
+}

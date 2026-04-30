@@ -1,51 +1,51 @@
 {
   "scores": {
     "OSS": {
-      "score_0_100": 18
+      "score_0_100": 25
     },
     "GMS": {
-      "score_0_100": 12
+      "score_0_100": 18
     },
     "MVI": {
       "score_0_100": 34
     },
     "BHS": {
-      "score_0_100": 9
+      "score_0_100": 17
     }
   },
   "scores_public": {
-    "OSS": 18,
-    "GMS": 12,
+    "OSS": 25,
+    "GMS": 18,
     "MVI": 34,
-    "BHS": 9
+    "BHS": 17
   },
   "optional_primitives": {
-    "uv_haze_index_0_1": 0.117,
+    "uv_haze_index_0_1": 0.183,
     "uv_fluorescence_load_0_1": 0.3,
     "uv_fluorescence_coverage_0_1": 0,
     "redness_level_0_1": 0.52,
     "redness_coverage_0_1": 0.06,
     "barrier_instability_0_1": 0.18,
-    "dry_sink_fraction_0_1": 0.01,
+    "dry_sink_fraction_0_1": 0.02,
     "texture_roughness_0_1": 0.06
   },
   "telemetry_upstream_optional": null,
   "backend_evidence_for_downstream_IV_engine": {
     "optional_primitives": {
-      "uv_haze_index_0_1": 0.117,
+      "uv_haze_index_0_1": 0.183,
       "uv_fluorescence_load_0_1": 0.3,
       "uv_fluorescence_coverage_0_1": 0,
       "redness_level_0_1": 0.52,
       "redness_coverage_0_1": 0.06,
       "barrier_instability_0_1": 0.18,
-      "dry_sink_fraction_0_1": 0.01,
+      "dry_sink_fraction_0_1": 0.02,
       "texture_roughness_0_1": 0.06
     },
     "subscores_passthrough": {
-      "oxidative_haze_proxy_0_1": 0.117,
+      "oxidative_haze_proxy_0_1": 0.183,
       "porphyrin_proxy_0_1": 0.135,
       "inflammation_proxy_0_1": 0.336,
-      "barrier_proxy_0_1": 0.104
+      "barrier_proxy_0_1": 0.108
     }
   },
   "confidence_0_1": 0.9
