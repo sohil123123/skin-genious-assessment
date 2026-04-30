@@ -252,6 +252,8 @@ const store = useIVAssessmentStore()
 const { formData } = storeToRefs(store)
 const { runResponse } = useOpenAI()
 
+const emit = defineEmits(['save_data', 'finalize_session'])
+
 // State
 const loading = ref(false)
 const error = ref(null)
@@ -341,8 +343,7 @@ const navigate = (dir) => {
 }
 
 const finalize = () => {
-  // Logic to save run sheet progress or exit
-  alert('Session Finalized! (Integration point for saving data)')
+  emit('finalize_session', selectedSessionIndex.value)
 }
 
 // Generation Logic
@@ -369,7 +370,7 @@ const initiateRunSheetGeneration = async () => {
     const messages = buildRunSheetPrompt(protocol, patientContext)
 
     // Get Conversation ID from store
-    const conversationId = formData.value.conversation_id || 'new-convo-' + Date.now()
+    const conversationId = formData.value.conversation_id || null
 
     // Call AI
     const result = await runResponse(conversationId, messages, 0.2)

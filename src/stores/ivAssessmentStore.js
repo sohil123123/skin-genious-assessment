@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { Loading, Notify } from 'quasar'
 import { api } from 'src/boot/axios'
-import { serialize } from 'object-to-formdata'
 import { useCommonStore } from './commonStore'
 
 // let user_id = LocalStorage.getItem('user_id') ? LocalStorage.getItem('user_id') : null
@@ -502,15 +501,6 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
     async updateAssessment(payload) {
       if (!this.formData.id) return
       payload.user_id = this.formData.user_id
-      payload._method = 'PUT'
-      const config = {
-        indices: true,
-        nullAsUndefined: false,
-        nullsAsUndefineds: false,
-        noFilesWithArrayNotation: true,
-        emptyArraysAsNull: false,
-        allowEmptyArrays: true,
-      }
 
       Object.keys(payload).forEach((key) => {
         if (Array.isArray(payload[key]) && payload[key].length === 0) {
@@ -518,12 +508,10 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
         }
       })
 
-      const formData = serialize(payload, config)
-
       await api
-        .post(`assessments/${this.formData.id}`, formData, {
+        .put(`assessments/${this.formData.id}`, payload, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            'Content-Type': 'application/json',
           },
         })
         .then(async (response) => {
@@ -582,6 +570,11 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
           this.formData.iv_inputs.section_3_dermatological_ai_inputs.barrier_hydration_stress_score_bhs =
             data.parameters_with_abnormal_scores?.scores?.BHS?.score_0_100
         }
+      }
+
+      // Restore treatment_session_id from persisted data (survives page refresh)
+      if (data.treatment_sessions?.treatments?.[0]?.id) {
+        this.treatment_session_id = data.treatment_sessions.treatments[0].id
       }
     },
     async storeFaceImages(file, assessment_type) {

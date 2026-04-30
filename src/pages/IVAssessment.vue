@@ -155,6 +155,8 @@
           <NurseRunSheet
             v-if="currentStep === 'step-5'"
             :treatmentSessions="formData.treatment_sessions"
+            @save_data="debouncedSubmit"
+            @finalize_session="handleFinalizeSession"
           />
         </div>
       </div>
@@ -393,6 +395,65 @@ async function finalizeAndExit() {
   })
 }
 
+async function handleFinalizeSession() {
+  const treatmentSessionId = store.treatment_session_id
+
+  $q.dialog({
+    title: 'Finalize Session',
+    message: 'Mark this session as completed and proceed to the completion screen?',
+    persistent: true,
+    ok: {
+      label: 'Yes, Complete Session',
+      color: 'positive',
+      icon: 'check_circle',
+      unelevated: true,
+    },
+    cancel: {
+      label: 'Cancel',
+      color: 'negative',
+      flat: true,
+      icon: 'close',
+    },
+  }).onOk(async () => {
+    Loading.show({ message: 'Finalizing session...' })
+
+    try {
+      // Mark treatment_session as completed in DB
+      if (treatmentSessionId) {
+        await store.updateTreatmentSessionStatus(treatmentSessionId, 'completed')
+      }
+
+      // Mark assessment as completed
+      formData.value.status = 'completed'
+      await submit(['status'])
+
+      // Update appointment status if available
+      if (route.params.appointment_id) {
+        await store.updateStatus(route.params.appointment_id)
+      }
+
+      // Navigate to IV Treatment Complete page
+      router.push({
+        name: 'IVTreatmentComplete',
+        params: {
+          user_id: route.params.user_id,
+          assessment_id: formData.value.id,
+          session_id: treatmentSessionId || 0,
+          ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+        },
+      })
+    } catch (e) {
+      console.error('Failed to finalize session:', e)
+      Notify.create({
+        type: 'negative',
+        message: 'Failed to finalize session. Please try again.',
+      })
+    } finally {
+      Loading.hide()
+    }
+  })
+}
+
 async function selectMode(mode) {
   formData.value.assessment_type = mode
   await submit(['assessment_type'])
@@ -611,6 +672,7 @@ async function startSpecificSession(index) {
   formData.value.treatment_sessions = {
     treatments: [sessionProtocol],
     iv_session_data: ivSessionData,
+    option_type: selected.option_type,
   }
   await submit(['treatment_sessions'])
 
