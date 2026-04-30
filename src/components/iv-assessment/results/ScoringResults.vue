@@ -6,8 +6,99 @@
     </div>
 
     <div class="row q-col-gutter-lg justify-center">
+      <!-- Left Column: Patient Profile, Vitals, Skin AI -->
+      <div class="col-12 col-md-5 column q-gutter-y-md">
+        <!-- Patient Info -->
+        <q-card flat bordered class="rounded-xl shadow-sm overflow-hidden" v-if="intake.demographics">
+          <q-card-section class="bg-grey-1 py-4">
+            <div class="text-subtitle1 text-weight-bold flex items-center">
+              <q-icon name="person" size="20px" class="q-mr-sm text-primary" />
+              Patient Profile & Goals
+            </div>
+          </q-card-section>
+          <q-list separator class="q-pa-sm">
+            <q-item>
+              <q-item-section>
+                <q-item-label caption>Demographics</q-item-label>
+                <q-item-label class="text-body2 text-weight-medium">{{ intake.demographics?.age_years }} yrs, {{ intake.demographics?.sex }}</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item v-if="intake.goals_and_intent">
+              <q-item-section>
+                <q-item-label caption>Primary Goal</q-item-label>
+                <q-item-label class="text-body2 text-weight-medium">{{ intake.goals_and_intent?.primary_goal || 'N/A' }}</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item v-if="intake.goals_and_intent?.secondary_goal_optional">
+              <q-item-section>
+                <q-item-label caption>Secondary Goal</q-item-label>
+                <q-item-label class="text-body2 text-weight-medium">{{ intake.goals_and_intent?.secondary_goal_optional }}</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item v-if="intake.goals_and_intent?.desired_intensity_preference">
+              <q-item-section>
+                <q-item-label caption>Intensity Preference</q-item-label>
+                <q-item-label class="text-body2 text-weight-medium">{{ intake.goals_and_intent?.desired_intensity_preference }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card>
+
+        <!-- Vitals & Machines -->
+        <q-card flat bordered class="rounded-xl shadow-sm overflow-hidden" v-if="machines.vitals">
+          <q-card-section class="bg-grey-1 py-4">
+            <div class="text-subtitle1 text-weight-bold flex items-center">
+              <q-icon name="monitor_heart" size="20px" class="q-mr-sm text-primary" />
+              Vitals & Body Composition
+            </div>
+          </q-card-section>
+          <q-card-section class="row q-col-gutter-md">
+            <div class="col-6">
+              <div class="text-caption text-grey-7">Blood Pressure</div>
+              <div class="text-body2 text-weight-medium">{{ machines.vitals?.systolic_bp_mmHg }}/{{ machines.vitals?.diastolic_bp_mmHg }} mmHg</div>
+            </div>
+            <div class="col-6">
+              <div class="text-caption text-grey-7">Heart Rate</div>
+              <div class="text-body2 text-weight-medium">{{ machines.vitals?.heart_rate_bpm }} bpm</div>
+            </div>
+            <div class="col-6" v-if="machines.vitals?.spo2_percent">
+              <div class="text-caption text-grey-7">SpO2</div>
+              <div class="text-body2 text-weight-medium">{{ machines.vitals?.spo2_percent }}%</div>
+            </div>
+            <div class="col-6" v-if="machines.vitals?.systemic_temperature_c_optional">
+              <div class="text-caption text-grey-7">Temperature</div>
+              <div class="text-body2 text-weight-medium">{{ machines.vitals?.systemic_temperature_c_optional }}°C</div>
+            </div>
+            <div class="col-6" v-if="machines.body_composition?.bmi_optional">
+              <div class="text-caption text-grey-7">BMI</div>
+              <div class="text-body2 text-weight-medium">{{ machines.body_composition?.bmi_optional }}</div>
+            </div>
+            <div class="col-6" v-if="machines.body_composition?.tbw_percent">
+              <div class="text-caption text-grey-7">Total Body Water</div>
+              <div class="text-body2 text-weight-medium">{{ machines.body_composition?.tbw_percent }}%</div>
+            </div>
+          </q-card-section>
+        </q-card>
+
+        <!-- Skin AI Summary -->
+        <q-card flat bordered class="rounded-xl shadow-sm overflow-hidden" v-if="skinAi.scores_public">
+          <q-card-section class="bg-grey-1 py-4">
+            <div class="text-subtitle1 text-weight-bold flex items-center">
+              <q-icon name="face" size="20px" class="q-mr-sm text-primary" />
+              Skin AI Signals
+            </div>
+          </q-card-section>
+          <q-card-section class="row q-col-gutter-md">
+            <div class="col-6" v-for="(score, key) in skinAi.scores_public" :key="key">
+              <div class="text-caption text-grey-7">{{ key }}</div>
+              <div class="text-body2 text-weight-medium">{{ score }}</div>
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+
       <!-- IV 8-Axes Scoring -->
-      <div class="col-12 col-md-8">
+      <div class="col-12 col-md-7">
         <q-card flat bordered class="rounded-xl shadow-sm overflow-hidden">
           <q-card-section class="bg-grey-1 py-4">
             <div class="text-subtitle1 text-weight-bold">Clinical Vitality Profiling (8 Axes)</div>
@@ -24,18 +115,18 @@
                   <span class="text-weight-medium text-capitalize">{{
                     axisNames[axis] || axis
                   }}</span>
-                  <!-- <span
-                    v-if="drivers[axis]"
-                    class="text-caption text-grey-6"
+                  <span
+                    v-if="whatItMeans[axis]"
+                    class="text-caption text-grey-7"
                     style="
-                      font-size: 0.75rem;
-                      line-height: 1.1em;
-                      max-width: 400px;
-                      margin-top: 2px;
+                      font-size: 0.8rem;
+                      line-height: 1.2em;
+                      max-width: 450px;
+                      margin-top: 4px;
                     "
                   >
-                    {{ drivers[axis] }}
-                  </span> -->
+                    {{ whatItMeans[axis] }}
+                  </span>
                 </div>
                 <span class="text-weight-bold" :class="getScoreColor(score)">{{ score }}%</span>
               </div>
@@ -50,7 +141,7 @@
             </div>
           </q-card-section>
 
-          <q-card-actions align="center" class="q-pa-md">
+          <q-card-actions align="center" class="q-pa-md q-gutter-md">
             <q-btn
               v-if="mode !== 'instant-iv'"
               color="purple"
@@ -112,6 +203,11 @@ const processedScores = computed(() => {
   }
   return []
 })
+
+const intake = computed(() => props.ivScores?.session_intake_raw || {})
+const machines = computed(() => props.ivScores?.session_machines_raw || {})
+const skinAi = computed(() => props.ivScores?.skin_ai_raw || {})
+const whatItMeans = computed(() => props.ivScores?.iv_scoring_output?.what_it_means || {})
 
 const axisNames = {
   FENS: 'Fluid & Electrolyte Need',
