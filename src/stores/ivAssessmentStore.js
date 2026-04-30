@@ -682,5 +682,16 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
           })
         })
     },
+    async updateTreatmentSessionStatus(treatment_session_id, status) {
+      try {
+        await api.post(`/treatment-sessions/status/${treatment_session_id}`, {
+          status: status,
+        })
+        return true
+      } catch (e) {
+        console.log(e)
+        return false
+      }
+    },
   },
 })

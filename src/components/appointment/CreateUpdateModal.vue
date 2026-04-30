@@ -253,6 +253,21 @@ watch(
   () => appointmentData.value.start_datetime,
   () => {
     autoSetConsultEndTime()
+    autoSetTreatmentEndTime()
+  },
+)
+
+watch(
+  () => appointmentData.value.treatment_session_id,
+  () => {
+    autoSetTreatmentEndTime()
+  },
+)
+
+watch(
+  () => treatmentSessionsOptions.value,
+  () => {
+    autoSetTreatmentEndTime()
   },
 )
 
@@ -266,6 +281,39 @@ function autoSetConsultEndTime() {
   if (isNaN(start.getTime())) return
 
   const end = new Date(start.getTime() + CONSULT_DURATION_MINUTES * 60000)
+
+  const pad = (n) => String(n).padStart(2, '0')
+
+  appointmentData.value.end_datetime =
+    `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())} ` +
+    `${pad(end.getHours())}:${pad(end.getMinutes())}`
+
+  // 🔥 force End DatePicker refresh
+  endPickerKey.value++
+}
+
+function autoSetTreatmentEndTime() {
+  if (
+    appointmentData.value.type !== 'treatment' ||
+    !appointmentData.value.start_datetime ||
+    !appointmentData.value.treatment_session_id
+  ) {
+    return
+  }
+
+  const selectedSession = treatmentSessionsOptions.value.find(
+    (s) => s.value === appointmentData.value.treatment_session_id,
+  )
+
+  if (!selectedSession || !selectedSession.treatment_time) return
+
+  const duration = parseInt(selectedSession.treatment_time)
+  if (isNaN(duration)) return
+
+  const start = new Date(appointmentData.value.start_datetime.replace(' ', 'T'))
+  if (isNaN(start.getTime())) return
+
+  const end = new Date(start.getTime() + duration * 60000)
 
   const pad = (n) => String(n).padStart(2, '0')
 
