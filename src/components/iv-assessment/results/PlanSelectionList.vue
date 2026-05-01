@@ -112,7 +112,10 @@
           </q-card-section>
 
           <!-- UI Summary Plan Option -->
-          <q-card-section v-else-if="option.option_type === 'plan_option' && option.protocols?.[0]?.sessions" class="q-py-sm col-grow">
+          <q-card-section
+            v-else-if="option.option_type === 'plan_option' && option.protocols?.[0]?.sessions"
+            class="q-py-sm col-grow"
+          >
             <div class="row q-col-gutter-x-md q-col-gutter-y-xs text-caption text-grey-7 q-mb-md">
               <div class="col-auto flex items-center">
                 <q-icon name="calendar_month" size="16px" class="q-mr-xs text-grey-6" />
@@ -212,7 +215,7 @@ const downloadReport = async () => {
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `${formData.value.name}_IV_Treatment_Plan_Report.pdf`)
+    link.setAttribute('download', `${formData.value.name}_IV_Recommendation_Report.pdf`)
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -240,8 +243,8 @@ const formatOptionType = (type) => {
 
 const getPlanPhases = (option) => {
   if (option.option_type === 'plan_option' && option.protocols?.[0]?.sessions) {
-    const phases = option.protocols[0].sessions.map(s => s.phase_id)
-    return [...new Set(phases)].map(p => startCase(p.replace(/_/g, ' ')))
+    const phases = option.protocols[0].sessions.map((s) => s.phase_id)
+    return [...new Set(phases)].map((p) => startCase(p.replace(/_/g, ' ')))
   }
   return []
 }

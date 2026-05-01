@@ -91,7 +91,10 @@
         </div>
 
         <!-- Clinical Rationale -->
-        <q-card v-if="planDetails.client_facing_explanation" class="shadow-sm rounded-borders border-grey q-mt-md">
+        <q-card
+          v-if="planDetails.client_facing_explanation"
+          class="shadow-sm rounded-borders border-grey q-mt-md"
+        >
           <q-card-section class="q-py-sm bg-grey-1 border-b-grey">
             <div class="flex items-center">
               <q-icon name="psychology" size="20px" class="q-mr-sm text-primary" />
@@ -102,17 +105,26 @@
             <div class="text-body2 text-grey-9 q-mb-sm">
               {{ planDetails.client_facing_explanation.why_today }}
             </div>
-            <div class="text-caption text-grey-8 q-mb-md" v-if="planDetails.dominant_axis_explainability">
-              <span class="text-weight-bold">Primary Target:</span> Axis {{ planDetails.dominant_axis_explainability.dominant_axis }} (Driven by {{ planDetails.dominant_axis_explainability.dominant_axis_driver_sentence }})
+            <div
+              class="text-caption text-grey-8 q-mb-md"
+              v-if="planDetails.dominant_axis_explainability"
+            >
+              <span class="text-weight-bold">Primary Target:</span> Axis
+              {{ planDetails.dominant_axis_explainability.dominant_axis }} (Driven by
+              {{ planDetails.dominant_axis_explainability.dominant_axis_driver_sentence }})
             </div>
-            
+
             <div v-if="planDetails.client_facing_explanation.who_should_not_take_today?.length">
-               <div class="text-weight-bold text-negative q-mb-xs">Contraindications for Today</div>
-               <ul class="q-pl-md q-mt-none q-mb-none text-body2 text-grey-9">
-                 <li v-for="(item, i) in planDetails.client_facing_explanation.who_should_not_take_today" :key="i">
-                   {{ item }}
-                 </li>
-               </ul>
+              <div class="text-weight-bold text-negative q-mb-xs">Contraindications for Today</div>
+              <ul class="q-pl-md q-mt-none q-mb-none text-body2 text-grey-9">
+                <li
+                  v-for="(item, i) in planDetails.client_facing_explanation
+                    .who_should_not_take_today"
+                  :key="i"
+                >
+                  {{ item }}
+                </li>
+              </ul>
             </div>
           </q-card-section>
         </q-card>
@@ -161,11 +173,17 @@
                 </div>
               </div>
               <div class="row items-center q-mt-sm" v-if="protocol.ui_summary">
-                <div class="flex items-center text-caption text-grey-9 q-mr-md" v-if="protocol.ui_summary.estimated_total_duration_minutes">
+                <div
+                  class="flex items-center text-caption text-grey-9 q-mr-md"
+                  v-if="protocol.ui_summary.estimated_total_duration_minutes"
+                >
                   <q-icon name="schedule" size="14px" class="q-mr-xs text-primary" />
                   Est. Duration: ~{{ protocol.ui_summary.estimated_total_duration_minutes }} mins
                 </div>
-                <div class="flex items-center text-caption text-grey-9" v-if="protocol.ui_summary.display_benefits_string">
+                <div
+                  class="flex items-center text-caption text-grey-9"
+                  v-if="protocol.ui_summary.display_benefits_string"
+                >
                   <q-icon name="auto_awesome" size="14px" class="q-mr-xs text-primary" />
                   Benefits: {{ protocol.ui_summary.display_benefits_string }}
                 </div>
@@ -229,8 +247,13 @@
                   </q-list>
 
                   <!-- Admin Notes -->
-                  <div v-if="bag.admin_notes_optional?.length" class="q-mt-sm bg-blue-1 q-pa-sm rounded-borders">
-                    <div class="text-caption text-weight-bold text-primary q-mb-xs flex items-center">
+                  <div
+                    v-if="bag.admin_notes_optional?.length"
+                    class="q-mt-sm bg-blue-1 q-pa-sm rounded-borders"
+                  >
+                    <div
+                      class="text-caption text-weight-bold text-primary q-mb-xs flex items-center"
+                    >
                       <q-icon name="info" size="14px" class="q-mr-xs" /> Admin Notes
                     </div>
                     <ul class="q-pl-md q-mt-none q-mb-none text-caption text-grey-9">
@@ -246,21 +269,32 @@
         </div>
 
         <!-- Expected Outcomes -->
-        <q-card v-if="planDetails.outcome_intent_structured" class="shadow-sm rounded-borders border-grey q-mt-md">
+        <q-card
+          v-if="planDetails.outcome_intent_structured"
+          class="shadow-sm rounded-borders border-grey q-mt-md"
+        >
           <q-card-section class="q-py-sm bg-grey-1 border-b-grey">
             <div class="flex items-center">
               <q-icon name="auto_graph" size="20px" class="q-mr-sm text-primary" />
-              <div class="text-subtitle2 text-weight-bold">Expected Outcomes & Client Experience</div>
+              <div class="text-subtitle2 text-weight-bold">
+                Expected Outcomes & Client Experience
+              </div>
             </div>
           </q-card-section>
           <q-card-section class="q-pa-md row q-col-gutter-md">
             <!-- Same Day -->
             <div class="col-12 col-sm-6">
               <div class="text-weight-bold q-mb-xs text-primary">Same Day</div>
-              <div v-if="planDetails.outcome_intent_structured.same_day_goals?.length" class="q-mb-sm">
+              <div
+                v-if="planDetails.outcome_intent_structured.same_day_goals?.length"
+                class="q-mb-sm"
+              >
                 <div class="text-caption text-weight-bold text-grey-8">Goals</div>
                 <ul class="q-pl-md q-mt-none q-mb-none text-body2 text-grey-9">
-                  <li v-for="(item, i) in planDetails.outcome_intent_structured.same_day_goals" :key="i">
+                  <li
+                    v-for="(item, i) in planDetails.outcome_intent_structured.same_day_goals"
+                    :key="i"
+                  >
                     {{ item }}
                   </li>
                 </ul>
@@ -268,28 +302,46 @@
               <div v-if="planDetails.client_facing_explanation?.what_you_may_feel_today?.length">
                 <div class="text-caption text-weight-bold text-grey-8">What You May Feel</div>
                 <ul class="q-pl-md q-mt-none q-mb-none text-body2 text-grey-9">
-                  <li v-for="(item, i) in planDetails.client_facing_explanation.what_you_may_feel_today" :key="i">
+                  <li
+                    v-for="(item, i) in planDetails.client_facing_explanation
+                      .what_you_may_feel_today"
+                    :key="i"
+                  >
                     {{ item }}
                   </li>
                 </ul>
               </div>
             </div>
-            
+
             <!-- Days 7-14 -->
             <div class="col-12 col-sm-6">
               <div class="text-weight-bold q-mb-xs text-primary">Days 7-14</div>
-              <div v-if="planDetails.outcome_intent_structured.days_7_14_goals?.length" class="q-mb-sm">
+              <div
+                v-if="planDetails.outcome_intent_structured.days_7_14_goals?.length"
+                class="q-mb-sm"
+              >
                 <div class="text-caption text-weight-bold text-grey-8">Goals</div>
                 <ul class="q-pl-md q-mt-none q-mb-none text-body2 text-grey-9">
-                  <li v-for="(item, i) in planDetails.outcome_intent_structured.days_7_14_goals" :key="i">
+                  <li
+                    v-for="(item, i) in planDetails.outcome_intent_structured.days_7_14_goals"
+                    :key="i"
+                  >
                     {{ item }}
                   </li>
                 </ul>
               </div>
-              <div v-if="planDetails.client_facing_explanation?.what_you_may_see_over_7_14_days?.length">
+              <div
+                v-if="
+                  planDetails.client_facing_explanation?.what_you_may_see_over_7_14_days?.length
+                "
+              >
                 <div class="text-caption text-weight-bold text-grey-8">What You May See</div>
                 <ul class="q-pl-md q-mt-none q-mb-none text-body2 text-grey-9">
-                  <li v-for="(item, i) in planDetails.client_facing_explanation.what_you_may_see_over_7_14_days" :key="i">
+                  <li
+                    v-for="(item, i) in planDetails.client_facing_explanation
+                      .what_you_may_see_over_7_14_days"
+                    :key="i"
+                  >
                     {{ item }}
                   </li>
                 </ul>
@@ -377,7 +429,7 @@ const downloadPDF = async () => {
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `${formData.value.name}_${props.planDetails.option_type}.pdf`)
+    link.setAttribute('download', `${formData.value.name}_IV_Program_Roadmap.pdf`)
     document.body.appendChild(link)
     link.click()
     link.remove()

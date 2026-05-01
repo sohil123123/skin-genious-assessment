@@ -23,11 +23,17 @@
         <div class="row items-center q-gutter-x-md text-body2 q-mt-md">
           <q-badge color="white" text-color="primary" class="q-py-xs q-px-sm text-weight-bold">
             <q-icon name="date_range" size="14px" class="q-mr-xs" />
-            {{ planDetails.protocols?.[0]?.plan_duration_weeks || planDetails.plan_duration_weeks }} Weeks
+            {{ planDetails.protocols?.[0]?.plan_duration_weeks || planDetails.plan_duration_weeks }}
+            Weeks
           </q-badge>
           <span class="text-blue-1 opacity-90 flex items-center">
             <q-icon name="schedule" size="16px" class="q-mr-xs" />
-            {{ formatSchedule(planDetails.protocols?.[0]?.schedule_description || planDetails.schedule_description) }}
+            {{
+              formatSchedule(
+                planDetails.protocols?.[0]?.schedule_description ||
+                  planDetails.schedule_description,
+              )
+            }}
           </span>
           <q-btn
             outline
@@ -161,7 +167,7 @@ import { Loading, Notify } from 'quasar'
 const store = useIVAssessmentStore()
 const { formData } = storeToRefs(store)
 
-const props = defineProps({
+defineProps({
   planDetails: {
     type: Object,
     required: true,
@@ -198,7 +204,7 @@ const downloadPDF = async () => {
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `${formData.value.name}_${props.planDetails.option_type}.pdf`)
+    link.setAttribute('download', `${formData.value.name}_IV_Program_Roadmap.pdf`)
     document.body.appendChild(link)
     link.click()
     link.remove()
