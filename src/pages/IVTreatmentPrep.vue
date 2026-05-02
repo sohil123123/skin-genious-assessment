@@ -110,6 +110,16 @@
                 />
               </div>
               <div class="form-group">
+                <label class="form-label">Perfusion Index (PI)</label>
+                <input
+                  class="form-input"
+                  type="number"
+                  step="0.1"
+                  v-model.number="form.perfusion_index"
+                  placeholder="e.g. 1.5"
+                />
+              </div>
+              <div class="form-group">
                 <label class="form-label">Temperature (°C)</label>
                 <input
                   class="form-input"
@@ -365,9 +375,9 @@
                   >Brain Fog ({{ form.brain_fog }})</span
                 >
                 <span
-                  :class="['subj-opt', form.dizziness === 'Yes' ? 'sel-warn' : '']"
-                  @click="form.dizziness = form.dizziness === 'Yes' ? 'No' : 'Yes'"
-                  >Dizziness ({{ form.dizziness }})</span
+                  :class="['subj-opt', form.dizziness_on_standing === 'Yes' ? 'sel-warn' : '']"
+                  @click="form.dizziness_on_standing = form.dizziness_on_standing === 'Yes' ? 'No' : 'Yes'"
+                  >Dizziness on Standing ({{ form.dizziness_on_standing }})</span
                 >
                 <span
                   :class="['subj-opt', form.muscle_cramps === 'Yes' ? 'sel-warn' : '']"
@@ -434,14 +444,21 @@
 
             <div class="form-grid" style="margin-bottom: 16px">
               <div class="form-group full">
-                <label class="form-label"
-                  >Since your last session, what improved? What didn't?</label
-                >
+                <label class="form-label">Since your last session, what improved?</label>
                 <textarea
                   class="form-input"
-                  v-model="form.improvement_feedback"
-                  rows="4"
-                  placeholder="Enter patient feedback here"
+                  v-model="form.what_improved"
+                  rows="3"
+                  placeholder="Enter positive feedback or 'None'"
+                ></textarea>
+              </div>
+              <div class="form-group full">
+                <label class="form-label">What didn't improve or felt worse?</label>
+                <textarea
+                  class="form-input"
+                  v-model="form.what_did_not_improve"
+                  rows="3"
+                  placeholder="Enter negative feedback or 'None'"
                 ></textarea>
               </div>
             </div>
@@ -526,6 +543,10 @@
                 <label class="form-label">Rested SpO2</label>
                 <input class="form-input" type="number" v-model.number="form.rested_spo2" />
               </div>
+              <div class="form-group">
+                <label class="form-label">Rested Perfusion Index</label>
+                <input class="form-input" type="number" step="0.1" v-model.number="form.rested_perfusion_index" />
+              </div>
             </div>
           </div>
 
@@ -598,6 +619,7 @@ const form = ref({
   bp_diastolic: null,
   hr: null,
   spo2: null,
+  perfusion_index: null,
   temperature: null,
   chest_pain: null,
   fainting: null,
@@ -618,11 +640,12 @@ const form = ref({
   headache_severity: 'None',
   nausea_severity: 'None',
   brain_fog: 'No',
-  dizziness: 'No',
+  dizziness_on_standing: 'No',
   muscle_cramps: 'No',
   palpitations: 'No',
   swelling: 'No',
-  improvement_feedback: '',
+  what_improved: '',
+  what_did_not_improve: '',
   skin_scan: false,
   body_comp: false,
   hrv: null,
@@ -631,6 +654,7 @@ const form = ref({
   rested_bp_diastolic: null,
   rested_hr: null,
   rested_spo2: null,
+  rested_perfusion_index: null,
 })
 
 const hasHardBlock = computed(() => {

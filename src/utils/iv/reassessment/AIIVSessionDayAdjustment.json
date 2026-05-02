@@ -1,0 +1,174 @@
+{
+  "engine": "AI_IV_SessionDayAdjustment",
+  "version": "1.1-launch_safe-feedback_and_change_detection_only",
+  "defined_by": "AI Aesthetics Clinical Team",
+
+  "purpose": "At each session of a multi-session IV plan from session 2 onwards, evaluate today's already-collected intake, machines, scoring, and constraints output together with newly collected between-session feedback to determine whether today's planned protocol should proceed unchanged, be minor-adjusted, be materially adjusted, be deferred, or be escalated to doctor review.",
+
+  "design_principles": {
+    "additive_only": "Does NOT modify existing scoring, constraints, or treatment generation engines. Adds one new engine call after constraints and before execution.",
+    "constraints_authority_preserved": "AI_IV_Constraints remains authoritative. If constraints returns blocked or doctor_approval_required, this engine surfaces that decision and never overrides it.",
+    "reuse_existing_protocol_shape": "Any patched protocol emitted must use the existing treatment_object_model.protocol shape already consumed by the run-sheet builder.",
+    "minimal_change_bias": "Default is no_change_recommended. Change only if today's state or between-session feedback creates a meaningful mismatch with the originally planned protocol."
+  },
+
+  "when_to_invoke": {
+    "fires_when_all_true": [
+      "feature_flag.enable_session_day_adjustment != disabled",
+      "current session is part of a previously generated plan_option",
+      "current session index within plan >= 2",
+      "a recommended_protocol exists for today",
+      "AI_IV_ClinicalScoring has completed for today's payload",
+      "AI_IV_Constraints has evaluated today's planned protocol against today's payload"
+    ],
+    "behavior_when_not_triggered": "Originally planned protocol flows unchanged."
+  },
+
+  "inputs_contract": {
+    "the_packet": {
+      "previously_planned_protocol_for_today": "plan_option.sessions[current_week_index].recommended_protocol",
+      "previously_planned_protocol_dominant_axis_at_generation": "plan_option.sessions[current_week_index].dominant_axis_explainability.dominant_axis",
+      "current_session_intake_raw": "session_intake_raw",
+      "current_session_machines_raw": "session_machines_raw",
+      "current_skin_ai_raw_optional": "skin_ai_raw",
+      "current_iv_scoring_output": "iv_scoring_output",
+      "current_constraints_evaluation": "constraints evaluation for the previously planned protocol against today's payload",
+      "session_day_adjustment_raw_optional": "session_intake_raw.session_day_adjustment_raw_optional"
+    },
+
+    "minimum_data_for_meaningful_decision": {
+      "required": [
+        "session_machines_raw.vitals.systolic_bp_mmHg",
+        "session_machines_raw.vitals.diastolic_bp_mmHg",
+        "session_machines_raw.vitals.heart_rate_bpm",
+        "session_machines_raw.vitals.spo2_percent",
+        "session_intake_raw.lifestyle_last_24h.sleep_hours_last_night",
+        "session_intake_raw.lifestyle_last_24h.alcohol_category_last_24h",
+        "session_intake_raw.symptoms.fatigue_severity",
+        "session_intake_raw.symptoms.headache_severity",
+        "session_intake_raw.symptoms.nausea_severity",
+        "session_intake_raw.symptoms.dizziness_on_standing_present",
+        "session_intake_raw.symptoms.palpitations_present",
+        "current_iv_scoring_output.scores_public_0_100"
+      ],
+      "if_required_missing": {
+        "decision": "no_change_recommended",
+        "confidence_0_1": 0.3,
+        "reason": "Insufficient same-day data to justify changing today's planned protocol."
+      }
+    }
+  },
+
+  "decision_categories": {
+    "no_change_recommended": {
+      "meaning": "Proceed with the originally planned protocol."
+    },
+    "minor_adjustment_recommended": {
+      "meaning": "Keep the same protocol direction but modify same-session delivery parameters.",
+      "modification_scope": [
+        "rate_profile",
+        "min_duration_minutes",
+        "dose_mg_optional of existing ingredients",
+        "bag_size_ml"
+      ]
+    },
+    "material_adjustment_recommended": {
+      "meaning": "Today's state or between-session feedback suggests the planned protocol direction itself is no longer the best fit.",
+      "modification_scope": [
+        "hero_ingredients",
+        "supportive ingredients",
+        "carrier",
+        "bag_size_ml",
+        "rate_profile",
+        "dose_mg_optional"
+      ]
+    },
+    "defer_session_recommended": {
+      "meaning": "Do not proceed with IV today; reschedule."
+    },
+    "escalate_to_doctor_recommended": {
+      "meaning": "Do not proceed without doctor review."
+    }
+  },
+
+  "decision_rules_in_priority_order": {
+    "rule_1_constraints_block_or_doctor": {
+      "if": "current_constraints_evaluation.status == 'blocked' OR current_constraints_evaluation.status == 'doctor_approval_required' OR current_constraints_evaluation.actions contains 'hard_block' OR current_constraints_evaluation.actions contains 'doctor_approval_required'",
+      "then": "decision = escalate_to_doctor_recommended"
+    },
+
+    "rule_2_new_medication_or_new_allergy": {
+      "if": "session_day_adjustment_raw_optional.change_detection.new_medications_since_last_session_present == true OR session_day_adjustment_raw_optional.change_detection.new_allergies_or_reactions_since_last_session_present == true",
+      "then": "decision = escalate_to_doctor_recommended"
+    },
+
+    "rule_3_major_change_since_last_visit": {
+      "if": "session_day_adjustment_raw_optional.change_detection.anything_changed_since_last_visit_text suggests hospitalization, ER visit, acute illness, pregnancy, new diagnosis, new procedure, or clinically important medical change",
+      "then": "decision = escalate_to_doctor_recommended"
+    },
+
+    "rule_4_acute_symptom_concern_below_hard_block": {
+      "if": "session_intake_raw.symptoms.headache_severity in ['moderate','severe'] AND session_intake_raw.symptoms.nausea_severity in ['moderate','severe'] AND session_intake_raw.symptoms.dizziness_on_standing_present == true",
+      "then": "decision = defer_session_recommended"
+    },
+
+    "rule_5_borderline_illness_cluster": {
+      "if": "session_machines_raw.vitals.systemic_temperature_c_optional is not null AND session_machines_raw.vitals.systemic_temperature_c_optional >= 37.0 AND session_machines_raw.vitals.systemic_temperature_c_optional < 37.5 AND session_intake_raw.symptoms.fatigue_severity in ['moderate','severe'] AND session_day_adjustment_raw_optional.change_detection.anything_changed_since_last_visit_text suggests infection or illness",
+      "then": "decision = defer_session_recommended"
+    },
+
+    "rule_6_low_tolerance_for_planned_stimulatory_protocol": {
+      "if": "previously_planned_protocol_for_today contains NAD+ OR previously_planned_protocol_for_today contains a stimulatory hero such as 'B-Complex (B1/B2/B3/B5/B6)' OR 'Thiamine (B1) – High Dose (optional)' OR 'L-Carnitine', AND session_intake_raw.lifestyle_last_24h.sleep_hours_last_night < 5 AND session_intake_raw.lifestyle_last_24h.alcohol_category_last_24h in ['3-5','>5']",
+      "then": "decision = material_adjustment_recommended"
+    },
+
+    "rule_7_ans_stress_or_perfusion_mismatch": {
+      "if": "session_intake_raw.symptoms.palpitations_present == true OR session_intake_raw.lifestyle_last_24h.perceived_stress_level_optional == 'High' OR current_iv_scoring_output.scores_public_0_100.ASLS > 70 OR current_iv_scoring_output.scores_public_0_100.PCCS > 60 OR session_machines_raw.perfusion_index.pi is not null AND session_machines_raw.perfusion_index.pi < 1.0",
+      "then": "if planned protocol is clearly stimulatory then material_adjustment_recommended else minor_adjustment_recommended"
+    },
+
+    "rule_8_feedback_says_expected_change_not_happening": {
+      "if": "session_day_adjustment_raw_optional.previous_session_feedback_optional.what_did_not_improve_since_last_session_text_optional is not null AND session_day_adjustment_raw_optional.previous_session_feedback_optional.what_did_not_improve_since_last_session_text_optional indicates poor fit with the same planned direction",
+      "then": "decision = material_adjustment_recommended"
+    },
+
+    "rule_9_feedback_positive_and_state_aligned": {
+      "if": "session_day_adjustment_raw_optional.previous_session_feedback_optional.what_improved_since_last_session_text_optional is not null AND no higher-priority rule matched",
+      "then": "decision = no_change_recommended"
+    },
+
+    "rule_10_default": {
+      "if": "no prior rule matched",
+      "then": "decision = no_change_recommended"
+    }
+  },
+
+  "patched_protocol_construction_rules": {
+    "rules": [
+      "Use only canonical ingredient names allowed by AI_IV_Constraints",
+      "Respect hero count limits already defined in AI_IV_TreatmentGeneration",
+      "Respect NAD+ standalone, carrier, and rate restrictions if NAD+ remains in the protocol",
+      "Minor adjustment should prefer slower rate, longer duration, smaller bag, or lower dose before changing ingredient identity",
+      "Material adjustment may change heroes/supportives only if same-day fit is meaningfully better",
+      "Any patched protocol must remain valid under AI_IV_Constraints and preserve existing treatment_object_model.protocol shape exactly"
+    ]
+  },
+
+  "output_contract": {
+    "iv_session_day_adjustment_output": {
+      "decision": "no_change_recommended | minor_adjustment_recommended | material_adjustment_recommended | defer_session_recommended | escalate_to_doctor_recommended",
+      "confidence_0_1": "float",
+      "reason": "string",
+      "rule_triggered": "string",
+      "constraints_replay_status": "allowed | allowed_with_cautions | doctor_approval_required | blocked",
+      "patched_protocol_optional": "protocol_object_or_null",
+      "comparison_to_original": {
+        "what_changed": ["string"],
+        "what_stayed_same": ["string"],
+        "incremental_benefit_expected": "string"
+      },
+      "therapist_facing_summary": "string",
+      "patient_facing_summary_optional": "string_or_null"
+    }
+  }
+}

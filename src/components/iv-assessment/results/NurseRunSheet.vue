@@ -429,6 +429,16 @@ watch(
     }
   },
 )
+
+watch(
+  () => props.treatmentSessions?.iv_session_data?.active_session_index,
+  (newIdx) => {
+    if (newIdx !== undefined) {
+      selectedSessionIndex.value = newIdx
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped lang="scss">
