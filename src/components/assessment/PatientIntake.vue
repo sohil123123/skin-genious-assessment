@@ -30,13 +30,13 @@
             <div class="flex q-gutter-xs q-ml-sm">
               <q-radio
                 v-model="assessmentData.gender"
-                val="Male"
+                val="male"
                 label="Male"
                 class="custom-radio"
               />
               <q-radio
                 v-model="assessmentData.gender"
-                val="Female"
+                val="female"
                 label="Female"
                 class="custom-radio"
               />

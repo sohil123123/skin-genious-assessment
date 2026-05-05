@@ -467,20 +467,17 @@
       "clinical_question": "How much does the patient likely benefit from volume/electrolyte support today?",
 
       "sub_indices_0_1": {
-        "dehydration_need": "clip01(0.52*dehydration_from_tbw + 0.23*orthostatic_symptoms + 0.18*cramp_signal + 0.07*constipation_weight)",
-        "electrolyte_need": "clip01(0.55*cramp_signal + 0.25*post_alcohol + 0.20*high_caffeine)",
-
-        "overload_risk_signal": "clip01(0.70*bool01(scoring_inputs_view.symptoms_scoring.swelling_or_puffiness) + 0.30*bool01(scoring_inputs_view.symptoms_scoring.shortness_of_breath))"
-      },
-
-      "component_primitives_0_1": {
         "dehydration_from_tbw": "if_not_null(scoring_inputs_view.machines_scoring.body_composition.tbw_percent) ? (scoring_inputs_view.demographics.sex=='male' ? pwlin(scoring_inputs_view.machines_scoring.body_composition.tbw_percent, calibration_anchors.dehydration.tbw_percent_male_x0, calibration_anchors.dehydration.tbw_percent_male_x1) : pwlin(scoring_inputs_view.machines_scoring.body_composition.tbw_percent, calibration_anchors.dehydration.tbw_percent_female_x0, calibration_anchors.dehydration.tbw_percent_female_x1)) : null",
-
         "orthostatic_symptoms": "bool01(scoring_inputs_view.symptoms_scoring.dizziness_on_standing)",
         "cramp_signal": "bool01(scoring_inputs_view.symptoms_scoring.muscle_cramps)",
         "post_alcohol": "derived_evidence.alcohol_norm_0_1",
         "high_caffeine": "derived_evidence.caffeine_norm_0_1",
-        "constipation_weight": "scoring_inputs_view.symptoms_scoring.constipation_weight_0_1"
+        "constipation_weight": "scoring_inputs_view.symptoms_scoring.constipation_weight_0_1",
+
+        "dehydration_need": "clip01(0.52*safe_num(sub_indices_0_1.dehydration_from_tbw, 0.40) + 0.23*sub_indices_0_1.orthostatic_symptoms + 0.18*sub_indices_0_1.cramp_signal + 0.07*sub_indices_0_1.constipation_weight)",
+        "electrolyte_need": "clip01(0.55*sub_indices_0_1.cramp_signal + 0.25*sub_indices_0_1.post_alcohol + 0.20*sub_indices_0_1.high_caffeine)",
+
+        "overload_risk_signal": "clip01(0.70*bool01(scoring_inputs_view.symptoms_scoring.swelling_or_puffiness) + 0.30*bool01(scoring_inputs_view.symptoms_scoring.shortness_of_breath))"
       },
 
       "score_0_1": "clip01(0.65*sub_indices_0_1.dehydration_need + 0.35*sub_indices_0_1.electrolyte_need - 0.55*sub_indices_0_1.overload_risk_signal)",
