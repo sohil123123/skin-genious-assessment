@@ -346,265 +346,41 @@
     }
   },
 
-  "calibration_anchors": {
-    "policy": "Clinic-usable defaults. Replace per clinic/device without changing architecture.",
 
-    "dehydration": {
-      "tbw_percent_male_x0": 55,
-      "tbw_percent_male_x1": 47,
-      "tbw_percent_female_x0": 50,
-      "tbw_percent_female_x1": 42
-    },
 
-    "hemodynamics": {
-      "map_low_sbp_x0": 120,
-      "map_low_sbp_x1": 95,
-      "hr_high_x0": 75,
-      "hr_high_x1": 105
-    },
-
-    "perfusion": { "pi_x0_good": 2.0, "pi_x1_poor": 0.5 },
-
-    "hrv": {
-      "lnrmssd_x0_good": 4.2,
-      "lnrmssd_x1_poor": 3.2,
-      "note": "Anchors chosen to be change-sensitive: modest HRV improvement (e.g., +0.15 to +0.25 lnRMSSD) should produce visible score movement."
-    },
-
-    "metabolic": {
-      "tanita_visceral_fat_bands_note": "Tanita visceral fat rating: 0-9.5 healthy; 10-14.5 elevated/lower risk; 15-59 higher risk.",
-      "visceral_fat_x0": 9.5,
-      "visceral_fat_x1": 15,
-      "bmi_x0": 24,
-      "bmi_x1": 32
-    },
-
-    "oxygenation": { "spo2_x0_good": 98, "spo2_x1_poor": 93 },
-
-    "feverish": { "temp_x0": 37.2, "temp_x1": 38.0 },
-
-    "strength": {
-      "policy": "3 age bands x sex. Used to map grip kg to a 0..1 deficit. Higher grip = better. Lower grip = worse. Calibrate later to your population norms.",
-      "age_bands_3_years": [
-        { "band": "18_34", "min_age_inclusive": 18, "max_age_inclusive": 34 },
-        { "band": "35_49", "min_age_inclusive": 35, "max_age_inclusive": 49 },
-        { "band": "50_plus", "min_age_inclusive": 50, "max_age_inclusive": 120 }
-      ],
-      "anchors_kg": {
-        "male": {
-          "18_34": { "good_x0": 42, "poor_x1": 28 },
-          "35_49": { "good_x0": 38, "poor_x1": 24 },
-          "50_plus": { "good_x0": 34, "poor_x1": 20 }
-        },
-        "female": {
-          "18_34": { "good_x0": 26, "poor_x1": 18 },
-          "35_49": { "good_x0": 24, "poor_x1": 16 },
-          "50_plus": { "good_x0": 22, "poor_x1": 14 }
-        }
-      },
-      "fallback_policy": "If age is missing, treat as 35_49. If sex is missing, treat as male."
-    },
-
-    "skin_primitives_refiners": {
-      "policy": "Primitives refine axes modestly. Caps prevent double counting vs OSS/GMS/MVI/BHS.",
-      "max_refiner_addition_per_axis": 0.08,
-      "ils_redness_weight": 0.06,
-      "ils_uv_fluorescence_weight": 0.03,
-      "dgs_barrier_instability_weight": 0.05,
-      "dgs_dry_sink_weight": 0.05,
-      "dgs_texture_weight": 0.03,
-      "ods_uv_haze_weight": 0.04,
-      "ods_uv_fluorescence_weight": 0.04
-    }
-  },
-
-  "derived_evidence": {
-    "map_mmHg": "scoring_inputs_view.vitals_scoring.diastolic_bp_mmHg + (scoring_inputs_view.vitals_scoring.systolic_bp_mmHg - scoring_inputs_view.vitals_scoring.diastolic_bp_mmHg)/3",
-
-    "low_map_norm_0_1": "pwlin(map_mmHg, 85, 70)",
-    "tachy_norm_0_1": "pwlin(scoring_inputs_view.vitals_scoring.heart_rate_bpm, calibration_anchors.hemodynamics.hr_high_x0, calibration_anchors.hemodynamics.hr_high_x1)",
-    "spo2_drop_norm_0_1": "pwlin(scoring_inputs_view.vitals_scoring.spo2_percent, calibration_anchors.oxygenation.spo2_x0_good, calibration_anchors.oxygenation.spo2_x1_poor)",
-    "fever_norm_0_1": "pwlin(scoring_inputs_view.vitals_scoring.temperature_c, calibration_anchors.feverish.temp_x0, calibration_anchors.feverish.temp_x1)",
-    "pi_poor_norm_0_1": "if_not_null(scoring_inputs_view.machines_scoring.perfusion_index.pi) ? pwlin(scoring_inputs_view.machines_scoring.perfusion_index.pi, calibration_anchors.perfusion.pi_x0_good, calibration_anchors.perfusion.pi_x1_poor) : null",
-
-    "lnrmssd_poor_norm_0_1": "if_not_null(scoring_inputs_view.machines_scoring.hrv.lnrmssd_optional) ? pwlin(scoring_inputs_view.machines_scoring.hrv.lnrmssd_optional, calibration_anchors.hrv.lnrmssd_x0_good, calibration_anchors.hrv.lnrmssd_x1_poor) : null",
-
-    "sleep_debt_norm_0_1": "pwlin(scoring_inputs_view.lifestyle_scoring.sleep_hours_last_night, 7.5, 4.5)  /* lower sleep => higher burden */",
-    "alcohol_norm_0_1": "pwlin(scoring_inputs_view.lifestyle_scoring.alcohol_drinks_last_24h, 0, 3)",
-    "caffeine_norm_0_1": "pwlin(scoring_inputs_view.lifestyle_scoring.caffeine_servings_today, 0, 4)",
-    "exercise_stress_norm_0_1": "scoring_inputs_view.lifestyle_scoring.exercise_last_24h == 'none' ? 0.10 : (scoring_inputs_view.lifestyle_scoring.exercise_last_24h=='light'?0.25:(scoring_inputs_view.lifestyle_scoring.exercise_last_24h=='intense'?0.45:0.65))",
-
-    "goal_energy_01": "scoring_inputs_view.goals_scoring.primary_goal_mapped == 'energy' ? 1 : 0",
-    "goal_skin_glow_01": "scoring_inputs_view.goals_scoring.primary_goal_mapped == 'skin_glow' ? 1 : 0",
-    "goal_detox_01": "scoring_inputs_view.goals_scoring.primary_goal_mapped == 'detox' ? 1 : 0",
-    "goal_immunity_01": "scoring_inputs_view.goals_scoring.primary_goal_mapped == 'immunity' ? 1 : 0",
-    "goal_recovery_01": "scoring_inputs_view.goals_scoring.primary_goal_mapped == 'recovery' ? 1 : 0",
-
-    "skin_primitives_present_01": "if_not_null(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough) ? 1 : 0",
-
-    "p_uv_haze_01": "if_not_null(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.uv_haze_index_0_1) ? clip01(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.uv_haze_index_0_1) : null",
-
-    "p_uv_fluor_load_01": "if_not_null(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.uv_fluorescence_load_0_1) ? clip01(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.uv_fluorescence_load_0_1) : null",
-
-    "p_uv_fluor_cov_01": "if_not_null(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.uv_fluorescence_coverage_0_1) ? clip01(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.uv_fluorescence_coverage_0_1) : null",
-
-    "p_red_level_01": "if_not_null(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.redness_level_0_1) ? clip01(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.redness_level_0_1) : null",
-
-    "p_red_cov_01": "if_not_null(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.redness_coverage_0_1) ? clip01(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.redness_coverage_0_1) : null",
-
-    "p_barrier_instab_01": "if_not_null(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.barrier_instability_0_1) ? clip01(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.barrier_instability_0_1) : null",
-
-    "p_dry_sink_01": "if_not_null(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.dry_sink_fraction_0_1) ? clip01(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.dry_sink_fraction_0_1) : null",
-
-    "p_texture_rough_01": "if_not_null(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.texture_roughness_0_1) ? clip01(scoring_inputs_view.skin_ai_scoring.optional_primitives_passthrough.texture_roughness_0_1) : null",
-
-    "uv_fluorescence_burden_01": "if_not_null(p_uv_fluor_load_01) && if_not_null(p_uv_fluor_cov_01) ? clip01(0.50*p_uv_fluor_load_01 + 0.50*p_uv_fluor_cov_01) : (if_not_null(p_uv_fluor_load_01) ? p_uv_fluor_load_01 : (if_not_null(p_uv_fluor_cov_01) ? p_uv_fluor_cov_01 : null))"
-  },
 
   "axes": {
     "FENS": {
       "name": "Fluid & Electrolyte Need Score",
-      "clinical_question": "How much does the patient likely benefit from volume/electrolyte support today?",
-
-      "sub_indices_0_1": {
-        "dehydration_from_tbw": "if_not_null(scoring_inputs_view.machines_scoring.body_composition.tbw_percent) ? (scoring_inputs_view.demographics.sex=='male' ? pwlin(scoring_inputs_view.machines_scoring.body_composition.tbw_percent, calibration_anchors.dehydration.tbw_percent_male_x0, calibration_anchors.dehydration.tbw_percent_male_x1) : pwlin(scoring_inputs_view.machines_scoring.body_composition.tbw_percent, calibration_anchors.dehydration.tbw_percent_female_x0, calibration_anchors.dehydration.tbw_percent_female_x1)) : null",
-        "orthostatic_symptoms": "bool01(scoring_inputs_view.symptoms_scoring.dizziness_on_standing)",
-        "cramp_signal": "bool01(scoring_inputs_view.symptoms_scoring.muscle_cramps)",
-        "post_alcohol": "derived_evidence.alcohol_norm_0_1",
-        "high_caffeine": "derived_evidence.caffeine_norm_0_1",
-        "constipation_weight": "scoring_inputs_view.symptoms_scoring.constipation_weight_0_1",
-
-        "dehydration_need": "clip01(0.52*safe_num(sub_indices_0_1.dehydration_from_tbw, 0.40) + 0.23*sub_indices_0_1.orthostatic_symptoms + 0.18*sub_indices_0_1.cramp_signal + 0.07*sub_indices_0_1.constipation_weight)",
-        "electrolyte_need": "clip01(0.55*sub_indices_0_1.cramp_signal + 0.25*sub_indices_0_1.post_alcohol + 0.20*sub_indices_0_1.high_caffeine)",
-
-        "overload_risk_signal": "clip01(0.70*bool01(scoring_inputs_view.symptoms_scoring.swelling_or_puffiness) + 0.30*bool01(scoring_inputs_view.symptoms_scoring.shortness_of_breath))"
-      },
-
-      "score_0_1": "clip01(0.65*sub_indices_0_1.dehydration_need + 0.35*sub_indices_0_1.electrolyte_need - 0.55*sub_indices_0_1.overload_risk_signal)",
-      "score_0_100": "to100(score_0_1)"
+      "clinical_question": "How much does the patient likely benefit from volume/electrolyte support today?"
     },
-
     "PCCS": {
       "name": "Perfusion & Circulation Constraint Score",
-      "clinical_question": "How constrained is vascular delivery (sluggish flow, vasoconstriction, low PI)?",
-
-      "sub_indices_0_1": {
-        "microcirculation_constraint": "if_not_null(derived_evidence.pi_poor_norm_0_1) ? clip01(derived_evidence.pi_poor_norm_0_1) : 0.40",
-        "hemodynamic_constraint": "clip01(0.60*derived_evidence.low_map_norm_0_1 + 0.40*derived_evidence.tachy_norm_0_1)",
-        "oxygen_delivery_constraint": "clip01(derived_evidence.spo2_drop_norm_0_1)"
-      },
-
-      "score_0_1": "clip01(0.55*sub_indices_0_1.microcirculation_constraint + 0.30*sub_indices_0_1.hemodynamic_constraint + 0.15*sub_indices_0_1.oxygen_delivery_constraint)",
-      "score_0_100": "to100(score_0_1)"
+      "clinical_question": "How constrained is vascular delivery (sluggish flow, vasoconstriction, low PI)?"
     },
-
     "ASLS": {
       "name": "Autonomic Stress & Load Score",
-      "clinical_question": "Is the patient in sympathetic load / low recovery state today?",
-
-      "sub_indices_0_1": {
-        "hrv_recovery_deficit": "if_not_null(derived_evidence.lnrmssd_poor_norm_0_1) ? clip01(derived_evidence.lnrmssd_poor_norm_0_1) : clip01(0.42*derived_evidence.sleep_debt_norm_0_1 + 0.33*derived_evidence.caffeine_norm_0_1 + 0.25*bool01(scoring_inputs_view.symptoms_scoring.palpitations))",
-
-        "sleep_recovery_deficit": "clip01(derived_evidence.sleep_debt_norm_0_1)",
-
-        "stress_somatics": "clip01(0.45*scoring_inputs_view.symptoms_scoring.headache_sev01 + 0.35*bool01(scoring_inputs_view.symptoms_scoring.palpitations) + 0.20*safe_num(scoring_inputs_view.lifestyle_scoring.perceived_stress_norm_0_1_optional,0.35))"
-      },
-
-      "score_0_1": "clip01(0.55*sub_indices_0_1.hrv_recovery_deficit + 0.25*sub_indices_0_1.sleep_recovery_deficit + 0.20*sub_indices_0_1.stress_somatics)",
-      "score_0_100": "to100(score_0_1)"
+      "clinical_question": "Is the patient in sympathetic load / low recovery state today?"
     },
-
     "MONS": {
       "name": "Mitochondrial Output Need Score",
-      "clinical_question": "Is there functional fatigue/low output that may benefit from energy-supportive IV strategies?",
-
-      "sub_indices_0_1": {
-        "fatigue_symptom_load": "clip01(0.70*scoring_inputs_view.symptoms_scoring.fatigue_sev01 + 0.30*bool01(scoring_inputs_view.symptoms_scoring.brain_fog))",
-
-        "grip_good_anchor_kg": "(scoring_inputs_view.demographics.sex=='male' ? (scoring_inputs_view.demographics.age_years < 35 ? 42 : (scoring_inputs_view.demographics.age_years < 50 ? 38 : 34)) : (scoring_inputs_view.demographics.age_years < 35 ? 26 : (scoring_inputs_view.demographics.age_years < 50 ? 24 : 22)))",
-
-        "grip_poor_anchor_kg": "(scoring_inputs_view.demographics.sex=='male' ? (scoring_inputs_view.demographics.age_years < 35 ? 28 : (scoring_inputs_view.demographics.age_years < 50 ? 24 : 20)) : (scoring_inputs_view.demographics.age_years < 35 ? 18 : (scoring_inputs_view.demographics.age_years < 50 ? 16 : 14)))",
-
-        "strength_deficit_optional": "if_not_null(scoring_inputs_view.machines_scoring.grip_strength.kg_optional) ? inv_pwlin(scoring_inputs_view.machines_scoring.grip_strength.kg_optional, sub_indices_0_1.grip_good_anchor_kg, sub_indices_0_1.grip_poor_anchor_kg) : null",
-
-        "autonomic_energy_penalty": "clip01(0.60*ASLS.score_0_1 + 0.40*derived_evidence.sleep_debt_norm_0_1)"
-      },
-
-      "score_0_1": "if_not_null(sub_indices_0_1.strength_deficit_optional) ? clip01(0.35*sub_indices_0_1.fatigue_symptom_load + 0.35*sub_indices_0_1.strength_deficit_optional + 0.30*sub_indices_0_1.autonomic_energy_penalty) : clip01(0.60*sub_indices_0_1.fatigue_symptom_load + 0.40*sub_indices_0_1.autonomic_energy_penalty)",
-
-      "score_0_100": "to100(score_0_1)"
+      "clinical_question": "Is there functional fatigue/low output that may benefit from energy-supportive IV strategies?"
     },
-
     "ODS": {
       "name": "Oxidative / Detox Burden Score",
-      "clinical_question": "Is oxidative burden high enough to warrant antioxidant-focused support (while respecting constraints)?",
-
-      "sub_indices_0_1": {
-        "skin_oxidative_burden": "clip01(scoring_inputs_view.skin_ai_scoring.OSS_0_100/100)",
-        "inflammation_amplifier": "clip01(scoring_inputs_view.skin_ai_scoring.MVI_0_100/100)",
-        "lifestyle_oxidative_load": "clip01(0.45*derived_evidence.alcohol_norm_0_1 + 0.25*derived_evidence.sleep_debt_norm_0_1 + 0.30*derived_evidence.exercise_stress_norm_0_1)",
-
-        "primitives_uv_refiner": "if_not_null(derived_evidence.p_uv_haze_01) || if_not_null(derived_evidence.uv_fluorescence_burden_01) ? clip01( (if_not_null(derived_evidence.p_uv_haze_01)? (calibration_anchors.skin_primitives_refiners.ods_uv_haze_weight*derived_evidence.p_uv_haze_01) : 0) + (if_not_null(derived_evidence.uv_fluorescence_burden_01)? (calibration_anchors.skin_primitives_refiners.ods_uv_fluorescence_weight*derived_evidence.uv_fluorescence_burden_01) : 0) ) : 0"
-      },
-
-      "score_0_1": "clip01(0.55*sub_indices_0_1.skin_oxidative_burden + 0.20*sub_indices_0_1.inflammation_amplifier + 0.25*sub_indices_0_1.lifestyle_oxidative_load + sub_indices_0_1.primitives_uv_refiner)",
-      "score_0_100": "to100(score_0_1)"
+      "clinical_question": "Is oxidative burden high enough to warrant antioxidant-focused support (while respecting constraints)?"
     },
-
     "ILS": {
       "name": "Inflammation / Immune Load Score",
-      "clinical_question": "Is there an inflammatory/immune burden likely to affect how aggressive we can be today?",
-
-      "sub_indices_0_1": {
-        "dermal_inflammation_base": "clip01(scoring_inputs_view.skin_ai_scoring.MVI_0_100/100)",
-
-        "dermal_inflammation_refiner": "clip01( min(calibration_anchors.skin_primitives_refiners.max_refiner_addition_per_axis, (if_not_null(derived_evidence.p_red_cov_01)? (calibration_anchors.skin_primitives_refiners.ils_redness_weight*derived_evidence.p_red_cov_01) : 0) + (if_not_null(derived_evidence.uv_fluorescence_burden_01)? (calibration_anchors.skin_primitives_refiners.ils_uv_fluorescence_weight*derived_evidence.uv_fluorescence_burden_01) : 0) ) )",
-
-        "dermal_inflammation": "clip01(sub_indices_0_1.dermal_inflammation_base + sub_indices_0_1.dermal_inflammation_refiner)",
-
-        "systemic_infection_like_signal": "clip01(derived_evidence.fever_norm_0_1)",
-
-        "symptom_cluster": "clip01(0.35*scoring_inputs_view.symptoms_scoring.headache_sev01 + 0.35*scoring_inputs_view.symptoms_scoring.nausea_sev01 + 0.30*bool01(scoring_inputs_view.symptoms_scoring.shortness_of_breath))"
-      },
-
-      "score_0_1": "clip01(0.55*sub_indices_0_1.dermal_inflammation + 0.25*sub_indices_0_1.systemic_infection_like_signal + 0.20*sub_indices_0_1.symptom_cluster)",
-      "score_0_100": "to100(score_0_1)"
+      "clinical_question": "Is there an inflammatory/immune burden likely to affect how aggressive we can be today?"
     },
-
     "MSGS": {
       "name": "Metabolic Stability / Glycation Stress Score",
-      "clinical_question": "Is metabolic/glycation stress present that would influence ingredient selection/intensity?",
-
-      "sub_indices_0_1": {
-        "skin_glyco_signal": "clip01(scoring_inputs_view.skin_ai_scoring.GMS_0_100/100)",
-        "adiposity_signal": "clip01(0.60*pwlin(scoring_inputs_view.machines_scoring.body_composition.visceral_fat_rating, calibration_anchors.metabolic.visceral_fat_x0, calibration_anchors.metabolic.visceral_fat_x1) + 0.40*pwlin(safe_num(scoring_inputs_view.machines_scoring.body_composition.bmi_optional, calibration_anchors.metabolic.bmi_x0), calibration_anchors.metabolic.bmi_x0, calibration_anchors.metabolic.bmi_x1))",
-
-        "postprandial_instability": "0.0",
-        "brain_fog_signal": "bool01(scoring_inputs_view.symptoms_scoring.brain_fog)"
-      },
-
-      "score_0_1": "clip01(0.60*sub_indices_0_1.skin_glyco_signal + 0.30*sub_indices_0_1.adiposity_signal + 0.10*sub_indices_0_1.brain_fog_signal)",
-      "score_0_100": "to100(score_0_1)"
+      "clinical_question": "Is metabolic/glycation stress present that would influence ingredient selection/intensity?"
     },
-
     "DGS": {
       "name": "Dermal Glow / Barrier Support Score",
-      "clinical_question": "How much does skin barrier + visible glow likely benefit from IV support today?",
-
-      "sub_indices_0_1": {
-        "barrier_stress_base": "clip01(scoring_inputs_view.skin_ai_scoring.BHS_0_100/100)",
-
-        "barrier_refiner": "clip01( min(calibration_anchors.skin_primitives_refiners.max_refiner_addition_per_axis, (if_not_null(derived_evidence.p_barrier_instab_01)? (calibration_anchors.skin_primitives_refiners.dgs_barrier_instability_weight*derived_evidence.p_barrier_instab_01) : 0) + (if_not_null(derived_evidence.p_dry_sink_01)? (calibration_anchors.skin_primitives_refiners.dgs_dry_sink_weight*derived_evidence.p_dry_sink_01) : 0) + (if_not_null(derived_evidence.p_texture_rough_01)? (calibration_anchors.skin_primitives_refiners.dgs_texture_weight*derived_evidence.p_texture_rough_01) : 0) ) )",
-
-        "barrier_stress": "clip01(sub_indices_0_1.barrier_stress_base + sub_indices_0_1.barrier_refiner)",
-
-        "oxidative_dullness": "clip01(scoring_inputs_view.skin_ai_scoring.OSS_0_100/100)",
-        "goal_alignment": "clip01(derived_evidence.goal_skin_glow_01)",
-        "inflammation_penalty": "clip01(scoring_inputs_view.skin_ai_scoring.MVI_0_100/100)"
-      },
-
-      "score_0_1": "clip01(0.45*sub_indices_0_1.barrier_stress + 0.25*sub_indices_0_1.oxidative_dullness + 0.30*sub_indices_0_1.goal_alignment - 0.15*sub_indices_0_1.inflammation_penalty)",
-      "score_0_100": "to100(score_0_1)"
+      "clinical_question": "How much does skin barrier + visible glow likely benefit from IV support today?"
     }
   },
 
@@ -639,61 +415,7 @@
     }
   },
   "telemetry": {
-    "primary_driver_per_axis": {
-      "FENS": "argmax([dehydration_from_tbw, orthostatic_symptoms, cramp_signal]) with overload_risk_signal as negative driver",
-      "PCCS": "argmax([pi_poor_norm_0_1, low_map_norm_0_1, spo2_drop_norm_0_1])",
-      "ASLS": "if lnrmssd present -> lnrmssd_poor_norm_0_1 else sleep/caffeine/palpitations composite, severity-aware",
-      "MONS": "fatigue_severity + autonomic_energy_penalty (+ strength_deficit if present)",
-      "ODS": "skin_ai.OSS + lifestyle_oxidative_load (+ MVI amplifier) + (optional primitives UV refiner)",
-      "ILS": "skin_ai.MVI (+ fever/acute illness signal) + symptom severity (+ optional redness/UV fluorescence refiner)",
-      "MSGS": "skin_ai.GMS + visceral_fat/bmi (+ brain fog)",
-      "DGS": "skin_ai.BHS + goal_alignment (+ OSS) minus inflammation penalty + (optional barrier/dry/texture refiner)"
-    },
-
-    "confidence_detail_optional": {
-      "base": 0.92,
-      "penalties": [
-        {
-          "if": "normalization_layer.hrv_normalized.lnrmssd_derived_optional is null",
-          "subtract": 0.06,
-          "note": "ANS confidence slightly lower without HRV"
-        },
-        {
-          "if": "session_machines_raw.grip_strength.kg_optional is null",
-          "subtract": 0.1,
-          "note": "Energy/output confidence slightly lower without grip"
-        },
-        {
-          "if": "session_machines_raw.body_composition.tbw_percent is null",
-          "subtract": 0.1,
-          "note": "Hydration confidence lower without TBW%"
-        },
-        {
-          "if": "session_machines_raw.perfusion_index.pi is null",
-          "subtract": 0.1,
-          "note": "Perfusion confidence lower without PI"
-        },
-        {
-          "if": "skin_ai_raw.optional_primitives is null",
-          "subtract": 0.02,
-          "note": "Skin driver explainability lower without primitives"
-        },
-        {
-          "if": "if_not_null(skin_ai_raw.telemetry_upstream_optional) && if_not_null(skin_ai_raw.telemetry_upstream_optional.roi_confidence_0_1) && skin_ai_raw.telemetry_upstream_optional.roi_confidence_0_1 < 0.70",
-          "subtract": 0.06,
-          "note": "Skin confidence lowered due to weak ROI confidence"
-        },
-        {
-          "if": "if_not_null(skin_ai_raw.telemetry_upstream_optional) && skin_ai_raw.telemetry_upstream_optional.high_glare_flag == true",
-          "subtract": 0.04,
-          "note": "Skin confidence lowered due to glare"
-        }
-      ],
-      "clamp": { "min": 0.1, "max": 0.95 },
-      "confidence_0_1_note": "Runtime computes confidence_0_1 = clamp(base - sum(applicable penalties), min, max)."
-    },
-
-    "confidence_0_1": "clamp( (confidence_detail_optional.base - sum(confidence_detail_optional.penalties where if==true of subtract)), confidence_detail_optional.clamp.min, confidence_detail_optional.clamp.max )"
+    "note": "Telemetry drivers and confidence are pre-calculated by the deterministic scoring engine."
   },
 
   "integration_note_for_constraints_engine": {

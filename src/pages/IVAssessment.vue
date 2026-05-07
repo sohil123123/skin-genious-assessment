@@ -234,6 +234,7 @@ import TreatmentPlanComponent from 'src/components/iv-assessment/results/Treatme
 import NurseRunSheet from 'src/components/iv-assessment/results/NurseRunSheet.vue'
 import { encode } from '@toon-format/toon'
 import ivTreatmentGenerationEngine from 'src/utils/iv/treatment/ivTreatmentGenerationEngine.json'
+import { calculateIVClinicalScoring } from 'src/utils/iv/scoring/deterministicScoring.js'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 const $q = useQuasar()
@@ -702,6 +703,14 @@ async function generateIVScoring(data, canonical) {
 
   const coercedCanonical = coerceToNumeric(canonical)
   const coercedParams = coerceToNumeric(data.parameters_with_abnormal_scores)
+
+  const manualScores = calculateIVClinicalScoring(
+    coercedCanonical.session_intake_raw || {},
+    coercedCanonical.session_machines_raw || {},
+    coercedCanonical.skin_ai_raw || {}
+  )
+
+  coercedCanonical.manual_calculated_scores = manualScores
 
   const convId = await getOrCreateConversation(
     `${data.user_id}`,
