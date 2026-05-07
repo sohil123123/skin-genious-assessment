@@ -49,6 +49,49 @@
       </q-card-section>
     </q-card>
 
+    <!-- Safety & Constraints Warning -->
+    <div v-if="hasConstraints" class="constraint-section q-mb-lg">
+      <q-card bordered class="shadow-sm rounded-borders border-warning bg-warning-light">
+        <q-card-section class="q-py-sm bg-warning-subtle text-warning-dark border-b-warning">
+          <div class="flex items-center">
+            <q-icon name="warning_amber" size="20px" class="q-mr-sm" />
+            <div class="text-subtitle2 text-weight-bold">Clinical Constraints & Cautions</div>
+          </div>
+        </q-card-section>
+        <q-card-section
+          class="q-pa-sm text-warning-darker text-caption scroll"
+          style="max-height: 300px"
+        >
+          <!-- Messages -->
+          <div v-if="planDetails.constraint_report?.messages?.length" class="q-mb-sm">
+            <div class="text-weight-bold q-mb-xs opacity-100">Analysis Details</div>
+            <ul class="q-pl-md q-mt-none q-mb-none text-body2">
+              <li
+                v-for="(msg, i) in planDetails.constraint_report.messages"
+                :key="i"
+                class="q-mb-xs"
+              >
+                {{ msg }}
+              </li>
+            </ul>
+          </div>
+          <!-- Actions -->
+          <div v-if="planDetails.constraint_report?.actions?.length">
+            <div class="text-weight-bold q-mb-xs opacity-100">Required Actions</div>
+            <ul class="q-pl-md q-mt-none q-mb-none text-body2">
+              <li
+                v-for="(act, i) in planDetails.constraint_report.actions"
+                :key="i"
+                class="q-mb-xs"
+              >
+                {{ act }}
+              </li>
+            </ul>
+          </div>
+        </q-card-section>
+      </q-card>
+    </div>
+
     <!-- Timeline -->
     <div class="q-px-sm">
       <q-timeline color="indigo" layout="comfortable">
@@ -158,6 +201,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { startCase } from 'lodash'
 import { api } from 'src/boot/axios'
 import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
@@ -167,11 +211,21 @@ import { Loading, Notify } from 'quasar'
 const store = useIVAssessmentStore()
 const { formData } = storeToRefs(store)
 
-defineProps({
+const props = defineProps({
   planDetails: {
     type: Object,
     required: true,
   },
+})
+
+const hasConstraints = computed(() => {
+  const report = props.planDetails?.constraint_report
+  if (!report) return false
+  return (
+    report.status !== 'allowed' ||
+    (report.messages && report.messages.length > 0) ||
+    (report.actions && report.actions.length > 0)
+  )
 })
 
 defineEmits(['start-session'])
@@ -260,5 +314,25 @@ const downloadPDF = async () => {
 
 .italic {
   font-style: italic;
+}
+
+/* Constraint Colors - Compact & Readable */
+.bg-warning-light {
+  background-color: #fff8e1; /* Very light amber */
+}
+.bg-warning-subtle {
+  background-color: #ffecb3; /* Slightly darker header */
+}
+.text-warning-dark {
+  color: #5d4037; /* Darker brown for text */
+}
+.text-warning-darker {
+  color: #3e2723; /* Even Darker brown for text */
+}
+.border-warning {
+  border: 1px solid #ffca28;
+}
+.border-b-warning {
+  border-bottom: 1px solid #ffca28;
 }
 </style>

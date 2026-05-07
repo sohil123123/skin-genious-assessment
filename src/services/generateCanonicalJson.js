@@ -1,5 +1,5 @@
 // services/generateCanonicalJson.js
-import { yesNoToBoolean, severityToCanonical, emptyToNull } from 'src/helpers/canonicalUtils'
+import { yesNoToBoolean, toYesNoUnsure, severityToCanonical, emptyToNull } from 'src/helpers/canonicalUtils'
 
 export function generateCanonicalJson(input) {
   const safety = input.section_1_client_questionnaire.B_safety_contraindications
@@ -25,16 +25,40 @@ export function generateCanonicalJson(input) {
 
       // 🔒 REQUIRED SAFETY OBJECT (constraints read ONLY this)
       safety_and_contraindications: {
-        pregnant_or_breastfeeding: yesNoToBoolean(safety.pregnant_or_breastfeeding),
-        active_infection_or_fever: yesNoToBoolean(safety.current_fever_or_infection_symptoms_today),
-        known_kidney_disease: yesNoToBoolean(safety.known_kidney_disease),
-        known_liver_disease: yesNoToBoolean(safety.known_liver_disease),
-        known_g6pd_deficiency: yesNoToBoolean(safety.known_g6pd_deficiency),
-        known_heart_disease_or_arrhythmia: yesNoToBoolean(
+        pregnant_or_breastfeeding: toYesNoUnsure(safety.pregnant_or_breastfeeding),
+        pregnant_or_breastfeeding_type_optional: emptyToNull(safety.pregnant_type_if_yes),
+        pregnancy_trimester_optional: emptyToNull(safety.trimester_if_pregnant),
+
+        active_infection_or_fever: toYesNoUnsure(safety.current_fever_or_infection_symptoms_today),
+
+        known_kidney_disease: toYesNoUnsure(safety.known_kidney_disease),
+        kidney_disease_severity_optional: emptyToNull(safety.kidney_disease_severity_if_yes),
+        doctor_advised_fluid_restriction_optional: emptyToNull(safety.kidney_fluid_restriction_if_yes),
+
+        known_liver_disease: toYesNoUnsure(safety.known_liver_disease),
+
+        known_g6pd_deficiency: toYesNoUnsure(safety.known_g6pd_deficiency),
+        g6pd_confirmed_by_lab_optional: emptyToNull(safety.g6pd_lab_test_if_yes),
+
+        known_heart_disease_or_arrhythmia: toYesNoUnsure(
           safety.known_heart_disease_or_heart_failure,
         ),
-        history_of_anaphylaxis_or_severe_allergy: yesNoToBoolean(safety.history_severe_allergy),
-        currently_on_anticoagulants: yesNoToBoolean(
+
+        history_of_uncontrolled_hypertension: toYesNoUnsure(safety.history_uncontrolled_hypertension),
+        last_known_bp_over_160_or_100_optional: emptyToNull(safety.hypertension_high_bp_if_yes),
+
+        history_of_seizures_epilepsy: toYesNoUnsure(safety.history_seizures_epilepsy),
+        seizure_in_last_12_months_optional: emptyToNull(safety.seizure_recent_if_yes),
+
+        history_of_asthma_reactive_airway: toYesNoUnsure(safety.history_asthma),
+        asthma_control_optional: emptyToNull(safety.asthma_control_if_yes),
+
+        history_of_severe_allergy_anaphylaxis: toYesNoUnsure(safety.history_severe_allergy),
+        anaphylaxis_reaction_severity_optional: emptyToNull(safety.severe_allergy_severity_if_yes),
+
+        known_kidney_stones: toYesNoUnsure(safety.history_kidney_stones),
+
+        currently_on_anticoagulants: toYesNoUnsure(
           input.section_1_client_questionnaire.E_medications_supplements.blood_thinners,
         ),
       },

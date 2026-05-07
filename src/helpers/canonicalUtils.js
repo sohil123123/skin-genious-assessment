@@ -4,6 +4,12 @@ export function yesNoToBoolean(value) {
   return false // default-safe
 }
 
+export function toYesNoUnsure(value) {
+  if (value === 'Yes') return 'Yes'
+  if (value === 'Unsure') return 'Unsure'
+  return 'No' // Default to No if missing or 'No'
+}
+
 export function severityToCanonical(value) {
   if (!value) return 'none'
   return value.toLowerCase()
