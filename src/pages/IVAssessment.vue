@@ -221,9 +221,6 @@ import { IV_TREATMENT_PLAN_SYSTEM_PROMPT } from 'src/utils/iv/treatment/treatmen
 import {
   IV_SCORING_SYSTEM_PROMPT_STAGE_1,
   IV_SCORING_USER_PROMPT_STAGE_1,
-  IV_SCORING_SYSTEM_PROMPT_STAGE_2,
-  IV_SCORING_USER_PROMPT_STAGE_2,
-  IV_SCORING_SYSTEM_PROMPT_STAGE_3,
   IV_SCORING_SYSTEM_PROMPT_STAGE_4,
 } from 'src/utils/iv/scoring/scoringPrompt'
 import { useIVAssessmentValidation } from 'src/composables/useIVAssessmentValidation'
@@ -234,7 +231,7 @@ import TreatmentPlanComponent from 'src/components/iv-assessment/results/Treatme
 import NurseRunSheet from 'src/components/iv-assessment/results/NurseRunSheet.vue'
 import { encode } from '@toon-format/toon'
 import ivTreatmentGenerationEngine from 'src/utils/iv/treatment/ivTreatmentGenerationEngine.json'
-import { calculateIVClinicalScoring } from 'src/utils/iv/scoring/deterministicScoring.js'
+import { calculateIVClinicalScoring, calculateSkinScores } from 'src/utils/iv/scoring/deterministicScoring.js'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 const $q = useQuasar()
@@ -974,47 +971,9 @@ async function callApiForIVScoring(data, images) {
   processingMessage.value = 'Processing scanned images...'
   const result = await runResponse(convId, input)
 
-  //INFO: STAGE 2
-  const input2 = [
-    {
-      role: 'system',
-      content: IV_SCORING_SYSTEM_PROMPT_STAGE_2,
-    },
-    {
-      role: 'user',
-      content: [
-        {
-          type: 'input_text',
-          text: encode(result),
-        },
-        {
-          type: 'input_text',
-          text: IV_SCORING_USER_PROMPT_STAGE_2,
-        },
-      ],
-    },
-  ]
-  processingMessage.value = 'Processing scanned images...'
-  const result2 = await runResponse(convId, input2)
-
-  //INFO: STAGE 3
-  const input3 = [
-    {
-      role: 'system',
-      content: IV_SCORING_SYSTEM_PROMPT_STAGE_3,
-    },
-    {
-      role: 'user',
-      content: [
-        {
-          type: 'input_text',
-          text: encode(result2),
-        },
-      ],
-    },
-  ]
-  processingMessage.value = 'Processing scanned images...'
-  const result3 = await runResponse(convId, input3)
+  //INFO: STAGE 2 & 3 (Deterministic)
+  processingMessage.value = 'Calculating skin scores...'
+  const result3 = calculateSkinScores(result)
   return result3
 }
 
