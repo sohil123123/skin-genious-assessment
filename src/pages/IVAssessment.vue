@@ -842,7 +842,10 @@ const handleProcess = async (files) => {
 async function handleIVScoring(files) {
   faceImages.value = formData.value.images.map((img) => img.url)
 
-  faceImages.value = config.IMAGES_ORDER.map((name) =>
+  const machineMode = formData.value.face_scan_machine?.charAt(0) || '6'
+  const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
+
+  faceImages.value = imagesOrder.map((name) =>
     faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
   ).filter(Boolean)
 

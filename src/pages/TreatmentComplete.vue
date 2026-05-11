@@ -286,11 +286,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 import { useOpenAI } from 'src/composables/useOpenAI'
-import {
-  SYSTEM_DAILY_HOME_CARE_ROUTINE_PROMPT,
-  USER_DAILY_HOME_CARE_ROUTINE_PROMPT,
-} from 'src/utils/facial/treatment/treatmentPrompt'
-import { available_skincare_products } from 'src/utils/facial/treatment/productJson'
+import { getFacialPrompts } from 'src/utils/facial'
 import { encode } from '@toon-format/toon'
 
 const $q = useQuasar()
@@ -419,22 +415,23 @@ async function generateDailyRoute() {
       breastfeeding: assessmentData.value.breastfeeding,
     }
 
+    const prompts = await getFacialPrompts(assessmentData.value.face_scan_machine)
     // Prepare inputs
     const input = [
       {
         role: 'system',
         content: [
-          { type: 'input_text', text: SYSTEM_DAILY_HOME_CARE_ROUTINE_PROMPT },
+          { type: 'input_text', text: prompts.SYSTEM_DAILY_HOME_CARE_ROUTINE_PROMPT },
           {
             type: 'input_text',
-            text: 'available_skincare_products JSON:\n' + encode(available_skincare_products),
+            text: 'available_skincare_products JSON:\n' + encode(prompts.available_skincare_products),
           },
         ],
       },
       {
         role: 'user',
         content: [
-          { type: 'input_text', text: USER_DAILY_HOME_CARE_ROUTINE_PROMPT },
+          { type: 'input_text', text: prompts.USER_DAILY_HOME_CARE_ROUTINE_PROMPT },
           { type: 'input_text', text: 'Patient Profile JSON:\n' + encode(patientData) },
           {
             type: 'input_text',

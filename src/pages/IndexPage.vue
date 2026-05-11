@@ -190,20 +190,13 @@ import MajorConcerns from 'src/components/assessment/MajorConcerns.vue'
 // import PreparationStep from 'src/components/assessment/PreparationStep.vue'
 import PostAssessment from 'src/components/assessment/PostAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
-import { SYSTEM_PROMPT_FEATURE_PACKET_V1 } from 'src/utils/facial/scoring/aiPrompts'
-import {
-  SYSTEM_PROMPT_DIAGNOSIS,
-  D_REPORT_USER_PROMPT,
-} from 'src/utils/facial/scoring/scoringPrompt'
-import { SYSTEM_TREATMENT_PLAN_PROMPT } from 'src/utils/facial/treatment/treatmentPrompt'
-import { POST_DIAGNOSIS_USER_PROMPT } from 'src/utils/facial/reassessment/postAssessmentPrompt'
 import { Loading, Notify, QSpinnerFacebook, useQuasar } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from 'src/boot/axios'
 import _ from 'lodash'
-import constraints from 'src/utils/facial/treatment/constraints.json'
+import { getFacialPrompts } from 'src/utils/facial'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
 
@@ -396,9 +389,11 @@ async function handleDiagnosis(files) {
   //   faceImages.value.push(...uploadedImages)
   // }
 
-  faceImages.value = config.IMAGES_ORDER.map((name) =>
-    faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
-  ).filter(Boolean)
+  const machineMode = assessmentData.value.face_scan_machine?.charAt(0) || '6'
+  const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
+  faceImages.value = imagesOrder
+    .map((name) => faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
+    .filter(Boolean)
 
   if (process.env.APP_TEST) {
     startProcessingStep.value = false
@@ -442,9 +437,11 @@ async function handlePostAssessment(files) {
   //   postTreatmentImages.value.push(...uploadedImages)
   // }
 
-  postTreatmentImages.value = config.IMAGES_ORDER.map((name) =>
-    postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
-  ).filter(Boolean)
+  const machineMode = assessmentData.value.face_scan_machine?.charAt(0) || '6'
+  const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
+  postTreatmentImages.value = imagesOrder
+    .map((name) => postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
+    .filter(Boolean)
 
   if (process.env.APP_TEST) {
     startProcessingStep.value = false
@@ -571,10 +568,11 @@ async function callApiForDiagnosis(data, images) {
   )
   // let finalFileIdArray = [...fileArrar, ...storedFiles]
   // console.log(finalFileIdArray)
+  const prompts = await getFacialPrompts(data.face_scan_machine)
   const input = [
     {
       role: 'system',
-      content: SYSTEM_PROMPT_FEATURE_PACKET_V1,
+      content: prompts.SYSTEM_PROMPT_FEATURE_PACKET_V1,
     },
     {
       role: 'user',
@@ -582,7 +580,7 @@ async function callApiForDiagnosis(data, images) {
         ...storedFiles,
         {
           type: 'input_text',
-          text: D_REPORT_USER_PROMPT,
+          text: prompts.D_REPORT_USER_PROMPT,
         },
       ],
     },
@@ -600,7 +598,7 @@ async function callApiForDiagnosis(data, images) {
       content: [
         {
           type: 'input_text',
-          text: SYSTEM_PROMPT_DIAGNOSIS,
+          text: prompts.SYSTEM_PROMPT_DIAGNOSIS,
         },
         {
           type: 'input_text',
@@ -614,7 +612,7 @@ async function callApiForDiagnosis(data, images) {
         ...storedFiles,
         {
           type: 'input_text',
-          text: D_REPORT_USER_PROMPT,
+          text: prompts.D_REPORT_USER_PROMPT,
         },
       ],
     },
@@ -660,17 +658,18 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     used_retinol_last_24_hours: assessmentData.value.retinol_used_last_night,
   }
 
+  const prompts = await getFacialPrompts(assessmentData.value.face_scan_machine)
   const input = [
     {
       role: 'system',
       content: [
         {
           type: 'input_text',
-          text: SYSTEM_TREATMENT_PLAN_PROMPT,
+          text: prompts.SYSTEM_TREATMENT_PLAN_PROMPT,
         },
         {
           type: 'input_text',
-          text: encode(constraints),
+          text: encode(prompts.constraints),
         },
       ],
     },
@@ -728,6 +727,7 @@ async function callApiForPostDiagnosis(data, images) {
   )
   // let finalFileIdArray = [...fileArrar, ...storedFiles]
 
+  const prompts = await getFacialPrompts(data.face_scan_machine)
   const input = [
     {
       role: 'user',
@@ -745,7 +745,7 @@ async function callApiForPostDiagnosis(data, images) {
         ...storedFiles,
         {
           type: 'input_text',
-          text: POST_DIAGNOSIS_USER_PROMPT,
+          text: prompts.POST_DIAGNOSIS_USER_PROMPT,
         },
         {
           type: 'input_text',

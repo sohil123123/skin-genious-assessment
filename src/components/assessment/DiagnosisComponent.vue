@@ -125,7 +125,9 @@ watch(
     if (val) {
       diagnosis.value = val.diagnosis
 
-      const desiredImages = config.IMAGES_ORDER.map((name) =>
+      const machineMode = val.face_scan_machine?.charAt(0) || '6'
+      const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
+      const desiredImages = imagesOrder.map((name) =>
         val.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
       ).filter(Boolean)
 
@@ -145,7 +147,9 @@ onMounted(async () => {
   if (!diagnosis.value) {
     diagnosis.value = assessmentData.value.diagnosis
 
-    const desiredImages = config.IMAGES_ORDER.map((name) =>
+    const machineMode = assessmentData.value.face_scan_machine?.charAt(0) || '6'
+    const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
+    const desiredImages = imagesOrder.map((name) =>
       assessmentData.value.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
     ).filter(Boolean)
 
