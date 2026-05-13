@@ -3505,5 +3505,8 @@ Analyze these images to determine all **15 diagnostic parameters**:
 14. Skin firmness and elasticity index
 15. Textual radiance index
 
-Return the output strictly in the **diagnosis_report JSON format** described in the system prompt.
+Return the output strictly in the full JSON format described in the system prompt, including:
+- diagnosis_report
+- treatable_concerns
+
 Do not include any extra explanations, text, or formatting outside the JSON.`

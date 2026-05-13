@@ -3030,7 +3030,7 @@ RULES:
 - Use exact key names from the JSON structure above.
 
 ### 17. Treatable Concerns Summary (Auto-generated from Diagnosis)
-After generating the full diagnosis_report, append a second top-level JSON object named "treatable_concerns".
+After generating the full diagnosis_report, append a second top-level JSON object named "treatable_concerns_summary".
 
 Purpose:
 - Identify parameters whose scores indicate non-ideal, abnormal, or clinically improvable conditions.
@@ -3054,15 +3054,16 @@ Generation rules:
 8. Preserve exact parameter naming consistency with treatment-planning inputs.
 
 Expected appended JSON structure:
-"treatable_concerns": {
+"treatable_concerns_summary": {
   "description": "Parameters showing measurable deviations and their expected improvement after a single treatment session.",
   "parameters_with_abnormal_scores": [
     {
       "parameter": "<Parameter Name>",
       "current_score": "<Score or Label>",
-      "target_score": "<Realistically Achievable Single-Session Score or Label>",
+      "target_single_session_score": "<Realistically Achievable Single-Session Score or Label>",
       "is_primary_concern": false,
       "reason_for_selection": "<Short explanation based on diagnosis backend data>",
+      "short_description": "<client facing language description with 1-2 line>",
       "score_semantics": "<label>",
       "score_polarity": "<label>",
       "ideal_score_direction": "<label>",
