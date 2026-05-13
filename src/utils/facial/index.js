@@ -4,8 +4,8 @@ export const getFacialPrompts = async (mode) => {
   const scoringPrompt = await import(`./${m}/scoring/scoringPrompt.js`)
   const treatmentPrompt = await import(`./${m}/treatment/treatmentPrompt.js`)
   const postAssessmentPrompt = await import(`./${m}/reassessment/postAssessmentPrompt.js`)
-  const constraintsModule = await import(`./${m}/treatment/constraints.json`, { with: { type: 'json' } })
-  const constraints = constraintsModule.default || constraintsModule
+  const constraintsModule = await import(`./${m}/treatment/constraints.js`)
+  const constraints = constraintsModule.constraints
   const productJson = await import(`./${m}/treatment/productJson.js`)
 
   return {
