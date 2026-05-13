@@ -35,6 +35,7 @@ export const useAssessmentStore = defineStore('assessment', {
       treatment_plans: null,
       therapist_notes: null,
       status: 'in_progress',
+      face_scan_machine: null,
     },
     initialAssessmentData: {
       id: null,
@@ -62,6 +63,7 @@ export const useAssessmentStore = defineStore('assessment', {
       treatment_plans: null,
       therapist_notes: null,
       status: 'in_progress',
+      face_scan_machine: null,
     },
     treatment_session_id: null,
     showDialog: false,
@@ -183,6 +185,7 @@ export const useAssessmentStore = defineStore('assessment', {
       this.assessmentData.name = data.first_name + ' ' + data.last_name
       this.assessmentData.gender = data.gender
       this.assessmentData.age = useCommonStore().getAgeFromDate(data.date_of_birth)
+      this.assessmentData.face_scan_machine = data.face_scan_machine || '6_light_modes'
     },
     setData(data) {
       Object.assign(this.assessmentData, data)

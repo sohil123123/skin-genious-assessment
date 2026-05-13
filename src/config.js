@@ -1,6 +1,9 @@
 export default {
   is_test_mode: false,
-  IMAGES_ORDER: ['white', 'positive', 'negative', 'blue', 'uv', 'woods'],
+  IMAGES_ORDER: {
+    '6': ['white', 'positive', 'negative', 'blue', 'uv', 'woods'],
+    '5': ['red', 'subsurface_polarized', 'surface_polarized', 'white', 'woods_uv']
+  },
   ELEVENLAB_VOICE_ID: 'TpoMSaK5kf87RYsHV5vp',
   ELEVENLAB_MODEL: 'eleven_multilingual_v2',
   ELEVENLAB_STABILITY: 0.5,

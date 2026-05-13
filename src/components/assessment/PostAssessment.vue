@@ -138,13 +138,16 @@ watch(
     if (val) {
       post_diagnosis.value = val.post_diagnosis
 
-      const desiredImages = config.IMAGES_ORDER.map((name) =>
+      const machineMode = val.face_scan_machine?.charAt(0) || '6'
+      const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
+
+      const desiredImages = imagesOrder.map((name) =>
         val.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
       ).filter(Boolean)
 
       faceImages.value = desiredImages.map((img) => img.url)
 
-      const desiredPostImages = config.IMAGES_ORDER.map((name) =>
+      const desiredPostImages = imagesOrder.map((name) =>
         val.post_images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
       ).filter(Boolean)
 
