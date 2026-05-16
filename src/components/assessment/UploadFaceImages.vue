@@ -262,7 +262,7 @@ async function connectDevice() {
     .get(`/device/connect/${user?.clinic_id}`)
     .then((response) => {
       Notify.create({
-        type: response.data.success ? 'positive' : 'negative',
+        type: 'positive',
         message: response.data.message,
       })
       loading.value = false
