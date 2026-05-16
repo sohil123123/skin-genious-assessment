@@ -77,7 +77,6 @@
                 </div>
               </q-card>
             </div>
-
           </div>
         </q-card>
       </div>
@@ -129,7 +128,8 @@
                 <template v-slot:avatar>
                   <q-icon name="warning" color="white" />
                 </template>
-                Please Select Date & Time</q-banner>
+                Please Select Date & Time</q-banner
+              >
             </div>
           </q-card-section>
 
@@ -154,7 +154,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
-import { Loading, useQuasar } from 'quasar'
+import { Loading, useQuasar, LocalStorage } from 'quasar'
 import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import moment from 'moment'
@@ -242,6 +242,7 @@ function finishSession() {
     },
   })
     .onOk(async () => {
+      LocalStorage.removeItem('user')
       Loading.show({
         message: 'Finalizing and redirecting...',
       })

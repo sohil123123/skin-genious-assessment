@@ -190,7 +190,7 @@ import MajorConcerns from 'src/components/assessment/MajorConcerns.vue'
 // import PreparationStep from 'src/components/assessment/PreparationStep.vue'
 import PostAssessment from 'src/components/assessment/PostAssessment.vue'
 import { useOpenAI } from 'src/composables/useOpenAI'
-import { Loading, Notify, QSpinnerFacebook, useQuasar } from 'quasar'
+import { Loading, LocalStorage, Notify, QSpinnerFacebook, useQuasar } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
@@ -793,6 +793,7 @@ function finalizeAndExit() {
     },
   })
     .onOk(() => {
+      LocalStorage.removeItem('user')
       assessmentData.value.status = 'completed'
       submit(['status'])
       Loading.show({

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { Loading, Notify } from 'quasar'
+import { Loading, Notify, LocalStorage } from 'quasar'
 import { api } from 'src/boot/axios'
 import { serialize } from 'object-to-formdata'
 import { useCommonStore } from './commonStore'
@@ -77,6 +77,7 @@ export const useAssessmentStore = defineStore('assessment', {
       await api
         .get(`/users/${uid}`)
         .then((response) => {
+          LocalStorage.set('user', JSON.stringify(response.data.results))
           this.setPatientData(response.data.results)
           Loading.hide()
         })

@@ -277,7 +277,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
-import { Loading, useQuasar } from 'quasar'
+import { Loading, useQuasar, LocalStorage } from 'quasar'
 import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import moment from 'moment'
@@ -424,7 +424,8 @@ async function generateDailyRoute() {
           { type: 'input_text', text: prompts.SYSTEM_DAILY_HOME_CARE_ROUTINE_PROMPT },
           {
             type: 'input_text',
-            text: 'available_skincare_products JSON:\n' + encode(prompts.available_skincare_products),
+            text:
+              'available_skincare_products JSON:\n' + encode(prompts.available_skincare_products),
           },
         ],
       },
@@ -622,6 +623,7 @@ function skipAndFinish() {
     },
   })
     .onOk(async () => {
+      LocalStorage.removeItem('user')
       Loading.show({
         message: 'Finalizing and redirecting...',
       })

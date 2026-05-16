@@ -124,7 +124,7 @@
 import { ref, nextTick, watch, onMounted } from 'vue'
 // import { useCommonStore } from 'src/stores/commonStore'
 import { api } from 'src/boot/axios'
-import { Notify } from 'quasar'
+import { Notify, LocalStorage } from 'quasar'
 
 const loading = ref(false)
 
@@ -256,8 +256,10 @@ watch(
 
 async function connectDevice() {
   loading.value = true
+  let user = LocalStorage.getItem('user')
+  user = JSON.parse(user)
   await api
-    .get('/device/connect')
+    .get(`/device/connect/${user?.clinic_id}`)
     .then((response) => {
       Notify.create({
         type: response.data.success ? 'positive' : 'negative',
