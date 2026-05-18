@@ -27,6 +27,20 @@
           </q-btn>
         </div>
 
+        <q-card v-if="assessmentStore.assessmentData?.name" flat bordered class="q-mb-md">
+          <q-card-section class="bg-grey-1 q-py-sm q-px-md flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <q-icon name="person" size="24px" color="primary" />
+              <span class="text-subtitle1 text-weight-medium text-dark">
+                Client: <strong class="text-black">{{ assessmentStore.assessmentData.name }}</strong>
+              </span>
+            </div>
+            <div v-if="assessmentStore.assessmentData?.age || assessmentStore.assessmentData?.gender" class="text-caption text-grey-7">
+              {{ assessmentStore.assessmentData?.gender ? assessmentStore.assessmentData.gender + ', ' : '' }}{{ assessmentStore.assessmentData?.age ? assessmentStore.assessmentData.age + ' years' : '' }}
+            </div>
+          </q-card-section>
+        </q-card>
+
         <q-card flat class="q-pa-lg">
           <div class="header">
             <div>

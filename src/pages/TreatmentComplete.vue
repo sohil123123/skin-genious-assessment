@@ -14,6 +14,20 @@
           </div>
         </div>
 
+        <q-card v-if="assessmentData?.name" flat bordered class="q-mb-md">
+          <q-card-section class="bg-grey-1 q-py-sm q-px-md flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <q-icon name="person" size="24px" color="primary" />
+              <span class="text-subtitle1 text-weight-medium text-dark">
+                Client: <strong class="text-black">{{ assessmentData.name }}</strong>
+              </span>
+            </div>
+            <div v-if="assessmentData?.age || assessmentData?.gender" class="text-caption text-grey-7">
+              {{ assessmentData?.gender ? assessmentData.gender + ', ' : '' }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
+            </div>
+          </q-card-section>
+        </q-card>
+
         <q-card flat>
           <div class="row items-center justify-between">
             <div>
@@ -512,7 +526,7 @@ function downloadRoutinePDF() {
 
   doc.setFontSize(12)
   doc.setTextColor(100)
-  doc.text(`Patient: ${assessmentData.value.name}`, 14, 45)
+  doc.text(`Client: ${assessmentData.value.name}`, 14, 45)
   doc.text(`Date: ${moment().format('DD-MM-YYYY')}`, 14, 52)
   doc.text(`Session: ${session.value?.title}`, 14, 59)
 
