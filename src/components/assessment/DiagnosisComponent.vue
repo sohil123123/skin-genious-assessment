@@ -1,4 +1,18 @@
 <template>
+  <q-card v-if="assessmentData?.name" flat bordered class="q-mb-md">
+    <q-card-section class="bg-grey-1 q-py-sm q-px-md flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <q-icon name="person" size="24px" color="primary" />
+        <span class="text-subtitle1 text-weight-medium text-dark">
+          Client: <strong class="text-black">{{ assessmentData.name }}</strong>
+        </span>
+      </div>
+      <div v-if="assessmentData?.age || assessmentData?.gender" class="text-caption text-grey-7">
+        {{ assessmentData?.gender ? assessmentData.gender + ', ' : '' }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
+      </div>
+    </q-card-section>
+  </q-card>
+
   <div v-if="diagnosis">
     <div class="flex justify-between q-mt-lg">
       <q-btn label="Previous" rounded no-caps class="btn-custom" @click="emitPrevious" />

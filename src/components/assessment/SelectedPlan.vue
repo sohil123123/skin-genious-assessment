@@ -5,6 +5,9 @@
       <!-- Left section -->
       <div class="col-12 col-sm-5 col-md-5">
         <div class="text-h5 text-weight-bold text-primary-dark">Skin Treatment Plan</div>
+        <!-- <div v-if="assessmentData?.name" class="text-subtitle1 text-weight-medium text-grey-9 q-mt-xs">
+          Client: <strong class="text-black">{{ assessmentData.name }}</strong>
+        </div> -->
         <div class="text-caption text-grey-7 q-mt-xs">
           Total Duration: {{ treatmentPlan?.total_time }} •
           {{ treatmentPlan?.treatments?.length }} sessions

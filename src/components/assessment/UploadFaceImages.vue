@@ -2,6 +2,24 @@
   <div v-show="!startProcessingStep">
     <div class="row justify-center">
       <div class="upload-container">
+        <q-card v-if="assessmentData?.name" flat bordered class="full-width q-mb-md">
+          <q-card-section class="bg-grey-1 q-py-sm q-px-md flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <q-icon name="person" size="24px" color="primary" />
+              <span class="text-subtitle1 text-weight-medium text-dark">
+                Client: <strong class="text-black">{{ assessmentData.name }}</strong>
+              </span>
+            </div>
+            <div
+              v-if="assessmentData?.age || assessmentData?.gender"
+              class="text-caption text-grey-7"
+            >
+              {{ assessmentData?.gender ? assessmentData.gender + ', ' : ''
+              }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
+            </div>
+          </q-card-section>
+        </q-card>
+
         <h2 v-if="!isPostAssessment" class="upload-title">Upload Face Scan</h2>
         <h2 v-else class="upload-title">Upload After Treatment Face Scan</h2>
         <q-uploader
@@ -91,6 +109,22 @@
 
   <div v-if="startProcessingStep">
     <div class="container" id="scan-animation">
+      <q-card
+        v-if="assessmentData?.name"
+        flat
+        bordered
+        class="q-mx-auto q-mb-lg"
+        style="max-width: 500px"
+      >
+        <q-card-section class="bg-grey-1 q-py-sm q-px-md flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <q-icon name="person" size="20px" color="primary" />
+            <span class="text-subtitle2 text-weight-medium text-dark text-left">
+              Processing scan for: <strong class="text-black">{{ assessmentData.name }}</strong>
+            </span>
+          </div>
+        </q-card-section>
+      </q-card>
       <h6 class="heading">{{ processingMessage }}</h6>
       <div class="scanner"></div>
     </div>
@@ -109,7 +143,7 @@
     />
 
     <q-btn
-      label="Manual Pull Images"
+      label="Manually Pull Images"
       :loading="loading"
       rounded
       no-caps

@@ -1,4 +1,18 @@
 <template>
+  <q-card v-if="assessmentData?.name" flat bordered class="q-mb-md">
+    <q-card-section class="bg-grey-1 q-py-sm q-px-md flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <q-icon name="person" size="24px" color="primary" />
+        <span class="text-subtitle1 text-weight-medium text-dark">
+          Client: <strong class="text-black">{{ assessmentData.name }}</strong>
+        </span>
+      </div>
+      <div v-if="assessmentData?.age || assessmentData?.gender" class="text-caption text-grey-7">
+        {{ assessmentData?.gender ? assessmentData.gender + ', ' : '' }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
+      </div>
+    </q-card-section>
+  </q-card>
+
   <div v-if="treatmentPlan">
     <!-- Selected Treatment Plan -->
     <SelectedPlan @download-pdf="exportToPDF" />
@@ -20,12 +34,12 @@
 
     <div class="flex justify-between q-mt-lg">
       <q-btn
-        label="Export Patient Treatment Plan To PDF"
+        label="Export Client Treatment Plan To PDF"
         icon="get_app"
         rounded
         no-caps
         @click="exportToPDF"
-        title="Export Patient Treatment Plan to PDF"
+        title="Export Client Treatment Plan to PDF"
         color="positive"
       />
       <q-btn
