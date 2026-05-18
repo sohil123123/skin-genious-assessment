@@ -1,26 +1,51 @@
 <template>
   <!-- Header -->
   <q-card flat bordered class="header-card q-pa-md q-mb-md">
-    <div class="row justify-between items-center">
+    <div class="row justify-between items-center q-col-gutter-md">
       <!-- Left section -->
-      <div>
-        <div class="text-h5 text-weight-bold">Skin Treatment Plan</div>
+      <div class="col-12 col-sm-5 col-md-5">
+        <div class="text-h5 text-weight-bold text-primary-dark">Skin Treatment Plan</div>
         <div class="text-caption text-grey-7 q-mt-xs">
           Total Duration: {{ treatmentPlan?.total_time }} •
           {{ treatmentPlan?.treatments?.length }} sessions
         </div>
       </div>
 
+      <!-- Therapist Selector -->
+      <div class="col-12 col-sm-4 col-md-4">
+        <q-select
+          v-model="selectedTherapistId"
+          :options="therapists"
+          label="Assigned Therapist"
+          outlined
+          dense
+          rounded
+          emit-value
+          map-options
+          options-dense
+          color="amber-8"
+          @update:model-value="updateTherapist"
+          class="therapist-select"
+        >
+          <template v-slot:prepend>
+            <q-icon name="supervised_user_circle" color="amber-8" />
+          </template>
+        </q-select>
+      </div>
+
       <!-- Right button -->
-      <q-btn
-        color="positive"
-        label="Download Treatment Plan"
-        icon="download"
-        glossy
-        unelevated
-        rounded
-        @click="$emit('download-pdf')"
-      />
+      <div class="col-12 col-sm-3 col-md-3 flex justify-end">
+        <q-btn
+          color="positive"
+          label="Download PDF"
+          icon="download"
+          glossy
+          unelevated
+          rounded
+          class="full-width"
+          @click="$emit('download-pdf')"
+        />
+      </div>
     </div>
   </q-card>
 
@@ -131,6 +156,8 @@ import { storeToRefs } from 'pinia'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { useRouter, useRoute } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
+import { api } from 'src/boot/axios'
+import { Notify } from 'quasar'
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
@@ -140,18 +167,68 @@ const route = useRoute()
 const treatmentStore = useTreatmentFlowStore()
 
 const treatmentPlan = ref(null)
+const selectedTherapistId = ref(null)
+const therapists = ref([])
+const hasFetchedTherapists = ref(false)
 
 defineEmits(['download-pdf'])
+
+const fetchTherapists = async (clinicId) => {
+  if (!clinicId || hasFetchedTherapists.value) return
+  try {
+    const response = await api.get(`/get-users?role=therapist&clinic_id=${clinicId}`)
+    const rawData = response.data.results || response.data || []
+    therapists.value = rawData.map((t) => {
+      const id = t.id || t.value
+      const label =
+        t.label ||
+        t.name ||
+        (t.first_name ? `${t.first_name} ${t.last_name || ''}`.trim() : '') ||
+        `Therapist #${id}`
+      return {
+        value: id,
+        label: label,
+      }
+    })
+    hasFetchedTherapists.value = true
+  } catch (error) {
+    console.error('Error fetching therapists:', error)
+  }
+}
 
 watch(
   () => assessmentData.value,
   (val) => {
     if (val) {
       treatmentPlan.value = val.treatment_sessions
+      selectedTherapistId.value = val.therapist_id
+      if (val.clinic_id) {
+        fetchTherapists(val.clinic_id)
+      }
     }
   },
   { deep: true, immediate: true },
 )
+
+const updateTherapist = async (val) => {
+  if (!val) return
+  try {
+    assessmentData.value.therapist_id = val
+    await store.updateAssessment({ therapist_id: val })
+    Notify.create({
+      type: 'positive',
+      message: 'Therapist assigned successfully',
+      timeout: 2000,
+    })
+  } catch (error) {
+    console.error('Failed to update therapist:', error)
+    Notify.create({
+      type: 'negative',
+      message: 'Failed to assign therapist. Please try again.',
+      timeout: 3000,
+    })
+  }
+}
 
 const startSession = (session) => {
   if (!session) return
@@ -183,6 +260,14 @@ const startSession = (session) => {
   border: 1px solid #f3e5c8;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   background: #fff;
+}
+
+.therapist-select :deep(.q-field__control) {
+  background-color: #fffaf4;
+  transition: all 0.3s ease;
+}
+.therapist-select :deep(.q-field__control:hover) {
+  background-color: #fff6eb;
 }
 
 .panel {
