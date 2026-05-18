@@ -109,6 +109,16 @@
     />
 
     <q-btn
+      label="Manual Pull Images"
+      :loading="loading"
+      rounded
+      no-caps
+      size="18px"
+      class="btn-custom"
+      @click="manualPullImages"
+    />
+
+    <q-btn
       v-if="uploader?.files.length > 0 && !startProcessingStep"
       label="⚡ Process Scanned Results"
       rounded
@@ -260,6 +270,29 @@ async function connectDevice() {
   user = JSON.parse(user)
   await api
     .get(`/device/connect/${user?.clinic_id}`)
+    .then((response) => {
+      Notify.create({
+        type: 'positive',
+        message: response.data.message,
+      })
+      loading.value = false
+    })
+    .catch((e) => {
+      console.log(e)
+      Notify.create({
+        type: 'negative',
+        message: e.response.data.message,
+      })
+      loading.value = false
+    })
+}
+
+async function manualPullImages() {
+  loading.value = true
+  let user = LocalStorage.getItem('user')
+  user = JSON.parse(user)
+  await api
+    .get(`/device/pull-last-images/${user?.clinic_id}`)
     .then((response) => {
       Notify.create({
         type: 'positive',
