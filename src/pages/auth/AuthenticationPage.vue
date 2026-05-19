@@ -70,6 +70,17 @@ onMounted(async () => {
             },
           })
         }
+        if (type == 'edit') {
+          router.push({
+            name: 'index-with-id',
+            params: {
+              user_id: userId,
+              step: 'step-1',
+              assessment_id: assessment_id,
+              ...(appointmentId && { appointment_id: appointmentId }),
+            },
+          })
+        }
         if (type == 'iv') {
           router.push({
             name: 'iv-assessment',

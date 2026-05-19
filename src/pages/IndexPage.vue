@@ -131,6 +131,7 @@
           <MajorConcerns
             v-if="currentStep === 'step-4'"
             @previous="goPrev"
+            @next="goNext"
             @generate-treatment="handleGenerateTreatment"
             @save_data="submit"
           />

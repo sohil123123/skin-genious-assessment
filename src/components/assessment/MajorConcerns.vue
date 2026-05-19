@@ -1,6 +1,15 @@
 <template>
+  <!-- Top Navigation Buttons -->
+  <div class="q-py-sm flex justify-between bg-white">
+    <q-btn color="black" label="Previous" @click="$emit('previous')" />
+    <q-btn color="positive" label="Next" @click="$emit('next')" />
+  </div>
+
   <q-card class="my-card" flat bordered>
-    <q-card-section v-if="assessmentData?.name" class="bg-grey-1 q-py-sm q-px-md flex items-center justify-between">
+    <q-card-section
+      v-if="assessmentData?.name"
+      class="bg-grey-1 q-py-sm q-px-md flex items-center justify-between"
+    >
       <div class="flex items-center gap-2">
         <q-icon name="person" size="24px" color="primary" />
         <span class="text-subtitle1 text-weight-medium text-dark">
@@ -8,10 +17,11 @@
         </span>
       </div>
       <div v-if="assessmentData?.age || assessmentData?.gender" class="text-caption text-grey-7">
-        {{ assessmentData?.gender ? assessmentData.gender + ', ' : '' }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
+        {{ assessmentData?.gender ? assessmentData.gender + ', ' : ''
+        }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
       </div>
     </q-card-section>
-    
+
     <q-separator v-if="assessmentData?.name" />
 
     <q-card-section horizontal>
@@ -176,7 +186,7 @@ import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
 import { Notify } from 'quasar'
 
-const emit = defineEmits(['generate-treatment', 'previous', 'save_data'])
+const emit = defineEmits(['generate-treatment', 'previous', 'save_data', 'next'])
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)

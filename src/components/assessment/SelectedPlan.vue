@@ -29,6 +29,9 @@
           color="amber-8"
           @update:model-value="updateTherapist"
           class="therapist-select"
+          :class="{'therapist-missing': !selectedTherapistId}"
+          :error="!selectedTherapistId"
+          hide-bottom-space
         >
           <template v-slot:prepend>
             <q-icon name="supervised_user_circle" color="amber-8" />
@@ -271,6 +274,22 @@ const startSession = (session) => {
 }
 .therapist-select :deep(.q-field__control:hover) {
   background-color: #fff6eb;
+}
+.therapist-missing :deep(.q-field__control) {
+  background-color: #fff0f0 !important;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(244, 67, 54, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
+  }
 }
 
 .panel {

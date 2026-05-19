@@ -1,4 +1,10 @@
 <template>
+  <!-- Top Navigation Buttons -->
+  <div class="flex justify-between q-mb-md">
+    <q-btn color="black" label="Previous" @click="$emit('previous')" />
+    <q-btn color="positive" label="Next" @click="postAssessment" />
+  </div>
+
   <q-card v-if="assessmentData?.name" flat bordered class="q-mb-md">
     <q-card-section class="bg-grey-1 q-py-sm q-px-md flex items-center justify-between">
       <div class="flex items-center gap-2">
@@ -8,7 +14,8 @@
         </span>
       </div>
       <div v-if="assessmentData?.age || assessmentData?.gender" class="text-caption text-grey-7">
-        {{ assessmentData?.gender ? assessmentData.gender + ', ' : '' }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
+        {{ assessmentData?.gender ? assessmentData.gender + ', ' : ''
+        }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
       </div>
     </q-card-section>
   </q-card>
