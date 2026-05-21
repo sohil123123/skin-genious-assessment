@@ -24,6 +24,21 @@
     <!-- Selected Treatment Plan -->
     <SelectedPlan @download-pdf="exportToPDF" />
 
+    <!-- Daily Home Care Routine (if generated) -->
+    <div v-for="session in treatmentPlan?.treatments" :key="session.id" class="q-mb-md">
+      <DailyHomeCareRoutine
+        v-if="hasDailyRoutine(session)"
+        :routine="session.daily_home_care_routine"
+        :show-generate="false"
+        :show-download="true"
+        :assessment-id="assessmentData.id"
+        :patient-name="assessmentData.name"
+        :session-id="session.id"
+        :session-number="session.session_number"
+        :title="`Daily Home Care Routine - Session ${session.session_number}`"
+      />
+    </div>
+
     <!-- Recommended Treatment Plan -->
     <!-- <RecommendedFullPlan :treatmentPlan="recommendedFullPlan" /> -->
 
@@ -69,6 +84,7 @@ import { watch, ref } from 'vue'
 import { api } from 'src/boot/axios'
 import { storeToRefs } from 'pinia'
 import SelectedPlan from 'src/components/assessment/SelectedPlan.vue'
+import DailyHomeCareRoutine from 'src/components/assessment/DailyHomeCareRoutine.vue'
 // import RecommendedFullPlan from 'src/components/assessment/RecommendedFullPlan.vue'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { Loading, Notify } from 'quasar'
@@ -132,5 +148,21 @@ const exportToPDF = async () => {
     // 🔥 ALWAYS hide loader
     Loading.hide()
   }
+}
+
+function hasDailyRoutine(session) {
+  const routine = session?.daily_home_care_routine
+  if (!routine) return false
+
+  let parsed = routine
+  if (typeof routine === 'string') {
+    try {
+      parsed = JSON.parse(routine)
+    } catch {
+      return false
+    }
+  }
+
+  return parsed?.morning?.length > 0 || parsed?.evening?.length > 0
 }
 </script>
