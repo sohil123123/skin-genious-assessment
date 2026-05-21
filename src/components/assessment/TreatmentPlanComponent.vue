@@ -31,6 +31,7 @@
         :routine="session.daily_home_care_routine"
         :show-generate="false"
         :show-download="true"
+        :default-expanded="false"
         :assessment-id="assessmentData.id"
         :patient-name="assessmentData.name"
         :session-id="session.id"
