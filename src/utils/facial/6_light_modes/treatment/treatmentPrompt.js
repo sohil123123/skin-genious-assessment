@@ -786,6 +786,11 @@ FINAL PLAN VALIDATION (MANDATORY):
         "title": "<Session Title>",
         "script": "<description of concerns addressed in this session>",
         "treatment_time": "<minutes>",
+        "step_duration_total": "<minutes same as treatment_time>",
+        "timing_validation": {
+          "calculated_from_steps": "<minutes calculated from steps sum>",
+          "matches_treatment_time": "<boolean>"
+        },
         "week": <Week Number>,
         "preparations_checklist_for_therapist": [
           "<prep step>",
