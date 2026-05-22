@@ -649,6 +649,54 @@ I) MULTI-SESSION ESCALATION RULE (MANDATORY)
   Also require:
     • each session must state: what changed vs last time and why (intensity, zones, modality, recovery)
 
+J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
+    All session timings must be mathematically consistent.
+
+    Definitions:
+    - treatment_time = exact active treatment duration for that session.
+    - treatment_time must equal the sum of all step durations.
+    - total_time = overall plan duration only, such as "1 session", "2 sessions", "n sessions ".
+    - Do not use total_time for session minutes.
+    - Do not inflate treatment_time to look like a longer session.
+
+    Hard timing rules:
+    1. Every step duration must be a number in minutes only.
+      Correct: 10
+      Incorrect: "10 minutes", "10 mins", "approx 10"
+
+    2. For every session:
+      treatment_time = sum of all steps[].duration and it should be minimum 55 minutes.
+
+    3. If the sum of step durations is lower than the selected treatment_time:
+      - Either add clinically meaningful missing steps, OR
+      - Reduce treatment_time to the actual step total  .
+      - Never add filler steps only to increase time.
+
+    4. If the sum of step durations is higher than treatment_time:
+      - Either increase treatment_time to match the actual step  , OR
+      - Remove/shorten low-priority steps.
+      - Never output mismatched timing.
+
+    5. Before final JSON output, perform this internal check:
+      calculated_step_total = sum of all step durations
+      If calculated_step_total !== treatment_time:
+          regenerate the session before output.
+
+    6. The final JSON must never contain a session where treatment_time and total step duration differ.
+
+K) SESSION DURATION RANGE RULES
+
+    For treatment_plan_type = "express":
+    - treatment_time must be 30–40 minutes.
+    - Sum of step durations must also be 30–40 minutes.
+
+    For treatment_plan_type = "single":
+    - treatment_time should usually be 55-75 minutes.
+    - It may extend to 80 minutes only if clinically meaningful corrective steps require it.
+
+    For treatment_plan_type = "multiple":
+    minimun session count  should be 5 sessions
+
 ________________________________________
 4. General Clinical Rules
 •	Respect all clinical constraints (pregnancy, photosensitivity, allergies, recent peels, etc.).
