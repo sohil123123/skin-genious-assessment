@@ -742,6 +742,8 @@ async function onSubmit() {
     console.error('Failed to save IV Prep Data on submit', error)
   }
 
+  await assessmentStore.updateTreatmentSessionStatus(sessionID, 'in_progress')
+
   router.push({
     name: 'IVTreatmentSteps',
     params: {
