@@ -164,6 +164,17 @@ onMounted(async () => {
   store.currentSessionId = Number(route.params.session_id)
   await assessmentStore.getSingleAssessment(route.params.assessment_id)
   store.treatmentPlan = assessmentStore.assessmentData.treatment_sessions
+
+  store.markCompleted()
+
+  if (route.params.appointment_id) {
+    await assessmentStore.updateStatus(route.params.appointment_id)
+  }
+
+  // Update treatment session status to completed
+  if (route.params.session_id) {
+    await assessmentStore.updateTreatmentSessionStatus(route.params.session_id, 'completed')
+  }
 })
 
 const session = computed(() => store.currentSession)

@@ -96,7 +96,14 @@ onMounted(async () => {
   // mark completed if not yet
   store.markCompleted()
   // INFO: Update Treatment Session Status and Appointment Status to "completed"
-  if (route.params.appointment_id) await assessmentStore.updateStatus(route.params.appointment_id)
+  if (route.params.appointment_id) {
+    await assessmentStore.updateStatus(route.params.appointment_id)
+  }
+
+  // Update treatment session status to completed
+  if (route.params.session_id) {
+    await assessmentStore.updateTreatmentSessionStatus(route.params.session_id, 'completed')
+  }
 })
 
 const session = computed(() => store.currentSession)
