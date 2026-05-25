@@ -111,11 +111,11 @@ const session = computed(() => store.currentSession)
 function skipAndFinish() {
   $q.dialog({
     title: 'Confirm',
-    message: 'Are you sure you want to skip the follow-up scan and return to CRM?',
+    message: 'Are you sure you want to complete the treatment?',
     persistent: true,
 
     ok: {
-      label: 'Yes, Complete Session',
+      label: 'Yes, Complete Treatment',
       color: 'positive',
       icon: 'check_circle',
       unelevated: true,
