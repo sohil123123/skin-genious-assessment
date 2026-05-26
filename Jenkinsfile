@@ -7,7 +7,7 @@ pipeline {
 
     environment {
         SERVER_IP    = "127.0.0.1"
-        PROJECT_PATH = "/home/ai-aesthetics-assessment/htdocs/assessment.ai-aesthetics.in"
+        PROJECT_PATH = "/home/ai-aesthetics-staging-assessment/htdocs/staging-assessment.ai-aesthetics.in"
         SSH_KEY      = "/var/lib/jenkins/.ssh/id_ed25519_deploy"
     }
 
@@ -30,7 +30,7 @@ pipeline {
 
                 withCredentials([
                     file(
-                        credentialsId: 'production_assessment_env',
+                        credentialsId: 'staging_assessment_env',
                         variable: 'ENV_FILE'
                     )
                 ]) {
