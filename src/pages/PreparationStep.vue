@@ -204,7 +204,9 @@ const totalItems = computed(() => prepList.value.length)
 const checkedCount = computed(() => selected.value.length)
 const progress = computed(() => checkedCount.value / totalItems.value)
 
-function startSteps() {
+async function startSteps() {
+  await assessmentStore.updateTreatmentSessionStatus(sessionID, 'in_progress')
+
   // go to first step (steps are 1-based in route)
   router.push({
     name: 'TreatmentSteps',

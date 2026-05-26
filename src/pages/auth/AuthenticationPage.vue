@@ -100,6 +100,16 @@ onMounted(async () => {
               ...(appointmentId && { appointment_id: appointmentId }),
             },
           })
+        } else if (type == 'clinic-head-complete') {
+          router.push({
+            name: 'ClinicHeadTreatmentComplete',
+            params: {
+              user_id: userId,
+              assessment_id: assessment_id,
+              session_id: session_id,
+              ...(appointmentId && { appointment_id: appointmentId }),
+            },
+          })
         } else if (type == 'iv-treatment') {
           router.push({
             name: 'IVTreatmentPrep',

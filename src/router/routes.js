@@ -72,6 +72,12 @@ const routes = [
         props: true,
       },
       {
+        path: 'clinic-head-treatment-complete/:user_id/:assessment_id/:session_id/:appointment_id?',
+        name: 'ClinicHeadTreatmentComplete',
+        component: () => import('pages/ClinicHeadTreatmentComplete.vue'),
+        props: true,
+      },
+      {
         path: ':user_id/iv-treatment-complete/:assessment_id/:session_id/:appointment_id?',
         name: 'IVTreatmentComplete',
         component: () => import('pages/IVTreatmentComplete.vue'),
