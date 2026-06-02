@@ -504,6 +504,8 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
         ],
       })
     } else {
+      await updateTreatmentDurations(apiResponse)
+
       assessmentData.value.treatment_plans = apiResponse
       assessmentData.value.treatment_sessions = apiResponse.treatment_plan
       await submit(['treatment_plans'])
@@ -512,6 +514,25 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
       goNext()
     }
   }
+}
+
+const updateTreatmentDurations = async (apiResponse) => {
+  await Promise.all(
+    apiResponse.treatment_plan.treatments.map(async (treatment) => {
+      const totalDuration = treatment.steps.reduce(
+        (sum, step) => sum + Number(step.duration || 0),
+        0,
+      )
+
+      treatment.treatment_time = totalDuration
+      treatment.step_duration_total = totalDuration
+
+      if (treatment.timing_validation) {
+        treatment.timing_validation.calculated_from_steps = totalDuration
+        treatment.timing_validation.matches_treatment_time = true
+      }
+    }),
+  )
 }
 
 async function uploadImageFileToOpenAI(files, type) {
