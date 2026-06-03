@@ -373,7 +373,7 @@ const initiateRunSheetGeneration = async () => {
     const conversationId = formData.value.conversation_id || null
 
     // Call AI
-    const result = await runResponse(conversationId, messages, 0.2)
+    const result = await runResponse(conversationId, messages)
 
     // Validate output structure
     if (result && !result.error && (result.header || result.preflight_checks)) {
@@ -437,7 +437,7 @@ watch(
       selectedSessionIndex.value = newIdx
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 </script>
 
