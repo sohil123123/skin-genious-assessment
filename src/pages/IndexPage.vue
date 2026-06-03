@@ -591,26 +591,27 @@ async function callApiForDiagnosis(data, images) {
   // let finalFileIdArray = [...fileArrar, ...storedFiles]
   // console.log(finalFileIdArray)
   const prompts = await getFacialPrompts(data.face_scan_machine)
-  const input = [
-    {
-      role: 'system',
-      content: prompts.SYSTEM_PROMPT_FEATURE_PACKET_V1,
-    },
-    {
-      role: 'user',
-      content: [
-        ...storedFiles,
-        {
-          type: 'input_text',
-          text: prompts.D_REPORT_USER_PROMPT,
-        },
-      ],
-    },
-  ]
+  // const input = [
+  //   {
+  //     role: 'system',
+  //     content: prompts.SYSTEM_PROMPT_FEATURE_PACKET_V1,
+  //   },
+  //   {
+  //     role: 'user',
+  //     content: [
+  //       ...storedFiles,
+  //       {
+  //         type: 'input_text',
+  //         text: prompts.D_REPORT_USER_PROMPT,
+  //       },
+  //     ],
+  //   },
+  // ]
   processingMessage.value = 'Processing scanned images...'
   console.log('Conv ID:', convId)
-  console.log('Diagnosis Input:', input)
-  assessmentData.value.feature_packet = await runResponse(convId, input)
+  // console.log('Diagnosis Input:', input)
+  // assessmentData.value.feature_packet = await runResponse(convId, input)
+  assessmentData.value.feature_packet = await getResponseFromOpenCv(images)
   submit(['feature_packet'])
   console.log('✅ Feature Packet:', assessmentData.value.feature_packet)
 
@@ -645,6 +646,63 @@ async function callApiForDiagnosis(data, images) {
   console.log('✅ Diagnosis:', result2)
 
   return result2
+}
+
+async function getResponseFromOpenCv(images) {
+  try {
+    const formData = new FormData()
+
+    // If 'images' is passed and contains File objects, use it. Otherwise, fallback to the stored URLs.
+    const imagesData = images && images.length > 0 ? images : assessmentData.value.images
+
+    for (let i = 0; i < imagesData.length; i++) {
+      const img = imagesData[i]
+      let fileName = ''
+      let fileBlob = null
+
+      if (img instanceof File) {
+        fileName = img.name.toLowerCase()
+        fileBlob = img
+      } else if (img.url) {
+        fileName = img.url.toLowerCase()
+        const response = await fetch(img.url)
+        fileBlob = await response.blob()
+      } else {
+        continue
+      }
+
+      let matchedKey = null
+      if (fileName.includes('white.')) matchedKey = 'white'
+      else if (fileName.includes('red.')) matchedKey = 'red'
+      else if (fileName.includes('surface_polarized.')) matchedKey = 'surface_polarized'
+      else if (fileName.includes('subsurface_polarized.')) matchedKey = 'subsurface_polarized'
+      else if (fileName.includes('woods_uv.')) matchedKey = 'woods_uv'
+      // Fallbacks for other naming conventions (like machine 6)
+      else if (fileName.includes('positive.')) matchedKey = 'surface_polarized'
+      else if (fileName.includes('negative.')) matchedKey = 'subsurface_polarized'
+      else if (
+        fileName.includes('blue.') ||
+        fileName.includes('uv.') ||
+        fileName.includes('woods.')
+      )
+        matchedKey = 'woods_uv'
+
+      if (matchedKey && fileBlob) {
+        formData.append(matchedKey, fileBlob, `${matchedKey}.jpg`)
+      }
+    }
+
+    const response = await api.post('/feature-packet-cv/quantify', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+
+    return response.data.results || response.data
+  } catch (error) {
+    console.error('Error fetching feature packet from OpenCV:', error)
+    throw error
+  }
 }
 
 async function callApiForTreatmentPlan(selected, treatmentType) {
