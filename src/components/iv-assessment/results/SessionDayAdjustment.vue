@@ -228,7 +228,7 @@ const runAdjustment = async () => {
 
     const conversationId = props.assessmentData?.conversation_id || null
 
-    const result = await runResponse(conversationId, messages, 0.2)
+    const result = await runResponse(conversationId, messages)
 
     if (result && !result.error) {
       if (result.iv_session_day_adjustment_output) {

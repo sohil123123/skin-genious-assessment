@@ -46,7 +46,7 @@ export function useOpenAI() {
   }
 
   // 💬 2. Run response (send message + get reply)
-  const runResponse = async (convId, input, temp = 0) => {
+  const runResponse = async (convId, input) => {
     // --- TEST MODE INTERCEPTION ---
     if (config.is_test_mode) {
       console.log('🚧 TEST MODE: Intercepting OpenAI Call')
@@ -114,8 +114,7 @@ export function useOpenAI() {
     // --- REAL API CALL ---
     try {
       const body = {
-        model: 'gpt-5.2',
-        temperature: temp,
+        model: 'gpt-5.5',
         conversation: convId,
         input,
         prompt_cache_retention: '24h',
