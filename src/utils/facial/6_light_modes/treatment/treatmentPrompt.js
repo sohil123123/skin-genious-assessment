@@ -629,18 +629,16 @@ J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
 
     3. If the sum of step durations is lower than the selected treatment_time:
       - Either add clinically meaningful missing steps, OR
-      - Reduce treatment_time to the actual step total  .
-      - Never add filler steps only to increase time.
+      - Reduce treatment_time to the actual step total.
+      - NEVER add filler steps, blank steps, or "INTENTIONALLY LEFT BLANK" steps.
+      - Once the treatment is complete (e.g., after sunscreen), STOP adding steps immediately.
 
     4. If the sum of step durations is higher than treatment_time:
-      - Either increase treatment_time to match the actual step  , OR
+      - Either increase treatment_time to match the actual step total, OR
       - Remove/shorten low-priority steps.
       - Never output mismatched timing.
 
-    5. Before final JSON output, perform this internal check:
-      calculated_step_total = sum of all step durations
-      If calculated_step_total !== treatment_time:
-          regenerate the session before output.
+    5. DO NOT hallucinate extra steps to reach an arbitrary count. The steps array should contain ONLY real clinical actions.
 
     6. The final JSON must never contain a session where treatment_time and total step duration differ.
 
@@ -655,7 +653,9 @@ K) SESSION DURATION RANGE RULES
     - It may extend to 80 minutes only if clinically meaningful corrective steps require it.
 
     For treatment_plan_type = "multiple":
-    minimun session count  should be 5 sessions
+    - minimum session count should be 5 sessions.
+    - The first session MUST start at week 1 (not week 0).
+    - Subsequent sessions should be spaced out logically based on the clinical protocols.
 ________________________________________
 4. General Clinical Rules
 •	Respect all clinical constraints (pregnancy, photosensitivity, allergies, recent peels, etc.).
@@ -786,11 +786,6 @@ FINAL PLAN VALIDATION (MANDATORY):
         "title": "<Session Title>",
         "script": "<description of concerns addressed in this session>",
         "treatment_time": "<minutes>",
-        "step_duration_total": "<minutes same as treatment_time>",
-        "timing_validation": {
-          "calculated_from_steps": "<minutes calculated from steps sum>",
-          "matches_treatment_time": "<boolean>"
-        },
         "week": <Week Number>,
         "preparations_checklist_for_therapist": [
           "<prep step>",
@@ -811,7 +806,12 @@ FINAL PLAN VALIDATION (MANDATORY):
             "how_to_do": "<clear zone-wise technique>",
             "script": "<patient-facing spoken explanation in simple everyday English language, as if the dermatologist is gently explaining the step to the client during treatment. Focus on what the client will understand: what is being done, what concern it is helping, and what visible benefit it is aiming for. Do NOT use technical skincare, dermatology, ingredient, anatomical, or device-mechanism jargon unless unavoidable. Keep it warm, reassuring, premium, and easy to understand. 2-4 short sentences only. Speak in a way that sounds natural aloud, not like a report.>"
           }
-        ]
+        ],
+        "step_duration_total": "<minutes calculated from steps sum>",
+        "timing_validation": {
+          "calculated_from_steps": "<minutes calculated from steps sum>",
+          "matches_treatment_time": "<boolean>"
+        }
       },
     ],
     "modality_omission_explanation": {
