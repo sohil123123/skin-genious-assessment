@@ -231,7 +231,10 @@ import TreatmentPlanComponent from 'src/components/iv-assessment/results/Treatme
 import NurseRunSheet from 'src/components/iv-assessment/results/NurseRunSheet.vue'
 import { encode } from '@toon-format/toon'
 import ivTreatmentGenerationEngine from 'src/utils/iv/treatment/ivTreatmentGenerationEngine.json'
-import { calculateIVClinicalScoring, calculateSkinScores } from 'src/utils/iv/scoring/deterministicScoring.js'
+import {
+  calculateIVClinicalScoring,
+  calculateSkinScores,
+} from 'src/utils/iv/scoring/deterministicScoring.js'
 
 const { getOrCreateConversation, runResponse } = useOpenAI()
 const $q = useQuasar()
@@ -704,7 +707,7 @@ async function generateIVScoring(data, canonical) {
   const manualScores = calculateIVClinicalScoring(
     coercedCanonical.session_intake_raw || {},
     coercedCanonical.session_machines_raw || {},
-    coercedCanonical.skin_ai_raw || {}
+    coercedCanonical.skin_ai_raw || {},
   )
 
   coercedCanonical.manual_calculated_scores = manualScores
@@ -759,7 +762,7 @@ async function generateTreatmentPlan() {
       },
     ]
 
-    const result = await runResponse(formData.value.conversation_id, input, 0.2)
+    const result = await runResponse(formData.value.conversation_id, input)
 
     if (!result.error) {
       formData.value.iv_treatment_plan = result
@@ -851,9 +854,9 @@ async function handleIVScoring(files) {
   const machineMode = formData.value.face_scan_machine?.charAt(0) || '6'
   const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
 
-  faceImages.value = imagesOrder.map((name) =>
-    faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)),
-  ).filter(Boolean)
+  faceImages.value = imagesOrder
+    .map((name) => faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
+    .filter(Boolean)
 
   const apiResponse = await callApiForIVScoring(formData.value, files)
 
