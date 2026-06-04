@@ -12,11 +12,16 @@ pipeline {
     }
 
     stages {
-        stage("verify versions"){
+
+        stage('Verify Versions') {
             steps {
-               sh 'node -v'
-               sh 'npm -v'
-               sh 'quasar --version'
+
+                sh '''
+                    node -v
+                    npm -v
+                    yarn -v
+                    quasar --version
+                '''
             }
         }
 
@@ -36,46 +41,117 @@ pipeline {
                 }
             }
         }
-        stage("Build")
-        {
+
+        stage('Install Dependencies') {
             steps {
-                sh 'yarn install --immutable --immutable-cache --check-cache' //use for CICD pipeline when safer installation
-                sh 'yarn quasar clean'
-                sh 'yarn quasar build'
+
+                sh '''
+                    yarn install \
+                    --immutable \
+                    --immutable-cache \
+                    --check-cache
+                '''
             }
         }
-        stage("Verify SSH connection to server") {
+
+        stage('Build Vue Application') {
             steps {
+
+                sh '''
+                    yarn quasar clean
+                '''
+
+                sh '''
+                    yarn quasar build
+                '''
+            }
+        }
+
+        stage('Verify SSH Connection') {
+            steps {
+
                 sshagent(credentials: ['jenkins']) {
+
                     sh '''
-                        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@147.93.31.88 whoami
+                        ssh \
+                        -i $SSH_KEY \
+                        -o StrictHostKeyChecking=no \
+                        root@$SERVER_IP "
+                            whoami
+                        "
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Frontend Files') {
+            steps {
+
+                sshagent(credentials: ['jenkins']) {
+
+                    sh '''
+                        rsync -avzr --delete \
+                        --exclude=".git" \
+                        --exclude="node_modules" \
+                        --exclude=".github" \
+                        --exclude=".gitignore" \
+                        -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
+                        ./dist/spa/ root@$SERVER_IP:$PROJECT_PATH
+                    '''
+                }
+            }
+        }
+
+        stage('Set Permissions') {
+            steps {
+
+                sshagent(credentials: ['jenkins']) {
+
+                    sh '''
+ssh -i $SSH_KEY \
+-o StrictHostKeyChecking=no \
+root@$SERVER_IP << EOF
+
+set -e
+
+cd $PROJECT_PATH
+
+echo "Current User:"
+whoami
+
+echo "Frontend Deployment Completed Successfully"
+
+EOF
                     '''
                 }
             }
         }
     }
+
     post {
-        success{
-            withCredentials([sshUserPrivateKey(credentialsId: "jenkins", keyFileVariable: 'keyfile')]) {
-                sh  'rsync -vrzhe "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa" . root@147.93.31.88:/home/cbphysiotherapy-aiaesthetics/htdocs/aiaesthetics.cbphysiotherapy.in'
-            }
 
-            sshagent(credentials: ['jenkins']) {
-                sh '''
-                    ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@147.93.31.88 << EOF
-                    whoami
-
-                <<EOF '''
-            }
-
+        success {
+            echo '✅ Frontend deployment completed successfully!'
         }
+
+        failure {
+            echo '❌ Frontend deployment failed!'
+        }
+
         always {
-            cleanWs(cleanWhenNotBuilt: false,
+
+            cleanWs(
+                cleanWhenNotBuilt: false,
                 deleteDirs: true,
                 disableDeferredWipeout: true,
                 notFailBuild: true,
-                patterns: [[pattern: '.gitignore', type: 'INCLUDE']])
+                patterns: [
+                    [
+                        pattern: '.gitignore',
+                        type: 'INCLUDE'
+                    ]
+                ]
+            )
         }
-
     }
 }
