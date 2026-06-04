@@ -42,6 +42,11 @@ const routes = [
         component: () => import('src/pages/IVAssessment.vue'),
       },
       {
+        path: 'extended-assessment/:assessment_id?',
+        name: 'extended-assessment',
+        component: () => import('src/pages/ExtendedAssessmentPage.vue'),
+      },
+      {
         path: ':user_id/treatment-prep/:assessment_id/:session_id/:appointment_id?',
         name: 'TreatmentPrep',
         component: () => import('pages/PreparationStep.vue'),
