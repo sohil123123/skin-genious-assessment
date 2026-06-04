@@ -114,7 +114,7 @@ export function useOpenAI() {
     // --- REAL API CALL ---
     try {
       const body = {
-        model: 'gpt-5.5',
+        model: 'gpt-5.2',
         conversation: convId,
         input,
         prompt_cache_retention: '24h',
