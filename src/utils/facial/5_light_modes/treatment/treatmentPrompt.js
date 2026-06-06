@@ -841,7 +841,7 @@ FINAL PLAN VALIDATION (MANDATORY):
         ],
         "steps": [
           {
-            "step_number": <number>,
+            "step_number": <serial number of step>,
             "duration": "<minutes in number no extra text>",
             "ingredients_equipments": ["<device>", "<serum>", "<peel>"],
             "how_to_do": "<clear zone-wise technique>",
@@ -884,7 +884,7 @@ OUTPUT FORMAT (STRICT JSON):
   "daily_home_care_routine": {
     "morning": [
       {
-        "step_number": <number>,
+        "step_number": <serial number of step in the routine for morning>,
         "product_name": "<string>",
         "how_to_use": "<clear usage instructions>",
         "clinical_purpose": "<why this product was chosen based on ingredients and patient needs>"
@@ -892,7 +892,7 @@ OUTPUT FORMAT (STRICT JSON):
     ],
     "evening": [
       {
-        "step_number": <number>,
+        "step_number": <serial number of step in the routine for evening>,
         "product_name": "<string>",
         "how_to_use": "<clear usage instructions>",
         "clinical_purpose": "<why this product was chosen based on ingredients and patient needs>"
