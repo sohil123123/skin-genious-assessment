@@ -656,6 +656,7 @@ J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
       • FIXED DURATION: the mandatory finish (serum + moisturizer + sunscreen) is ONE combined final step with a duration of EXACTLY 4 minutes — always 4, never less and never more. Do NOT split it into separate serum/moisturizer/sunscreen steps and do NOT change this number. Any finish step that is not exactly 4 minutes is INVALID and must be corrected to 4.
       • The bulk of session minutes must sit in the HERO / SECONDARY corrective and active-treatment blocks — NOT in cleansing, cooling, masking, or finishing.
       • The minimum session time (treatment_time >= 55 min for single/multiple plans) is a HARD floor and stays in force.
+      • Every LYMPHATIC DRAINAGE MASSAGE step must explicitly state "Face and Neck Lymphatic Drainage Massage" in the step name.
       • If realistic durations sum BELOW the minimum, absorb the shortfall into the LYMPHATIC DRAINAGE MASSAGE step — it is the designated time-flexible step:
           1) Extend the mandatory lymphatic drainage massage to close the gap, up to a realistic ceiling of 15 minutes. A longer, more thorough drainage protocol (additional pathways and reps) is genuine clinical value, not padding.
           2) ONLY if still below the floor after the massage reaches 15 min, extend a genuinely beneficial CORRECTIVE step (more passes, or a clinically justified longer infusion / mask contact time) — never a trivial, cooling, or finishing step.
