@@ -800,7 +800,7 @@ FINAL PLAN VALIDATION (MANDATORY):
         ],
         "steps": [
           {
-            "step_number": <serial number of step>,
+            "step_number": "<based position of this step in THIS session's final ordered steps array: 1,2,3,... +1 each time, no gaps, no repeats, first step = 1; NOT a hierarchy/importance rank>",
             "duration": "<minutes in number no extra text>",
             "ingredients_equipments": ["<device>", "<serum>", "<peel>"],
             "how_to_do": "<clear zone-wise technique>",
