@@ -695,6 +695,14 @@ Your instructions must include:
 •	Stopping criteria
 •	Transition cues
 No vague instructions allowed.
+
+🔢 STEP NUMBERING RULE (MANDATORY — STRICT SERIAL ORDER)
+After you have finalized the order of steps for a session, number them ONLY by their position in that session's final "steps" array:
+- The first step is step_number 1, the next is 2, then 3, and so on — incrementing by exactly 1.
+- The sequence MUST be unbroken: 1,2,3,4,5,6,7,8,9,10 … up to the last step. No gaps, no skipped integers, no repeated numbers, no out-of-order numbers.
+- step_number reflects ONLY the step's position in the final order. It is NOT the modality importance, NOT the HERO/SECONDARY/TERTIARY rank, and NOT an ID carried over from anywhere else.
+- Numbering RESTARTS at 1 for every session (session_number already distinguishes sessions). Do NOT continue the count across sessions.
+- Before finalizing, verify the step_numbers read 1..N with no missing or duplicate values, where N = total number of steps in that session.
 ________________________________________
 
 FINAL PLAN VALIDATION (MANDATORY):
