@@ -38,6 +38,15 @@
           </q-item-section>
         </q-item>
 
+        <q-item clickable :to="{ name: 'extended-assessment', params: { assessment_id: currentAssessmentId || undefined } }">
+          <q-item-section avatar>
+            <q-icon name="smart_toy" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Context Inspector</q-item-label>
+          </q-item-section>
+        </q-item>
+
         <q-item clickable @click="confirmClearConvId" v-if="currentAssessmentId">
           <q-item-section avatar>
             <q-icon name="cleaning_services" />
