@@ -504,6 +504,7 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
         ],
       })
     } else {
+      renumberSteps(apiResponse)
       await updateTreatmentDurations(apiResponse)
 
       assessmentData.value.treatment_plans = apiResponse
@@ -514,6 +515,15 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
       goNext()
     }
   }
+}
+
+const renumberSteps = (plan) => {
+  for (const s of plan?.treatment_plan?.treatments ?? []) {
+    ;(s.steps ?? []).forEach((step, i) => {
+      step.step_number = i + 1
+    })
+  }
+  return plan
 }
 
 const updateTreatmentDurations = async (apiResponse) => {
