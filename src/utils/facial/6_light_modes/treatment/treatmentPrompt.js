@@ -241,7 +241,7 @@ Per constraints JSON:
 ⚡ You may combine modalities intelligently based on scoring outcomes.
 You must only respect two mandatory rules:
 1.	Treatment must include lymphatic drainage if possible.
-2.	Treatment must finish with Serum + Moisturizer + Sunscreen.
+2.	Treatment must finish with Serum + Moisturizer + Sunscreen. This is ONE single combined final step, and its duration must ALWAYS be EXACTLY 4 minutes — never less, never more
 Everything else is FULLY flexible.
 ________________________________________
 3. Choose treatment strategy based on 9 scenarios
@@ -642,6 +642,26 @@ J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
 
     6. The final JSON must never contain a session where treatment_time and total step duration differ.
 
+    7. REALISTIC PER-STEP DURATION (MANDATORY — NO PADDING, NO TIME-SINK STEPS)
+      • Every step's duration must reflect ONLY the realistic hands-on clinical time for that action.
+      • You must NEVER inflate, stretch, or round up any single step to help a session reach treatment_time or the minimum-minutes floor. Totals must EMERGE from realistic step durations — never the reverse. No step may act as a 'balancing variable' to absorb leftover minutes.
+      • Realistic duration ceilings for low-effort / finishing steps (hands-on application time):
+          - Cleanse: 2–6 min
+          - Serum application: 1–2 min
+          - Moisturizer application: 1–2 min
+          - Sunscreen application: 1–2 min
+          - Combined finish step (serum + moisturizer + sunscreen together): EXACTLY 4 min (fixed — always 4, never less, never more)
+          - Ice / cool-down pass: 2–5 min
+          - Post-care verbal instructions: 1–2 min
+      • FIXED DURATION: the mandatory finish (serum + moisturizer + sunscreen) is ONE combined final step with a duration of EXACTLY 4 minutes — always 4, never less and never more. Do NOT split it into separate serum/moisturizer/sunscreen steps and do NOT change this number. Any finish step that is not exactly 4 minutes is INVALID and must be corrected to 4.
+      • The bulk of session minutes must sit in the HERO / SECONDARY corrective and active-treatment blocks — NOT in cleansing, cooling, masking, or finishing.
+      • The minimum session time (treatment_time >= 55 min for single/multiple plans) is a HARD floor and stays in force.
+      • Every LYMPHATIC DRAINAGE MASSAGE step must explicitly state "Face and Neck Lymphatic Drainage Massage" in the step name.
+      • If realistic durations sum BELOW the minimum, absorb the shortfall into the LYMPHATIC DRAINAGE MASSAGE step — it is the designated time-flexible step:
+          1) Extend the mandatory lymphatic drainage massage to close the gap, up to a realistic ceiling of 15 minutes. A longer, more thorough drainage protocol (additional pathways and reps) is genuine clinical value, not padding.
+          2) ONLY if still below the floor after the massage reaches 15 min, extend a genuinely beneficial CORRECTIVE step (more passes, or a clinically justified longer infusion / mask contact time) — never a trivial, cooling, or finishing step.
+      • Slack minutes go to the lymphatic massage first, then corrective time. They must NEVER go to cleansing, cooling, masking, serum, moisturizer, or sunscreen. The finish HARD CAP (<=4 min) and the per-step ceilings above are never overridden to reach the floor.
+
 K) SESSION DURATION RANGE RULES
 
     For treatment_plan_type = "express":
@@ -695,6 +715,14 @@ Your instructions must include:
 •	Stopping criteria
 •	Transition cues
 No vague instructions allowed.
+
+🔢 STEP NUMBERING RULE (MANDATORY — STRICT SERIAL ORDER)
+After you have finalized the order of steps for a session, number them ONLY by their position in that session's final "steps" array:
+- The first step is step_number 1, the next is 2, then 3, and so on — incrementing by exactly 1.
+- The sequence MUST be unbroken: 1,2,3,4,5,6,7,8,9,10 … up to the last step. No gaps, no skipped integers, no repeated numbers, no out-of-order numbers.
+- step_number reflects ONLY the step's position in the final order. It is NOT the modality importance, NOT the HERO/SECONDARY/TERTIARY rank, and NOT an ID carried over from anywhere else.
+- Numbering RESTARTS at 1 for every session (session_number already distinguishes sessions). Do NOT continue the count across sessions.
+- Before finalizing, verify the step_numbers read 1..N with no missing or duplicate values, where N = total number of steps in that session.
 ________________________________________
 
 FINAL PLAN VALIDATION (MANDATORY):
@@ -800,7 +828,7 @@ FINAL PLAN VALIDATION (MANDATORY):
         ],
         "steps": [
           {
-            "step_number": <serial number of step>,
+            "step_number": "<based position of this step in THIS session's final ordered steps array: 1,2,3,... +1 each time, no gaps, no repeats, first step = 1; NOT a hierarchy/importance rank>",
             "duration": "<minutes in number no extra text>",
             "ingredients_equipments": ["<device>", "<serum>", "<peel>"],
             "how_to_do": "<clear zone-wise technique>",

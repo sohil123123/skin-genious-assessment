@@ -3431,7 +3431,8 @@ ${encode(affected_area_image_selector)}
 ${JSON.stringify(diagnosis_json_structure)}
 
 ### Rules:
-- ALL diagnostic reasoning must remain *inside* “score_explanation”.
+- score_explanation is PATIENT-FACING. Write it in plain, everyday language that a non-expert can understand, in 1–3 short sentences explaining why this score/label was given. Keep the reasoning here (not in other fields and not outside the JSON).
+- score_explanation MUST NOT expose any internal data. Never include feature-packet field names, bin names, variable names, or key=value / code-style tokens. For example, never write "(t_zone_oil_bin=mild, cheek_oil_bin=mild)" or "shine_coverage_bin=low". Translate every internal measurement into natural descriptors instead — e.g. "mild oiliness in the T-zone", "low visible shine", "skin shows little dryness". No parentheses containing raw data fields, no snake_case, no equals signs reporting values.
 - "client_description" must be written in simple, non-technical language that a customer can easily understand, focusing on what the result means for their skin.
 - In the "script" field, provide an empathetic summary of the results, and use markdown bolding (**text**) to highlight areas that are relevant for improvements or corrective actions.
 - Do NOT output anything outside the JSON.
