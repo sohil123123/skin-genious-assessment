@@ -27,7 +27,22 @@
               @click="commonStore.toggleAudio()"
             >
               <q-tooltip>
-                {{ commonStore.isAudioEnabled ? 'Disable Audio' : 'Enable Audio' }}
+                {{ commonStore.isAudioEnabled ? 'Disable All Audio' : 'Enable All Audio' }}
+              </q-tooltip>
+            </q-btn>
+            
+            <!-- Dr. Voice Toggle Button -->
+            <q-btn
+              :icon="commonStore.isVoiceEnabled ? 'record_voice_over' : 'voice_over_off'"
+              :color="commonStore.isVoiceEnabled ? 'primary' : 'grey'"
+              round
+              flat
+              class="q-ml-sm"
+              @click="commonStore.toggleVoice()"
+              :disable="!commonStore.isAudioEnabled"
+            >
+              <q-tooltip>
+                {{ commonStore.isVoiceEnabled ? 'Disable Dr. Voice' : 'Enable Dr. Voice' }}
               </q-tooltip>
             </q-btn>
           </div>
@@ -39,11 +54,23 @@
             <div class="flex items-center gap-2">
               <q-icon name="person" size="24px" color="primary" />
               <span class="text-subtitle1 text-weight-medium text-dark">
-                Client: <strong class="text-black">{{ assessmentStore.assessmentData.name }}</strong>
+                Client:
+                <strong class="text-black">{{ assessmentStore.assessmentData.name }}</strong>
               </span>
             </div>
-            <div v-if="assessmentStore.assessmentData?.age || assessmentStore.assessmentData?.gender" class="text-caption text-grey-7">
-              {{ assessmentStore.assessmentData?.gender ? assessmentStore.assessmentData.gender + ', ' : '' }}{{ assessmentStore.assessmentData?.age ? assessmentStore.assessmentData.age + ' years' : '' }}
+            <div
+              v-if="assessmentStore.assessmentData?.age || assessmentStore.assessmentData?.gender"
+              class="text-caption text-grey-7"
+            >
+              {{
+                assessmentStore.assessmentData?.gender
+                  ? assessmentStore.assessmentData.gender + ', '
+                  : ''
+              }}{{
+                assessmentStore.assessmentData?.age
+                  ? assessmentStore.assessmentData.age + ' years'
+                  : ''
+              }}
             </div>
           </q-card-section>
         </q-card>
@@ -165,7 +192,7 @@
 /* -------------------------------------------
    IMPORTS
 --------------------------------------------*/
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'stores/assessmentStore'
@@ -174,7 +201,29 @@ import TreatmentTimerV1 from 'src/components/common/TreatmentTimerV1.vue'
 import { useQuasar } from 'quasar'
 import { useElevenLabsAudio } from 'src/composables/useElevenLabsAudio'
 
-const { handleAudioAction, cleanup } = useElevenLabsAudio()
+const bgMusicPlayer = new Audio('/background_music_1.mp3')
+bgMusicPlayer.loop = true
+
+const {
+  handleAudioAction,
+  cleanup: elevenLabsCleanup,
+  pauseAudio,
+} = useElevenLabsAudio({
+  onEnded: () => {
+    if (commonStore.isAudioEnabled) {
+      bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
+    }
+  },
+})
+
+function cleanup() {
+  elevenLabsCleanup()
+}
+
+onBeforeUnmount(() => {
+  bgMusicPlayer.pause()
+})
+
 const $q = useQuasar()
 
 /* -------------------------------------------
@@ -185,6 +234,32 @@ const router = useRouter()
 const store = useTreatmentFlowStore()
 const assessmentStore = useAssessmentStore()
 const commonStore = useCommonStore()
+
+watch(
+  () => commonStore.isAudioEnabled,
+  (enabled) => {
+    if (!enabled) {
+      pauseAudio()
+      bgMusicPlayer.pause()
+    } else {
+      if (isAudioPlayed.value) {
+        bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
+      }
+    }
+  },
+)
+
+watch(
+  () => commonStore.isVoiceEnabled,
+  (enabled) => {
+    if (!enabled) {
+      pauseAudio()
+      if (commonStore.isAudioEnabled && isAudioPlayed.value) {
+        bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
+      }
+    }
+  },
+)
 
 /* -------------------------------------------
    PARAMS
@@ -261,10 +336,17 @@ watch(stepDuration, async () => {
    TIMER CONTROL
 --------------------------------------------*/
 function onTimerStart() {
-  // Only play audio if globally enabled and not already played for this step
-  if (commonStore.isAudioEnabled && !isAudioPlayed.value) {
-    handleAudioAction(step.value.script)
+  // If timer started, mark audio phase as reached
+  if (!isAudioPlayed.value) {
     isAudioPlayed.value = true
+    if (commonStore.isAudioEnabled) {
+      if (commonStore.isVoiceEnabled) {
+        bgMusicPlayer.pause()
+        handleAudioAction(step.value.script)
+      } else {
+        bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
+      }
+    }
   }
 }
 
