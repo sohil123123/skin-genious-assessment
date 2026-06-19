@@ -873,7 +873,7 @@ FINAL PLAN VALIDATION (MANDATORY):
             "duration": "<minutes in number no extra text>",
             "ingredients_equipments": ["<device>", "<serum>", "<peel>"],
             "how_to_do": "<clear zone-wise technique>",
-            "script": "<patient-facing spoken explanation in simple everyday English language, as if the dermatologist is gently explaining the step to the client during treatment. Focus on what the client will understand: what is being done, what concern it is helping, and what visible benefit it is aiming for. Do NOT use technical skincare, dermatology, ingredient, anatomical, or device-mechanism jargon unless unavoidable. Keep it warm, reassuring, premium, and easy to understand. 2-4 short sentences only. Speak in a way that sounds natural aloud, not like a report.>"
+            "script": "<patient-facing spoken explanation in simple everyday English language, as if the dermatologist is gently explaining the step to the client during treatment. Focus on what the client will understand: what is being done, what concern it is helping, and what visible benefit it is aiming for, also tell about the duration it will take for this step in a natural way. Do NOT use technical skincare, dermatology, ingredient, anatomical, or device-mechanism jargon unless unavoidable. Keep it warm, reassuring, premium, and easy to understand. 2-4 short sentences only. Speak in a way that sounds natural aloud, not like a report.>"
           }
         ],
         "step_duration_total": "<minutes calculated from steps sum>",

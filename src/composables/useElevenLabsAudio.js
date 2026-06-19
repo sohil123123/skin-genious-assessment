@@ -1,6 +1,7 @@
 import { ref, onBeforeUnmount } from 'vue'
 import { Notify } from 'quasar'
 import config from 'src/config.js'
+import { useCommonStore } from 'src/stores/commonStore'
 
 export function useElevenLabsAudio(options = {}) {
   const audioPlayer = new Audio()
@@ -85,7 +86,6 @@ export function useElevenLabsAudio(options = {}) {
         if (options.onEnded) options.onEnded()
       }
 
-      // Handle errors during playback
       audioPlayer.onerror = (e) => {
         console.error('Audio playback error:', e)
         audioStatus.value = 'error'
@@ -99,13 +99,18 @@ export function useElevenLabsAudio(options = {}) {
   }
 
   const handleAudioAction = async (text) => {
-    // Import commonStore dynamically to check global audio setting
-    const { useCommonStore } = await import('src/stores/commonStore')
+    // Get commonStore synchronously to preserve user gesture
     const commonStore = useCommonStore()
 
-    // Check if audio is globally disabled
+    // Check if global audio is disabled
     if (!commonStore.isAudioEnabled) {
       console.log('Audio is globally disabled')
+      return
+    }
+
+    // Check if Dr. Voice is specifically disabled
+    if (!commonStore.isVoiceEnabled) {
+      console.log('Dr. Voice is disabled')
       return
     }
 

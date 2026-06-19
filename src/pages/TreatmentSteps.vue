@@ -27,7 +27,22 @@
               @click="commonStore.toggleAudio()"
             >
               <q-tooltip>
-                {{ commonStore.isAudioEnabled ? 'Disable Audio' : 'Enable Audio' }}
+                {{ commonStore.isAudioEnabled ? 'Disable All Audio' : 'Enable All Audio' }}
+              </q-tooltip>
+            </q-btn>
+            
+            <!-- Dr. Voice Toggle Button -->
+            <q-btn
+              :icon="commonStore.isVoiceEnabled ? 'record_voice_over' : 'voice_over_off'"
+              :color="commonStore.isVoiceEnabled ? 'primary' : 'grey'"
+              round
+              flat
+              class="q-ml-sm"
+              @click="commonStore.toggleVoice()"
+              :disable="!commonStore.isAudioEnabled"
+            >
+              <q-tooltip>
+                {{ commonStore.isVoiceEnabled ? 'Disable Dr. Voice' : 'Enable Dr. Voice' }}
               </q-tooltip>
             </q-btn>
           </div>
@@ -39,11 +54,23 @@
             <div class="flex items-center gap-2">
               <q-icon name="person" size="24px" color="primary" />
               <span class="text-subtitle1 text-weight-medium text-dark">
-                Client: <strong class="text-black">{{ assessmentStore.assessmentData.name }}</strong>
+                Client:
+                <strong class="text-black">{{ assessmentStore.assessmentData.name }}</strong>
               </span>
             </div>
-            <div v-if="assessmentStore.assessmentData?.age || assessmentStore.assessmentData?.gender" class="text-caption text-grey-7">
-              {{ assessmentStore.assessmentData?.gender ? assessmentStore.assessmentData.gender + ', ' : '' }}{{ assessmentStore.assessmentData?.age ? assessmentStore.assessmentData.age + ' years' : '' }}
+            <div
+              v-if="assessmentStore.assessmentData?.age || assessmentStore.assessmentData?.gender"
+              class="text-caption text-grey-7"
+            >
+              {{
+                assessmentStore.assessmentData?.gender
+                  ? assessmentStore.assessmentData.gender + ', '
+                  : ''
+              }}{{
+                assessmentStore.assessmentData?.age
+                  ? assessmentStore.assessmentData.age + ' years'
+                  : ''
+              }}
             </div>
           </q-card-section>
         </q-card>
@@ -177,18 +204,20 @@ import { useElevenLabsAudio } from 'src/composables/useElevenLabsAudio'
 const bgMusicPlayer = new Audio('/background_music_1.mp3')
 bgMusicPlayer.loop = true
 
-const { handleAudioAction, cleanup: elevenLabsCleanup, pauseAudio } = useElevenLabsAudio({
+const {
+  handleAudioAction,
+  cleanup: elevenLabsCleanup,
+  pauseAudio,
+} = useElevenLabsAudio({
   onEnded: () => {
     if (commonStore.isAudioEnabled) {
-      bgMusicPlayer.play().catch(e => console.error('BG music error:', e))
+      bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
     }
-  }
+  },
 })
 
 function cleanup() {
   elevenLabsCleanup()
-  bgMusicPlayer.pause()
-  bgMusicPlayer.currentTime = 0
 }
 
 onBeforeUnmount(() => {
@@ -214,10 +243,22 @@ watch(
       bgMusicPlayer.pause()
     } else {
       if (isAudioPlayed.value) {
-        bgMusicPlayer.play().catch(e => console.error('BG music error:', e))
+        bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
       }
     }
-  }
+  },
+)
+
+watch(
+  () => commonStore.isVoiceEnabled,
+  (enabled) => {
+    if (!enabled) {
+      pauseAudio()
+      if (commonStore.isAudioEnabled && isAudioPlayed.value) {
+        bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
+      }
+    }
+  },
 )
 
 /* -------------------------------------------
@@ -299,7 +340,12 @@ function onTimerStart() {
   if (!isAudioPlayed.value) {
     isAudioPlayed.value = true
     if (commonStore.isAudioEnabled) {
-      handleAudioAction(step.value.script)
+      if (commonStore.isVoiceEnabled) {
+        bgMusicPlayer.pause()
+        handleAudioAction(step.value.script)
+      } else {
+        bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
+      }
     }
   }
 }

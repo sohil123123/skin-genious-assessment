@@ -11,6 +11,7 @@ export const useCommonStore = defineStore('common', {
     initialClients: [],
     // Audio settings - persisted to localStorage
     isAudioEnabled: localStorage.getItem('audioEnabled') !== 'false', // Default to true
+    isVoiceEnabled: localStorage.getItem('voiceEnabled') !== 'false', // Default to true
   }),
 
   actions: {
@@ -103,6 +104,13 @@ export const useCommonStore = defineStore('common', {
     toggleAudio() {
       this.isAudioEnabled = !this.isAudioEnabled
       localStorage.setItem('audioEnabled', this.isAudioEnabled.toString())
+    },
+    /**
+     * Toggle Dr. Voice (ElevenLabs) on/off
+     */
+    toggleVoice() {
+      this.isVoiceEnabled = !this.isVoiceEnabled
+      localStorage.setItem('voiceEnabled', this.isVoiceEnabled.toString())
     },
   },
 })
