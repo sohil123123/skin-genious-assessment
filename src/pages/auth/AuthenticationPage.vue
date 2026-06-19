@@ -41,6 +41,7 @@ const session_id = route.query.session_id ?? null
 const type = route.query.type ?? null
 const clinic_id = route.query.clinic_id ?? null
 const therapist_id = route.query.therapist_id ?? null
+const assessment_type = route.query.assessment_type ?? null
 const isValid = ref(false)
 
 onMounted(async () => {
@@ -71,15 +72,27 @@ onMounted(async () => {
           })
         }
         if (type == 'edit') {
-          router.push({
-            name: 'index-with-id',
-            params: {
-              user_id: userId,
-              step: 'step-1',
-              assessment_id: assessment_id,
-              ...(appointmentId && { appointment_id: appointmentId }),
-            },
-          })
+          if (assessment_type == 'iv' || assessment_type == 'instant-iv') {
+            router.push({
+              name: 'iv-assessment',
+              params: {
+                user_id: userId,
+                step: 'step-1',
+                assessment_id: assessment_id,
+                ...(appointmentId && { appointment_id: appointmentId }),
+              },
+            })
+          } else {
+            router.push({
+              name: 'index-with-id',
+              params: {
+                user_id: userId,
+                step: 'step-1',
+                assessment_id: assessment_id,
+                ...(appointmentId && { appointment_id: appointmentId }),
+              },
+            })
+          }
         }
         if (type == 'iv') {
           router.push({
