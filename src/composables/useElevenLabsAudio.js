@@ -2,7 +2,7 @@ import { ref, onBeforeUnmount } from 'vue'
 import { Notify } from 'quasar'
 import config from 'src/config.js'
 
-export function useElevenLabsAudio() {
+export function useElevenLabsAudio(options = {}) {
   const audioPlayer = new Audio()
   const audioStatus = ref('idle') // idle | loading | playing | paused | error
   const currentAudioUrl = ref(null)
@@ -82,6 +82,7 @@ export function useElevenLabsAudio() {
 
       audioPlayer.onended = () => {
         audioStatus.value = 'paused'
+        if (options.onEnded) options.onEnded()
       }
 
       // Handle errors during playback

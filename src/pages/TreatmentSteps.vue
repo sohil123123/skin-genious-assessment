@@ -165,7 +165,7 @@
 /* -------------------------------------------
    IMPORTS
 --------------------------------------------*/
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'stores/assessmentStore'
@@ -174,7 +174,27 @@ import TreatmentTimerV1 from 'src/components/common/TreatmentTimerV1.vue'
 import { useQuasar } from 'quasar'
 import { useElevenLabsAudio } from 'src/composables/useElevenLabsAudio'
 
-const { handleAudioAction, cleanup } = useElevenLabsAudio()
+const bgMusicPlayer = new Audio('/background_music_1.mp3')
+bgMusicPlayer.loop = true
+
+const { handleAudioAction, cleanup: elevenLabsCleanup, pauseAudio } = useElevenLabsAudio({
+  onEnded: () => {
+    if (commonStore.isAudioEnabled) {
+      bgMusicPlayer.play().catch(e => console.error('BG music error:', e))
+    }
+  }
+})
+
+function cleanup() {
+  elevenLabsCleanup()
+  bgMusicPlayer.pause()
+  bgMusicPlayer.currentTime = 0
+}
+
+onBeforeUnmount(() => {
+  bgMusicPlayer.pause()
+})
+
 const $q = useQuasar()
 
 /* -------------------------------------------
@@ -185,6 +205,20 @@ const router = useRouter()
 const store = useTreatmentFlowStore()
 const assessmentStore = useAssessmentStore()
 const commonStore = useCommonStore()
+
+watch(
+  () => commonStore.isAudioEnabled,
+  (enabled) => {
+    if (!enabled) {
+      pauseAudio()
+      bgMusicPlayer.pause()
+    } else {
+      if (isAudioPlayed.value) {
+        bgMusicPlayer.play().catch(e => console.error('BG music error:', e))
+      }
+    }
+  }
+)
 
 /* -------------------------------------------
    PARAMS
@@ -261,10 +295,12 @@ watch(stepDuration, async () => {
    TIMER CONTROL
 --------------------------------------------*/
 function onTimerStart() {
-  // Only play audio if globally enabled and not already played for this step
-  if (commonStore.isAudioEnabled && !isAudioPlayed.value) {
-    handleAudioAction(step.value.script)
+  // If timer started, mark audio phase as reached
+  if (!isAudioPlayed.value) {
     isAudioPlayed.value = true
+    if (commonStore.isAudioEnabled) {
+      handleAudioAction(step.value.script)
+    }
   }
 }
 
