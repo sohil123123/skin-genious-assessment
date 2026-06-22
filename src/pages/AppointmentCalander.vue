@@ -36,6 +36,24 @@
       <q-card-section v-if="clinic_id && therapist_id">
         <EmergencyWarning :warnings="warning" />
         <ServerErrorDialog v-model="showErrorDialog" :error="selectedError" />
+
+        <!-- Color Legend for Appointment Types -->
+        <div class="row items-center q-mb-md q-gutter-xs">
+          <span class="text-subtitle2 text-grey-8 text-weight-bold q-mr-sm">Appointment Types:</span>
+          <q-chip dense square class="legend-chip-consult text-weight-medium">
+            Consult
+          </q-chip>
+          <q-chip dense square class="legend-chip-treatment text-weight-medium">
+            Treatment
+          </q-chip>
+          <q-chip dense square class="legend-chip-express text-weight-medium">
+            Express
+          </q-chip>
+          <q-chip dense square class="legend-chip-other text-weight-medium">
+            Other
+          </q-chip>
+        </div>
+
         <FullCalendar ref="calendarRef" :options="calendarOptions" />
       </q-card-section>
 
@@ -94,6 +112,29 @@ const { warning, selectedError, showErrorDialog } = storeToRefs(appointmentStore
 const route = useRoute()
 const clinicId = route.params.clinic_id ? parseInt(route.params.clinic_id) : null
 const therapistId = route.params.therapist_id ? parseInt(route.params.therapist_id) : null
+
+const typeColors = {
+  consult: {
+    bg: '#E3F2FD',      // soft blue
+    text: '#0D47A1',    // dark blue
+    border: '#90CAF9',
+  },
+  treatment: {
+    bg: '#E8F5E9',      // soft green
+    text: '#1B5E20',    // dark green
+    border: '#A5D6A7',
+  },
+  express: {
+    bg: '#F3E5F5',      // soft purple
+    text: '#4A148C',    // dark purple
+    border: '#CE93D8',
+  },
+  other: {
+    bg: '#FFF3E0',      // soft orange/amber
+    text: '#E65100',    // dark orange/amber
+    border: '#FFCC80',
+  },
+}
 
 /* ------------------ REFS ------------------ */
 const calendarRef = ref(null)
@@ -293,14 +334,19 @@ function processApiResponse(results) {
       const startDateTime = `${item.start_date}T${formattedStartTime}`
       const endDateTime = `${item.end_date}T${formattedEndTime}`
 
+      const apptType = item.meta?.type || 'other'
+      const colors = typeColors[apptType] || typeColors.other
+      const isPending = item.status === 'pending'
+
       appointmentsList.push({
         id: item.id.toString(),
         title: `${item.meta?.client || 'Patient'} (${item.status})`,
         start: startDateTime,
         end: endDateTime,
-        backgroundColor: item.bgcolor || '#3788d8',
-        textColor: item.textcolor,
-        borderColor: item.bgcolor || '#3788d8',
+        backgroundColor: colors.bg,
+        textColor: colors.text,
+        borderColor: colors.border,
+        classNames: isPending ? ['event-pending'] : [],
         extendedProps: {
           originalData: item,
           type: 'appointment',
@@ -704,5 +750,35 @@ function handleTherapistChange(therapistId) {
 
 :deep(.fc-event-title) {
   font-weight: 500;
+}
+
+:deep(.event-pending) {
+  border-style: dashed !important;
+  border-width: 1.5px !important;
+  opacity: 0.85;
+}
+
+.legend-chip-consult {
+  background-color: #E3F2FD !important;
+  color: #0D47A1 !important;
+  border: 1px solid #90CAF9 !important;
+}
+
+.legend-chip-treatment {
+  background-color: #E8F5E9 !important;
+  color: #1B5E20 !important;
+  border: 1px solid #A5D6A7 !important;
+}
+
+.legend-chip-express {
+  background-color: #F3E5F5 !important;
+  color: #4A148C !important;
+  border: 1px solid #CE93D8 !important;
+}
+
+.legend-chip-other {
+  background-color: #FFF3E0 !important;
+  color: #E65100 !important;
+  border: 1px solid #FFCC80 !important;
 }
 </style>
