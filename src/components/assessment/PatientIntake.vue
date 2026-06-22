@@ -30,15 +30,17 @@
             <div class="flex q-gutter-xs q-ml-sm">
               <q-radio
                 v-model="assessmentData.gender"
-                val="male"
+                val="Male"
                 label="Male"
                 class="custom-radio"
+                @update:model-value="updatePatientData()"
               />
               <q-radio
                 v-model="assessmentData.gender"
-                val="female"
+                val="Female"
                 label="Female"
                 class="custom-radio"
+                @update:model-value="updatePatientData()"
               />
             </div>
           </div>
@@ -246,8 +248,11 @@
         </div>
       </section>
 
-      <section v-if="assessmentData.gender == 'Female'" class="q-mt-md">
-        <span class="text-sm text-weight-bold">Is Patient Pregnant</span>
+      <section
+        v-if="assessmentData.gender == 'Female' || assessmentData.gender == 'female'"
+        class="q-mt-md"
+      >
+        <span class="text-sm text-weight-bold">Is Patient Pregnant?</span>
         <div class="flex items-center q-gutter-sm q-mt-xs">
           <q-btn
             :flat="assessmentData.is_pregnant == 1"
@@ -354,6 +359,13 @@ const updateField = (field, value) => {
 
 function saveData(field) {
   emit('save_data', field)
+}
+
+function updatePatientData() {
+  store.updatePatientData({
+    id: assessmentData.value.user.id,
+    gender: assessmentData.value.gender,
+  })
 }
 
 function updateMedicalHistory(value) {

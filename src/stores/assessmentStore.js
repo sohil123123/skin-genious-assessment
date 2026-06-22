@@ -90,6 +90,39 @@ export const useAssessmentStore = defineStore('assessment', {
           })
         })
     },
+    async updatePatientData(data) {
+      data._method = 'PUT'
+      const config = {
+        indices: true,
+        nullAsUndefined: true,
+        transformRequest: [
+          (data) =>
+            serialize(data, {
+              indices: true,
+              noFilesWithArrayNotation: true,
+              emptyArraysAsNull: false,
+              allowEmptyArrays: true,
+            }),
+        ],
+      }
+      const formData = serialize(data, config)
+      await api
+        .post(`/users/${data.id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+        .then((response) => {
+          console.log(response.data.results)
+        })
+        .catch((e) => {
+          console.log(e)
+          Notify.create({
+            type: 'negative',
+            message: e.response.data.message,
+          })
+        })
+    },
     async getSingleAssessment(assessment_id) {
       Loading.show({
         message: 'Getting assessment data...',
