@@ -225,6 +225,7 @@ const appointmentTypes = [
   { label: 'Consult', value: 'consult' },
   { label: 'Treatment', value: 'treatment' },
   { label: 'Express', value: 'express' },
+  { label: 'Other', value: 'other' },
 ]
 
 const statusOptions = [
