@@ -818,7 +818,26 @@ async function callApiForPostDiagnosis(data, images) {
   // let finalFileIdArray = [...fileArrar, ...storedFiles]
 
   const prompts = await getFacialPrompts(data.face_scan_machine)
+
+  processingMessage.value = 'Processing scanned images...'
+  assessmentData.value.post_feature_packet = await getResponseFromOpenCv(images)
+  submit(['post_feature_packet'])
+  console.log('✅ Post Feature Packet:', assessmentData.value.post_feature_packet)
+
   const input = [
+    {
+      role: 'system',
+      content: [
+        {
+          type: 'input_text',
+          text: prompts.SYSTEM_PROMPT_DIAGNOSIS,
+        },
+        {
+          type: 'input_text',
+          text: encode(assessmentData.value.post_feature_packet),
+        },
+      ],
+    },
     {
       role: 'user',
       content: [
@@ -855,7 +874,6 @@ async function callApiForPostDiagnosis(data, images) {
     },
   ]
 
-  processingMessage.value = 'Processing scanned images...'
   console.log('Conv ID:', convId)
   console.log('Post Assessment Input:', input)
   const result = await runResponse(convId, input)
