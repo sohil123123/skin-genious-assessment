@@ -165,12 +165,25 @@
 </template>
 
 <script setup>
-import { ref, nextTick, watch, onMounted } from 'vue'
+import { ref, nextTick, watch, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 // import { useCommonStore } from 'src/stores/commonStore'
 import { api } from 'src/boot/axios'
 import { Notify, LocalStorage } from 'quasar'
 
 const loading = ref(false)
+const route = useRoute()
+const sessionId = computed(() => route.query.session_id ? Number(route.query.session_id) : null)
+const currentSession = computed(() => {
+  if (!sessionId.value || !assessmentData.value.treatment_sessions?.treatments) return null
+  return assessmentData.value.treatment_sessions.treatments.find(t => t.id === sessionId.value)
+})
+const postImages = computed(() => {
+  if (sessionId.value && currentSession.value) {
+    return currentSession.value.post_images || []
+  }
+  return assessmentData.value.post_images || []
+})
 
 // const commonStore = useCommonStore()
 const emit = defineEmits(['process', 'save_data', 'update:startProcessingStep'])
@@ -242,9 +255,9 @@ onMounted(() => {
     if (uploader.value) addUniqueFiles(preloadFiles)
   }
 
-  if (assessmentData.value.post_images && props.isPostAssessment) {
+  if (props.isPostAssessment && postImages.value.length > 0) {
     // Convert remote images to file-like objects
-    const preloadFiles = assessmentData.value.post_images.map((img) => ({
+    const preloadFiles = postImages.value.map((img) => ({
       __key: img.id, // unique key for v-for
       name: img.name,
       url: img.url,
@@ -279,11 +292,11 @@ watch(
 )
 
 watch(
-  () => assessmentData.value.post_images,
-  () => {
-    if (assessmentData.value.post_images && props.isPostAssessment) {
+  () => postImages.value,
+  (val) => {
+    if (props.isPostAssessment && val && val.length > 0) {
       // Convert remote images to file-like objects
-      const preloadFiles = assessmentData.value.post_images.map((img) => ({
+      const preloadFiles = val.map((img) => ({
         __key: img.id, // unique key for v-for
         name: img.name,
         url: img.url,
@@ -296,6 +309,7 @@ watch(
       if (uploader.value) addUniqueFiles(preloadFiles)
     }
   },
+  { deep: true }
 )
 
 async function connectDevice() {
@@ -406,8 +420,33 @@ async function removeFile(file, scope) {
     // ✅ 1️⃣ If it’s an already uploaded image
     if (file.__uploaded && file.__key) {
       // ✅ 2️⃣ Call backend API to delete the image
-      const type = props.isPostAssessment ? 'post' : 'pre'
-      await api.delete(`/assessments/${assessmentData.value.id}/images/${file.__key}/${type}`)
+      if (sessionId.value) {
+        await api.delete(`/treatment-sessions/${sessionId.value}/images/${file.__key}`)
+        if (assessmentData.value?.treatment_sessions?.treatments) {
+          const treatment = assessmentData.value.treatment_sessions.treatments.find(
+            (t) => t.id === sessionId.value
+          )
+          if (treatment && treatment.post_images) {
+            treatment.post_images = treatment.post_images.filter((img) => img.id !== file.__key)
+          }
+        }
+      } else {
+        const type = props.isPostAssessment ? 'post' : 'pre'
+        await api.delete(`/assessments/${assessmentData.value.id}/images/${file.__key}/${type}`)
+        if (props.isPostAssessment) {
+          if (assessmentData.value.post_images) {
+            assessmentData.value.post_images = assessmentData.value.post_images.filter(
+              (img) => img.id !== file.__key
+            )
+          }
+        } else {
+          if (assessmentData.value.images) {
+            assessmentData.value.images = assessmentData.value.images.filter(
+              (img) => img.id !== file.__key
+            )
+          }
+        }
+      }
 
       // ✅ 3️⃣ Remove visually from uploader
       scope.removeFile(file)

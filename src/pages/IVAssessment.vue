@@ -811,6 +811,7 @@ function navigateToStep(step) {
       ...(route.params.assessment_id && { assessment_id: route.params.assessment_id }),
       ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
     },
+    query: route.query,
   })
 }
 
