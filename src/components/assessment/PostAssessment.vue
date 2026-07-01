@@ -25,14 +25,37 @@
         </div>
 
         <div class="q-gutter-sm">
-          <q-btn
+          <q-btn-dropdown
+            v-if="showComparisonDropdown"
             class="gredient"
             text-color="white"
             label="Download Report"
             unelevated
             rounded
             no-caps
-            @click="downloadReport"
+          >
+            <q-list>
+              <q-item clickable v-close-popup @click="downloadReport('previous')">
+                <q-item-section>
+                  <q-item-label>Compare to Previous Session</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item clickable v-close-popup @click="downloadReport('baseline')">
+                <q-item-section>
+                  <q-item-label>Compare to Baseline</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
+          <q-btn
+            v-else
+            class="gredient"
+            text-color="white"
+            label="Download Report"
+            unelevated
+            rounded
+            no-caps
+            @click="downloadReport('previous')"
           >
           </q-btn>
           <!-- <q-btn
@@ -150,6 +173,10 @@ const currentSession = computed(() => {
   return assessmentData.value.treatment_sessions.treatments.find(t => t.id === sessionId.value)
 })
 
+const showComparisonDropdown = computed(() => {
+  return sessionId.value && currentSession.value && currentSession.value.session_number > 1
+})
+
 const post_diagnosis = ref(null)
 const faceImages = ref(null)
 const postTreatmentImages = ref(null)
@@ -197,10 +224,13 @@ watch(
   { immediate: true },
 )
 
-const downloadReport = async () => {
+const downloadReport = async (compareTo = 'previous') => {
   Loading.show({ message: 'Generating PDF report...' })
   try {
-    const urlParams = sessionId.value ? `?session_id=${sessionId.value}` : ''
+    let urlParams = sessionId.value ? `?session_id=${sessionId.value}` : ''
+    if (sessionId.value) {
+      urlParams += `&compare_to=${compareTo}`
+    }
     const response = await api.get(
       `download-facial-report/reassessment/${assessmentData.value.id}${urlParams}`,
       {
@@ -211,7 +241,8 @@ const downloadReport = async () => {
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `${assessmentData.value.name}_facial_reassessment_report.pdf`)
+    const suffix = compareTo === 'baseline' ? 'baseline_comparison' : 'previous_session_comparison'
+    link.setAttribute('download', `${assessmentData.value.name}_facial_reassessment_${suffix}.pdf`)
     document.body.appendChild(link)
     link.click()
     link.remove()
