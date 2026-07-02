@@ -226,28 +226,41 @@ export const useAssessmentStore = defineStore('assessment', {
     setData(data) {
       Object.assign(this.assessmentData, data)
     },
-    async storeFaceImages(file, assessment_type) {
+    async storeFaceImages(file, assessment_type, session_id = null) {
       const formData = new FormData()
-      // files.forEach((file) => {
-      // check if real file exists
       const raw = file.__file || file
       if (raw instanceof File) {
         formData.append('image', raw)
       }
-      // })
       formData.append('assessment_type', assessment_type)
 
+      const url = session_id 
+        ? `treatment-sessions/${session_id}/images` 
+        : `assessments/${this.assessmentData.id}/images`
+
       const response = await api
-        .post(`assessments/${this.assessmentData.id}/images`, formData, {
+        .post(url, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
         .then((res) => {
-          if (assessment_type == 'post') {
-            this.assessmentData.post_images = res.data.results.post_images
+          if (session_id) {
+            if (this.assessmentData.treatment_sessions?.treatments) {
+              const treatment = this.assessmentData.treatment_sessions.treatments.find(
+                (t) => t.id === session_id
+              )
+              if (treatment) {
+                treatment.post_images = res.data.results.post_images
+              }
+            }
+            return res.data
           } else {
-            this.assessmentData.images = res.data.results.images
+            if (assessment_type == 'post') {
+              this.assessmentData.post_images = res.data.results.post_images
+            } else {
+              this.assessmentData.images = res.data.results.images
+            }
+            return res.data
           }
-          return res.data
         })
         .catch((e) => {
           console.error('UPLOAD ERROR:', e.response?.data || e)
@@ -333,6 +346,19 @@ export const useAssessmentStore = defineStore('assessment', {
       } catch (e) {
         console.log(e)
         return false
+      }
+    },
+    async saveTreatmentSessionPostAssessment(session_id, payload) {
+      try {
+        const response = await api.post(`/treatment-sessions/${session_id}/post-assessment`, payload)
+        return response.data.results
+      } catch (e) {
+        console.error('SAVE POST ASSESSMENT ERROR:', e.response?.data || e)
+        Notify.create({
+          type: 'negative',
+          message: e.response?.data?.message || 'Failed to save post assessment',
+        })
+        return null
       }
     },
   },

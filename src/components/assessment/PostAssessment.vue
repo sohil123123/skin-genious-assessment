@@ -25,14 +25,37 @@
         </div>
 
         <div class="q-gutter-sm">
-          <q-btn
+          <q-btn-dropdown
+            v-if="showComparisonDropdown"
             class="gredient"
             text-color="white"
             label="Download Report"
             unelevated
             rounded
             no-caps
-            @click="downloadReport"
+          >
+            <q-list>
+              <q-item clickable v-close-popup @click="downloadReport('previous')">
+                <q-item-section>
+                  <q-item-label>Compare to Previous Session</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-item clickable v-close-popup @click="downloadReport('baseline')">
+                <q-item-section>
+                  <q-item-label>Compare to Baseline</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
+          <q-btn
+            v-else
+            class="gredient"
+            text-color="white"
+            label="Download Report"
+            unelevated
+            rounded
+            no-caps
+            @click="downloadReport('previous')"
           >
           </q-btn>
           <!-- <q-btn
@@ -134,13 +157,25 @@ import { api } from 'src/boot/axios'
 import { storeToRefs } from 'pinia'
 import { Loading, Notify } from 'quasar'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import config from 'src/config.js'
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
 defineEmits(['save_data', 'finalize_and_exit'])
+
+const route = useRoute()
+const sessionId = computed(() => route.query.session_id ? Number(route.query.session_id) : null)
+const currentSession = computed(() => {
+  if (!sessionId.value || !assessmentData.value?.treatment_sessions?.treatments) return null
+  return assessmentData.value.treatment_sessions.treatments.find(t => t.id === sessionId.value)
+})
+
+const showComparisonDropdown = computed(() => {
+  return sessionId.value && currentSession.value && currentSession.value.session_number > 1
+})
 
 const post_diagnosis = ref(null)
 const faceImages = ref(null)
@@ -150,19 +185,37 @@ watch(
   () => assessmentData.value,
   (val) => {
     if (val) {
-      post_diagnosis.value = val.post_diagnosis
-
       const machineMode = val.face_scan_machine?.charAt(0) || '6'
       const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
 
+      let beforeImagesSource = val.images || []
+      let postImagesSource = val.post_images || []
+
+      if (sessionId.value && currentSession.value) {
+        post_diagnosis.value = currentSession.value.post_diagnosis
+        postImagesSource = currentSession.value.post_images || []
+
+        const currentNum = currentSession.value.session_number
+        if (currentNum === 1) {
+          beforeImagesSource = val.images || []
+        } else {
+          const prevSess = val.treatment_sessions?.treatments?.find(
+            t => t.session_number === currentNum - 1
+          )
+          beforeImagesSource = prevSess ? (prevSess.post_images || []) : (val.images || [])
+        }
+      } else {
+        post_diagnosis.value = val.post_diagnosis
+      }
+
       const desiredImages = imagesOrder.map((name) =>
-        val.images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
+        beforeImagesSource.find((img) => img.url.toLowerCase().includes(`${name}.`)),
       ).filter(Boolean)
 
       faceImages.value = desiredImages.map((img) => img.url)
 
       const desiredPostImages = imagesOrder.map((name) =>
-        val.post_images?.find((img) => img.url.toLowerCase().includes(`${name}.`)),
+        postImagesSource.find((img) => img.url.toLowerCase().includes(`${name}.`)),
       ).filter(Boolean)
 
       postTreatmentImages.value = desiredPostImages.map((img) => img.url)
@@ -171,11 +224,15 @@ watch(
   { immediate: true },
 )
 
-const downloadReport = async () => {
+const downloadReport = async (compareTo = 'previous') => {
   Loading.show({ message: 'Generating PDF report...' })
   try {
+    let urlParams = sessionId.value ? `?session_id=${sessionId.value}` : ''
+    if (sessionId.value) {
+      urlParams += `&compare_to=${compareTo}`
+    }
     const response = await api.get(
-      `download-facial-report/reassessment/${assessmentData.value.id}`,
+      `download-facial-report/reassessment/${assessmentData.value.id}${urlParams}`,
       {
         responseType: 'blob',
       },
@@ -184,7 +241,8 @@ const downloadReport = async () => {
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `${assessmentData.value.name}_facial_reassessment_report.pdf`)
+    const suffix = compareTo === 'baseline' ? 'baseline_comparison' : 'previous_session_comparison'
+    link.setAttribute('download', `${assessmentData.value.name}_facial_reassessment_${suffix}.pdf`)
     document.body.appendChild(link)
     link.click()
     link.remove()

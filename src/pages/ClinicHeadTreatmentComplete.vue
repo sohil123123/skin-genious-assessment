@@ -214,6 +214,9 @@ function toPostAssessment() {
       assessment_id: route.params.assessment_id,
       ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
     },
+    query: {
+      session_id: route.params.session_id,
+    },
   })
   window.open(routeData.href, '_blank')
 }
