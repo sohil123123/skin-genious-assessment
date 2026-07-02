@@ -1,6 +1,6 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
+    <q-header elevated v-if="route.name !== 'pigmentation-assessment'">
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 
@@ -44,6 +44,15 @@
           </q-item-section>
           <q-item-section>
             <q-item-label>Context Inspector</q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <q-item clickable :to="{ name: 'pigmentation-assessment' }">
+          <q-item-section avatar>
+            <q-icon name="face" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Pigment Co-Pilot</q-item-label>
           </q-item-section>
         </q-item>
 

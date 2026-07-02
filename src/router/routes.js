@@ -89,6 +89,11 @@ const routes = [
         props: true,
       },
       {
+        path: 'pigmentation-assessment/:assessment_id?',
+        name: 'pigmentation-assessment',
+        component: () => import('src/pages/PigmentationAssessment.vue'),
+      },
+      {
         path: 'edit/:user_id/:step/:assessment_id/:appointment_id?',
         name: 'index-with-id',
         component: () => import('pages/IndexPage.vue'),
