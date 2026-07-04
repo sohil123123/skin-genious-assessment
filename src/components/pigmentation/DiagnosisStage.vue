@@ -18,7 +18,7 @@
     <div class="card tight q-pa-lg text-center" v-if="!store.diagnosis && !store.isLoading" id="dxStart">
       <div class="text-h6 font-serif q-mb-sm">Generate clinical impression</div>
       <p class="note q-mx-auto" style="max-width:50ch; margin-bottom:16px">
-        Claude will synthesize the 5-mode capture readings, patient triggers, and history to propose a differential diagnosis, severity score (mMASI/indices), and depth call.
+        OpenAI will synthesize the 5-mode capture readings, patient triggers, and history to propose a differential diagnosis, severity score (mMASI/indices), and depth call.
       </p>
       <button class="btn btn-primary" @click="runGenerateDx">
         ✦ Proposed clinical differential
@@ -341,7 +341,8 @@ const onDermoFileChange = async () => {
         name: f.name,
         mediaType: f.type,
         base64: dataUrl.split(',')[1],
-        dataUrl: dataUrl
+        dataUrl: dataUrl,
+        file: f
       })
     } catch (e) {
       console.error(e)

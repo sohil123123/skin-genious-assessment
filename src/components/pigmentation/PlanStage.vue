@@ -20,7 +20,7 @@
         {{ store.diagnosis?.confirmedDx ? 'Building a plan for: ' + store.diagnosis.confirmedDx : 'Confirm working diagnosis first' }}
       </div>
       <p class="note q-mx-auto" style="max-width:50ch; margin-bottom:16px">
-        Claude will construct a tiered treatment plan tailored to the confirmed diagnosis. Standard safety rules apply (pregnancy, thromboembolic checks, hydroquinone limits, Fitzpatrick FST limits).
+        OpenAI will construct a tiered treatment plan tailored to the confirmed diagnosis. Standard safety rules apply (pregnancy, thromboembolic checks, hydroquinone limits, Fitzpatrick FST limits).
       </p>
       <button class="btn btn-primary" @click="runGeneratePlan" :disabled="!store.diagnosis?.confirmedDx">
         ✦ Generate treatment plan

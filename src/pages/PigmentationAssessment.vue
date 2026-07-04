@@ -94,6 +94,7 @@
 
 <script setup>
 import { computed, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
 
 // Step Components
@@ -105,7 +106,12 @@ import PlanStage from 'src/components/pigmentation/PlanStage.vue'
 import ReassessStage from 'src/components/pigmentation/ReassessStage.vue'
 import PrintReport from 'src/components/pigmentation/PrintReport.vue'
 
+const route = useRoute()
 const store = usePigmentationStore()
+
+if (route.params.assessment_id) {
+  store.id = route.params.assessment_id
+}
 
 const steps = [
   { title: 'Capture', sub: 'Upload images' },
@@ -118,7 +124,7 @@ const steps = [
 const disclaimerText = computed(() => {
   return store.demoMode
     ? 'DEMO MODE · illustrative figures only · clinician review simulation'
-    : 'CLINICAL TRIAL PILOT · CLAUDIA CLINICAL ADVISOR · SYSTEM ACCESSED DIRECTLY'
+    : 'CLINICAL TRIAL PILOT · OPENAI ADVISOR · SYSTEM ACCESSED DIRECTLY'
 })
 
 const goToStage = (idx) => {

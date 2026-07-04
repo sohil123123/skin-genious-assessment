@@ -47,7 +47,7 @@
           </q-item-section>
         </q-item>
 
-        <q-item clickable :to="{ name: 'pigmentation-assessment' }">
+        <q-item clickable :to="{ name: 'pigmentation-assessment', params: { assessment_id: currentAssessmentId || undefined } }">
           <q-item-section avatar>
             <q-icon name="face" />
           </q-item-section>

@@ -3,7 +3,7 @@
     <div class="stage-head">
       <span class="eyebrow">Stage 01 · Capture</span>
       <h1 class="serif">Upload the captures</h1>
-      <p>Attach the 5-mode analyser images — white, Wood's UV, surface &amp; sub-surface polarised, red. Select or drop several at once. Claude reads the objective data on the next screen, alongside history.</p>
+      <p>Attach the 5-mode analyser images — white, Wood's UV, surface &amp; sub-surface polarised, red. Select or drop several at once. OpenAI reads the objective data on the next screen, alongside history.</p>
     </div>
 
     <div class="capture-wrap">
@@ -111,7 +111,8 @@ const onDrop = (e) => {
 }
 
 const onFileChange = () => {
-  handleFiles(fileInput.value.files)
+  const filesList = Array.from(fileInput.value.files)
+  handleFiles(filesList)
   fileInput.value.value = '' // clear input
 }
 
@@ -134,7 +135,8 @@ const guessMode = (name) => {
   return ''
 }
 
-const handleFiles = async (files) => {
+const handleFiles = async (filesList) => {
+  const files = Array.from(filesList)
   for (let i = 0; i < files.length; i++) {
     const f = files[i]
     if (!/^image\//.test(f.type)) continue
@@ -153,7 +155,8 @@ const handleFiles = async (files) => {
         mediaType: f.type,
         base64: dataUrl.split(',')[1],
         dataUrl: dataUrl,
-        mode: guessMode(f.name)
+        mode: guessMode(f.name),
+        file: f
       })
     } catch (e) {
       console.error(e)

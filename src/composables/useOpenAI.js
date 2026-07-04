@@ -150,7 +150,7 @@ export function useOpenAI() {
         error: err,
       }
     } finally {
-      $q.loading.hide()
+      $q?.loading.hide()
     }
   }
 

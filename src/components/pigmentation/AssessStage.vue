@@ -3,7 +3,7 @@
     <div class="stage-head">
       <span class="eyebrow">Stage 02 · Assess</span>
       <h1 class="serif">Review the read &amp; take history</h1>
-      <p>Two things here: confirm the objective data Claude pulled from the images, and take the history. Claude works across the full range of pigmentation — its impression and questions adapt to whatever the images suggest, not one condition.</p>
+      <p>Two things here: confirm the objective data OpenAI pulled from the images, and take the history. OpenAI works across the full range of pigmentation — its impression and questions adapt to whatever the images suggest, not one condition.</p>
     </div>
 
     <div class="assess-steps">
@@ -11,7 +11,7 @@
         <span class="an">1</span>
         <div class="at">
           <b>Confirm the read</b>
-          <span>Check the data Claude pulled from the images — adjust anything, then confirm.</span>
+          <span>Check the data OpenAI pulled from the images — adjust anything, then confirm.</span>
         </div>
       </div>
       <div class="astep-arrow">→</div>
@@ -19,7 +19,7 @@
         <span class="an">2</span>
         <div class="at">
           <b>Take the history</b>
-          <span>Fill the history; Claude's tailored questions appear alongside.</span>
+          <span>Fill the history; AI's tailored questions appear alongside.</span>
         </div>
       </div>
     </div>
@@ -31,7 +31,7 @@
         
         <div class="card" id="aiReadCard">
           <div class="card-title">
-            <h3>What Claude read from the images</h3>
+            <h3>What OpenAI read from the images</h3>
             <span class="meta" id="aiReadConf">
               {{ store.aiAnalysis?.data?.skin_type?.confidence ? store.aiAnalysis.data.skin_type.confidence + ' confidence' : 'analyse to fill' }}
             </span>
@@ -78,7 +78,7 @@
             </div>
           </div>
           <div id="aiReadBody" v-else>
-            <p class="note">Analyse the captures on the previous step and Claude's read of the objective data — skin type, indices, depth, composition, and a provisional impression across all pigmentation types — appears here for you to confirm.</p>
+            <p class="note">Analyse the captures on the previous step and OpenAI's read of the objective data — skin type, indices, depth, composition, and a provisional impression across all pigmentation types — appears here for you to confirm.</p>
           </div>
 
           <div class="read-fields">
@@ -248,7 +248,7 @@
 
         <div class="card" id="dynCard">
           <div class="card-title">
-            <h3>Claude's questions</h3>
+            <h3>AI's questions</h3>
             <span class="meta">{{ store.dynamicQuestions.length ? store.dynamicQuestions.length + ' questions' : '—' }}</span>
           </div>
           <div id="dynQuestions">

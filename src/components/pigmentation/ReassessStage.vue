@@ -3,7 +3,7 @@
     <div class="stage-head">
       <span class="eyebrow">Stage 05 · Reassess</span>
       <h1 class="serif">Goal tracking &amp; reassessment</h1>
-      <p>Assess patient progress against the baseline goals. Enter current values and upload follow-up captures. Claude rates the trajectory and recommends whether to continue, maintain, or escalate treatment.</p>
+      <p>Assess patient progress against the baseline goals. Enter current values and upload follow-up captures. OpenAI rates the trajectory and recommends whether to continue, maintain, or escalate treatment.</p>
     </div>
 
     <!-- VALIDATION ERROR -->
@@ -233,7 +233,8 @@ const onRaFileChange = async () => {
         name: f.name,
         mediaType: f.type,
         base64: dataUrl.split(',')[1],
-        dataUrl: dataUrl
+        dataUrl: dataUrl,
+        file: f
       })
     } catch (e) {
       console.error(e)
