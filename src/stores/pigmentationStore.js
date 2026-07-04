@@ -499,11 +499,56 @@ export const usePigmentationStore = defineStore('pigmentation', {
         this.dynamicQuestions = Array.isArray(a.history_questions) ? a.history_questions : []
 
         // Populate readings fields in form
-        this.formData.fitz = a.skin_type?.fitzpatrick_estimate || ''
-        this.formData.mel = a.skin_type?.melanin_index || ''
-        this.formData.ery = a.erythema_index || ''
-        this.formData.comp = a.composition?.dominant || ''
-        this.formData.depth = a.depth?.verdict || ''
+        if (a.global_indices) {
+          const gi = a.global_indices
+          
+          // Map Fitzpatrick skin type
+          let fitzVal = ''
+          if (gi.estimated_fitzpatrick?.type) {
+            const t = gi.estimated_fitzpatrick.type.toLowerCase()
+            if (t.includes('iii_to_iv') || t.includes('iii-iv')) fitzVal = 'IV'
+            else if (t.includes('iv_to_v') || t.includes('iv-v')) fitzVal = 'V'
+            else if (t.includes('v_to_vi') || t.includes('v-vi')) fitzVal = 'VI'
+            else if (t.includes('iii')) fitzVal = 'III'
+            else if (t.includes('iv')) fitzVal = 'IV'
+            else if (t.includes('v')) fitzVal = 'V'
+            else if (t.includes('vi')) fitzVal = 'VI'
+            else if (t.includes('ii')) fitzVal = 'II'
+            else if (t.includes('i')) fitzVal = 'I'
+          }
+          this.formData.fitz = fitzVal
+          
+          this.formData.mel = gi.melanin_load_index?.score_100 || ''
+          this.formData.ery = gi.erythema_load_index?.score_100 || ''
+          
+          // Map Composition
+          let compVal = ''
+          if (gi.composition?.type) {
+            const c = gi.composition.type.toLowerCase()
+            if (c.includes('melanin')) compVal = 'melanin'
+            else if (c.includes('vascular')) compVal = 'vascular'
+            else if (c.includes('mixed')) compVal = 'mixed'
+            else compVal = 'uncertain'
+          }
+          this.formData.comp = compVal
+          
+          // Map Depth
+          let depthVal = ''
+          if (gi.depth_call?.type) {
+            const d = gi.depth_call.type.toLowerCase()
+            if (d.includes('epidermal')) depthVal = 'epidermal'
+            else if (d.includes('dermal')) depthVal = 'dermal'
+            else if (d.includes('mixed')) depthVal = 'mixed'
+            else depthVal = 'uncertain'
+          }
+          this.formData.depth = depthVal
+        } else {
+          this.formData.fitz = a.skin_type?.fitzpatrick_estimate || ''
+          this.formData.mel = a.skin_type?.melanin_index || ''
+          this.formData.ery = a.erythema_index || ''
+          this.formData.comp = a.composition?.dominant || ''
+          this.formData.depth = a.depth?.verdict || ''
+        }
 
         this.currentStage = 1
       } catch (err) {

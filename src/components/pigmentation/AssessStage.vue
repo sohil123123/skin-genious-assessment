@@ -46,32 +46,32 @@
               </span>
             </div>
             
-            <div class="airead-line" v-if="store.aiAnalysis.data.distribution">
+            <div class="airead-line" v-if="formattedDistribution">
               <span class="k">Distribution</span>
-              <span class="v">{{ store.aiAnalysis.data.distribution }}</span>
+              <span class="v">{{ formattedDistribution }}</span>
             </div>
             
-            <div class="airead-line" v-if="store.aiAnalysis.data.observed_features?.length">
+            <div class="airead-line" v-if="formattedFeatures.length">
               <span class="k">Features seen</span>
-              <span class="v">{{ store.aiAnalysis.data.observed_features.join('; ') }}</span>
+              <span class="v">{{ formattedFeatures.join('; ') }}</span>
             </div>
             
             <div class="airead-note">
               Skin type, indices and depth are pre-filled below — confirm or adjust each.
             </div>
             
-            <div class="airead-line" v-if="store.aiAnalysis.data.redflag_candidates?.present && store.aiAnalysis.data.redflag_candidates?.items?.length" style="color:var(--erythema)">
+            <div class="airead-line" v-if="formattedRedFlags?.present && formattedRedFlags?.items?.length" style="color:var(--erythema)">
               <span class="k" style="color:var(--erythema)">Review</span>
               <span class="v" style="color:var(--erythema)">
-                {{ store.aiAnalysis.data.redflag_candidates.items.join('; ') }}
+                {{ formattedRedFlags.items.join('; ') }}
                 <small>Tick the red-flag boxes yourself if warranted — the AI does not clear malignancy.</small>
               </span>
             </div>
             
-            <div class="airead-caveats" v-if="store.aiAnalysis.data.image_quality?.caveats?.length">
+            <div class="airead-caveats" v-if="formattedCaveats.length">
               <b>Read as estimates, not measurements.</b>
               <ul>
-                <li v-for="(cav, cIdx) in store.aiAnalysis.data.image_quality.caveats" :key="cIdx">
+                <li v-for="(cav, cIdx) in formattedCaveats" :key="cIdx">
                   {{ cav }}
                 </li>
               </ul>
@@ -387,10 +387,78 @@ const formatRedFlagLabel = (val) => {
 }
 
 const formattedConditions = computed(() => {
-  if (!store.aiAnalysis?.data?.provisional_conditions) return ''
-  return store.aiAnalysis.data.provisional_conditions
-    .map(c => `${c.condition}${c.likelihood ? ' (' + c.likelihood + ')' : ''}`)
-    .join(' · ')
+  if (!store.aiAnalysis?.data) return ''
+  const data = store.aiAnalysis.data
+  
+  if (Array.isArray(data.pattern_hypotheses_from_images)) {
+    return data.pattern_hypotheses_from_images
+      .map(p => `${p.pattern.replace(/_/g, ' ')}${p.image_confidence ? ' (' + Math.round(p.image_confidence * 100) + '%)' : ''}`)
+      .join(' · ')
+  }
+  
+  if (Array.isArray(data.provisional_conditions)) {
+    return data.provisional_conditions
+      .map(c => `${c.condition}${c.likelihood ? ' (' + c.likelihood + ')' : ''}`)
+      .join(' · ')
+  }
+  
+  return ''
+})
+
+const formattedDistribution = computed(() => {
+  if (!store.aiAnalysis?.data) return ''
+  const data = store.aiAnalysis.data
+  if (data.distribution_summary) {
+    const gd = data.distribution_summary.global_distribution || ''
+    const sym = data.distribution_summary.symmetry || ''
+    return [gd, sym].filter(Boolean).map(x => x.replace(/_/g, ' ')).join(', ')
+  }
+  return data.distribution || ''
+})
+
+const formattedFeatures = computed(() => {
+  if (!store.aiAnalysis?.data) return []
+  const data = store.aiAnalysis.data
+  if (Array.isArray(data.observed_features)) return data.observed_features
+  
+  if (data.regional_analysis) {
+    const list = []
+    Object.entries(data.regional_analysis).forEach(([region, details]) => {
+      if (details.dominant_pattern) {
+        list.push(`${region.replace(/_/g, ' ')}: ${details.dominant_pattern.replace(/_/g, ' ')}`)
+      }
+    })
+    return list
+  }
+  return []
+})
+
+const formattedRedFlags = computed(() => {
+  if (!store.aiAnalysis?.data) return null
+  const data = store.aiAnalysis.data
+  
+  if (data.special_findings?.isolated_lesion_review) {
+    const r = data.special_findings.isolated_lesion_review
+    if (r.doctor_visual_review_required) {
+      return { present: true, items: [r.reason] }
+    }
+    return { present: false, items: [] }
+  }
+  
+  if (data.redflag_candidates) {
+    return {
+      present: !!data.redflag_candidates.present,
+      items: data.redflag_candidates.items || []
+    }
+  }
+  
+  return null
+})
+
+const formattedCaveats = computed(() => {
+  if (!store.aiAnalysis?.data?.image_quality) return []
+  const q = store.aiAnalysis.data.image_quality
+  return q.limitations || q.caveats || []
 })
 
 const readingsMeta = computed(() => {
@@ -399,11 +467,24 @@ const readingsMeta = computed(() => {
 })
 
 const fitzHint = computed(() => {
-  if (!store.aiAnalysis?.data?.skin_type) return 'Confirm with burn/tan history.'
-  const st = store.aiAnalysis.data.skin_type
-  const range = st.fitzpatrick_range || st.fitzpatrick_estimate || ''
-  const conf = st.confidence ? ` · ${st.confidence} confidence` : ''
-  return `AI: ${range}${conf} — confirm with burn/tan history.`
+  if (!store.aiAnalysis?.data) return 'Confirm with burn/tan history.'
+  const data = store.aiAnalysis.data
+  
+  if (data.global_indices?.estimated_fitzpatrick) {
+    const ef = data.global_indices.estimated_fitzpatrick
+    const type = ef.type || ''
+    const conf = ef.confidence ? ` · ${Math.round(ef.confidence * 100)}% confidence` : ''
+    return `AI: ${type.replace(/_/g, ' ')}${conf} — confirm with burn/tan history.`
+  }
+  
+  if (data.skin_type) {
+    const st = data.skin_type
+    const range = st.fitzpatrick_range || st.fitzpatrick_estimate || ''
+    const conf = st.confidence ? ` · ${st.confidence} confidence` : ''
+    return `AI: ${range}${conf} — confirm with burn/tan history.`
+  }
+  
+  return 'Confirm with burn/tan history.'
 })
 
 const onFieldChange = (field) => {

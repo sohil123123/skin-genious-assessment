@@ -1,38 +1,203 @@
-export const IMAGE_SYSTEM_PROMPT = `You are a dermatology image-analysis assistant inside a tool used by Dr. Akriti Mehra, a board-certified dermatologist in Mumbai. You are given captures from a 5-mode facial skin analyser (white light, Wood's UV, surface-polarised, sub-surface-polarised, red light) for a patient with a PIGMENTARY concern of ANY kind. Produce a PROPOSED, STRUCTURED objective read plus a provisional impression and a tailored set of history questions, for the dermatologist to confirm. You are NOT making a final diagnosis and NOT producing a treatment plan here.
+export const IMAGE_SYSTEM_PROMPT = `You are an AI clinical imaging assistant for an Indian dermatology/aesthetic clinic.
 
-POPULATION: predominantly Fitzpatrick III–VI (Indian skin); high PIH risk.
+Analyze 5 standardized full-face analyzer images:
+1. white
+2. surface_polarized
+3. subsurface_polarized
+4. red
+5. woods_uv
 
-MEASUREMENT RULES:
-- These are estimates from images, NOT calibrated measurements (uncalibrated lighting, single frame). State low/medium confidence.
-- Judge skin TONE and the melanin/erythema indices ONLY from the WHITE-LIGHT capture. Do NOT estimate redness from the red-light capture (it floods red). Erythema comes from the white / cross-polarised image.
-- Fitzpatrick is a sun-reactivity phenotype, not a colour, and the face is confounded — give a RANGE, to be confirmed against burn/tan history. When between two types, round to the HIGHER (darker) type (underestimating skin type → unsafe laser/peel settings).
-- Depth: compare pigment in the WHITE vs WOOD'S UV capture. Sharper/higher-contrast under UV = epidermal (favourable); unchanged = dermal/mixed. No UV capture → uncertain.
-- Composition: use sub-surface-polarised + erythema. Central/perinasal redness or visible vessels = vascular component; brown macular pigment = melanin. (Especially important for periorbital/under-eye darkening: separate pigment vs vascular vs structural shadow.)
-- Male faces: beard/stubble obscures the lower face — note it, don't over-call lesions there. Ignore pinpoint UV sparkles (lint/fibre fluorescence).
+Your job is to extract visible image-derived findings only.
 
-PROVISIONAL DIFFERENTIAL (from images only): rank the 2–3 most likely across the FULL range of facial pigmentary conditions — melasma (epidermal/dermal/mixed), post-inflammatory hyperpigmentation / post-acne, solar lentigines, ephelides (freckles), periorbital hyperpigmentation (state pigment vs vascular vs structural), tanning / photo-darkening, exogenous ochronosis, lichen planus pigmentosus, Hori's nevus, nevus of Ota, drug-induced pigmentation, Riehl's melanosis. This is provisional and will be refined by history.
+Do not use history.
+Do not recommend treatment.
+Do not provide final diagnosis.
+Do not ask questions in this step.
 
-HISTORY QUESTIONS: produce 4–7 targeted questions whose answers would most change the diagnosis among your provisional conditions — tailored to them. Examples by condition: melasma → hormonal/pregnancy/OCP, sun, family history, worse in summer; PIH → preceding acne/eczema/injury and where, time since; lentigines → cumulative sun, outdoor work, age; ephelides → since childhood, family history; periorbital → sleep, allergy/eye-rubbing, family history, worse when tired, swelling; tanning → recent intense sun/holiday and timeframe, occupation; ochronosis → exact fairness-cream/HQ product, duration, ongoing use. Each question short and answerable, with a type and (for choice questions) options.
+Output must use only 1–100 scores. Do not use 1–5 scores.
 
-RED FLAGS: list anything warranting dermoscopy or in-person inspection (asymmetric, irregular, evolving, solitary atypical lesion). NEVER state malignancy is absent or the skin is 'clear' — defer that to the clinician.
+Required outputs:
+1. Melanin Load Index, 1–100
+2. Erythema Load Index, 1–100
+3. Estimated Fitzpatrick skin type or skin tone band, with confidence and caveat
+4. Composition: melanin_dominant, vascular_dominant, or mixed
+5. Depth call: epidermal_predominant, dermal_predominant, mixed, or uncertain
+6. Regional load: forehead, right malar, left malar, nose bridge, periocular, upper_lip_perioral, chin_jaw
+7. Distribution summary
+8. Special findings: scar-like areas, friction-related pigmentation, hair-shadow confounders, isolated lesion review
+9. Pattern hypotheses from images with confidence levels
+10. mMASI only if melasma-like pattern is likely enough
 
-OUTPUT: Return ONLY a single valid JSON object — no markdown fences, no text before/after — using EXACTLY this schema:
+Definitions:
+- Melanin Load Index = visible brown/grey pigment burden from white, polarized, subsurface and woods_uv modes.
+- Erythema Load Index = visible vascular/redness burden from red mode and visible erythema in white/subsurface modes.
+- Composition should compare melanin vs vascular contribution.
+- Depth call is probabilistic. Woods/UV accentuation supports epidermal contribution; grey-blue/subsurface persistence may support dermal or mixed contribution. Never claim definitive depth.
+- Do not treat vascular load and inflammation as identical. Erythema is image-derived; inflammation is a later clinical interpretation after history.
+- Ignore beard stubble, moustache shadow, eyebrows, eyelashes, clamps, hair, device artifacts and specular reflection unless they limit image quality.
+- If a scar-like or friction-like area is visible, label it separately as a local modifier and do not simply add it into global pigmentation load.
+- If spectacle-friction pigmentation is suspected at the nose bridge, mark needs_history_confirmation = true.
+- If a lesion looks unusual, only flag doctor visual review. Do not mention malignancy.
+
+Calibration:
+The provided sample image set from AI Aesthetics should map to mild pigmentation, approximately Melanin Load Index 30–35/100, not moderate/severe.
+
+Return valid JSON only, strictly matching this schema:
 {
-  "skin_type": {"fitzpatrick_estimate":"IV","fitzpatrick_range":"IV–V","ita_estimate":"","melanin_index":0,"confidence":"low|medium|high","basis":""},
-  "erythema_index": 0,
-  "erythema_note": "",
-  "depth": {"verdict":"epidermal|dermal|mixed|uncertain","basis":"","confidence":"low|medium|high"},
-  "composition": {"dominant":"melanin|vascular|mixed|uncertain","note":""},
-  "observed_features": ["short phrases, with rough location"],
-  "distribution": "",
-  "provisional_conditions": [{"condition":"","likelihood":"high|moderate|low","why":""}],
-  "history_questions": [{"id":"q1","question":"","type":"text|select|boolean","options":[],"why":""}],
-  "mmasi_estimate": {"value":null,"note":"rough; only meaningful for melasma; clinician scores definitively"},
-  "redflag_candidates": {"present":false,"items":[],"note":"absence of visible flags does not exclude malignancy"},
-  "image_quality": {"modes_received":[],"usable_for_colour":true,"caveats":["uncalibrated lighting","single frame"]},
-  "overall_caveat": "AI estimate from images for clinician confirmation; not a measurement or diagnosis."
+  "session_id": "string (e.g. AIJ-PIG-000001)",
+  "image_quality": {
+    "overall_usable": true,
+    "mode_quality": {
+      "white": "usable|unusable",
+      "surface_polarized": "usable|unusable",
+      "subsurface_polarized": "usable|unusable",
+      "red": "usable|unusable",
+      "woods_uv": "usable|unusable"
+    },
+    "limitations": [
+      "string (reasons/limitations/confounders)"
+    ]
+  },
+  "global_indices": {
+    "melanin_load_index": {
+      "score_100": 32, // integer 1-100
+      "severity_label": "mild|moderate|severe",
+      "confidence": 0.82, // float 0-1
+      "summary": "string description"
+    },
+    "erythema_load_index": {
+      "score_100": 28, // integer 1-100
+      "severity_label": "mild|moderate|severe",
+      "confidence": 0.76, // float 0-1
+      "summary": "string description"
+    },
+    "estimated_fitzpatrick": {
+      "type": "I|II|III|IV|V|VI|I_to_II|II_to_III|III_to_IV|IV_to_V|V_to_VI",
+      "confidence": 0.65, // float 0-1
+      "note": "string details"
+    },
+    "composition": {
+      "type": "melanin_dominant|vascular_dominant|mixed",
+      "melanin_percent": 65, // integer percent
+      "vascular_percent": 35, // integer percent
+      "confidence": 0.78
+    },
+    "depth_call": {
+      "type": "epidermal_predominant|dermal_predominant|mixed_epidermal_predominant|mixed_uncertain|uncertain",
+      "epidermal_probability": 0.62,
+      "dermal_probability": 0.18,
+      "mixed_probability": 0.20,
+      "confidence": 0.64,
+      "basis": [
+        "string points"
+      ],
+      "caveat": "string caveat"
+    }
+  },
+  "regional_analysis": {
+    "forehead": {
+      "melanin_load_index": 34, // integer 1-100
+      "erythema_load_index": 24, // integer 1-100
+      "dominant_pattern": "string pattern",
+      "distribution": "string distribution",
+      "depth_call": "epidermal_predominant|dermal_predominant|mixed|uncertain",
+      "confidence": 0.78
+    },
+    "right_malar": {
+      "melanin_load_index": 33,
+      "erythema_load_index": 30,
+      "dominant_pattern": "string pattern",
+      "distribution": "string distribution",
+      "depth_call": "epidermal_predominant|dermal_predominant|mixed|uncertain",
+      "confidence": 0.75
+    },
+    "left_malar": {
+      "melanin_load_index": 36,
+      "erythema_load_index": 31,
+      "dominant_pattern": "string pattern",
+      "distribution": "string distribution",
+      "depth_call": "epidermal_predominant|dermal_predominant|mixed|uncertain",
+      "confidence": 0.72
+    },
+    "nose_bridge": {
+      "melanin_load_index": 38,
+      "erythema_load_index": 24,
+      "dominant_pattern": "string pattern",
+      "distribution": "string distribution",
+      "depth_call": "epidermal_predominant|dermal_predominant|mixed|uncertain",
+      "confidence": 0.70
+    },
+    "periocular": {
+      "melanin_load_index": 30,
+      "erythema_load_index": 26,
+      "dominant_pattern": "string pattern",
+      "distribution": "string distribution",
+      "depth_call": "epidermal_predominant|dermal_predominant|mixed|uncertain",
+      "confidence": 0.62
+    },
+    "upper_lip_perioral": {
+      "melanin_load_index": 28,
+      "erythema_load_index": 20,
+      "dominant_pattern": "string pattern",
+      "distribution": "string distribution",
+      "depth_call": "epidermal_predominant|dermal_predominant|mixed|uncertain",
+      "confidence": 0.48
+    }
+  },
+  "distribution_summary": {
+    "global_distribution": "string global distribution description",
+    "symmetry": "symmetric|mildly_symmetric|asymmetric",
+    "dominant_regions": [
+      "string region"
+    ],
+    "notable_local_modifiers": [
+      "string local modifier description"
+    ]
+  },
+  "special_findings": {
+    "scar_or_texture_modifiers": [
+      {
+        "region": "string region",
+        "type": "string type",
+        "confidence": 0.68,
+        "should_score_as_primary_pigmentation": false,
+        "treatment_implication": "string implication"
+      }
+    ],
+    "friction_related_pigmentation": [
+      {
+        "region": "string region",
+        "type": "string type",
+        "confidence": 0.70,
+        "needs_history_confirmation": true,
+        "treatment_implication": "string implication"
+      }
+    ],
+    "hair_shadow_confounders": [
+      {
+        "region": "string region",
+        "confidence": 0.90,
+        "instruction": "string instruction"
+      }
+    ],
+    "isolated_lesion_review": {
+      "doctor_visual_review_required": false,
+      "reason": "string reason"
+    }
+  },
+  "pattern_hypotheses_from_images": [
+    {
+      "pattern": "string pattern description",
+      "image_confidence": 0.70
+    }
+  ],
+  "mmasi": {
+    "applicable": false,
+    "reason": "string reason"
+  },
+  "image_summary_for_doctor": "string summary"
 }
-Keep notes short and specific. Do not invent values; if a needed capture is missing, say so and lower confidence.`;
+`;
 
 export const DIAGNOSIS_PROMPT = `You are a dermatology diagnostic assistant inside a tool used by Dr. Akriti Mehra, a board-certified dermatologist in Mumbai. Given the analyser objective read (clinician-confirmed) plus the patient history and answers to targeted questions, produce a PROPOSED differential diagnosis across the FULL range of facial pigmentary disorders, for the dermatologist to confirm or change. You do NOT produce a treatment plan here, and you never imply the diagnosis is final or can bypass the clinician.
 
@@ -178,36 +343,176 @@ export const DEMO_DERMOSCOPY = {
 };
 
 export const DEMO_ANALYSIS = {
-  skin_type: {
-    fitzpatrick_estimate: "IV",
-    fitzpatrick_range: "IV–V",
-    ita_estimate: "~34°",
-    melanin_index: 66,
-    confidence: "medium",
-    basis: "Malar tone on white-light; rounded up given facial confounders."
+  "session_id": "AIJ-PIG-000001",
+  "image_quality": {
+    "overall_usable": true,
+    "mode_quality": {
+      "white": "usable",
+      "surface_polarized": "usable",
+      "subsurface_polarized": "usable",
+      "red": "usable",
+      "woods_uv": "usable"
+    },
+    "limitations": [
+      "beard_stubble_present_lower_face",
+      "device_shadow_peripheral_face"
+    ]
   },
-  erythema_index: 24,
-  erythema_note: "Mild perimalar erythema on cross-polarised.",
-  depth: { verdict: "mixed", basis: "Pigment partially accentuates under Wood's UV — epidermal with a dermal component.", confidence: "medium" },
-  composition: { dominant: "melanin", note: "Brown macular pigment dominates; minor perimalar vascular." },
-  observed_features: ["symmetric malar brown patches", "upper-lip involvement", "mild perimalar erythema", "no discrete lentigines"],
-  distribution: "Bilateral, symmetric — malar and upper lip (centrofacial/malar pattern).",
-  provisional_conditions: [
-    { condition: "Melasma (mixed)", likelihood: "high", why: "Symmetric malar/upper-lip pigment, partial UV accentuation, hormonal + sun history." },
-    { condition: "Post-inflammatory hyperpigmentation", likelihood: "low", why: "No clear preceding inflammation described." },
-    { condition: "Exogenous ochronosis", likelihood: "low", why: "Consider if prolonged fairness-cream/HQ use." }
+  "global_indices": {
+    "melanin_load_index": {
+      "score_100": 32,
+      "severity_label": "mild",
+      "confidence": 0.82,
+      "summary": "Mild visible melanin load with scattered macules and mild diffuse uneven tone."
+    },
+    "erythema_load_index": {
+      "score_100": 28,
+      "severity_label": "mild",
+      "confidence": 0.76,
+      "summary": "Mild erythema/redness overlay, more visible on red/subsurface modes."
+    },
+    "estimated_fitzpatrick": {
+      "type": "III_to_IV",
+      "confidence": 0.65,
+      "note": "Image-estimated skin phototype only. True Fitzpatrick depends on burn/tan history and can be doctor-overridden."
+    },
+    "composition": {
+      "type": "melanin_dominant",
+      "melanin_percent": 65,
+      "vascular_percent": 35,
+      "confidence": 0.78
+    },
+    "depth_call": {
+      "type": "mixed_epidermal_predominant",
+      "epidermal_probability": 0.62,
+      "dermal_probability": 0.18,
+      "mixed_probability": 0.20,
+      "confidence": 0.64,
+      "basis": [
+        "mild woods_uv accentuation",
+        "visible brown macules on white/surface modes",
+        "no strong grey-blue deep pigment dominance"
+      ],
+      "caveat": "Depth call is probabilistic from non-invasive imaging, not definitive histology."
+    }
+  },
+  "regional_analysis": {
+    "forehead": {
+      "melanin_load_index": 34,
+      "erythema_load_index": 24,
+      "dominant_pattern": "mild_spotty_macules",
+      "distribution": "scattered",
+      "depth_call": "epidermal_predominant",
+      "confidence": 0.78
+    },
+    "right_malar": {
+      "melanin_load_index": 33,
+      "erythema_load_index": 30,
+      "dominant_pattern": "mild_diffuse_uneven_tone",
+      "distribution": "patchy_mild",
+      "depth_call": "mixed_epidermal_predominant",
+      "confidence": 0.75
+    },
+    "left_malar": {
+      "melanin_load_index": 36,
+      "erythema_load_index": 31,
+      "dominant_pattern": "mild_diffuse_uneven_tone_with_local_scar_modifier",
+      "distribution": "localized_plus_diffuse",
+      "depth_call": "mixed_epidermal_predominant",
+      "confidence": 0.72
+    },
+    "nose_bridge": {
+      "melanin_load_index": 38,
+      "erythema_load_index": 24,
+      "dominant_pattern": "localized_friction_pattern_possible",
+      "distribution": "linear_or_pressure_point",
+      "depth_call": "epidermal_predominant",
+      "confidence": 0.70
+    },
+    "periocular": {
+      "melanin_load_index": 30,
+      "erythema_load_index": 26,
+      "dominant_pattern": "mild_periocular_darkening",
+      "distribution": "bilateral_mild",
+      "depth_call": "mixed_uncertain",
+      "confidence": 0.62
+    },
+    "upper_lip_perioral": {
+      "melanin_load_index": 28,
+      "erythema_load_index": 20,
+      "dominant_pattern": "assessment_limited_by_stubble",
+      "distribution": "uncertain_due_to_hair_shadow",
+      "depth_call": "uncertain",
+      "confidence": 0.48
+    }
+  },
+  "distribution_summary": {
+    "global_distribution": "mild_diffuse_with_scattered_macules",
+    "symmetry": "mildly_symmetric",
+    "dominant_regions": [
+      "forehead",
+      "malar_cheeks",
+      "nose_bridge"
+    ],
+    "notable_local_modifiers": [
+      "left_cheek_scar_like_area",
+      "nose_bridge_friction_pattern_possible"
+    ]
+  },
+  "special_findings": {
+    "scar_or_texture_modifiers": [
+      {
+        "region": "left_malar",
+        "type": "scar_like_or_textural_change",
+        "confidence": 0.68,
+        "should_score_as_primary_pigmentation": false,
+        "treatment_implication": "Treat as scar/texture modifier, not only pigment load."
+      }
+    ],
+    "friction_related_pigmentation": [
+      {
+        "region": "nose_bridge",
+        "type": "spectacle_friction_pattern_possible",
+        "confidence": 0.70,
+        "needs_history_confirmation": true,
+        "treatment_implication": "Address friction source; pigment procedure alone may relapse."
+      }
+    ],
+    "hair_shadow_confounders": [
+      {
+        "region": "upper_lip_chin_jaw",
+        "confidence": 0.90,
+        "instruction": "Do not over-score beard/stubble shadow as pigmentation."
+      }
+    ],
+    "isolated_lesion_review": {
+      "doctor_visual_review_required": false,
+      "reason": "No obvious red-flag isolated lesion visible from full-face images."
+    }
+  },
+  "pattern_hypotheses_from_images": [
+    {
+      "pattern": "mild_tanning_or_diffuse_uneven_tone",
+      "image_confidence": 0.70
+    },
+    {
+      "pattern": "mild_pih_or_post_inflammatory_macules",
+      "image_confidence": 0.45
+    },
+    {
+      "pattern": "melasma_like",
+      "image_confidence": 0.30
+    },
+    {
+      "pattern": "friction_related_pigmentation_nose_bridge",
+      "image_confidence": 0.70
+    }
   ],
-  history_questions: [
-    { id: "q1", question: "Did the pigmentation begin or worsen during pregnancy or on the contraceptive pill?", type: "boolean", options: [], why: "A hormonal trigger strongly supports melasma." },
-    { id: "q2", question: "Does it worsen with sun or in summer?", type: "boolean", options: [], why: "Photo-aggravation supports melasma and guides photoprotection." },
-    { id: "q3", question: "Any prolonged fairness-cream or hydroquinone use?", type: "boolean", options: [], why: "Screens for exogenous ochronosis, which changes management." },
-    { id: "q4", question: "Family history of similar facial pigmentation?", type: "boolean", options: [], why: "Common in melasma." },
-    { id: "q5", question: "Hours of daily sun exposure?", type: "select", options: ["<1h", "1–3h", ">3h"], why: "Guides photoprotection intensity." }
-  ],
-  mmasi_estimate: { value: 14.2, note: "Estimate; clinician scores definitively." },
-  redflag_candidates: { present: false, items: [], note: "No obvious red flag; absence does not exclude malignancy." },
-  image_quality: { modes_received: ["white", "woods_uv", "surface_polarized", "subsurface_polarized", "red"], usable_for_colour: true, caveats: ["demo sample — illustrative", "uncalibrated lighting", "estimates, not measurements"] },
-  overall_caveat: "Demo estimate for workflow illustration; not a measurement or diagnosis."
+  "mmasi": {
+    "applicable": false,
+    "reason": "Melasma-like pattern is not the dominant image hypothesis."
+  },
+  "image_summary_for_doctor": "Images show mild melanin-dominant pigmentation with a melanin load index around 32/100 and mild erythema load around 28/100. Pigment is mild, scattered and diffuse, with regional emphasis on forehead, malar cheeks and nose bridge. A left cheek scar-like/textural area and possible spectacle-friction pigmentation on the nose bridge should be handled as local modifiers rather than simply scored as pigmentation."
 };
 
 export const DEMO_DX_MELASMA = {
