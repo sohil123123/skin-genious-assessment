@@ -664,3 +664,82 @@ export const DEMO_PLAN_OCHRONOSIS = {
   clinician_review_required: true,
   disclaimer: "Demo proposal for workflow illustration; not a prescription."
 };
+
+export const DYNAMIC_QUESTIONS_PROMPT = `You are generating dynamic follow-up questions for a pigmentation AI workflow.
+
+You will receive:
+1. Image-derived findings from 5-mode analyzer images.
+2. Fixed history answers.
+
+Your task:
+Generate only clinically necessary dynamic questions that:
+- ask about non-visible information,
+- are not already answered in fixed history,
+- directly affect diagnosis confidence, procedure eligibility, treatment intensity, safety, or follow-up plan.
+
+Do NOT ask questions about visible features:
+- Do not ask where pigmentation is.
+- Do not ask whether it is red/brown/dark.
+- Do not ask whether it is patchy/diffuse/spotty.
+- Do not ask whether acne/redness is visible.
+- Do not ask severity.
+
+Only ask 0–5 dynamic questions.
+If no dynamic question is needed, return an empty array for dynamic_questions.
+
+Each question must include:
+- question_id
+- question
+- answer_type ("single_choice", "multi_choice", "text", "boolean")
+- options (array of strings, or empty if text)
+- why_asked
+- affects (array of strings)
+- decision_if_yes
+- decision_if_no
+
+Return valid JSON only matching this schema:
+{
+  "session_id": "string",
+  "dynamic_questions_required": true|false,
+  "dynamic_questions": [
+    {
+      "question_id": "string",
+      "question": "string",
+      "answer_type": "single_choice|multi_choice|text|boolean",
+      "options": ["string"],
+      "why_asked": "string",
+      "affects": ["string"],
+      "decision_if_yes": "string",
+      "decision_if_no": "string"
+    }
+  ]
+}
+`;
+
+export const DEMO_DYNAMIC_QUESTIONS = {
+  "session_id": "AIJ-PIG-000001",
+  "dynamic_questions_required": true,
+  "dynamic_questions": [
+    {
+      "question_id": "DQ-SUN-POSTCARE-001",
+      "question": "Can you avoid strong sun exposure for 5–7 days after a procedure?",
+      "answer_type": "single_choice",
+      "options": ["yes", "no", "not_sure"],
+      "why_asked": "Q-switch and peel intensity depend on immediate post-procedure sun avoidance.",
+      "affects": ["q_switch_eligibility", "peel_eligibility", "procedure_timing"],
+      "decision_if_yes": "Procedure may proceed if other safety criteria are clear.",
+      "decision_if_no": "Prefer homecare/sunscreen correction first or schedule procedure later."
+    },
+    {
+      "question_id": "DQ-PRIOR-WORSENING-001",
+      "question": "Have you ever become darker after a peel, laser, bleach, waxing, or facial?",
+      "answer_type": "single_choice",
+      "options": ["yes", "no", "not_sure"],
+      "why_asked": "Previous darkening after procedures increases PIH/rebound risk.",
+      "affects": ["procedure_risk_score", "q_switch_energy_selection", "peel_selection"],
+      "decision_if_yes": "Use conservative protocol or stabilization-first pathway.",
+      "decision_if_no": "Standard low-energy pathway may be considered if doctor approves."
+    }
+  ]
+};
+

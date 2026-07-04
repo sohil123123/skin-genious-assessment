@@ -5,12 +5,14 @@ import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
 import { api } from 'src/boot/axios'
 import {
   IMAGE_SYSTEM_PROMPT,
+  DYNAMIC_QUESTIONS_PROMPT,
   DIAGNOSIS_PROMPT,
   DERMOSCOPY_PROMPT,
   PLAN_PROMPT,
   REASSESS_PROMPT,
   DEMO_DERMOSCOPY,
   DEMO_ANALYSIS,
+  DEMO_DYNAMIC_QUESTIONS,
   DEMO_DX_MELASMA,
   DEMO_DX_ASK,
   DEMO_DX_OCHRONOSIS,
@@ -33,10 +35,23 @@ export const usePigmentationStore = defineStore('pigmentation', {
     dermoscopyImages: [],
     reassessImages: [],
 
-    // AI Analysis (Stage 2)
-    aiAnalysis: null,
-    dynamicQuestions: [],
     dynamicAnswers: {},
+    fixedHistory: {
+      duration: '',
+      stability_last_4_6_weeks: '',
+      recurrence_after_improvement: '',
+      sunscreen_use: '',
+      sunscreen_reapplication: '',
+      outdoor_heat_exposure: '',
+      trigger_history: [],
+      current_product_use: [],
+      current_sensitivity: '',
+      previous_treatments: [],
+      previous_treatment_response: '',
+      active_new_acne_frequency: '',
+      procedure_safety: [],
+      red_flag_lesion_change: '',
+    },
 
     // Safety switches and Red flags
     safety: {
@@ -142,6 +157,22 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.aiAnalysis = null
       this.dynamicQuestions = []
       this.dynamicAnswers = {}
+      this.fixedHistory = {
+        duration: '',
+        stability_last_4_6_weeks: '',
+        recurrence_after_improvement: '',
+        sunscreen_use: '',
+        sunscreen_reapplication: '',
+        outdoor_heat_exposure: '',
+        trigger_history: [],
+        current_product_use: [],
+        current_sensitivity: '',
+        previous_treatments: [],
+        previous_treatment_response: '',
+        active_new_acne_frequency: '',
+        procedure_safety: [],
+        red_flag_lesion_change: '',
+      }
       this.safety = { pregnancy: false, clot: false, ochronosis: false }
       this.redFlags = []
       this.formData = {
@@ -313,6 +344,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
       }
       if (/image-analysis assistant/.test(system)) {
         return JSON.stringify(DEMO_ANALYSIS)
+      }
+      if (/dynamic follow-up questions/.test(system)) {
+        return JSON.stringify(DEMO_DYNAMIC_QUESTIONS)
       }
       if (/dermoscopy-extraction assistant/.test(system)) {
         return JSON.stringify(DEMO_DERMOSCOPY)
@@ -562,6 +596,46 @@ export const usePigmentationStore = defineStore('pigmentation', {
     confirmReadings() {
       if (this.aiAnalysis) {
         this.aiAnalysis.confirmed = true
+      }
+    },
+
+    async generateDynamicQuestions() {
+      this.isLoading = true
+      this.loadingMessage = 'Generating dynamic follow-up questions…'
+
+      const content = [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            session_id: this.id || '1',
+            image_analysis: this.aiAnalysis?.data || {},
+            fixed_history: this.fixedHistory,
+            max_dynamic_questions: 5
+          }, null, 2)
+        }
+      ]
+
+      try {
+        const raw = await this.callOpenAI({
+          system: DYNAMIC_QUESTIONS_PROMPT,
+          content: content,
+          max_tokens: 2000,
+          temperature: 0.3
+        })
+
+        const res = this.parseJSON(raw)
+        this.dynamicQuestions = Array.isArray(res.dynamic_questions) ? res.dynamic_questions : []
+        
+        const answers = {}
+        this.dynamicQuestions.forEach((q) => {
+          answers[q.question_id] = q.answer_type === 'multi_choice' ? [] : ''
+        })
+        this.dynamicAnswers = answers
+      } catch (err) {
+        console.error(err)
+        throw err
+      } finally {
+        this.isLoading = false
       }
     },
 

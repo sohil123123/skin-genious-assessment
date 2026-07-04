@@ -974,14 +974,16 @@ onUnmounted(() => {
   top: -1px;
 }
 
-.spectra-theme .check:has(input:checked) {
+.spectra-theme .check:has(input:checked),
+.spectra-theme .check.is-checked {
   background: var(--melanin-wash);
   border-color: var(--melanin-soft);
   color: var(--melanin);
   font-weight: 600;
 }
 
-.spectra-theme .check.danger:has(input:checked) {
+.spectra-theme .check.danger:has(input:checked),
+.spectra-theme .check.danger.is-checked {
   background: var(--erythema-wash);
   border-color: #e2a9b5;
   color: var(--erythema);
@@ -990,6 +992,10 @@ onUnmounted(() => {
 .spectra-theme .check.danger input:checked {
   background: var(--erythema);
   border-color: var(--erythema);
+}
+
+.spectra-theme .check input:focus {
+  outline: none;
 }
 
 /* safety switches */

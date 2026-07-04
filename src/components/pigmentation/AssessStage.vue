@@ -158,81 +158,178 @@
             </div>
             <p class="note" style="margin-top:8px">Confirming means you accept the values above as the patient's. Edit any field to override.</p>
           </div>
+          <div class="card">
+            <div class="card-title"><h3>Patient</h3><span class="meta">initials only — no full names</span></div>
+            <div class="fgrid">
+              <div class="field">
+                <label>Patient initials <span class="req">*</span></label>
+                <input maxlength="6" placeholder="e.g. R.P." v-model="store.formData.initials">
+              </div>
+              <div class="field">
+                <label>Patient ID / MRN</label>
+                <input placeholder="optional" v-model="store.formData.mrn">
+              </div>
+              <div class="field">
+                <label>Age <span class="req">*</span></label>
+                <input type="number" min="0" max="120" placeholder="34" v-model.number="store.formData.age">
+              </div>
+              <div class="field">
+                <label>Sex <span class="req">*</span></label>
+                <select v-model="store.formData.sex">
+                  <option value="">—</option>
+                  <option>Female</option>
+                  <option>Male</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><h3>Previous treatments tried <span class="req">*</span></h3><span class="meta">tick all that apply</span></div>
+            <div class="checks">
+              <label v-for="opt in getQuestionOptions('previous_treatments')" :key="opt" :class="['check', { 'is-checked': store.fixedHistory.previous_treatments.includes(opt) }]">
+                <input type="checkbox" :value="opt" v-model="store.fixedHistory.previous_treatments">
+                {{ formatOptionLabel(opt) }}
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><h3>Procedure safety &amp; conditions <span class="req">*</span></h3><span class="meta">tick all that apply</span></div>
+            <div class="checks">
+              <label v-for="opt in getQuestionOptions('procedure_safety')" :key="opt" :class="['check', { 'is-checked': store.fixedHistory.procedure_safety.includes(opt) }]">
+                <input type="checkbox" :value="opt" v-model="store.fixedHistory.procedure_safety">
+                {{ formatOptionLabel(opt) }}
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- (2) HISTORY -->
       <div class="col">
         <div class="col-label"><span class="cl-num">2</span>History &amp; context</div>
-        
+
+        <!-- Fixed History Questionnaire -->
         <div class="card">
-          <div class="card-title"><h3>Patient</h3><span class="meta">initials only — no full names</span></div>
+          <div class="card-title"><h3>History &amp; context</h3><span class="meta">all fields required</span></div>
           <div class="fgrid">
             <div class="field">
-              <label>Patient initials <span class="req">*</span></label>
-              <input maxlength="6" placeholder="e.g. R.P." v-model="store.formData.initials">
+              <label>Onset duration <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.duration">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('duration')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
+              </select>
             </div>
+
             <div class="field">
-              <label>Patient ID / MRN</label>
-              <input placeholder="optional" v-model="store.formData.mrn">
+              <label>Stability (last 4–6 weeks) <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.stability_last_4_6_weeks">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('stability_last_4_6_weeks')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
+              </select>
             </div>
+
             <div class="field">
-              <label>Age <span class="req">*</span></label>
-              <input type="number" min="0" max="120" placeholder="34" v-model.number="store.formData.age">
+              <label>Recurrence after improvement <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.recurrence_after_improvement">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('recurrence_after_improvement')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
+              </select>
             </div>
+
             <div class="field">
-              <label>Sex <span class="req">*</span></label>
-              <select v-model="store.formData.sex">
-                <option value="">—</option>
-                <option>Female</option>
-                <option>Male</option>
-                <option>Other</option>
+              <label>Sunscreen usage <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.sunscreen_use">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('sunscreen_use')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Sunscreen reapplication <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.sunscreen_reapplication">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('sunscreen_reapplication')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Sun/heat exposure level <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.outdoor_heat_exposure">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('outdoor_heat_exposure')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Skin sensitivity to products <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.current_sensitivity">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('current_sensitivity')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Response to prior treatment <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.previous_treatment_response">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('previous_treatment_response')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Are new pimples appearing? <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.active_new_acne_frequency">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('active_new_acne_frequency')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Spot size/shape/color changes? <span class="req">*</span></label>
+              <select v-model="store.fixedHistory.red_flag_lesion_change">
+                <option value="">— select —</option>
+                <option v-for="opt in getQuestionOptions('red_flag_lesion_change')" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
               </select>
             </div>
           </div>
         </div>
 
         <div class="card">
-          <div class="card-title"><h3>Presentation</h3></div>
-          <div class="fgrid">
-            <div class="field">
-              <label>Distribution</label>
-              <input placeholder="e.g. bilateral malar / central face / under-eyes / discrete spots" v-model="store.formData.dist">
-            </div>
-            <div class="field">
-              <label>Duration</label>
-              <input placeholder="e.g. 2 years" v-model="store.formData.dur">
-            </div>
-            <div class="field">
-              <label>Onset / timing</label>
-              <input placeholder="e.g. after pregnancy / after acne / after sun" v-model="store.formData.onset">
-            </div>
-            <div class="field">
-              <label>Progression</label>
-              <select v-model="store.formData.prog">
-                <option value="">—</option>
-                <option>Stable</option>
-                <option>Spreading</option>
-                <option>Improving</option>
-                <option>Fluctuating (seasonal)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title"><h3>Triggers &amp; modifiers</h3><span class="meta">tick all that apply</span></div>
+          <div class="card-title"><h3>Triggers &amp; modifiers <span class="req">*</span></h3><span class="meta">tick all that apply</span></div>
           <div class="checks">
-            <label v-for="trigger in triggerOptions" :key="trigger" class="check">
-              <input type="checkbox" :value="trigger" v-model="store.formData.triggers">
-              {{ formatTriggerLabel(trigger) }}
+            <label v-for="opt in getQuestionOptions('trigger_history')" :key="opt" :class="['check', { 'is-checked': store.fixedHistory.trigger_history.includes(opt) }]">
+              <input type="checkbox" :value="opt" v-model="store.fixedHistory.trigger_history">
+              {{ formatOptionLabel(opt) }}
             </label>
           </div>
         </div>
 
         <div class="card">
           <div class="card-title"><h3>Prior treatment &amp; medications</h3></div>
-          <label class="check danger" style="margin-bottom:11px">
+          <label :class="['check', 'danger', { 'is-checked': store.formData.hqHistory }]" style="margin-bottom:11px">
             <input type="checkbox" v-model="store.formData.hqHistory">
             Used OTC fairness creams / unsupervised hydroquinone
           </label>
@@ -246,92 +343,118 @@
           </div>
         </div>
 
+        <!-- Moved treatments and safety checks to Column 1 to balance vertical scrolling -->
+
+        <!-- Generate Dynamic Questions Button -->
+        <button 
+          class="btn btn-primary btn-block" 
+          style="margin-top:14px; margin-bottom:18px"
+          :disabled="!isFixedHistoryValid || store.isLoading"
+          @click="generateDynamicQuestions"
+        >
+          ✦ Generate Dynamic History Questions
+        </button>
+
+        <!-- Dynamic Questions Card -->
         <div class="card" id="dynCard">
           <div class="card-title">
-            <h3>AI's questions</h3>
+            <h3>AI's dynamic questions</h3>
             <span class="meta">{{ store.dynamicQuestions.length ? store.dynamicQuestions.length + ' questions' : '—' }}</span>
           </div>
           <div id="dynQuestions">
             <div v-if="store.dynamicQuestions.length > 0">
-              <p class="note" style="margin-bottom:12px">Tailored to the image read — answer what you can.</p>
-              <div v-for="(q, idx) in store.dynamicQuestions" :key="idx" class="field full" style="margin-bottom:11px">
+              <p class="note" style="margin-bottom:12px">Tailored to the image read and fixed history — answer what you can.</p>
+              <div v-for="q in store.dynamicQuestions" :key="q.question_id" class="field full" style="margin-bottom:11px">
                 <label>
-                  {{ q.question || ("Question " + (idx + 1)) }}
-                  <span class="hint" style="display:block;font-weight:400" v-if="q.why">{{ q.why }}</span>
+                  {{ q.question }}
+                  <span class="hint" style="display:block;font-weight:400" v-if="q.why_asked"><b>Why:</b> {{ q.why_asked }}</span>
                 </label>
                 
-                <select v-if="q.type === 'select' && q.options?.length" v-model="store.dynamicAnswers[idx]">
-                  <option value="">—</option>
-                  <option v-for="opt in q.options" :key="opt">{{ opt }}</option>
+                <select v-if="q.answer_type === 'single_choice' && q.options?.length" v-model="store.dynamicAnswers[q.question_id]">
+                  <option value="">— select —</option>
+                  <option v-for="opt in q.options" :key="opt" :value="opt">{{ formatOptionLabel(opt) }}</option>
                 </select>
-                <select v-else-if="q.type === 'boolean'" v-model="store.dynamicAnswers[idx]">
-                  <option value="">—</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                  <option value="Unsure">Unsure</option>
+                <select v-else-if="q.answer_type === 'boolean'" v-model="store.dynamicAnswers[q.question_id]">
+                  <option value="">— select —</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                  <option value="not_sure">Unsure</option>
                 </select>
-                <input v-else placeholder="…" v-model="store.dynamicAnswers[idx]">
+                <div v-else-if="q.answer_type === 'multi_choice' && q.options?.length" class="checks q-mt-xs">
+                  <label v-for="opt in q.options" :key="opt" :class="['check', { 'is-checked': isDynamicOptionChecked(q.question_id, opt) }]">
+                    <input 
+                      type="checkbox" 
+                      :value="opt" 
+                      :checked="isDynamicOptionChecked(q.question_id, opt)"
+                      @change="toggleDynamicOption(q.question_id, opt)"
+                    >
+                    {{ formatOptionLabel(opt) }}
+                  </label>
+                </div>
+                <input v-else placeholder="Type patient's response..." v-model="store.dynamicAnswers[q.question_id]">
               </div>
             </div>
             <div v-else>
-              <p class="note">Analyse the captures and these populate — tailored to what the images suggest (melasma, PIH, lentigines, periorbital, tanning, ochronosis, …). You can still proceed without them.</p>
+              <p class="note">Enter all required fixed history fields above and click "Generate Dynamic History Questions" to fetch tailored follow-up queries.</p>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Safety & red-flag screen -->
-    <div class="col-label" style="margin-top:4px">
-      <span class="cl-num" style="background:var(--erythema)">!</span>Safety &amp; red-flag screen
-    </div>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title"><h3>Safety screen</h3><span class="meta">history-based · re-writes the plan</span></div>
-        <div class="safety-item">
-          <div class="sx">
-            <b>Pregnant / lactating</b>
-            <span>Blocks retinoid, hydroquinone, oral TXA</span>
-          </div>
-          <button 
-            :class="['switch', { on: store.safety.pregnancy }]" 
-            @click="store.safety.pregnancy = !store.safety.pregnancy"
-          ></button>
-        </div>
-        <div class="safety-item">
-          <div class="sx">
-            <b>Thromboembolic risk</b>
-            <span>Clot history, or smoker + OCP</span>
-          </div>
-          <button 
-            :class="['switch', { on: store.safety.clot }]" 
-            @click="store.safety.clot = !store.safety.clot"
-          ></button>
-        </div>
-        <div class="safety-item">
-          <div class="sx">
-            <b>Ochronosis suspected</b>
-            <span>From fairness-cream / HQ history</span>
-          </div>
-          <button 
-            :class="['switch', { on: store.safety.ochronosis }]" 
-            @click="store.safety.ochronosis = !store.safety.ochronosis"
-          ></button>
-        </div>
+    <!-- Safety & red-flag screen (Hidden for now) -->
+    <div v-if="false">
+      <div class="col-label" style="margin-top:4px">
+        <span class="cl-num" style="background:var(--erythema)">!</span>Safety &amp; red-flag screen
       </div>
-
-      <div class="card">
-        <div class="card-title"><h3>Red-flag screen</h3><span class="meta">malignancy gate · clinician decides</span></div>
-        <div class="checks">
-          <label v-for="flag in redFlagOptions" :key="flag" class="check danger">
-            <input type="checkbox" :value="flag" v-model="store.redFlags">
-            {{ formatRedFlagLabel(flag) }}
-          </label>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><h3>Safety screen</h3><span class="meta">history-based · re-writes the plan</span></div>
+          <div class="safety-item">
+            <div class="sx">
+              <b>Pregnant / lactating</b>
+              <span>Blocks retinoid, hydroquinone, oral TXA</span>
+            </div>
+            <button 
+              :class="['switch', { on: store.safety.pregnancy }]" 
+              @click="store.safety.pregnancy = !store.safety.pregnancy"
+            ></button>
+          </div>
+          <div class="safety-item">
+            <div class="sx">
+              <b>Thromboembolic risk</b>
+              <span>Clot history, or smoker + OCP</span>
+            </div>
+            <button 
+              :class="['switch', { on: store.safety.clot }]" 
+              @click="store.safety.clot = !store.safety.clot"
+            ></button>
+          </div>
+          <div class="safety-item">
+            <div class="sx">
+              <b>Ochronosis suspected</b>
+              <span>From fairness-cream / HQ history</span>
+            </div>
+            <button 
+              :class="['switch', { on: store.safety.ochronosis }]" 
+              @click="store.safety.ochronosis = !store.safety.ochronosis"
+            ></button>
+          </div>
         </div>
-        <div :class="['inline-warn', { show: store.redFlags.length > 0 }]">
-          <span class="ic">!</span>
-          <div class="body">
-            <b>Red flag ticked.</b> This routes you to verify malignancy in person first. The AI-generated plan will prioritize safety warnings and biopsy/referral advice, and will not proposed standard cosmetic procedures for this lesion.
+
+        <div class="card">
+          <div class="card-title"><h3>Red-flag screen</h3><span class="meta">malignancy gate · clinician decides</span></div>
+          <div class="checks">
+            <label v-for="flag in redFlagOptions" :key="flag" class="check danger">
+              <input type="checkbox" :value="flag" v-model="store.redFlags">
+              {{ formatRedFlagLabel(flag) }}
+            </label>
+          </div>
+          <div :class="['inline-warn', { show: store.redFlags.length > 0 }]">
+            <span class="ic">!</span>
+            <div class="body">
+              <b>Red flag ticked.</b> This routes you to verify malignancy in person first. The AI-generated plan will prioritize safety warnings and biopsy/referral advice, and will not proposed standard cosmetic procedures for this lesion.
+            </div>
           </div>
         </div>
       </div>
@@ -353,37 +476,208 @@ const userModified = ref({
   depth: false
 })
 
-const triggerOptions = [
-  'High / cumulative sun exposure',
-  'Irregular sunscreen use',
-  'Recent intense sun / holiday (tanning)',
-  'Hormonal (pregnancy / OCP / HRT)',
-  'Family history of pigmentation',
-  'Preceding acne / injury / inflammation (PIH)',
-  'Eye-rubbing / allergy / poor sleep (periorbital)',
-  'Photosensitising medication',
-  'Thyroid / endocrine disease'
+const fixedHistoryQuestions = [
+  {
+    "id": "duration",
+    "question": "When did you first notice the pigmentation?",
+    "type": "single_choice",
+    "options": [
+      "less_than_1_month",
+      "1_to_3_months",
+      "3_to_6_months",
+      "6_to_12_months",
+      "more_than_1_year"
+    ],
+    "required": true
+  },
+  {
+    "id": "stability_last_4_6_weeks",
+    "question": "In the last 4–6 weeks, has it been stable, improving, worsening, or spreading?",
+    "type": "single_choice",
+    "options": ["stable", "improving", "worsening", "spreading", "not_sure"],
+    "required": true
+  },
+  {
+    "id": "recurrence_after_improvement",
+    "question": "Has this pigmentation improved before and then come back?",
+    "type": "single_choice",
+    "options": ["yes", "no", "not_sure", "never_treated_before"],
+    "required": true
+  },
+  {
+    "id": "sunscreen_use",
+    "question": "How often do you use sunscreen?",
+    "type": "single_choice",
+    "options": ["never", "occasionally", "daily_once", "daily_with_reapplication"],
+    "required": true
+  },
+  {
+    "id": "sunscreen_reapplication",
+    "question": "When outdoors, do you reapply sunscreen?",
+    "type": "single_choice",
+    "options": ["never", "rarely", "once_when_outdoors", "every_2_3_hours_when_outdoors", "not_applicable"],
+    "required": true
+  },
+  {
+    "id": "outdoor_heat_exposure",
+    "question": "Which best describes your usual sun/heat exposure?",
+    "type": "single_choice",
+    "options": [
+      "mostly_indoors",
+      "short_daily_outdoor_exposure",
+      "frequent_outdoor_exposure",
+      "two_wheeler_or_outdoor_work",
+      "recent_travel_or_high_sun"
+    ],
+    "required": true
+  },
+  {
+    "id": "trigger_history",
+    "question": "Did the pigmentation start or worsen after any of these?",
+    "type": "multi_choice",
+    "options": [
+      "sun_travel",
+      "acne",
+      "facial_peel_laser",
+      "waxing_threading_bleach",
+      "rash_allergy_burning",
+      "pregnancy_delivery",
+      "hormonal_pills_treatment",
+      "menopause",
+      "stress",
+      "not_sure"
+    ],
+    "required": true
+  },
+
+  {
+    "id": "current_sensitivity",
+    "question": "Do products currently cause burning, stinging, redness, peeling, or itching?",
+    "type": "single_choice",
+    "options": ["none", "mild", "moderate", "severe"],
+    "required": true
+  },
+  {
+    "id": "previous_treatments",
+    "question": "Have you taken pigmentation treatment before?",
+    "type": "multi_choice",
+    "options": [
+      "creams",
+      "chemical_peels",
+      "q_switch_or_carbon_laser",
+      "microneedling",
+      "facials",
+      "oral_medicines",
+      "none"
+    ],
+    "required": true
+  },
+  {
+    "id": "previous_treatment_response",
+    "question": "What happened after previous treatment?",
+    "type": "single_choice",
+    "options": [
+      "improved",
+      "no_change",
+      "improved_then_came_back",
+      "worsened_or_darkened",
+      "not_applicable"
+    ],
+    "required": true
+  },
+  {
+    "id": "active_new_acne_frequency",
+    "question": "Are new pimples still appearing?",
+    "type": "single_choice",
+    "options": ["none", "occasional", "weekly", "frequent_active_acne"],
+    "required": true
+  },
+  {
+    "id": "procedure_safety",
+    "question": "Please select any that apply.",
+    "type": "multi_choice",
+    "options": [
+      "pregnant",
+      "breastfeeding",
+      "recent_isotretinoin",
+      "keloid_tendency",
+      "cold_sore_history",
+      "active_infection",
+      "none"
+    ],
+    "required": true
+  },
+  {
+    "id": "red_flag_lesion_change",
+    "question": "Has any specific spot recently changed in size, shape, colour, started bleeding, crusting, ulcerating, itching, hurting, or not healing?",
+    "type": "single_choice",
+    "options": ["yes", "no", "not_sure"],
+    "required": true
+  }
 ]
 
-const redFlagOptions = [
-  'Lesion suspicious for malignancy',
-  'Asymmetric / irregular border',
-  'Rapidly evolving or new',
-  'Ulceration or bleeding'
-]
-
-const formatTriggerLabel = (val) => {
-  if (val.includes('pregnancy')) return 'Hormonal (pregnancy/OCP)'
-  if (val.includes('acne')) return 'Preceding acne/injury (PIH)'
-  if (val.includes('Eye-rubbing')) return 'Eye-rubbing / allergy / sleep'
-  return val.replace(/\s*\(.*?\)/, '').replace('exposure', '')
+const formatOptionLabel = (val) => {
+  if (!val) return ''
+  return val
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/Or/g, 'or')
+    .replace(/To/g, 'to')
+    .replace(/Aha/g, 'AHA')
+    .replace(/Bha/g, 'BHA')
+    .replace(/Hq/g, 'HQ')
+    .replace(/Ocp/g, 'OCP')
+    .replace(/Txa/g, 'TXA')
+    .replace(/Pih/g, 'PIH')
+    .replace(/Q-switch/i, 'Q-Switch')
 }
 
-const formatRedFlagLabel = (val) => {
-  if (val.includes('malignancy')) return 'Suspicious lesion'
-  if (val.includes('Asymmetric')) return 'Asymmetric/irregular'
-  if (val.includes('Rapidly')) return 'Rapidly evolving / new'
-  return val
+const getQuestionOptions = (id) => {
+  const q = fixedHistoryQuestions.find(x => x.id === id)
+  return q ? q.options : []
+}
+
+const isDynamicOptionChecked = (questionId, option) => {
+  const ans = store.dynamicAnswers[questionId]
+  if (Array.isArray(ans)) {
+    return ans.includes(option)
+  }
+  return false
+}
+
+const toggleDynamicOption = (questionId, option) => {
+  if (!Array.isArray(store.dynamicAnswers[questionId])) {
+    store.dynamicAnswers[questionId] = []
+  }
+  const arr = [...store.dynamicAnswers[questionId]]
+  const idx = arr.indexOf(option)
+  if (idx >= 0) {
+    arr.splice(idx, 1)
+  } else {
+    arr.push(option)
+  }
+  store.dynamicAnswers[questionId] = arr
+}
+
+const isFixedHistoryValid = computed(() => {
+  if (!store.formData.initials || !store.formData.age || !store.formData.sex) return false
+  for (const q of fixedHistoryQuestions) {
+    const val = store.fixedHistory[q.id]
+    if (q.type === 'single_choice' || q.type === 'boolean') {
+      if (!val) return false
+    } else if (q.type === 'multi_choice') {
+      if (!Array.isArray(val) || val.length === 0) return false
+    }
+  }
+  return true
+})
+
+const generateDynamicQuestions = async () => {
+  try {
+    await store.generateDynamicQuestions()
+  } catch (err) {
+    alert(err.message || 'Failed to generate dynamic questions.')
+  }
 }
 
 const formattedConditions = computed(() => {
