@@ -154,6 +154,13 @@ onMounted(async () => {
               name: 'appointments',
             })
           }
+        } else if (type == 'pigmentation-assessment') {
+          router.push({
+            name: 'pigmentation-assessment',
+            params: {
+              ...(assessment_id && { assessment_id: assessment_id }),
+            },
+          })
         }
       }, 2000)
     } else {

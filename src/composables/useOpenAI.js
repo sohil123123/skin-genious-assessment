@@ -1,4 +1,4 @@
-import { useQuasar } from 'quasar'
+import { Notify, Loading } from 'quasar'
 import { api } from 'src/boot/axios'
 import config from 'src/config.js'
 
@@ -10,8 +10,6 @@ import nurseRunSheet from 'src/response-examples/nurse-runsheet-single-session.j
 import nurseRunSheetMulti from 'src/response-examples/nurse-runsheet-multi-session.json'
 
 export function useOpenAI() {
-  const $q = useQuasar()
-
   // 🧠 1. Get or create conversation
   const getOrCreateConversation = async (pid, convId, name, assessmentId) => {
     try {
@@ -19,17 +17,12 @@ export function useOpenAI() {
       if (id) return id
 
       const res = await api.post(`ai/conversations`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          patient_id: pid,
-          patient_name: name,
-          assessment_id: `${assessmentId}`,
-        }),
+        patient_id: pid,
+        patient_name: name,
+        assessment_id: `${assessmentId}`,
       })
 
-      const data = await res.data
+      const data = res.data
       if (!data || !data.id) {
         throw new Error(`Conversation creation failed: ${JSON.stringify(data)}`)
       }
@@ -37,7 +30,7 @@ export function useOpenAI() {
       return data.id
     } catch (err) {
       console.error(err)
-      $q.notify({
+      Notify.create({
         type: 'negative',
         message: err.message || 'Failed to create conversation',
       })
@@ -122,7 +115,7 @@ export function useOpenAI() {
       }
 
       const res = await api.post(`ai/responses`, body)
-      const data = await res.data
+      const data = res.data
       if (!data) return data
 
       // Try to return the assistant's text output
@@ -142,7 +135,7 @@ export function useOpenAI() {
       }
     } catch (err) {
       console.error(err)
-      $q.notify({
+      Notify.create({
         type: 'negative',
         message: err.message || 'Error generating response',
       })
@@ -150,7 +143,7 @@ export function useOpenAI() {
         error: err,
       }
     } finally {
-      $q.loading.hide()
+      Loading.hide()
     }
   }
 
@@ -159,3 +152,4 @@ export function useOpenAI() {
     runResponse,
   }
 }
+
