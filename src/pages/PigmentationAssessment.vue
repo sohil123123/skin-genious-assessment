@@ -75,7 +75,7 @@
               ← Back
             </button>
             <button class="btn btn-primary" id="nextBtn" @click="goNext">
-              {{ store.currentStage === 4 ? 'Done ✓' : 'Continue →' }}
+              {{ store.currentStage === 3 ? 'Done ✓' : 'Continue →' }}
             </button>
           </div>
         </footer>
@@ -96,6 +96,7 @@
 import { computed, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
+import { Loading } from 'quasar'
 
 // Step Components
 import ConnectGate from 'src/components/pigmentation/ConnectGate.vue'
@@ -118,7 +119,7 @@ const steps = [
   { title: 'Assess', sub: 'Data + history' },
   { title: 'Diagnosis', sub: 'Confirm working dx' },
   { title: 'Plan', sub: 'Generate & sign-off' },
-  { title: 'Reassess', sub: 'Check goals' },
+  // { title: 'Reassess', sub: 'Check goals' },
 ]
 
 const disclaimerText = computed(() => {
@@ -128,23 +129,81 @@ const disclaimerText = computed(() => {
 })
 
 const goToStage = (idx) => {
-  // If connection is verified, let them click around
+  if (idx === 0) {
+    store.currentStage = 0
+    return
+  }
+  if (idx > store.currentStage) {
+    if (store.currentStage === 0 && idx >= 1) {
+      goNext()
+      return
+    }
+  }
   if (store.isConnected) {
     store.currentStage = idx
+  }
+}
+
+const goNext = async () => {
+  if (store.currentStage === 0) {
+    if (!store.aiAnalysis) {
+      alert('Please analyze the captures first.')
+      return
+    }
+
+    const missing = []
+    if (!store.formData.initials) missing.push('Patient Initials')
+    if (!store.formData.age) missing.push('Age')
+    if (!store.formData.sex) missing.push('Sex')
+    if (!store.formData.fitz) missing.push('Fitzpatrick skin type')
+
+    const questions = [
+      { id: 'duration', label: 'Onset duration' },
+      { id: 'stability_last_4_6_weeks', label: 'Stability status' },
+      { id: 'recurrence_after_improvement', label: 'Recurrence after improvement' },
+      { id: 'sunscreen_use', label: 'Sunscreen usage' },
+      { id: 'sunscreen_reapplication', label: 'Sunscreen reapplication' },
+      { id: 'outdoor_heat_exposure', label: 'Sun/heat exposure level' },
+      { id: 'current_sensitivity', label: 'Skin sensitivity to products' },
+      { id: 'previous_treatment_response', label: 'Response to prior treatment' },
+      { id: 'active_new_acne_frequency', label: 'Are new pimples appearing?' },
+      { id: 'red_flag_lesion_change', label: 'Has any spot recently changed?' }
+    ]
+
+    questions.forEach((q) => {
+      const val = store.fixedHistory[q.id]
+      if (!val) {
+        missing.push(q.label)
+      }
+    })
+
+    if (missing.length > 0) {
+      alert(`Please answer the following required fields first: \n- ${missing.join('\n- ')}`)
+      return
+    }
+
+    try {
+      Loading.show({ message: 'Generating dynamic follow-up questions…' })
+      store.isLoading = true
+      store.loadingMessage = 'Generating dynamic follow-up questions…'
+      await store.generateDynamicQuestions()
+      store.currentStage = 1
+    } catch (err) {
+      alert(err.message || 'Failed to generate dynamic questions.')
+    } finally {
+      store.isLoading = false
+      Loading.hide()
+    }
+  } else if (store.currentStage < 3) {
+    store.currentStage++
+  } else {
+    alert('Assessment session complete.')
   }
 }
 
 const goBack = () => {
   if (store.currentStage > 0) {
     store.currentStage--
-  }
-}
-
-const goNext = () => {
-  if (store.currentStage < 4) {
-    store.currentStage++
-  } else {
-    alert('Assessment session complete.')
   }
 }
 

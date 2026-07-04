@@ -112,18 +112,20 @@ export const usePigmentationStore = defineStore('pigmentation', {
     reassessment: null,
 
     // Loading indicators
+    aiAnalysis: null,
+    dynamicQuestions: [],
     loadingMessage: '',
     isLoading: false,
   }),
 
   getters: {
     stageLabel: (state) => {
-      const names = ['Capture', 'Assess', 'Diagnosis', 'Plan', 'Reassess']
+      const names = ['Capture', 'Assess', 'Diagnosis', 'Plan']
       const pad = (x) => (x < 10 ? '0' : '') + x
-      return `${pad(state.currentStage + 1)} / 05 — ${names[state.currentStage]}`
+      return `${pad(state.currentStage + 1)} / 04 — ${names[state.currentStage]}`
     },
     progressPercent: (state) => {
-      return ((state.currentStage + 1) / 5) * 100
+      return ((state.currentStage + 1) / 4) * 100
     },
   },
 
@@ -351,7 +353,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
       if (/dermoscopy-extraction assistant/.test(system)) {
         return JSON.stringify(DEMO_DERMOSCOPY)
       }
-      if (/diagnostic assistant/.test(system)) {
+      if (/decision-support assistant|diagnostic assistant/i.test(system)) {
         const textContent = Array.isArray(content)
           ? content
               .filter((b) => b.type === 'text')
@@ -379,7 +381,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         }
         return JSON.stringify(DEMO_DX_MELASMA)
       }
-      if (/treatment-planning assistant/.test(system)) {
+      if (/treatment-planning assistant|optimum linear pigmentation treatment plan/i.test(system)) {
         const dx = (this.diagnosis?.confirmedDx || '').toLowerCase()
         if (/ochronosis/.test(dx)) {
           return JSON.stringify(DEMO_PLAN_OCHRONOSIS)
@@ -583,8 +585,6 @@ export const usePigmentationStore = defineStore('pigmentation', {
           this.formData.comp = a.composition?.dominant || ''
           this.formData.depth = a.depth?.verdict || ''
         }
-
-        this.currentStage = 1
       } catch (err) {
         console.error(err)
         throw err
@@ -699,33 +699,13 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
 
     buildDiagnosisInput() {
-      let dermo = ''
-      if (this.dermoscopyImages.length) {
-        dermo = `\n\nDERMOSCOPY: ${this.dermoscopyImages.length} dermoscopy image(s) are attached below.`
-        if (this.dermoscopyFindings) {
-          const f = this.dermoscopyFindings
-          dermo += ' AI-extracted dermoscopy findings (clinician-reviewed):'
-          if (f.pattern_summary) dermo += ` ${f.pattern_summary}`
-          if (f.observed_structures?.length)
-            dermo += ` Structures: ${f.observed_structures.join(', ')}.`
-          if (f.feature_checks?.length)
-            dermo +=
-              ' Feature checks: ' +
-              f.feature_checks.map((c) => `${c.feature}=${c.status}`).join('; ') +
-              '.'
-          if (f.suggests) dermo += ` Dermoscopic impression: ${f.suggests}`
-        }
-        dermo +=
-          ' Incorporate these dermoscopy findings, set needs_dermoscopy=false, and commit to your best-supported diagnosis.'
-      } else {
-        dermo =
-          '\n\nDERMOSCOPY: none provided yet. If dermoscopy would materially change the diagnosis, request it via needs_dermoscopy/dermoscopy_request rather than forcing a low-confidence call.'
+      const requestPayload = {
+        session_id: this.id || 'AIJ-PIG-000001',
+        image_analysis: this.aiAnalysis?.data || {},
+        fixed_history: this.fixedHistory,
+        dynamic_history: this.dynamicAnswers
       }
-      return (
-        this.buildBaseBlock() +
-        dermo +
-        '\n\nProduce the proposed differential (with scores) as the specified JSON.'
-      )
+      return JSON.stringify(requestPayload, null, 2)
     },
 
     async generateDx() {
@@ -755,7 +735,116 @@ export const usePigmentationStore = defineStore('pigmentation', {
         })
 
         const dx = this.parseJSON(raw)
-        this.diagnosis = { data: dx, confirmedDx: '' }
+
+        // Map the new response schema to the UI schema so that print report, diagnosis page etc. do not break!
+        // We will store both the raw AI response in store.diagnosis.data AND the mapped fields.
+
+        // Map working_impression to differential
+        const primaryDx = dx.working_impression?.primary_category || ''
+        const primaryConfidence = dx.scores?.ai_planning_confidence_score_100 || 80
+        const primaryReasoning = dx.clinical_summary_for_doctor || ''
+
+        const alternatives = (dx.working_impression?.secondary_categories || []).map(cat => ({
+          dx: cat,
+          likelihood: 'moderate',
+          reconsider_when: 'if clinically indicated'
+        }))
+
+        // Map scores object to scores array
+        const scoresArray = []
+        if (dx.scores) {
+          const mapScore = (key, name, scale) => {
+            if (dx.scores[key] !== undefined) {
+              scoresArray.push({
+                name: name,
+                value: String(dx.scores[key]),
+                scale: scale,
+                interpretation: dx.scores[key] > 50 ? 'elevated' : 'mild/moderate'
+              })
+            }
+          }
+          mapScore('pigmentation_score_100', 'Melanin Load Index', '0–100')
+          mapScore('inflammation_score_100', 'Erythema Load Index', '0–100')
+          mapScore('recurrence_risk_score_100', 'Recurrence Risk Score', '0–100')
+          mapScore('procedure_risk_score_100', 'Procedure Risk Score', '0–100')
+          mapScore('sunscreen_compliance_score_100', 'Sunscreen Compliance Score', '0–100')
+          mapScore('ai_planning_confidence_score_100', 'AI Planning Confidence', '0–100')
+        }
+
+        // Map key_drivers
+        const drivers = []
+        if (dx.clinical_activity) {
+          if (dx.clinical_activity.stability_status) drivers.push(`Stability: ${dx.clinical_activity.stability_status}`)
+          if (dx.clinical_activity.inflammation_first_required) drivers.push(`Inflammation Control Required First`)
+          if (dx.clinical_activity.active_acne_driver) drivers.push(`Active Acne Driver Present`)
+          if (dx.clinical_activity.barrier_repair_first_required) drivers.push(`Barrier Repair Required First`)
+        }
+        if (dx.risk_profile) {
+          drivers.push(`Recurrence Risk: ${dx.risk_profile.recurrence_risk}`)
+          drivers.push(`Procedure Risk: ${dx.risk_profile.procedure_risk}`)
+          drivers.push(`Sunscreen Risk: ${dx.risk_profile.sunscreen_compliance_risk}`)
+          drivers.push(`PIH Risk: ${dx.risk_profile.pih_risk}`)
+        }
+
+        // Map red_flags
+        const redFlagsPresent = dx.risk_profile?.red_flag_lesion_risk && dx.risk_profile.red_flag_lesion_risk !== 'not_reported'
+        const redFlagsAction = dx.working_impression?.doctor_review_reason || ''
+        const redFlagsItems = redFlagsPresent ? [dx.risk_profile.red_flag_lesion_risk] : []
+
+        // Map depth & composition (default back to form or construct from primary category)
+        let depthVal = this.formData.depth || 'mixed'
+        let compVal = this.formData.comp || 'melanin'
+        const primaryLower = primaryDx.toLowerCase()
+        if (primaryLower.includes('melasma')) {
+          depthVal = 'mixed'
+          compVal = 'melanin'
+        } else if (primaryLower.includes('pih')) {
+          depthVal = 'epidermal'
+          compVal = 'mixed'
+        } else if (primaryLower.includes('tanning')) {
+          depthVal = 'epidermal'
+          compVal = 'melanin'
+        }
+
+        const mappedData = {
+          ...dx,
+          needs_summary: dx.working_impression?.primary_category === 'unclear_doctor_review' && !this.dermoscopyFindings,
+          needs_dermoscopy: dx.working_impression?.primary_category === 'unclear_doctor_review' && !this.dermoscopyFindings,
+          dermoscopy_request: {
+            reason: dx.working_impression?.doctor_review_reason || 'Suspicion of ochronosis or atypical lesion.',
+            look_for: ['banana-shaped ochre structures', 'blue-grey globules']
+          },
+          differential: {
+            primary: {
+              dx: primaryDx,
+              confidence: primaryConfidence,
+              reasoning: primaryReasoning
+            },
+            alternatives: alternatives
+          },
+          depth_assessment: {
+            verdict: depthVal,
+            basis: 'Derived from diagnostic category & clinical activity',
+            prognosis: 'Requires regular assessment'
+          },
+          composition_assessment: {
+            dominant: compVal,
+            note: 'Derived from primary category composition'
+          },
+          scores: scoresArray,
+          severity_interpretation: `Confidence: ${dx.working_impression?.diagnostic_confidence || 'moderate'}. Recurrence: ${dx.risk_profile?.recurrence_risk || 'moderate'}.`,
+          key_drivers: drivers,
+          red_flags: {
+            present: redFlagsPresent,
+            items: redFlagsItems,
+            action: redFlagsAction
+          },
+          uncertainties: [
+            dx.working_impression?.doctor_review_reason || 'Clinical verification required'
+          ]
+        }
+
+        this.diagnosis = { data: mappedData, confirmedDx: '' }
       } catch (err) {
         console.error(err)
         throw err
@@ -811,14 +900,35 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
 
     buildPlanInput() {
-      const dxData = this.diagnosis?.data || {}
-      let ctx = `\n\nCONFIRMED WORKING DIAGNOSIS (clinician-confirmed): ${this.diagnosis?.confirmedDx || ''}.`
-      if (dxData) {
-        ctx += `\nDepth: ${dxData.depth_assessment?.verdict || '—'}. Composition: ${dxData.composition_assessment?.dominant || '—'}. Key drivers: ${(dxData.key_drivers || []).join(', ')}.`
+      const request = {
+        session_id: this.conversationId || 'AIJ-PIG-000001',
+        diagnosis: this.diagnosis?.data || {},
+        image_analysis: this.aiAnalysis?.data || {},
+        fixed_history: this.fixedHistory,
+        dynamic_history: this.dynamicAnswers,
+        clinic_config: {
+          location: "AI Aesthetics Jaipur",
+          inventory: [
+            "Q-switch Nd:YAG (1064nm, 532nm)",
+            "BioRePeelCl3 (TCA-based low-downtime)",
+            "Mandelic Acid peel",
+            "Lactic Acid peel",
+            "Microneedling (doctor-performed)",
+            "Exosomes / PDRN (topical after microneedling)",
+            "LED therapy (calming support)"
+          ],
+          protocols: [
+            "Conservative Q-switch Nd:YAG toning for dark skin (FST IV-VI)",
+            "Sequence vascular/inflammation treatment first if high erythema present",
+            "Friction reduction instructions if spectacle/friction pigmentation is suspected"
+          ]
+        },
+        doctor_overrides: {
+          allowed: true,
+          notes: null
+        }
       }
-      ctx +=
-        '\n\nProduce a plan appropriate to THIS confirmed diagnosis as the specified JSON. Apply all hard safety rules.'
-      return this.buildBaseBlock() + ctx
+      return JSON.stringify(request, null, 2)
     },
 
     async generatePlan() {
@@ -841,8 +951,154 @@ export const usePigmentationStore = defineStore('pigmentation', {
           temperature: 0.3,
         })
 
-        const plan = this.parseJSON(raw)
-        this.lastPlan = plan
+        const res = this.parseJSON(raw)
+        
+        // MAP NEW PLAN JSON TO THE UI SCHEMA EXPECTED BY PlanStage.vue
+        const mappedPlan = {
+          summary_line: res.client_report?.headline || res.treatment_priority || "Optimum Treatment Plan",
+          condition: this.diagnosis?.confirmedDx || res.treatment_priority || "Hyperpigmentation",
+          condition_specific_note: res.client_report?.simple_explanation || "",
+          prognosis: res.whatsapp_summary?.message || "",
+          plan: {
+            tier0_photoprotection: res.prescription_style_output?.non_rx_homecare || [],
+            tier1_topical: [],
+            tier2_procedural: [],
+            oral_options: [],
+            sequencing_note: ""
+          },
+          goals: [],
+          safety_flags: res.safety_flags || [],
+          uncertainties: res.follow_up_plan?.comparison_metrics || [],
+          follow_up: {
+            interval: `${res.follow_up_plan?.next_review_weeks?.min || 4}-${res.follow_up_plan?.next_review_weeks?.max || 6} weeks`,
+            measure: `Repeat images: ${(res.follow_up_plan?.repeat_images || []).join(', ')}`,
+            escalate_if_plateau: `Assess progression: ${res.follow_up_plan?.progression_type || ''}`,
+            stop_if: "Any increase in sensitivity or erythema load"
+          },
+          clinician_review_required: res.doctor_review_required !== false,
+          disclaimer: "AI-generated proposal for clinician review; not a final prescription."
+        }
+
+        // Map Topicals
+        if (res.homecare_plan?.morning?.length) {
+          mappedPlan.plan.tier1_topical.push({
+            agent: "Morning Routine",
+            detail: res.homecare_plan.morning.map(x => x.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())).join(', '),
+            contraindicated: false
+          })
+        }
+        if (res.homecare_plan?.night?.length) {
+          mappedPlan.plan.tier1_topical.push({
+            agent: "Night Routine",
+            detail: res.homecare_plan.night.map(x => x.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())).join(', '),
+            contraindicated: false
+          })
+        }
+        if (res.homecare_plan?.avoid?.length) {
+          mappedPlan.plan.tier1_topical.push({
+            agent: "Discontinue / Avoid",
+            detail: res.homecare_plan.avoid.map(x => x.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())).join(', '),
+            caution: "Do not use OTC steroid / fairness creams"
+          })
+        }
+
+        // Map Procedures
+        if (Array.isArray(res.prescription_style_output?.procedure_orders)) {
+          res.prescription_style_output.procedure_orders.forEach(o => {
+            mappedPlan.plan.tier2_procedural.push({
+              intervention: o.procedure,
+              detail: `Wavelength: ${o.wavelength_nm || '1064'}nm | Energy: ${o.energy_mj || ''}mJ | Fluence: ${o.fluence_j_cm2 || ''} J/cm² | Freq: ${o.frequency_hz || ''} Hz | Notes: ${o.notes || ''}`,
+              readiness: "first-line"
+            })
+          })
+        }
+
+        const bio = res.modality_eligibility?.biorepeelcl3
+        if (bio && bio.eligible && !mappedPlan.plan.tier2_procedural.some(p => p.intervention?.toLowerCase().includes('biorepeel'))) {
+          mappedPlan.plan.tier2_procedural.push({
+            intervention: "BioRePeelCl3",
+            detail: `Contact time: ${bio.contact_time_minutes?.min || 3}-${bio.contact_time_minutes?.max || 5} min | Interval: ${bio.repeat_interval_days || 30} days | Pair with Q-switch: ${bio.can_pair_with_q_switch ? 'Yes (' + bio.pairing_condition + ')' : 'No'}`,
+            readiness: "consider"
+          })
+        }
+
+        const mn = res.modality_eligibility?.microneedling_with_regenerative_actives
+        if (mn && (mn.eligible === true || mn.eligible?.toString().includes('eligible') || mn.eligible?.toString().includes('consider'))) {
+          mappedPlan.plan.tier2_procedural.push({
+            intervention: "Microneedling with Regenerative Actives",
+            detail: mn.reason || "Doctor-performed microneedling. Default route: topical/transdermal after microneedling.",
+            readiness: mn.eligible === true ? "first-line" : "consider"
+          })
+        }
+
+        // Map Oral/Review Prescriptions
+        if (res.homecare_plan?.prescription_items_for_doctor_review?.length) {
+          res.homecare_plan.prescription_items_for_doctor_review.forEach(item => {
+            const isContraindicated = (item.toLowerCase().includes('tranexamic') || item.toLowerCase().includes('txa')) && (this.safety.pregnancy || this.safety.clot)
+            mappedPlan.plan.oral_options.push({
+              agent: item.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+              detail: "Prescription-only pigment suppressant",
+              screening_required: item.toLowerCase().includes('tranexamic') ? "Thromboembolic screen (clot history, OCP, smoking) before starting" : "",
+              contraindicated: isContraindicated,
+              reason: isContraindicated ? "Contraindicated due to pregnancy/lactation or thromboembolic risk parameters." : ""
+            })
+          })
+        }
+
+        // Sequencing Note
+        const parts = []
+        if (res.recommended_session_1?.primary_option?.name) {
+          parts.push(`Primary option: ${res.recommended_session_1.primary_option.name}`)
+        }
+        if (res.recommended_session_1?.alternative_option?.name) {
+          parts.push(`Alternative: ${res.recommended_session_1.alternative_option.name}`)
+        }
+        if (res.recommended_session_1?.combination_option?.allowed) {
+          parts.push(`Combo: ${res.recommended_session_1.combination_option.name} (${res.recommended_session_1.combination_option.condition || ''})`)
+        }
+        mappedPlan.plan.sequencing_note = parts.join(' | ')
+
+        // Map Goals
+        if (Array.isArray(res.follow_up_plan?.comparison_metrics)) {
+          res.follow_up_plan.comparison_metrics.forEach(metric => {
+            let label = metric.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+            let base = "—"
+            let target = "Improvement"
+            let how = "Clinical review"
+            
+            if (metric.includes('pigmentation_score_5')) {
+              label = "Pigmentation score (0-5)"
+              base = this.formData.mel ? Math.round(this.formData.mel / 20) + '/5' : '2/5'
+              target = '≤' + Math.max(1, Math.round(parseFloat(base) - 1)) + '/5'
+              how = "Re-image and re-score"
+            } else if (metric.includes('pigmentation_score_100')) {
+              label = "Melanin Index (0-100)"
+              base = this.formData.mel || "60"
+              target = '≤' + Math.max(10, Math.round(parseFloat(base) * 0.8))
+              how = "Analyser re-read under identical lighting"
+            } else if (metric.includes('inflammation')) {
+              label = "Erythema Index (0-100)"
+              base = this.formData.ery || "12"
+              target = '≤' + Math.max(5, Math.round(parseFloat(base) * 0.8))
+              how = "Analyser re-read under identical lighting"
+            } else if (metric.includes('woods_uv')) {
+              label = "Wood's UV diffusion score"
+              base = this.formData.woods || "Not done"
+              target = "Decreased contrast / diffusion"
+              how = "Wood's light comparison"
+            }
+            
+            mappedPlan.goals.push({
+              metric: label,
+              baseline: base,
+              target: target,
+              timeframe: `${res.follow_up_plan?.next_review_weeks?.min || 4}-${res.follow_up_plan?.next_review_weeks?.max || 6} weeks`,
+              how_measured: how
+            })
+          })
+        }
+
+        this.lastPlan = mappedPlan
         this.reviewState = {
           decision: null,
           notes: '',
@@ -850,7 +1106,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           finalized: false,
           ts: null,
         }
-        this.goals = plan.goals || []
+        this.goals = mappedPlan.goals || []
       } catch (err) {
         console.error(err)
         throw err

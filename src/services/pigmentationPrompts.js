@@ -199,37 +199,75 @@ Return valid JSON only, strictly matching this schema:
 }
 `;
 
-export const DIAGNOSIS_PROMPT = `You are a dermatology diagnostic assistant inside a tool used by Dr. Akriti Mehra, a board-certified dermatologist in Mumbai. Given the analyser objective read (clinician-confirmed) plus the patient history and answers to targeted questions, produce a PROPOSED differential diagnosis across the FULL range of facial pigmentary disorders, for the dermatologist to confirm or change. You do NOT produce a treatment plan here, and you never imply the diagnosis is final or can bypass the clinician.
+export const DIAGNOSIS_PROMPT = `You are an AI clinical decision-support assistant for an Indian dermatology/aesthetic clinic.
 
-POPULATION CONTEXT: predominantly Fitzpatrick III–VI (Indian skin) — high PIH risk; visible light (not only UV) drives melasma (iron-oxide tinted sunscreen matters); unsupervised OTC 'fairness cream' / hydroquinone misuse is common and can cause exogenous ochronosis, which mimics worsening pigment and must NOT be treated with more hydroquinone.
+Generate a doctor-reviewable working diagnosis/impression for pigmentation.
 
-Consider, and choose among: melasma (epidermal/dermal/mixed), post-inflammatory hyperpigmentation / post-acne, solar lentigines / photoaging, ephelides (freckles), periorbital hyperpigmentation (state whether pigmentary, vascular, or structural/shadow), tanning / photo-darkening, exogenous ochronosis, lichen planus pigmentosus, Hori's nevus, nevus of Ota, drug-induced pigmentation, Riehl's melanosis, and other relevant entities.
+Inputs:
+1. Image-derived findings.
+2. Fixed history.
+3. Dynamic history answers.
 
-DERMOSCOPY DECISION (important): Decide whether you can reach adequate diagnostic confidence from the current data, OR whether a DERMOSCOPY image would materially change the diagnosis and is not yet provided. Require dermoscopy (set needs_dermoscopy=true) especially when: (a) exogenous ochronosis is plausible from a fairness-cream / hydroquinone history — confirmation needs dermoscopic blue-grey globules/arciform structures, and this changes management completely (never give more HQ); (b) any lesion is atypical or red-flag (malignancy screen — pigment network, asymmetry of structures/colours); (c) you cannot separate dermal vs mixed pigment, or lichen planus pigmentosus / Riehl's vs melasma, and dermoscopy would decide it. When you request dermoscopy, DO give your provisional lean but keep confidence modest, and populate dermoscopy_request.reason and dermoscopy_request.look_for (the specific dermoscopic features to inspect). If dermoscopy image(s) ARE already provided (noted in the input / attached), incorporate them, set needs_dermoscopy=false, and commit to your best-supported diagnosis. Do not request dermoscopy needlessly for a clear-cut case.
+Rules:
+- Do not make a final medical diagnosis.
+- Use “working impression” or “likely pattern”.
+- Final clinical diagnosis and treatment clearance require doctor sign-off.
+- Combine image pattern with duration, stability, recurrence, triggers, sunscreen compliance, previous response, active acne, sensitivity, and red-flag history.
+- If red-flag lesion history is positive or uncertain, flag doctor review and do not recommend cosmetic treatment on that lesion.
+- If inflammation is present in melasma-like pigmentation or PIH, mark “inflammation_first_required” = true.
+- Do not over-score beard/stubble shadow as pigmentation.
+- Return valid JSON only matching the schema below.
 
-REASONING: integrate history with the image read (and dermoscopy if provided). Confirm or revise depth and composition. Identify key drivers (sun, hormonal, inflammatory/PIH, vascular, structural, genetic, exogenous). Give a primary diagnosis with 0–100 confidence and 2–3 alternatives, each with when to reconsider it.
+Diagnosis categories allowed (use exactly one as primary_category, and 0 or more as secondary_categories):
+- tanning_diffuse_pigmentation
+- melasma_like_pigmentation
+- pih_acne_marks
+- perioral_pigmentation
+- periocular_pigmentation
+- mixed_facial_pigmentation
+- frictional_body_fold_pigmentation
+- isolated_spot_doctor_review
+- active_inflammatory_pigmentation
+- unclear_doctor_review
 
-SCORES: report the severity score(s) appropriate to the leading condition, with a value (estimate from the data — say it is an estimate) and a one-line interpretation. Use the right instrument: mMASI (0–48) for melasma; a lesion count or affected-area estimate for lentigines/ephelides; a PIH severity descriptor and the melanin-index reading for PIH; a pigment-vs-vascular split note for periorbital. Do not invent precise validated scores you cannot support — give a qualified estimate and name the scale.
-
-RED FLAGS: if any lesion is suspicious for malignancy, asymmetric/irregular, rapidly evolving/new, ulcerated/bleeding, or otherwise concerning, set red_flags.present true and recommend in-person exam + biopsy/referral; never declare malignancy absent. If inputs are missing/contradictory/insufficient, say so in uncertainties and lower confidence — do not fabricate findings.
-
-OUTPUT: Return ONLY one valid JSON object — no markdown fences, no text before/after — EXACTLY:
+Return valid JSON only matching this schema:
 {
-  "summary_line": "one-line case summary",
-  "needs_dermoscopy": false,
-  "dermoscopy_request": {"reason":"why dermoscopy is needed (empty if not needed)","look_for":["specific dermoscopic features to inspect"]},
-  "differential": { "primary": {"dx":"","confidence":0,"reasoning":""}, "alternatives":[{"dx":"","likelihood":"","reconsider_when":""}] },
-  "depth_assessment": {"verdict":"epidermal|dermal|mixed|uncertain|n/a","basis":"","prognosis":""},
-  "composition_assessment": {"dominant":"melanin|vascular|mixed|structural|uncertain","note":""},
-  "scores": [{"name":"e.g. mMASI","value":"estimate","scale":"e.g. 0-48","interpretation":""}],
-  "severity_interpretation": "",
-  "key_drivers": ["sun","hormonal","inflammatory", "..."],
-  "red_flags": {"present":false,"items":[],"action":""},
-  "uncertainties": [""],
-  "clinician_action": "Confirm or change the working diagnosis before a plan is generated.",
-  "disclaimer": "AI-proposed differential for clinician confirmation; not a final diagnosis."
+  "session_id": "string",
+  "working_impression": {
+    "primary_category": "tanning_diffuse_pigmentation|melasma_like_pigmentation|pih_acne_marks|perioral_pigmentation|periocular_pigmentation|mixed_facial_pigmentation|frictional_body_fold_pigmentation|isolated_spot_doctor_review|active_inflammatory_pigmentation|unclear_doctor_review",
+    "secondary_categories": [
+      "string (from allowed categories, prefixed with severity descriptor if desired e.g. mild_tanning_diffuse_pigmentation)"
+    ],
+    "diagnostic_confidence": "low|moderate|high",
+    "doctor_review_required": true|false,
+    "doctor_review_reason": "string reason explaining why or why not"
+  },
+  "clinical_activity": {
+    "stability_status": "stable|worsening|improving|spreading",
+    "inflammation_first_required": true|false,
+    "active_acne_driver": true|false,
+    "barrier_repair_first_required": true|false
+  },
+  "risk_profile": {
+    "recurrence_risk": "low|moderate|high",
+    "procedure_risk": "low|low_to_moderate|moderate|high",
+    "sunscreen_compliance_risk": "low|moderate|high",
+    "pih_risk": "low|moderate|high|moderate_indian_skin_default|high_indian_skin_default",
+    "red_flag_lesion_risk": "not_reported|low|moderate|high"
+  },
+  "scores": {
+    "pigmentation_score_5": 2,
+    "pigmentation_score_100": 32,
+    "inflammation_score_5": 2,
+    "inflammation_score_100": 30,
+    "recurrence_risk_score_100": 50,
+    "procedure_risk_score_100": 35,
+    "sunscreen_compliance_score_100": 45,
+    "ai_planning_confidence_score_100": 72
+  },
+  "clinical_summary_for_doctor": "string clinical impression summary"
 }
-Keep notes concise and specific. Do not cite studies or invent references.`;
+`;
 
 export const DERMOSCOPY_PROMPT = `You are a dermatology dermoscopy-extraction assistant inside a tool used by Dr. Akriti Mehra, a board-certified dermatologist in Mumbai. One or more DERMOSCOPY images of a pigmentary lesion are attached. Your job is to READ the dermoscopy and extract the relevant dermoscopic findings in a structured way, for the dermatologist to confirm — you do NOT give a final diagnosis or a treatment plan here.
 
@@ -253,56 +291,162 @@ OUTPUT: Return ONLY one valid JSON object — no markdown fences, no text before
 }
 Be specific and concise. Do not invent structures you cannot see.`;
 
-export const PLAN_PROMPT = `You are a dermatology treatment-planning assistant inside a tool used by Dr. Akriti Mehra, a board-certified dermatologist in Mumbai. Given a CONFIRMED working diagnosis plus the patient data, produce a PROPOSED, condition-appropriate tiered plan for the dermatologist to review and sign off. You never imply the plan is final or can bypass the clinician.
+export const PLAN_PROMPT = `You are generating one optimum linear pigmentation treatment plan for AI Aesthetics Jaipur.
 
-POPULATION CONTEXT: predominantly Fitzpatrick III–VI (Indian skin) — high PIH risk; visible light (not only UV) drives melasma (iron-oxide tinted sunscreen matters); unsupervised OTC 'fairness cream' / hydroquinone misuse is common and can cause exogenous ochronosis, which mimics worsening pigment and must NOT be treated with more hydroquinone.
+Inputs:
+1. Image-derived indices and regional analysis
+2. Fixed history
+3. Dynamic history
+4. Working diagnosis with confidence and drivers
+5. Clinic inventory and doctor-approved protocols
 
-CRITICAL — match the plan to the CONFIRMED diagnosis, because pigmentary conditions are treated very differently:
-- MELASMA: photoprotection incl. visible-light/iron-oxide; topicals (modified Kligman's HQ cycled, azelaic, topical TXA, vitamin C, niacinamide, cysteamine, thiamidol, retinoid adjunct); oral TXA only with thromboembolic screening; procedures conservative and only after priming; LASERS/IPL CAN WORSEN melasma in dark skin. Chronic/relapsing — set expectations.
-- POST-INFLAMMATORY HYPERPIGMENTATION / post-acne: treat the ONGOING cause first (e.g. active acne, eczema); photoprotection; brightening topicals (azelaic, retinoid, niacinamide, short-course HQ); gentle peels; expect slow resolution; AVOID aggressive procedures that re-trigger PIH in dark skin.
-- SOLAR LENTIGINES: photoprotection; topicals limited; respond WELL to Q-switched laser / IPL / cryotherapy (in CONTRAST to melasma); good prognosis but sun-recurrence.
-- EPHELIDES (freckles): photoprotection; laser/IPL effective; recur with sun; largely cosmetic.
-- PERIORBITAL HYPERPIGMENTATION: FIRST state the driver and target it — pigmentary (topicals: azelaic/HQ short course/retinoid/vitamin C, gentle peels, cautious laser), vascular (caffeine/vitamin K, address sleep/allergy/eye-rubbing, vascular laser, tear-trough filler for shadowing), structural/tear-trough (volume — filler/surgery, NOT bleaching). Do not bleach a vascular or structural cause.
-- TANNING / PHOTO-DARKENING: photoprotection + time (fades over weeks–months); mild brightening; manage expectations; not a chronic disease — avoid over-treatment.
-- EXOGENOUS OCHRONOSIS: STOP hydroquinone; difficult to treat; cautious laser/peel options exist; set realistic expectations; do NOT prescribe HQ.
-- LICHEN PLANUS PIGMENTOSUS / RIEHL'S: photoprotection, topical calcineurin inhibitors/anti-inflammatory approaches, avoid triggers; pigment is dermal/stubborn.
-- HORI'S NEVUS / NEVUS OF OTA: dermal melanocytosis — Q-switched lasers are the mainstay; topicals ineffective; note this differs from melasma.
-- DRUG-INDUCED: identify and address the offending agent where possible.
+Rules:
+- Generate a single best sequential treatment plan, not a menu of options.
+- The plan may extend up to 6 months.
+- Include fixed reassessment points.
+- Include measurable goals for Melanin Load Index, Erythema Load Index, regional load, composition, depth call and mMASI where applicable.
+- Use 1–100 scores only.
+- For melasma-like cases, include mMASI goals.
+- If melasma or PIH has high erythema/inflammation, treat vascular/inflammatory component first.
+- Separate local modifiers such as scar-related pigmentation and friction-related pigmentation from global pigmentation.
+- If spectacle-friction pigmentation is suspected, include friction reduction as part of treatment.
+- If scar-like modifier is present, do not judge pigment plan as failed only because scar shadow remains.
+- Default Q-switch wavelength is 1064nm.
+- Use Q-switch energy in mJ and calculated fluence in J/cm2 using spot area 1cm2.
+- Use BioRePeelCl3 as a TCA-based low-downtime peel.
+- Microneedling is doctor-performed.
+- Exosome/PDRN/meso default route is topical/transdermal after microneedling. Injectable use is doctor-override only.
+- All final plans require doctor sign-off.
 
-TIERS: Tier 0 photoprotection & triggers (always); Tier 1 topical; Tier 2 procedural — and be explicit where procedures are FIRST-LINE-appropriate (lentigines, freckles, dermal melanocytosis) versus RISKY (melasma, active PIH). Oral options where relevant.
-
-GOALS: define 3–5 MEASURABLE goals to be set now (at assessment) and checked at reassessment. Each goal needs a metric, a baseline (the current value/state), a realistic target, a timeframe, and how it will be re-measured. Tie them to the condition — e.g. melasma: reduce mMASI from baseline to a target by 12 weeks; lentigines: clear a % of lesions; PIH: reduce melanin index / fade marks; periorbital: reduce pigment or vascular component; plus adherence/photoprotection and a patient-reported goal. Targets must be realistic for the diagnosis (e.g. control not cure for melasma).
-
-HARD SAFETY RULES — never violate; always state the reason when a rule blocks an option:
-- Pregnant/lactating: NO retinoids, hydroquinone, or oral tranexamic acid; restrict to azelaic acid, vitamin C, niacinamide, photoprotection. Mark blocked agents contraindicated=true with reason.
-- Thromboembolic risk: NO oral tranexamic acid; mark contraindicated with reason.
-- Prior chronic HQ / fairness-cream / ochronosis suspected: NO hydroquinone; advise confirming ochronosis on dermoscopy and a non-HQ pathway; note HQ worsens ochronosis.
-- Fitzpatrick IV–VI: conservative procedural settings, mandatory test spots, emphasise PIH risk.
-- Red flag present: recommend in-person exam/biopsy and do NOT provide a cosmetic plan for that lesion.
-- Missing/insufficient input: say so in uncertainties; do not fabricate.
-
-OUTPUT: Return ONLY one valid JSON object — no markdown fences, no text before/after — EXACTLY:
+Return valid JSON only matching the schema exactly:
 {
-  "summary_line": "one-line summary of who and what is being treated",
-  "condition": "the confirmed working diagnosis being treated",
-  "plan": {
-    "tier0_photoprotection": ["",""],
-    "tier1_topical": [{"agent":"","detail":"","caution":"","contraindicated":false,"contraindication_reason":""}],
-    "tier2_procedural": [{"intervention":"","detail":"","caution":"","readiness":"first-line|prime first|consider|not yet|avoid"}],
-    "oral_options": [{"agent":"","detail":"","screening_required":"","contraindicated":false,"reason":""}],
-    "sequencing_note": ""
+  "session_id": "string",
+  "plan_status": "string",
+  "doctor_review_required": true,
+  "treatment_priority": "string",
+  "modality_eligibility": {
+    "homecare": {
+      "eligible": true,
+      "priority": "mandatory",
+      "reason": "string"
+    },
+    "q_switch_ndyag": {
+      "eligible": true,
+      "preferred_wavelength_nm": 1064,
+      "energy_mj": {
+        "recommended": 200,
+        "allowed_range": { "min": 200, "max": 400 }
+      },
+      "calculated_fluence_j_cm2": {
+        "recommended": 0.2,
+        "allowed_range": { "min": 0.2, "max": 0.4 },
+        "spot_area_cm2": 1.0
+      },
+      "frequency_hz": {
+        "allowed_range": { "min": 1, "max": 10 },
+        "doctor_to_select": true
+      },
+      "intensity_band": "string",
+      "reason": "string",
+      "requires_doctor_approval": true
+    },
+    "biorepeelcl3": {
+      "eligible": true,
+      "use_case": "string",
+      "contact_time_minutes": { "min": 3, "max": 5 },
+      "neutralization_required": true,
+      "repeat_interval_days": 30,
+      "can_pair_with_q_switch": true,
+      "pairing_condition": "string",
+      "requires_doctor_approval": true
+    },
+    "acid_peels": {
+      "eligible": "optional_cautious",
+      "preferred_options": ["mandelic_peel", "lactic_peel"],
+      "avoid_if": ["string"]
+    },
+    "microneedling_with_regenerative_actives": {
+      "eligible": "string",
+      "reason": "string",
+      "doctor_may_consider_later": true,
+      "default_route": "topical_transdermal_after_microneedling"
+    },
+    "led": {
+      "eligible": true,
+      "role": "string"
+    }
   },
-  "condition_specific_note": "what is different about treating THIS condition",
-  "prognosis": "realistic expectation incl. relapse/recurrence",
-  "goals": [{"metric":"what is measured","baseline":"current value/state at assessment","target":"realistic target","timeframe":"e.g. 12 weeks","how_measured":"how it will be re-checked"}],
-  "safety_flags": ["items the clinician MUST verify before prescribing"],
-  "patient_summary": "plain-language explanation for the patient, setting realistic expectations",
-  "follow_up": {"interval":"","measure":"","escalate_if_plateau":"","stop_if":""},
-  "uncertainties": [""],
-  "clinician_review_required": true,
-  "disclaimer": "AI-generated proposal for clinician review; not a final prescription."
+  "recommended_session_1": {
+    "primary_option": {
+      "name": "string",
+      "steps": ["string"],
+      "machine_settings": {
+        "wavelength_nm": 1064,
+        "energy_mj": 200,
+        "calculated_fluence_j_cm2": 0.2,
+        "frequency_hz": "doctor_select_1_to_10"
+      }
+    },
+    "alternative_option": {
+      "name": "string",
+      "when_to_choose": "string",
+      "peel_settings": {
+        "contact_time_minutes": "3_to_5",
+        "neutralization_required": true
+      }
+    },
+    "combination_option": {
+      "name": "string",
+      "allowed": true,
+      "condition": "string"
+    }
+  },
+  "four_to_six_week_plan": [
+    {
+      "week": 0,
+      "plan": "string"
+    }
+  ],
+  "homecare_plan": {
+    "morning": ["string"],
+    "night": ["string"],
+    "avoid": ["string"],
+    "prescription_items_for_doctor_review": ["string"]
+  },
+  "prescription_style_output": {
+    "rx_status": "string",
+    "procedure_orders": [
+      {
+        "procedure": "string",
+        "wavelength_nm": 1064,
+        "energy_mj": 200,
+        "fluence_j_cm2": 0.2,
+        "frequency_hz": "string",
+        "notes": "string"
+      }
+    ],
+    "non_rx_homecare": ["string"],
+    "rx_options": ["string"]
+  },
+  "client_report": {
+    "headline": "string",
+    "pigmentation_score": "string",
+    "simple_explanation": "string",
+    "recommended_roadmap": ["string"],
+    "disclaimer": "string"
+  },
+  "whatsapp_summary": {
+    "message": "string"
+  },
+  "follow_up_plan": {
+    "next_review_weeks": { "min": 4, "max": 6 },
+    "repeat_images": ["white", "surface_polarized", "subsurface_polarized", "red", "woods_uv"],
+    "comparison_metrics": ["pigmentation_score_5", "pigmentation_score_100", "woods_uv_diffusion_score", "inflammation_score"],
+    "progression_type": "string"
+  },
+  "safety_flags": ["string"]
 }
-Every recommendation is a proposal for clinician confirmation. Keep notes concise and specific. Do not cite studies or invent references.`;
+`;
 
 export const REASSESS_PROMPT = `You are a dermatology reassessment assistant inside a tool used by Dr. Akriti Mehra, a board-certified dermatologist in Mumbai. Given the goals set at the assessment visit (metric, baseline, target, timeframe) and their current status (values entered by the clinician and/or follow-up captures), judge the trajectory of each goal and overall, for the clinician to confirm. You never imply this is final or can bypass the clinician.
 
@@ -516,153 +660,422 @@ export const DEMO_ANALYSIS = {
 };
 
 export const DEMO_DX_MELASMA = {
-  summary_line: "34F, FST IV–V — mixed melasma, centrofacial/malar, hormonally and sun-aggravated.",
-  needs_dermoscopy: false,
-  dermoscopy_request: { reason: "", look_for: [] },
-  differential: {
-    primary: { dx: "Melasma (mixed epidermal–dermal)", confidence: 78, reasoning: "Symmetric malar and upper-lip pigment, partial Wood's accentuation, hormonal onset with sun aggravation." },
-    alternatives: [
-      { dx: "Post-inflammatory hyperpigmentation", likelihood: "low", reconsider_when: "if preceding acne/inflammation is confirmed at the sites" },
-      { dx: "Exogenous ochronosis", likelihood: "low", reconsider_when: "if prolonged hydroquinone/fairness-cream use — confirm on dermoscopy" }
-    ]
+  "session_id": "AIJ-PIG-000001",
+  "working_impression": {
+    "primary_category": "melasma_like_pigmentation",
+    "secondary_categories": [
+      "mild_tanning_diffuse_pigmentation",
+      "mild_periocular_pigmentation"
+    ],
+    "diagnostic_confidence": "high",
+    "doctor_review_required": true,
+    "doctor_review_reason": "Clinical history indicates hormonal onset with moderate sunscreen compliance."
   },
-  depth_assessment: { verdict: "mixed", basis: "Partial accentuation under Wood's UV.", prognosis: "Epidermal component is topical-responsive; dermal component is slower — set realistic expectations." },
-  composition_assessment: { dominant: "melanin", note: "Minor perimalar vascular component." },
-  scores: [
-    { name: "mMASI", value: "14.2", scale: "0–48", interpretation: "Moderate (estimate)." },
-    { name: "Melanin index", value: "66", scale: "0–100", interpretation: "Elevated over adjacent skin." }
-  ],
-  severity_interpretation: "Moderate, cosmetically and psychologically significant.",
-  key_drivers: ["hormonal", "sun", "genetic predisposition"],
-  red_flags: { present: false, items: [], action: "" },
-  uncertainties: ["Epidermal vs dermal proportion is approximate without dermoscopy"],
-  clinician_action: "Confirm or change the working diagnosis before a plan is generated.",
-  disclaimer: "Demo differential for workflow illustration; not a final diagnosis."
+  "clinical_activity": {
+    "stability_status": "stable",
+    "inflammation_first_required": false,
+    "active_acne_driver": false,
+    "barrier_repair_first_required": false
+  },
+  "risk_profile": {
+    "recurrence_risk": "high",
+    "procedure_risk": "moderate",
+    "sunscreen_compliance_risk": "moderate",
+    "pih_risk": "high_indian_skin_default",
+    "red_flag_lesion_risk": "not_reported"
+  },
+  "scores": {
+    "pigmentation_score_5": 3,
+    "pigmentation_score_100": 58,
+    "inflammation_score_5": 1,
+    "inflammation_score_100": 15,
+    "recurrence_risk_score_100": 78,
+    "procedure_risk_score_100": 55,
+    "sunscreen_compliance_score_100": 60,
+    "ai_planning_confidence_score_100": 82
+  },
+  "clinical_summary_for_doctor": "Images show moderate melasma-like centrofacial pigmentation with symmetric malar distribution. History indicates stability with high recurrence risk due to strong hormonal triggers and moderate sun protection compliance."
 };
 
 export const DEMO_DX_ASK = {
-  summary_line: "34F, FST IV–V — malar pigment with a fairness-cream history; ochronosis must be excluded.",
-  needs_dermoscopy: true,
-  dermoscopy_request: {
-    reason: "A prolonged fairness-cream / hydroquinone history raises exogenous ochronosis, which mimics stubborn melasma but is worsened by more hydroquinone. This cannot be separated from the analyser images alone.",
-    look_for: ["blue-grey amorphous globules", "arciform / worm-like structures", "obliterated follicular openings", "banana-shaped ochre structures"]
+  "session_id": "AIJ-PIG-000001",
+  "working_impression": {
+    "primary_category": "unclear_doctor_review",
+    "secondary_categories": [
+      "melasma_like_pigmentation"
+    ],
+    "diagnostic_confidence": "low",
+    "doctor_review_required": true,
+    "doctor_review_reason": "A prolonged fairness cream / hydroquinone history raises suspicion of exogenous ochronosis, requiring dermoscopy."
   },
-  differential: {
-    primary: { dx: "Melasma vs exogenous ochronosis", confidence: 46, reasoning: "Overlapping malar pigment; the fairness-cream history makes ochronosis a live possibility that changes management." },
-    alternatives: [{ dx: "Exogenous ochronosis", likelihood: "moderate", reconsider_when: "if blue-grey globules / arciform structures are seen on dermoscopy" }]
+  "clinical_activity": {
+    "stability_status": "worsening",
+    "inflammation_first_required": true,
+    "active_acne_driver": false,
+    "barrier_repair_first_required": true
   },
-  depth_assessment: { verdict: "uncertain", basis: "Hydroquinone use confounds the surface/UV appearance.", prognosis: "" },
-  composition_assessment: { dominant: "melanin", note: "" },
-  scores: [{ name: "mMASI", value: "~15", scale: "0–48", interpretation: "Moderate (provisional, pending dermoscopy)." }],
-  severity_interpretation: "Moderate; classification pending dermoscopy.",
-  key_drivers: ["sun", "exogenous (fairness cream)", "hormonal"],
-  red_flags: { present: false, items: [], action: "" },
-  uncertainties: ["Ochronosis not excluded without dermoscopy"],
-  clinician_action: "Capture dermoscopy, then re-run.",
-  disclaimer: "Demo differential for workflow illustration; not a final diagnosis."
+  "risk_profile": {
+    "recurrence_risk": "high",
+    "procedure_risk": "high",
+    "sunscreen_compliance_risk": "high",
+    "pih_risk": "high_indian_skin_default",
+    "red_flag_lesion_risk": "not_reported"
+  },
+  "scores": {
+    "pigmentation_score_5": 4,
+    "pigmentation_score_100": 72,
+    "inflammation_score_5": 4,
+    "inflammation_score_100": 68,
+    "recurrence_risk_score_100": 85,
+    "procedure_risk_score_100": 90,
+    "sunscreen_compliance_score_100": 30,
+    "ai_planning_confidence_score_100": 40
+  },
+  "clinical_summary_for_doctor": "Prolonged fairness cream use has caused paradoxical darkening. Do NOT initiate cosmetic procedures or HQ treatments before doctor review and dermoscopy confirmation. Exogenous ochronosis must be excluded."
 };
 
 export const DEMO_DX_OCHRONOSIS = {
-  summary_line: "34F, FST IV–V — exogenous ochronosis confirmed on dermoscopy.",
-  needs_dermoscopy: false,
-  dermoscopy_request: { reason: "", look_for: [] },
-  differential: {
-    primary: { dx: "Exogenous ochronosis", confidence: 83, reasoning: "Dermoscopy shows blue-grey amorphous globules and arciform structures with obliterated follicles, on a background of long-term hydroquinone use." },
-    alternatives: [{ dx: "Dermal melasma", likelihood: "low", reconsider_when: "if characteristic ochronotic structures are absent on review" }]
+  "session_id": "AIJ-PIG-000001",
+  "working_impression": {
+    "primary_category": "unclear_doctor_review",
+    "secondary_categories": [
+      "melasma_like_pigmentation"
+    ],
+    "diagnostic_confidence": "high",
+    "doctor_review_required": true,
+    "doctor_review_reason": "Exogenous ochronosis confirmed by dermoscopy finding of blue-grey amorphous globules."
   },
-  depth_assessment: { verdict: "dermal", basis: "Dermal pigment deposition pattern on dermoscopy.", prognosis: "Stubborn and slow — the priority is stopping hydroquinone, not intensifying it." },
-  composition_assessment: { dominant: "melanin", note: "Dermal melanin / ochronotic pigment." },
-  scores: [{ name: "mMASI", value: "~15", scale: "0–48", interpretation: "Moderate–severe (estimate)." }],
-  severity_interpretation: "Moderate–severe, dermal — guarded prognosis.",
-  key_drivers: ["exogenous (hydroquinone)", "sun"],
-  red_flags: { present: false, items: [], action: "" },
-  uncertainties: ["Degree of reversibility is uncertain"],
-  clinician_action: "Confirm the working diagnosis before a plan is generated.",
-  disclaimer: "Demo differential for workflow illustration; not a final diagnosis."
+  "clinical_activity": {
+    "stability_status": "worsening",
+    "inflammation_first_required": true,
+    "active_acne_driver": false,
+    "barrier_repair_first_required": true
+  },
+  "risk_profile": {
+    "recurrence_risk": "high",
+    "procedure_risk": "high",
+    "sunscreen_compliance_risk": "high",
+    "pih_risk": "high_indian_skin_default",
+    "red_flag_lesion_risk": "not_reported"
+  },
+  "scores": {
+    "pigmentation_score_5": 4,
+    "pigmentation_score_100": 75,
+    "inflammation_score_5": 4,
+    "inflammation_score_100": 70,
+    "recurrence_risk_score_100": 90,
+    "procedure_risk_score_100": 95,
+    "sunscreen_compliance_score_100": 25,
+    "ai_planning_confidence_score_100": 45
+  },
+  "clinical_summary_for_doctor": "Exogenous ochronosis confirmed. The single most important action is immediate, permanent cessation of hydroquinone and fairness creams. Treatment is guarded, slow, and non-procedural initially."
 };
 
 export const DEMO_PLAN_MELASMA = {
-  summary_line: "Foundation-first plan for mixed melasma in FST IV–V.",
-  condition: "Melasma (mixed epidermal–dermal)",
-  plan: {
-    tier0_photoprotection: [
-      "Broad-spectrum SPF 50+ every morning, reapply 3-hourly outdoors",
-      "Tinted iron-oxide sunscreen for visible-light protection",
-      "Wide-brim hat / shade; avoid midday sun"
-    ],
-    tier1_topical: [
-      { agent: "Modified Kligman's (hydroquinone-based), cycled", detail: "Nightly 8–12 weeks then pulse; dermatologist-supervised", caution: "Cycle to avoid ochronosis; stop if irritation", contraindicated: false, contraindication_reason: "" },
-      { agent: "Azelaic acid 15–20%", detail: "AM/PM; safe maintenance agent", caution: "", contraindicated: false, contraindication_reason: "" },
-      { agent: "Topical tranexamic acid / niacinamide", detail: "Adjunct to reduce recurrence", caution: "", contraindicated: false, contraindication_reason: "" },
-      { agent: "Vitamin C (AM)", detail: "Antioxidant; supports photoprotection", caution: "", contraindicated: false, contraindication_reason: "" }
-    ],
-    tier2_procedural: [
-      { intervention: "Mandelic / salicylic acid peels", detail: "Safest entry in dark skin, after topical priming", caution: "Prime first; conservative strength; test spot", readiness: "prime first" },
-      { intervention: "Q-switched Nd:YAG 1064 'laser toning'", detail: "Only if refractory", caution: "Can WORSEN melasma in dark skin — cautious, test spot mandatory", readiness: "not yet" }
-    ],
-    oral_options: [
-      { agent: "Oral tranexamic acid", detail: "Consider for refractory melasma", screening_required: "Thromboembolic screen (personal/family clot history, smoking, OCP) before starting", contraindicated: false, reason: "" }
-    ],
-    sequencing_note: "Establish photoprotection + topicals for 8–12 weeks before any procedure. Procedures only after priming."
+  "session_id": "AIJ-PIG-000001",
+  "plan_status": "generated_pending_doctor_signoff",
+  "doctor_review_required": true,
+  "treatment_priority": "mild_pigmentation_correction_and_prevention",
+  "modality_eligibility": {
+    "homecare": {
+      "eligible": true,
+      "priority": "mandatory",
+      "reason": "Pigmentation recurrence prevention requires sunscreen and pigment-control homecare."
+    },
+    "q_switch_ndyag": {
+      "eligible": true,
+      "preferred_wavelength_nm": 1064,
+      "energy_mj": {
+        "recommended": 200,
+        "allowed_range": { "min": 200, "max": 400 }
+      },
+      "calculated_fluence_j_cm2": {
+        "recommended": 0.2,
+        "allowed_range": { "min": 0.2, "max": 0.4 },
+        "spot_area_cm2": 1.0
+      },
+      "frequency_hz": {
+        "allowed_range": { "min": 1, "max": 10 },
+        "doctor_to_select": true
+      },
+      "intensity_band": "low_conservative",
+      "reason": "Mild pigmentation score 2/5 with diffuse uneven tone/tanning-type component and low visible inflammation.",
+      "requires_doctor_approval": true
+    },
+    "biorepeelcl3": {
+      "eligible": true,
+      "use_case": "mild pigmentation, uneven tone, general rejuvenation",
+      "contact_time_minutes": { "min": 3, "max": 5 },
+      "neutralization_required": true,
+      "repeat_interval_days": 30,
+      "can_pair_with_q_switch": true,
+      "pairing_condition": "only with low-energy conservative Q-switch protocol",
+      "requires_doctor_approval": true
+    },
+    "acid_peels": {
+      "eligible": "optional_cautious",
+      "preferred_options": ["mandelic_peel", "lactic_peel"],
+      "avoid_if": ["sensitivity_increases", "recent_darkening_after_procedure"]
+    },
+    "microneedling_with_regenerative_actives": {
+      "eligible": "not_first_line_for_this_visit",
+      "reason": "Pigmentation burden is mild at 2/5; reserve microneedling for persistent perioral/periocular pigmentation, melasma-like pattern, PIH with texture, or poor response to lower-downtime modalities.",
+      "doctor_may_consider_later": true,
+      "default_route": "topical_transdermal_after_microneedling"
+    },
+    "led": {
+      "eligible": true,
+      "role": "post_procedure_calming_support"
+    }
   },
-  condition_specific_note: "Melasma is chronic and relapsing — the goal is control, not cure. Lasers/IPL can worsen it in dark skin, so they are a late, cautious option, not a first move.",
-  prognosis: "Good control expected with adherence; recurrence with sun/hormones is common and managed with maintenance.",
-  goals: [
-    { metric: "mMASI", baseline: "14.2", target: "≤7 (≈50% reduction)", timeframe: "12 weeks", how_measured: "Re-score from a standardised capture" },
-    { metric: "Melanin index (malar)", baseline: "66", target: "≤50", timeframe: "12 weeks", how_measured: "Analyser re-read under identical lighting" },
-    { metric: "Daily photoprotection adherence", baseline: "irregular", target: "daily + reapplication", timeframe: "ongoing", how_measured: "Patient report" },
-    { metric: "Patient-reported satisfaction", baseline: "low", target: "improved", timeframe: "12 weeks", how_measured: "Patient report / MELASQOL" }
+  "recommended_session_1": {
+    "primary_option": {
+      "name": "Q-switch 1064nm low-energy pigmentation toning + LED + homecare",
+      "steps": [
+        "Doctor confirms suitability and absence of contraindications",
+        "Q-switch Nd:YAG 1064nm at conservative energy",
+        "LED calming support",
+        "Sunscreen and pigment-control homecare"
+      ],
+      "machine_settings": {
+        "wavelength_nm": 1064,
+        "energy_mj": 200,
+        "calculated_fluence_j_cm2": 0.2,
+        "frequency_hz": "doctor_select_1_to_10"
+      }
+    },
+    "alternative_option": {
+      "name": "BioRePeelCl3 + LED + homecare",
+      "when_to_choose": "Choose if doctor prefers peel-first approach, client wants lower device intensity, or recent sun exposure makes laser less suitable.",
+      "peel_settings": {
+        "contact_time_minutes": "3_to_5",
+        "neutralization_required": true
+      }
+    },
+    "combination_option": {
+      "name": "Low-energy Q-switch + BioRePeelCl3 + LED",
+      "allowed": true,
+      "condition": "Doctor-approved only; use low-energy Q-switch range and avoid if sensitivity/inflammation is higher than expected."
+    }
+  },
+  "four_to_six_week_plan": [
+    {
+      "week": 0,
+      "plan": "Start sunscreen correction and homecare. Perform doctor-approved Q-switch or BioRePeelCl3 based on clearance."
+    },
+    {
+      "week": 4,
+      "plan": "Repeat 5-mode imaging. Compare pigmentation score, Woods/UV diffusion and redness. Continue, intensify, or switch modality."
+    },
+    {
+      "week": 6,
+      "plan": "Doctor review if score is unchanged, pigmentation worsened, or sensitivity increased."
+    }
   ],
-  safety_flags: ["Confirm not pregnant/lactating before hydroquinone, retinoid, or oral TXA", "Thromboembolic screen before oral tranexamic acid", "Cycle hydroquinone and monitor for ochronosis"],
-  patient_summary: "You have melasma — a common, sun- and hormone-sensitive pigmentation. We treat it gently and steadily: daily sun protection is the foundation, creams do most of the work, and we avoid aggressive lasers that can make it worse. It's controllable, though it can return, so we plan for the long term.",
-  follow_up: {
-    interval: "12 weeks",
-    measure: "Re-image + re-score mMASI and melanin index",
-    escalate_if_plateau: "Adjust topicals; consider a gentle peel after priming",
-    stop_if: "Any darkening or irritation — re-examine (ochronosis? over-treatment?)"
+  "homecare_plan": {
+    "morning": [
+      "gentle_cleanser",
+      "vitamin_c_or_niacinamide_if_tolerated",
+      "broad_spectrum_sunscreen_or_tinted_sunscreen"
+    ],
+    "night": [
+      "azelaic_acid_or_tranexamic_acid_based_product",
+      "barrier_moisturizer"
+    ],
+    "avoid": [
+      "bleach",
+      "scrubs",
+      "unprescribed steroid/fairness creams",
+      "excessive sun exposure after procedure"
+    ],
+    "prescription_items_for_doctor_review": [
+      "hydroquinone",
+      "tretinoin",
+      "triple_combination"
+    ]
   },
-  uncertainties: ["Dermal component may limit full clearance"],
-  clinician_review_required: true,
-  disclaimer: "Demo proposal for workflow illustration; not a prescription."
+  "prescription_style_output": {
+    "rx_status": "doctor_to_finalize",
+    "procedure_orders": [
+      {
+        "procedure": "Q-switch Nd:YAG",
+        "wavelength_nm": 1064,
+        "energy_mj": 200,
+        "fluence_j_cm2": 0.2,
+        "frequency_hz": "doctor_select",
+        "notes": "Conservative first session due to mild score 2/5"
+      },
+      {
+        "procedure": "LED calming support",
+        "notes": "Post-procedure support"
+      }
+    ],
+    "non_rx_homecare": [
+      "Broad-spectrum/tinted sunscreen",
+      "Barrier moisturizer",
+      "Azelaic acid or tranexamic acid based pigment-control product"
+    ],
+    "rx_options": [
+      "Doctor may add prescription pigment suppressants if clinically needed"
+    ]
+  },
+  "client_report": {
+    "headline": "Mild pigmentation and uneven tone detected",
+    "pigmentation_score": "2/5",
+    "simple_explanation": "Your images show mild pigmentation and uneven tone. The pigmentation is not severe, so the plan should focus on controlled correction, prevention of darkening, and sunscreen consistency.",
+    "recommended_roadmap": [
+      "Begin sunscreen and pigment-control homecare",
+      "Proceed with doctor-approved low-energy Q-switch or BioRePeelCl3 depending on suitability",
+      "Repeat imaging in 4–6 weeks",
+      "Escalate only if pigmentation persists or progresses"
+    ],
+    "disclaimer": "This is an AI-assisted plan and will be finalized after doctor review."
+  },
+  "whatsapp_summary": {
+    "message": "Hi, your AI Pigmentation Decode shows mild pigmentation with a score of 2/5. The suggested plan is sunscreen/homecare plus doctor-approved low-energy Q-switch or BioRePeelCl3, followed by repeat imaging in 4–6 weeks. Final treatment will be confirmed by the doctor."
+  },
+  "follow_up_plan": {
+    "next_review_weeks": { "min": 4, "max": 6 },
+    "repeat_images": ["white", "surface_polarized", "subsurface_polarized", "red", "woods_uv"],
+    "comparison_metrics": [
+      "pigmentation_score_5",
+      "pigmentation_score_100",
+      "woods_uv_diffusion_score",
+      "inflammation_score",
+      "area_specific_change",
+      "client_compliance"
+    ],
+    "progression_type": "linear_progression_comparison"
+  },
+  "safety_flags": [
+    "Doctor sign-off required before treatment",
+    "Avoid aggressive settings due to Indian skin PIH risk",
+    "If sensitivity or inflammation increases, switch to barrier-first pathway"
+  ]
 };
 
 export const DEMO_PLAN_OCHRONOSIS = {
-  summary_line: "Ochronosis plan — stop hydroquinone, gentle brightening, guarded expectations.",
-  condition: "Exogenous ochronosis",
-  plan: {
-    tier0_photoprotection: [
-      "Broad-spectrum SPF 50+ tinted (iron oxide), daily",
-      "Strict sun avoidance — UV worsens ochronosis"
-    ],
-    tier1_topical: [
-      { agent: "Hydroquinone", detail: "—", caution: "", contraindicated: true, contraindication_reason: "Hydroquinone causes and worsens exogenous ochronosis — it must be stopped, not continued." },
-      { agent: "Azelaic acid 15–20%", detail: "Non-HQ brightening; AM/PM", caution: "", contraindicated: false, contraindication_reason: "" },
-      { agent: "Topical retinoid + niacinamide", detail: "Support turnover and even tone", caution: "Introduce slowly to avoid irritation/PIH", contraindicated: false, contraindication_reason: "" }
-    ],
-    tier2_procedural: [
-      { intervention: "Q-switched Nd:YAG (cautious) / fractional laser", detail: "Some benefit for dermal pigment in expert hands", caution: "FST IV–V — conservative settings, mandatory test spot, high PIH risk", readiness: "consider" }
-    ],
-    oral_options: [],
-    sequencing_note: "Stopping hydroquinone is step one. Then a non-HQ regimen; procedures only cautiously and after counselling on limited, slow gains."
+  "session_id": "AIJ-PIG-000001",
+  "plan_status": "generated_pending_doctor_signoff",
+  "doctor_review_required": true,
+  "treatment_priority": "exogenous_ochronosis_halt_and_brighten",
+  "modality_eligibility": {
+    "homecare": {
+      "eligible": true,
+      "priority": "mandatory",
+      "reason": "Immediate cessation of all hydroquinone / steroid products is the single most critical action."
+    },
+    "q_switch_ndyag": {
+      "eligible": false,
+      "reason": "Exogenous ochronosis is highly sensitive; Q-switch laser poses risk of worsening or scarring. Avoid initially.",
+      "requires_doctor_approval": true
+    },
+    "biorepeelcl3": {
+      "eligible": true,
+      "use_case": "cautious skin rejuvenation and non-inflammatory exfoliation",
+      "contact_time_minutes": { "min": 2, "max": 3 },
+      "neutralization_required": true,
+      "repeat_interval_days": 45,
+      "requires_doctor_approval": true
+    },
+    "acid_peels": {
+      "eligible": false,
+      "avoid_if": ["exogenous ochronosis present"]
+    },
+    "microneedling_with_regenerative_actives": {
+      "eligible": "optional_cautious",
+      "reason": "May consider transdermal exosome delivery after micro-needling once barrier has stabilized for 3 months."
+    },
+    "led": {
+      "eligible": true,
+      "role": "barrier_support_and_calming"
+    }
   },
-  condition_specific_note: "This is hydroquinone-induced. The single most important action is stopping hydroquinone — continuing or intensifying it makes it worse. Improvement is slow and often partial.",
-  prognosis: "Guarded — slow, partial improvement over months. Realistic expectations are essential.",
-  goals: [
-    { metric: "Hydroquinone cessation", baseline: "ongoing use", target: "fully stopped", timeframe: "immediate", how_measured: "History at each visit" },
-    { metric: "mMASI", baseline: "~15", target: "≤12", timeframe: "16 weeks", how_measured: "Re-score from a standardised capture" },
-    { metric: "Patient-reported darkening", baseline: "worsening", target: "stabilised then improving", timeframe: "12 weeks", how_measured: "Patient report" }
+  "recommended_session_1": {
+    "primary_option": {
+      "name": "Strict non-HQ homecare barrier repair + LED calming",
+      "steps": [
+        "Cease hydroquinone use completely",
+        "Introduce barrier repair night cream",
+        "Apply tinted iron-oxide sunscreen daily",
+        "LED calming support session in-clinic"
+      ]
+    },
+    "alternative_option": {
+      "name": "Gentle BioRePeelCl3 (2 minutes max contact time) + LED",
+      "when_to_choose": "Choose after 4-6 weeks of strict homecare priming if skin shows no active irritation."
+    }
+  },
+  "four_to_six_week_plan": [
+    {
+      "week": 0,
+      "plan": "Complete cessation of hydroquinone and fairness creams. Initiate barrier repair and physical sunscreen."
+    },
+    {
+      "week": 4,
+      "plan": "Repeat 5-mode imaging and check for early follicular clearing. Confirm no new hyperpigmentation."
+    }
   ],
-  safety_flags: ["Confirm hydroquinone fully stopped and not swapped for another OTC fairness product", "Counsel on slow, partial improvement before any procedure"],
-  patient_summary: "The fairness cream you were using has caused a stubborn darkening called ochronosis. The most important step is to stop that cream completely — continuing it makes things worse. We switch to gentler treatments and strong sun protection. Improvement is slow, so patience matters.",
-  follow_up: {
-    interval: "12–16 weeks",
-    measure: "Re-image + re-score; confirm HQ stopped",
-    escalate_if_plateau: "Cautious laser after counselling",
-    stop_if: "Worsening — re-confirm HQ is truly stopped"
+  "homecare_plan": {
+    "morning": [
+      "ultra_gentle_cleanser",
+      "niacinamide_5_percent",
+      "tinted_physical_sunscreen"
+    ],
+    "night": [
+      "barrier_repair_ceramide_moisturizer",
+      "azelaic_acid_15_percent"
+    ],
+    "avoid": [
+      "hydroquinone",
+      "tretinoin",
+      "steroid_creams",
+      "aggressive_scrubs"
+    ],
+    "prescription_items_for_doctor_review": []
   },
-  uncertainties: ["Degree of reversibility uncertain"],
-  clinician_review_required: true,
-  disclaimer: "Demo proposal for workflow illustration; not a prescription."
+  "prescription_style_output": {
+    "rx_status": "doctor_to_finalize",
+    "procedure_orders": [
+      {
+        "procedure": "LED calming support",
+        "notes": "Post-cessation calming"
+      }
+    ],
+    "non_rx_homecare": [
+      "Cease all hydroquinone/steroid creams immediately",
+      "Ceramide-rich barrier repair moisturizer",
+      "Azelaic acid 15%",
+      "Tinted sunscreen SPF 50+"
+    ]
+  },
+  "client_report": {
+    "headline": "Exogenous ochronosis (hydroquinone-induced pigment change)",
+    "pigmentation_score": "4/5",
+    "simple_explanation": "Your dermoscopy readings suggest exogenous ochronosis, a condition triggered by unsupervised hydroquinone/fairness creams. The first and most critical step is to stop all such creams completely to prevent further darkening.",
+    "recommended_roadmap": [
+      "Stop all hydroquinone/steroid creams immediately",
+      "Focus on barrier repair and physical sunscreen protection for 4-6 weeks",
+      "Perform gentle in-clinic LED or low-contact BioRePeel only after barrier heals"
+    ]
+  },
+  "whatsapp_summary": {
+    "message": "Hi, your AI Pigmentation Decode suggests exogenous ochronosis. Please stop all hydroquinone and fairness creams immediately. The focus is strict homecare and barrier repair, to be reviewed in 4-6 weeks."
+  },
+  "follow_up_plan": {
+    "next_review_weeks": { "min": 4, "max": 6 },
+    "repeat_images": ["white", "surface_polarized", "subsurface_polarized", "red", "woods_uv"],
+    "comparison_metrics": [
+      "pigmentation_score_5",
+      "pigmentation_score_100",
+      "woods_uv_diffusion_score"
+    ]
+  },
+  "safety_flags": [
+    "Verify complete hydroquinone cessation",
+    "Do not prescribe hydroquinone or triple combination creams",
+    "Advise patient that clearance is slow and gradual"
+  ]
 };
 
 export const DYNAMIC_QUESTIONS_PROMPT = `You are generating dynamic follow-up questions for a pigmentation AI workflow.
