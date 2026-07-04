@@ -28,7 +28,7 @@
       <!-- (1) THE READ -->
       <div class="col">
         <div class="col-label"><span class="cl-num">1</span>The read · confirm the data</div>
-        
+
         <div class="card" id="aiReadCard">
           <div class="card-title">
             <h3>What OpenAI read from the images</h3>
@@ -36,7 +36,7 @@
               {{ store.aiAnalysis?.data?.skin_type?.confidence ? store.aiAnalysis.data.skin_type.confidence + ' confidence' : 'analyse to fill' }}
             </span>
           </div>
-          
+
           <div id="aiReadBody" v-if="store.aiAnalysis">
             <div class="airead-line" v-if="store.aiAnalysis.data.provisional_conditions?.length">
               <span class="k">Provisional</span>
@@ -45,21 +45,21 @@
                 <small>From images only — refined by history at the diagnosis step.</small>
               </span>
             </div>
-            
+
             <div class="airead-line" v-if="formattedDistribution">
               <span class="k">Distribution</span>
               <span class="v">{{ formattedDistribution }}</span>
             </div>
-            
+
             <div class="airead-line" v-if="formattedFeatures.length">
               <span class="k">Features seen</span>
               <span class="v">{{ formattedFeatures.join('; ') }}</span>
             </div>
-            
+
             <div class="airead-note">
               Skin type, indices and depth are pre-filled below — confirm or adjust each.
             </div>
-            
+
             <div class="airead-line" v-if="formattedRedFlags?.present && formattedRedFlags?.items?.length" style="color:var(--erythema)">
               <span class="k" style="color:var(--erythema)">Review</span>
               <span class="v" style="color:var(--erythema)">
@@ -67,7 +67,7 @@
                 <small>Tick the red-flag boxes yourself if warranted — the AI does not clear malignancy.</small>
               </span>
             </div>
-            
+
             <div class="airead-caveats" v-if="formattedCaveats.length">
               <b>Read as estimates, not measurements.</b>
               <ul>
@@ -83,10 +83,10 @@
 
           <div class="read-fields">
             <div class="read-fields-head">
-              Readings — confirm or adjust 
+              Readings — confirm or adjust
               <span class="meta" id="indicesMeta">{{ readingsMeta }}</span>
             </div>
-            
+
             <div class="fgrid">
               <div :class="['field', getFieldStatusClass('fitz')]">
                 <label>Fitzpatrick skin type <span class="sugtag" :hidden="!store.aiAnalysis">{{ store.aiAnalysis?.confirmed || userModified.fitz ? '✓' : 'AI' }}</span></label>
@@ -101,7 +101,7 @@
                 </select>
                 <span class="hint" id="a_fitz_hint">{{ fitzHint }}</span>
               </div>
-              
+
               <div :class="['field', getFieldStatusClass('comp')]">
                 <label>Composition <span class="sugtag" :hidden="!store.aiAnalysis">{{ store.aiAnalysis?.confirmed || userModified.comp ? '✓' : 'AI' }}</span></label>
                 <select v-model="store.formData.comp" @change="onFieldChange('comp')">
@@ -112,17 +112,17 @@
                   <option value="uncertain">Uncertain</option>
                 </select>
               </div>
-              
+
               <div :class="['field', getFieldStatusClass('mel')]">
                 <label>Melanin index (0–100) <span class="sugtag" :hidden="!store.aiAnalysis">{{ store.aiAnalysis?.confirmed || userModified.mel ? '✓' : 'AI' }}</span></label>
                 <input type="number" min="0" max="100" placeholder="—" v-model.number="store.formData.mel" @input="onFieldChange('mel')">
               </div>
-              
+
               <div :class="['field', getFieldStatusClass('ery')]">
                 <label>Erythema index (0–100) <span class="sugtag" :hidden="!store.aiAnalysis">{{ store.aiAnalysis?.confirmed || userModified.ery ? '✓' : 'AI' }}</span></label>
                 <input type="number" min="0" max="100" placeholder="—" v-model.number="store.formData.ery" @input="onFieldChange('ery')">
               </div>
-              
+
               <div class="field">
                 <label>Contrast under Wood's UV</label>
                 <select v-model="store.formData.woods">
@@ -133,7 +133,7 @@
                   <option value="notdone">Not done</option>
                 </select>
               </div>
-              
+
               <div :class="['field', getFieldStatusClass('depth')]">
                 <label>Depth call <span class="sugtag" :hidden="!store.aiAnalysis">{{ store.aiAnalysis?.confirmed || userModified.depth ? '✓' : 'AI' }}</span></label>
                 <select v-model="store.formData.depth" @change="onFieldChange('depth')">
@@ -146,7 +146,7 @@
               </div>
             </div>
           </div>
-          
+
           <div id="aiReadConfirm" style="margin-top:14px" v-if="store.aiAnalysis">
             <div :class="['confirm-readings', { confirmed: store.aiAnalysis.confirmed }]">
               <button class="btn btn-primary" @click="confirmAllReadings" v-if="!store.aiAnalysis.confirmed">
@@ -346,8 +346,8 @@
         <!-- Moved treatments and safety checks to Column 1 to balance vertical scrolling -->
 
         <!-- Generate Dynamic Questions Button -->
-        <button 
-          class="btn btn-primary btn-block" 
+        <button
+          class="btn btn-primary btn-block"
           style="margin-top:14px; margin-bottom:18px"
           :disabled="!isFixedHistoryValid || store.isLoading"
           @click="generateDynamicQuestions"
@@ -369,7 +369,7 @@
                   {{ q.question }}
                   <span class="hint" style="display:block;font-weight:400" v-if="q.why_asked"><b>Why:</b> {{ q.why_asked }}</span>
                 </label>
-                
+
                 <select v-if="q.answer_type === 'single_choice' && q.options?.length" v-model="store.dynamicAnswers[q.question_id]">
                   <option value="">— select —</option>
                   <option v-for="opt in q.options" :key="opt" :value="opt">{{ formatOptionLabel(opt) }}</option>
@@ -382,9 +382,10 @@
                 </select>
                 <div v-else-if="q.answer_type === 'multi_choice' && q.options?.length" class="checks q-mt-xs">
                   <label v-for="opt in q.options" :key="opt" :class="['check', { 'is-checked': isDynamicOptionChecked(q.question_id, opt) }]">
-                    <input 
-                      type="checkbox" 
-                      :value="opt" 
+                    <input
+                      type="checkbox"
+                      class="dynamic-question-options"
+                      :value="opt"
                       :checked="isDynamicOptionChecked(q.question_id, opt)"
                       @change="toggleDynamicOption(q.question_id, opt)"
                     >
@@ -415,8 +416,8 @@
               <b>Pregnant / lactating</b>
               <span>Blocks retinoid, hydroquinone, oral TXA</span>
             </div>
-            <button 
-              :class="['switch', { on: store.safety.pregnancy }]" 
+            <button
+              :class="['switch', { on: store.safety.pregnancy }]"
               @click="store.safety.pregnancy = !store.safety.pregnancy"
             ></button>
           </div>
@@ -425,8 +426,8 @@
               <b>Thromboembolic risk</b>
               <span>Clot history, or smoker + OCP</span>
             </div>
-            <button 
-              :class="['switch', { on: store.safety.clot }]" 
+            <button
+              :class="['switch', { on: store.safety.clot }]"
               @click="store.safety.clot = !store.safety.clot"
             ></button>
           </div>
@@ -435,8 +436,8 @@
               <b>Ochronosis suspected</b>
               <span>From fairness-cream / HQ history</span>
             </div>
-            <button 
-              :class="['switch', { on: store.safety.ochronosis }]" 
+            <button
+              :class="['switch', { on: store.safety.ochronosis }]"
               @click="store.safety.ochronosis = !store.safety.ochronosis"
             ></button>
           </div>
@@ -683,19 +684,19 @@ const generateDynamicQuestions = async () => {
 const formattedConditions = computed(() => {
   if (!store.aiAnalysis?.data) return ''
   const data = store.aiAnalysis.data
-  
+
   if (Array.isArray(data.pattern_hypotheses_from_images)) {
     return data.pattern_hypotheses_from_images
       .map(p => `${p.pattern.replace(/_/g, ' ')}${p.image_confidence ? ' (' + Math.round(p.image_confidence * 100) + '%)' : ''}`)
       .join(' · ')
   }
-  
+
   if (Array.isArray(data.provisional_conditions)) {
     return data.provisional_conditions
       .map(c => `${c.condition}${c.likelihood ? ' (' + c.likelihood + ')' : ''}`)
       .join(' · ')
   }
-  
+
   return ''
 })
 
@@ -714,7 +715,7 @@ const formattedFeatures = computed(() => {
   if (!store.aiAnalysis?.data) return []
   const data = store.aiAnalysis.data
   if (Array.isArray(data.observed_features)) return data.observed_features
-  
+
   if (data.regional_analysis) {
     const list = []
     Object.entries(data.regional_analysis).forEach(([region, details]) => {
@@ -730,7 +731,7 @@ const formattedFeatures = computed(() => {
 const formattedRedFlags = computed(() => {
   if (!store.aiAnalysis?.data) return null
   const data = store.aiAnalysis.data
-  
+
   if (data.special_findings?.isolated_lesion_review) {
     const r = data.special_findings.isolated_lesion_review
     if (r.doctor_visual_review_required) {
@@ -738,14 +739,14 @@ const formattedRedFlags = computed(() => {
     }
     return { present: false, items: [] }
   }
-  
+
   if (data.redflag_candidates) {
     return {
       present: !!data.redflag_candidates.present,
       items: data.redflag_candidates.items || []
     }
   }
-  
+
   return null
 })
 
@@ -763,21 +764,21 @@ const readingsMeta = computed(() => {
 const fitzHint = computed(() => {
   if (!store.aiAnalysis?.data) return 'Confirm with burn/tan history.'
   const data = store.aiAnalysis.data
-  
+
   if (data.global_indices?.estimated_fitzpatrick) {
     const ef = data.global_indices.estimated_fitzpatrick
     const type = ef.type || ''
     const conf = ef.confidence ? ` · ${Math.round(ef.confidence * 100)}% confidence` : ''
     return `AI: ${type.replace(/_/g, ' ')}${conf} — confirm with burn/tan history.`
   }
-  
+
   if (data.skin_type) {
     const st = data.skin_type
     const range = st.fitzpatrick_range || st.fitzpatrick_estimate || ''
     const conf = st.confidence ? ` · ${st.confidence} confidence` : ''
     return `AI: ${range}${conf} — confirm with burn/tan history.`
   }
-  
+
   return 'Confirm with burn/tan history.'
 })
 

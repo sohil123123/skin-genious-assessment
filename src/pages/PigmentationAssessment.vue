@@ -905,6 +905,10 @@ onUnmounted(() => {
   width: 100%;
 }
 
+.dynamic-question-options {
+  padding: 6px 6px !important;
+}
+
 .spectra-theme .field textarea {
   resize: vertical;
   min-height: 62px;
