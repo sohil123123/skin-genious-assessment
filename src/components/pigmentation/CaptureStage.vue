@@ -59,7 +59,7 @@
             class="btn btn-primary btn-block" 
             style="margin-top:13px" 
             @click="runAnalysis"
-            :disabled="store.isLoading || (!store.demoMode && store.attachedImages.length === 0)"
+            :disabled="store.isLoading || store.attachedImages.length === 0"
           >
             ✦ {{ store.isLoading ? 'Analysing captures…' : 'Analyse captures' }}
           </button>
