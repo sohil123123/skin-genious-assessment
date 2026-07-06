@@ -24,17 +24,6 @@
         {{ statusMsg }}
       </div>
 
-      <div class="gate-or"><span>or</span></div>
-      <button class="btn btn-demo btn-block" @click="startOfflineDemo">
-        ▶ Explore offline demo
-      </button>
-
-      <div class="gate-note demo">
-        <b>Demo mode</b> runs the whole flow — capture, AI read, dynamic history, the dermoscopy
-        request, diagnosis + scores, plan + goals, and reassessment — on a built-in sample case,
-        with no network calls. All figures are illustrative, for showing the workflow.
-      </div>
-
       <div class="gate-note warn">
         <b>Clinical use.</b> Every plan must be reviewed and approved by the treating dermatologist
         before it reaches a patient. Obtain patient consent for AI-assisted assessment. Use patient
@@ -55,10 +44,5 @@ const statusType = ref('')
 
 const startConnect = () => {
   store.isConnected = true
-  store.demoMode = false
-}
-
-const startOfflineDemo = () => {
-  store.startDemo()
 }
 </script>

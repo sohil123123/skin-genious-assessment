@@ -16,21 +16,15 @@
             </div>
           </div>
           <div class="topbar-right">
-            <span :class="['live-tag', { demo: store.demoMode }]">
+            <span class="live-tag">
               <span class="led"></span>
-              {{ store.demoMode ? 'Demo' : 'Live' }}
+              Live
             </span>
             <span class="model-chip" id="modelChip">
-              {{ store.demoMode ? 'offline sample' : store.model }}
+              {{ store.model }}
             </span>
           </div>
         </header>
-
-        <!-- Demo Ribbon -->
-        <div class="demo-ribbon" v-if="store.demoMode">
-          <b>Demo mode</b> — offline sample case, no live AI. All values are illustrative. Tick
-          “Used OTC fairness creams” in History to see the dermoscopy path.
-        </div>
 
         <!-- Stepper Spine -->
         <div class="spine-wrap">
@@ -93,7 +87,7 @@
 </template>
 
 <script setup>
-import { computed, onUnmounted } from 'vue'
+import { onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
 import { Loading } from 'quasar'
@@ -122,11 +116,7 @@ const steps = [
   // { title: 'Reassess', sub: 'Check goals' },
 ]
 
-const disclaimerText = computed(() => {
-  return store.demoMode
-    ? 'DEMO MODE · illustrative figures only · clinician review simulation'
-    : 'CLINICAL TRIAL PILOT · OPENAI ADVISOR · SYSTEM ACCESSED DIRECTLY'
-})
+const disclaimerText = 'CLINICAL TRIAL PILOT · OPENAI ADVISOR · SYSTEM ACCESSED DIRECTLY'
 
 const goToStage = (idx) => {
   if (idx === 0) {

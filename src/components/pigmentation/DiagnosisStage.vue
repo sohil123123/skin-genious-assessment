@@ -45,152 +45,8 @@
 
     <!-- DIAGNOSIS OUTPUT / RESULTS -->
     <div v-if="store.diagnosis && !store.isLoading" id="dxOutput">
-      <!-- DERMOSCOPY GATED CARD -->
-      <div v-if="store.diagnosis.data?.needs_dermoscopy" class="dermo-req">
-        <h4>🔬 Dermoscopy needed before a confident diagnosis</h4>
-        <div style="font-size: 13px; color: #4a3d6b; margin-bottom: 12px">
-          {{
-            store.diagnosis.data.dermoscopy_request?.reason ||
-            "The captures and history alone don't give enough confidence to commit to a diagnosis."
-          }}
-        </div>
-
-        <div style="font-size: 12.5px; color: #4a3d6b; margin-bottom: 16px">
-          ↓ Add the dermoscopy image(s) below to extract the findings, then update the diagnosis. No
-          dermoscope to hand?
-          <a
-            href="#"
-            @click.prevent="proceedWithoutDermoscopy"
-            style="color: var(--violet); font-weight: 600; text-decoration: underline"
-          >
-            Proceed on the provisional read
-          </a>
-          — records that dermoscopy was advised.
-        </div>
-
-        <!-- Dermoscopy file uploader -->
-        <div class="viewer-card" id="dermoCard" style="background: #261f30; margin-bottom: 12px">
-          <div class="viewer-head">
-            <span class="t">Dermoscopy images</span>
-            <span class="t" style="color: #a89fb6"
-              >{{ store.dermoscopyImages.length }} attached</span
-            >
-          </div>
-
-          <div class="dropzone" @click="triggerDermoInput" style="border-color: #534366">
-            <div class="big">⊕</div>
-            <div>Attach dermoscopic photos</div>
-            <div class="sub">High-magnification polarising dermoscopy images — JPG/PNG.</div>
-          </div>
-          <input
-            type="file"
-            ref="dermoInput"
-            accept="image/*"
-            multiple
-            hidden
-            @change="onDermoFileChange"
-          />
-
-          <div class="thumbs" v-if="store.dermoscopyImages.length > 0">
-            <div v-for="(img, dIdx) in store.dermoscopyImages" :key="dIdx" class="thumb">
-              <img :src="img.dataUrl" alt="" />
-              <button class="rm" @click="removeDermoImage(dIdx)">×</button>
-            </div>
-          </div>
-
-          <button
-            class="btn btn-primary btn-block"
-            style="margin-top: 13px"
-            @click="runDermoscopyExtraction"
-            :disabled="store.dermoscopyImages.length === 0"
-          >
-            ✦ Extract dermoscopy findings
-          </button>
-        </div>
-
-        <!-- Dermoscopy extraction result -->
-        <div
-          class="card"
-          v-if="store.dermoscopyFindings"
-          style="background: #f9f8fc; border-color: #c9beea; margin-bottom: 12px"
-        >
-          <div class="card-title"><h3 style="color: var(--violet)">Dermoscopy Findings</h3></div>
-
-          <div class="airead-line" v-if="store.dermoscopyFindings.pattern_summary">
-            <span class="k">Impression</span>
-            <span class="v"
-              ><b>{{ store.dermoscopyFindings.pattern_summary }}</b></span
-            >
-          </div>
-
-          <div class="airead-line" v-if="store.dermoscopyFindings.observed_structures?.length">
-            <span class="k">Structures</span>
-            <span class="v">{{ store.dermoscopyFindings.observed_structures.join(', ') }}</span>
-          </div>
-
-          <div class="airead-line" v-if="store.dermoscopyFindings.feature_checks?.length">
-            <span class="k">Feature Checks</span>
-            <span class="v">
-              <div
-                v-for="(fc, fIdx) in store.dermoscopyFindings.feature_checks"
-                :key="fIdx"
-                style="margin-bottom: 4px"
-              >
-                • <b>{{ fc.feature }}:</b> {{ fc.status }}
-                <span class="hint" style="display: inline" v-if="fc.note">({{ fc.note }})</span>
-              </div>
-            </span>
-          </div>
-
-          <div class="airead-line" v-if="store.dermoscopyFindings.suggests">
-            <span class="k">Interpretation</span>
-            <span class="v" style="color: var(--violet)">{{
-              store.dermoscopyFindings.suggests
-            }}</span>
-          </div>
-
-          <div class="airead-line" v-if="store.dermoscopyFindings.quality_caveat">
-            <span class="k">Quality Note</span>
-            <span class="v"
-              ><small>{{ store.dermoscopyFindings.quality_caveat }}</small></span
-            >
-          </div>
-
-          <div
-            class="airead-line"
-            v-if="store.dermoscopyFindings.red_flags?.present"
-            style="color: var(--erythema)"
-          >
-            <span class="k" style="color: var(--erythema)">RED FLAGS</span>
-            <span class="v" style="color: var(--erythema)"
-              ><b>{{ store.dermoscopyFindings.red_flags.items?.join('; ') }}</b></span
-            >
-          </div>
-
-          <button
-            class="btn btn-primary btn-block"
-            style="margin-top: 12px"
-            @click="updateDxWithDermoscopy"
-          >
-            ✓ Confirm dermoscopy &amp; update diagnosis
-          </button>
-        </div>
-
-        <!-- Provisional lean -->
-        <div class="pblock" v-if="store.diagnosis.data.differential?.primary?.dx">
-          <h3><span class="bar"></span>Provisional lean (low confidence)</h3>
-          <div class="dx-primary">
-            <div>
-              <div class="nm">{{ store.diagnosis.data.differential.primary.dx }}</div>
-              <div class="rs">{{ store.diagnosis.data.differential.primary.reasoning }}</div>
-            </div>
-            <div class="conf">{{ store.diagnosis.data.differential.primary.confidence }}%</div>
-          </div>
-        </div>
-      </div>
-
       <!-- DIAGNOSTIC RESULTS SHEET -->
-      <div v-else>
+      <div>
         <!-- primary diagnosis -->
         <div class="pblock">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -385,8 +241,6 @@ onMounted(async () => {
     await runGenerateDx()
   }
 })
-const dermoInput = ref(null)
-
 const validationError = ref('')
 const selectedDxChoice = ref('')
 const customDxValue = ref('')
@@ -421,82 +275,7 @@ const runGenerateDx = async () => {
   }
 }
 
-// Dermoscopy handlers
-const triggerDermoInput = () => {
-  dermoInput.value.click()
-}
 
-const onDermoFileChange = async () => {
-  const files = dermoInput.value.files
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i]
-    if (!/^image\//.test(f.type)) continue
-    if (f.size > 5 * 1024 * 1024) {
-      alert(`“${f.name}” is over 5 MB — skipped.`)
-      continue
-    }
-    if (store.dermoscopyImages.length >= 5) {
-      alert('Up to 5 images.')
-      break
-    }
-    try {
-      const reader = new FileReader()
-      const dataUrl = await new Promise((res, rej) => {
-        reader.onload = () => res(reader.result)
-        reader.onerror = () => rej(new Error('Read failed'))
-        reader.readAsDataURL(f)
-      })
-
-      store.dermoscopyImages.push({
-        name: f.name,
-        mediaType: f.type,
-        base64: dataUrl.split(',')[1],
-        dataUrl: dataUrl,
-        file: f,
-      })
-    } catch (e) {
-      console.error(e)
-    }
-  }
-  dermoInput.value.value = ''
-}
-
-const removeDermoImage = (idx) => {
-  store.dermoscopyImages.splice(idx, 1)
-}
-
-const runDermoscopyExtraction = async () => {
-  try {
-    await store.extractDermoscopy()
-  } catch (e) {
-    alert(e.message || 'Failed to extract dermoscopy findings.')
-  }
-}
-
-const updateDxWithDermoscopy = async () => {
-  try {
-    // If dermoscopy is analyzed, needs_dermoscopy becomes false
-    if (store.diagnosis?.data) {
-      store.diagnosis.data.needs_dermoscopy = false
-    }
-    await store.generateDx()
-
-    if (store.diagnosis?.data?.differential?.primary?.dx) {
-      selectedDxChoice.value = store.diagnosis.data.differential.primary.dx
-    }
-  } catch (e) {
-    alert(e.message || 'Failed to update diagnosis.')
-  }
-}
-
-const proceedWithoutDermoscopy = () => {
-  if (store.diagnosis?.data) {
-    store.diagnosis.data.needs_dermoscopy = false
-    if (store.diagnosis.data.differential?.primary?.dx) {
-      selectedDxChoice.value = store.diagnosis.data.differential.primary.dx
-    }
-  }
-}
 
 const formatCategoryLabel = (val) => {
   if (!val) return ''
@@ -518,10 +297,11 @@ const dxSelectOptions = computed(() => {
     list.push({ value: primary, label: formatCategoryLabel(primary) })
   }
   secondaries.forEach((sec) => {
+    const categoryName = typeof sec === 'object' && sec ? (sec.category || '') : String(sec || '')
     // Strip any severity prefix from secondary categories to match allowed values if necessary
-    const cleanedSec = sec.replace(/^(mild|moderate|severe)_/, '')
+    const cleanedSec = categoryName.replace(/^(mild|moderate|severe)_/, '')
     if (cleanedSec && cleanedSec !== primary && !list.some(i => i.value === cleanedSec)) {
-      list.push({ value: cleanedSec, label: formatCategoryLabel(sec) })
+      list.push({ value: cleanedSec, label: formatCategoryLabel(categoryName) })
     }
   })
 
