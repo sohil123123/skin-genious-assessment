@@ -1,0 +1,241 @@
+{
+  "plan_name": "Melasma Target Plan & Q-Switch Laser Protocol",
+  "plan_status": "pending",
+  "duration": "6_weeks",
+  "clinical_recommendation_mode": {
+    "optimize_for": "maximum_expected_improvement_with_acceptable_safety",
+    "doctor_constraints_used_as": "authorization_metadata_not_efficacy_penalty",
+    "doctor_can_edit_before_finalization": true
+  },
+  "baseline_summary": {
+    "melanin_load_index": 68,
+    "erythema_load_index": 34,
+    "depth_call": "epidermal",
+    "composition": "melasma_mixed",
+    "mmasi_if_applicable": 12.4,
+    "primary_drivers": ["uv_exposure", "hormonal"],
+    "local_modifiers": ["post_inflammatory_hyperpigmentation"]
+  },
+  "treatment_goals": {
+    "week_1_to_2": {
+      "clinical_goal": "Calm active inflammation & prepare epidermal barrier",
+      "melanin_load_target": 65,
+      "erythema_load_target": 28,
+      "mmasi_target_if_applicable": 11.5,
+      "depth_call_target": "epidermal",
+      "regional_goals": [
+        { "region": "left_cheek", "baseline_melanin_load": 70, "target_melanin_load": 66 },
+        { "region": "forehead", "baseline_melanin_load": 62, "target_melanin_load": 59 }
+      ]
+    },
+    "week_3_to_4": {
+      "clinical_goal": "Aggressive target pigment reduction & laser optimization",
+      "melanin_load_target": 50,
+      "erythema_load_target": 24,
+      "mmasi_target_if_applicable": 8.2,
+      "depth_call_target": "epidermal",
+      "regional_goals": [
+        { "region": "left_cheek", "baseline_melanin_load": 66, "target_melanin_load": 50 },
+        { "region": "forehead", "baseline_melanin_load": 59, "target_melanin_load": 45 }
+      ]
+    }
+  },
+  "q_switch_optimizer": {
+    "selected_setting": {
+      "wavelength_nm": 1064,
+      "energy_mj": 600,
+      "fluence_j_cm2": 2.1,
+      "frequency_hz": 5,
+      "passes": 3,
+      "selection_reason": "Epidermal pigment load targeting with minimal skin irritation and safe profiles for skin type II-III."
+    },
+    "candidate_settings": [
+      {
+        "wavelength_nm": 1064,
+        "energy_mj": 600,
+        "fluence_j_cm2": 2.1,
+        "frequency_hz": 5,
+        "passes": 3,
+        "efficacy_score_100": 85,
+        "safety_score_100": 95,
+        "overall_score_100": 90,
+        "reason": "Optimal profile with highly controllable epidermal damage."
+      },
+      {
+        "wavelength_nm": 532,
+        "energy_mj": 250,
+        "fluence_j_cm2": 1.2,
+        "frequency_hz": 2,
+        "passes": 1,
+        "efficacy_score_100": 60,
+        "safety_score_100": 75,
+        "overall_score_100": 67,
+        "reason": "High risk of post-inflammatory erythema for mixed composition."
+      }
+    ]
+  },
+  "sessions": [
+    {
+      "session_number": 1,
+      "timing": "week_1",
+      "goal": "Gentle exfoliation & barrier prep",
+      "selected_modalities": ["peel", "led"],
+      "fixed_protocol": {
+        "procedure": "superficial_peel",
+        "peel": {
+          "use": true,
+          "peel_name": "glycolic_acid_30",
+          "contact_time_minutes": 3,
+          "neutralization_required": true
+        },
+        "led": {
+          "use": true,
+          "mode": "yellow_light",
+          "role": "calming_and_erythema_reduction"
+        },
+        "decision_rule": "Do not exceed 3 minutes contact time if skin shows immediate frosting.",
+        "actions": [
+          "cleanse_face",
+          "apply_prep_solution",
+          "apply_peel",
+          "neutralize",
+          "apply_sunscreen"
+        ],
+        "local_modifier_actions": [
+          { "region": "left_cheek", "action": "dilute_peel_with_water_if_erythema_flares" }
+        ],
+        "homecare": {
+          "morning": ["gentle_cleanser", "moisturizer", "spf_50"],
+          "night": ["gentle_cleanser", "hyaluronic_acid_serum", "barrier_cream"],
+          "avoid": ["retinols", "ah_bhas", "scrubs"]
+        }
+      },
+      "provider_protocol": {
+        "performed_by": "therapist",
+        "pre_treatment_checklist": [
+          "Confirm no active sun exposure in past 7 days.",
+          "Confirm no retinol use in past 3 days."
+        ],
+        "zone_sequence": [
+          {
+            "order": 1,
+            "zone": "forehead",
+            "reason": "Thicker skin layer, less sensitive.",
+            "settings": {
+              "wavelength_nm": 1064,
+              "energy_mj": 600,
+              "fluence_j_cm2": 2.1,
+              "frequency_hz": 5,
+              "passes": 3
+            },
+            "coverage_instruction": "Uniform grid pass with 50% overlap.",
+            "endpoint": "mild_erythema"
+          }
+        ],
+        "avoid_zones": [{ "zone": "periorbital", "reason": "Thin skin, close proximity to eyes." }],
+        "endpoint_rules": ["Stop immediately if pinpoint bleeding or petechiae observed."],
+        "post_treatment_steps": ["Apply ice packs for 5 minutes.", "Apply soothing aloe vera gel."],
+        "homecare_handover": [
+          "Instruct client to avoid hot showers and exercise for 24 hours.",
+          "Must wear SPF 50 daily."
+        ]
+      },
+      "reassessment_required": false,
+      "authorization": {
+        "doctor_signoff_required": false,
+        "approval_status": "doctor_approved"
+      }
+    },
+    {
+      "session_number": 2,
+      "timing": "week_2",
+      "goal": "Gentle exfoliation & barrier prep",
+      "selected_modalities": ["peel", "led"],
+      "fixed_protocol": {
+        "procedure": "superficial_peel",
+        "peel": {
+          "use": true,
+          "peel_name": "glycolic_acid_30",
+          "contact_time_minutes": 3,
+          "neutralization_required": true
+        },
+        "led": {
+          "use": true,
+          "mode": "yellow_light",
+          "role": "calming_and_erythema_reduction"
+        },
+        "decision_rule": "Do not exceed 3 minutes contact time if skin shows immediate frosting.",
+        "actions": [
+          "cleanse_face",
+          "apply_prep_solution",
+          "apply_peel",
+          "neutralize",
+          "apply_sunscreen"
+        ],
+        "local_modifier_actions": [
+          { "region": "left_cheek", "action": "dilute_peel_with_water_if_erythema_flares" }
+        ],
+        "homecare": {
+          "morning": ["gentle_cleanser", "moisturizer", "spf_50"],
+          "night": ["gentle_cleanser", "hyaluronic_acid_serum", "barrier_cream"],
+          "avoid": ["retinols", "ah_bhas", "scrubs"]
+        }
+      },
+      "provider_protocol": {
+        "performed_by": "therapist",
+        "pre_treatment_checklist": [
+          "Confirm no active sun exposure in past 7 days.",
+          "Confirm no retinol use in past 3 days."
+        ],
+        "zone_sequence": [
+          {
+            "order": 1,
+            "zone": "forehead",
+            "reason": "Thicker skin layer, less sensitive.",
+            "settings": {
+              "wavelength_nm": 1064,
+              "energy_mj": 600,
+              "fluence_j_cm2": 2.1,
+              "frequency_hz": 5,
+              "passes": 3
+            },
+            "coverage_instruction": "Uniform grid pass with 50% overlap.",
+            "endpoint": "mild_erythema"
+          }
+        ],
+        "avoid_zones": [{ "zone": "periorbital", "reason": "Thin skin, close proximity to eyes." }],
+        "endpoint_rules": ["Stop immediately if pinpoint bleeding or petechiae observed."],
+        "post_treatment_steps": ["Apply ice packs for 5 minutes.", "Apply soothing aloe vera gel."],
+        "homecare_handover": [
+          "Instruct client to avoid hot showers and exercise for 24 hours.",
+          "Must wear SPF 50 daily."
+        ]
+      },
+      "reassessment_required": false,
+      "authorization": {
+        "doctor_signoff_required": false,
+        "approval_status": "doctor_approved"
+      }
+    }
+  ],
+  "reassessment_plan": {
+    "repeat_images": ["cross_polarized", "uv"],
+    "metrics_to_compare": ["melanin_load_index", "erythema_load_index"],
+    "decision_rules": [
+      "If Melanin reduction < 10% after 2 sessions, consult dermatologist to increase energy."
+    ]
+  },
+  "client_report": {
+    "headline": "Gradual pigment brightening and structural skin rejuvenation",
+    "simple_explanation": "This plan focuses on calming down the skin layers first using mild peels and yellow LED lights, then introducing precise laser light pulses to target spot-pigmentations.",
+    "roadmap": [
+      "Weeks 1-2: Skin preparation and calming.",
+      "Weeks 3-4: Laser pigmentation targets.",
+      "Weeks 5-6: Maintenance and evaluation."
+    ],
+    "disclaimer": "Results may vary depending on individual hormonal patterns and consistent sunscreen usage."
+  },
+  "whatsapp_summary": {
+    "message": "Hi! Here is your custom plan:\n- 1 Session: Glycolic Peel + calming LED\n- Laser sessions scheduled from week 3.\n- Remember to apply SPF 50 every morning!"
+  }
+}

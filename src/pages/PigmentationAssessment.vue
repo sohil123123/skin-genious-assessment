@@ -157,7 +157,7 @@ const goNext = async () => {
       { id: 'current_sensitivity', label: 'Skin sensitivity to products' },
       { id: 'previous_treatment_response', label: 'Response to prior treatment' },
       { id: 'active_new_acne_frequency', label: 'Are new pimples appearing?' },
-      { id: 'red_flag_lesion_change', label: 'Has any spot recently changed?' }
+      { id: 'red_flag_lesion_change', label: 'Has any spot recently changed?' },
     ]
 
     questions.forEach((q) => {
