@@ -1571,17 +1571,11 @@ const resetPlan = () => {
   border: 1px solid #e8d3a0;
 }
 
-.clinic-table td:not(.rationale-col),
-.clinic-table th:not(:last-child) {
-  white-space: nowrap;
-}
-
 .rationale-col {
   color: var(--slate);
   font-size: 12.5px;
   line-height: 1.45;
-  min-width: 360px;
-  width: 100%;
+  max-width: 250px;
 }
 
 /* Timeline Components */
