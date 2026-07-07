@@ -89,7 +89,7 @@ const routes = [
         props: true,
       },
       {
-        path: 'pigmentation-assessment/:user_id?/:assessment_id?/:appointment_id?',
+        path: 'pigmentation-assessment/:assessment_id?',
         name: 'pigmentation-assessment',
         component: () => import('src/pages/PigmentationAssessment.vue'),
       },

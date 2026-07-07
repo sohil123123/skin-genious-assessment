@@ -82,15 +82,6 @@ onMounted(async () => {
                 ...(appointmentId && { appointment_id: appointmentId }),
               },
             })
-          } else if (assessment_type == 'pigmentation') {
-            router.push({
-              name: 'pigmentation-assessment',
-              params: {
-                user_id: userId,
-                assessment_id: assessment_id,
-                ...(appointmentId && { appointment_id: appointmentId }),
-              },
-            })
           } else {
             router.push({
               name: 'index-with-id',
@@ -163,13 +154,11 @@ onMounted(async () => {
               name: 'appointments',
             })
           }
-        } else if (type == 'pigmentation' || type == 'pigmentation-assessment') {
+        } else if (type == 'pigmentation-assessment') {
           router.push({
             name: 'pigmentation-assessment',
             params: {
-              user_id: userId,
               ...(assessment_id && { assessment_id: assessment_id }),
-              ...(appointmentId && { appointment_id: appointmentId }),
             },
           })
         }

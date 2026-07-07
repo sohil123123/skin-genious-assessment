@@ -47,7 +47,7 @@
           </q-item-section>
         </q-item>
 
-        <q-item clickable :to="{ name: 'pigmentation-assessment', params: { user_id: currentUserSecId || undefined, assessment_id: currentAssessmentId || undefined } }">
+        <q-item clickable :to="{ name: 'pigmentation-assessment', params: { assessment_id: currentAssessmentId || undefined } }">
           <q-item-section avatar>
             <q-icon name="face" />
           </q-item-section>
@@ -97,15 +97,6 @@ const currentAssessmentId = computed(() => {
     route.params.assessment_id ||
     assessmentStore.assessmentData?.id ||
     ivAssessmentStore.formData?.id
-  )
-})
-
-const currentUserSecId = computed(() => {
-  return (
-    route.params.user_id ||
-    assessmentStore.assessmentData?.user_id ||
-    ivAssessmentStore.formData?.user_id ||
-    authStore.user_id
   )
 })
 

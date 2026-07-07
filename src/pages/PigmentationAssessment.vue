@@ -16,16 +16,6 @@
             </div>
           </div>
           <div class="topbar-right">
-            <button
-              @click="backToCrm"
-              style="display: inline-flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500; color: var(--slate); padding: 5px 8px; margin-right: 10px;"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-              </svg>
-              Back to CRM
-            </button>
             <span class="live-tag">
               <span class="led"></span>
               Live
@@ -97,7 +87,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
 import { Loading } from 'quasar'
@@ -111,31 +101,12 @@ import PlanStage from 'src/components/pigmentation/PlanStage.vue'
 import ReassessStage from 'src/components/pigmentation/ReassessStage.vue'
 import PrintReport from 'src/components/pigmentation/PrintReport.vue'
 
-import { useAuthStore } from 'src/stores/authStore'
-
 const route = useRoute()
 const store = usePigmentationStore()
-const authStore = useAuthStore()
 
 if (route.params.assessment_id) {
   store.id = route.params.assessment_id
 }
-
-const backToCrm = async () => {
-  Loading.show({
-    message: 'Redirecting to CRM...',
-  })
-  await authStore.logout()
-  window.location.href = `${process.env.CRM_URL}`
-}
-
-const userId = route.params.user_id
-
-onMounted(async () => {
-  if (userId) {
-    await store.getPatientData(userId)
-  }
-})
 
 const steps = [
   { title: 'Capture', sub: 'Upload images' },

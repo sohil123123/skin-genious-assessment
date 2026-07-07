@@ -3,8 +3,6 @@ import { useOpenAI } from 'src/composables/useOpenAI'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { useIVAssessmentStore } from 'src/stores/ivAssessmentStore'
 import { api } from 'src/boot/axios'
-import { Loading, LocalStorage } from 'quasar'
-import { useCommonStore } from 'src/stores/commonStore'
 import {
   IMAGE_SYSTEM_PROMPT,
   DYNAMIC_QUESTIONS_PROMPT,
@@ -124,41 +122,6 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.isConnected = false
       this.currentStage = 0
       this.resetState()
-    },
-
-    async getPatientData(uid) {
-      Loading.show({
-        message: 'Getting patient data...',
-      })
-      try {
-        const response = await api.get(`/users/${uid}`)
-        LocalStorage.set('user', JSON.stringify(response.data.results))
-        this.setPatientData(response.data.results)
-      } catch (e) {
-        console.error(e)
-      } finally {
-        Loading.hide()
-      }
-    },
-
-    setPatientData(data) {
-      const firstInitial = data.first_name ? data.first_name.charAt(0).toUpperCase() : ''
-      const lastInitial = data.last_name ? data.last_name.charAt(0).toUpperCase() : ''
-      this.formData.initials = firstInitial + (lastInitial ? '.' + lastInitial : '')
-      this.formData.mrn = String(data.id || '')
-      if (data.date_of_birth) {
-        this.formData.age = useCommonStore().getAgeFromDate(data.date_of_birth)
-      }
-      if (data.gender) {
-        const genderLower = data.gender.toLowerCase()
-        if (genderLower === 'female') {
-          this.formData.sex = 'Female'
-        } else if (genderLower === 'male') {
-          this.formData.sex = 'Male'
-        } else {
-          this.formData.sex = 'Other'
-        }
-      }
     },
 
     resetState() {
