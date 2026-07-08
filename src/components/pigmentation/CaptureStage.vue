@@ -224,7 +224,12 @@
             </div>
           </div>
           <div id="aiReadBody" v-else>
-            <p class="note">Analyse the captures and OpenAI's read of the objective data — skin type, indices, depth, composition, and a provisional impression across all pigmentation types — appears here for you to confirm.</p>
+            <p class="note" v-if="store.formData.fitz" style="color: var(--slate); font-weight: 500;">
+              Previous analysis readings loaded from the database. Click "Analyse captures" if you want to re-run the AI analysis.
+            </p>
+            <p class="note" v-else>
+              Analyse the captures and OpenAI's read of the objective data — skin type, indices, depth, composition, and a provisional impression across all pigmentation types — appears here for you to confirm.
+            </p>
           </div>
 
           <div class="read-fields">

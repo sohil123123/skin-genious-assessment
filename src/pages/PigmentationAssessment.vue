@@ -58,7 +58,7 @@
         </div>
 
         <!-- Stage Container -->
-        <main>
+        <main v-if="isLoaded">
           <CaptureStage v-if="store.currentStage === 0" />
           <AssessStage v-if="store.currentStage === 1" />
           <DiagnosisStage v-if="store.currentStage === 2" />
@@ -97,10 +97,10 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
-import { Loading } from 'quasar'
+import { Loading, LocalStorage, useQuasar } from 'quasar'
 
 // Step Components
 import ConnectGate from 'src/components/pigmentation/ConnectGate.vue'
@@ -116,6 +116,7 @@ import { useAuthStore } from 'src/stores/authStore'
 const route = useRoute()
 const store = usePigmentationStore()
 const authStore = useAuthStore()
+const $q = useQuasar()
 
 if (route.params.assessment_id) {
   store.id = route.params.assessment_id
@@ -130,10 +131,19 @@ const backToCrm = async () => {
 }
 
 const userId = route.params.user_id
+const isLoaded = ref(!route.params.assessment_id)
 
 onMounted(async () => {
-  if (userId) {
+  const assessmentId = route.params.assessment_id
+  if (assessmentId) {
+    store.isConnected = true // auto-connect when editing/resuming
+    await store.getSingleAssessment(assessmentId)
+    isLoaded.value = true
+  } else if (userId) {
     await store.getPatientData(userId)
+    isLoaded.value = true
+  } else {
+    isLoaded.value = true
   }
 })
 
@@ -163,9 +173,52 @@ const goToStage = (idx) => {
   }
 }
 
+const finalizeAndExit = () => {
+  $q.dialog({
+    title: 'Confirm',
+    message: 'Would you like to confirm the treatment plan and return to CRM?',
+    persistent: true,
+
+    ok: {
+      label: 'Yes, Confirm & Exit',
+      color: 'positive',
+      icon: 'check_circle',
+      unelevated: true,
+    },
+    cancel: {
+      label: 'Cancel',
+      color: 'negative',
+      flat: true,
+      icon: 'close',
+    },
+  })
+    .onOk(async () => {
+      LocalStorage.removeItem('user')
+      store.reviewState.finalized = true
+      store.reviewState.decision = store.reviewState.decision || 'approve'
+      store.reviewState.ts = new Date()
+
+      try {
+        await store.updateAssessment()
+        Loading.show({
+          message: 'Finalizing and redirecting...',
+        })
+        setTimeout(() => {
+          window.location.href = `${process.env.CRM_URL}/users`
+        }, 3000)
+      } catch (err) {
+        console.log(err)
+        $q.notify({
+          type: 'negative',
+          message: 'Failed to save final assessment status to database.',
+        })
+      }
+    })
+}
+
 const goNext = async () => {
   if (store.currentStage === 0) {
-    if (!store.aiAnalysis) {
+    if (!store.aiAnalysis && !store.formData.fitz) {
       alert('Please analyze the captures first.')
       return
     }
@@ -202,10 +255,13 @@ const goNext = async () => {
     }
 
     try {
-      Loading.show({ message: 'Generating dynamic follow-up questions…' })
-      store.isLoading = true
-      store.loadingMessage = 'Generating dynamic follow-up questions…'
-      await store.generateDynamicQuestions()
+      if (!store.dynamicQuestions || store.dynamicQuestions.length === 0) {
+        Loading.show({ message: 'Generating dynamic follow-up questions…' })
+        store.isLoading = true
+        store.loadingMessage = 'Generating dynamic follow-up questions…'
+        await store.generateDynamicQuestions()
+      }
+      await store.updateAssessment()
       store.currentStage = 1
     } catch (err) {
       alert(err.message || 'Failed to generate dynamic questions.')
@@ -214,9 +270,25 @@ const goNext = async () => {
       Loading.hide()
     }
   } else if (store.currentStage < 3) {
-    store.currentStage++
+    try {
+      if (store.currentStage === 2) {
+        if (!store.diagnosis?.confirmedDx) {
+          alert('Please confirm the working diagnosis first.')
+          return
+        }
+      }
+      store.currentStage++
+      await store.updateAssessment()
+    } catch (err) {
+      console.log(err)
+      alert('Failed to save assessment progress.')
+    }
   } else {
-    alert('Assessment session complete.')
+    if (!store.reviewState.finalized) {
+      alert('Please complete the clinician review and sign-off/finalize the plan first.')
+      return
+    }
+    finalizeAndExit()
   }
 }
 
