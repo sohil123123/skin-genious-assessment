@@ -1063,9 +1063,14 @@ const getRadioClass = (choice) => {
   return 'sel-red'
 }
 
-const lockPlan = () => {
+const lockPlan = async () => {
   if (!soReviewed.value || !soDecision.value) return
   store.finalizeSignoff(soDecision.value, soNotes.value, soReviewer.value)
+  try {
+    await store.updateAssessment()
+  } catch (err) {
+    console.error('Failed to save assessment after locking plan:', err)
+  }
 }
 
 const formatTiming = (t) => {
@@ -1082,7 +1087,7 @@ const formatLabel = (str) => {
   return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-const resetPlan = () => {
+const resetPlan = async () => {
   store.lastPlan = null
   store.reviewState = {
     decision: null,
@@ -1094,6 +1099,11 @@ const resetPlan = () => {
   soReviewed.value = false
   soDecision.value = ''
   soNotes.value = ''
+  try {
+    await store.updateAssessment()
+  } catch (err) {
+    console.error('Failed to save assessment after resetting plan:', err)
+  }
 }
 </script>
 

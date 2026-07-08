@@ -219,7 +219,7 @@
           >
             <b>✓ Working diagnosis confirmed:</b> {{ store.diagnosis.confirmedDx }}
             <div style="margin-top: 12px">
-              <button class="btn btn-primary" @click="store.currentStage = 3">
+              <button class="btn btn-primary" @click="confirmAndGoToPlan">
                 Continue to plan →
               </button>
             </div>
@@ -242,7 +242,7 @@ onMounted(async () => {
   }
 })
 const validationError = ref('')
-const selectedDxChoice = ref('')
+const selectedDxChoice = ref(store.diagnosis?.confirmedDx || store.diagnosis?.data?.differential?.primary?.dx || '')
 const customDxValue = ref('')
 
 const runGenerateDx = async () => {
@@ -337,6 +337,15 @@ const confirmDxSelection = () => {
     return
   }
   store.confirmDx(chosen)
+}
+
+const confirmAndGoToPlan = async () => {
+  store.currentStage = 3
+  try {
+    await store.updateAssessment()
+  } catch (err) {
+    console.error('Failed to save assessment when moving to Plan stage:', err)
+  }
 }
 
 // Style helpers

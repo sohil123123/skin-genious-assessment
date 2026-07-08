@@ -141,6 +141,303 @@ export const usePigmentationStore = defineStore('pigmentation', {
       }
     },
 
+    async getSingleAssessment(assessmentId) {
+      Loading.show({
+        message: 'Loading assessment from database...',
+      })
+      try {
+        const response = await api.get(`/assessments/${assessmentId}`)
+        const data = response.data.results
+
+        this.id = data.id
+        this.conversationId = data.conversation_id || ''
+
+        // Fetch patient demographics
+        if (data.user_id) {
+          await this.getPatientData(data.user_id)
+        }
+
+        // Restore our store state from pigmentation_inputs
+        if (data.pigmentation_inputs) {
+          const pi = data.pigmentation_inputs
+          if (pi.formData) this.formData = { ...this.formData, ...pi.formData }
+          if (pi.fixedHistory) this.fixedHistory = { ...this.fixedHistory, ...pi.fixedHistory }
+          if (pi.dynamicAnswers) this.dynamicAnswers = { ...this.dynamicAnswers, ...pi.dynamicAnswers }
+          if (pi.safety) this.safety = { ...this.safety, ...pi.safety }
+          if (pi.redFlags) this.redFlags = pi.redFlags || []
+          if (pi.goals) this.goals = pi.goals || []
+          if (pi.reviewState) {
+            this.reviewState = {
+              ...this.reviewState,
+              ...pi.reviewState,
+              ts: pi.reviewState.ts ? new Date(pi.reviewState.ts) : null,
+            }
+          }
+          if (pi.lastPlan && !this.lastPlan) {
+            this.lastPlan = pi.lastPlan
+          }
+          if (pi.diagnosis && !this.diagnosis) {
+            this.diagnosis = {
+              data: pi.diagnosis,
+              confirmedDx: pi.confirmedDx || pi.diagnosis.differential?.primary?.dx || '',
+            }
+          }
+          if (pi.aiAnalysis) this.aiAnalysis = pi.aiAnalysis
+          if (pi.dynamicQuestions) this.dynamicQuestions = pi.dynamicQuestions || []
+        }
+
+        if (data.diagnosis && !this.diagnosis) {
+          this.diagnosis = {
+            data: data.diagnosis,
+            confirmedDx: data.diagnosis.differential?.primary?.dx || '',
+          }
+        }
+
+        if (data.recommended_full_plan && !this.lastPlan) {
+          this.lastPlan = data.recommended_full_plan
+        }
+
+        // Fallback: reconstruct lastPlan from treatment_sessions if not retrieved yet
+        if (!this.lastPlan && data.treatment_sessions && Array.isArray(data.treatment_sessions.treatments) && data.treatment_sessions.treatments.length > 0) {
+          const sessions = data.treatment_sessions.treatments.map((t) => {
+            const selected_modalities = []
+            const titleLower = String(t.title || '').toLowerCase()
+            if (titleLower.includes('q_switch') || titleLower.includes('laser') || titleLower.includes('toning')) selected_modalities.push('q_switch')
+            if (titleLower.includes('peel')) selected_modalities.push('peel')
+            if (titleLower.includes('microneedling')) selected_modalities.push('microneedling')
+            if (titleLower.includes('led')) selected_modalities.push('led')
+
+            const morning = []
+            const night = []
+            const avoid = []
+            if (Array.isArray(t.daily_home_care_routine)) {
+              t.daily_home_care_routine.forEach(line => {
+                const cleanLine = String(line || '')
+                if (cleanLine.startsWith('Morning:')) {
+                  morning.push(...cleanLine.replace('Morning:', '').split(',').map(s => s.trim()))
+                } else if (cleanLine.startsWith('Night:')) {
+                  night.push(...cleanLine.replace('Night:', '').split(',').map(s => s.trim()))
+                } else if (cleanLine.startsWith('Avoid:')) {
+                  avoid.push(...cleanLine.replace('Avoid:', '').split(',').map(s => s.trim()))
+                }
+              })
+            }
+
+            const fixed_protocol = {
+              homecare: { morning, night, avoid }
+            }
+
+            const qsChecklist = t.preparations_checklist_for_therapist?.find(line => line.includes('Laser:'))
+            if (qsChecklist) {
+              const wavelengthMatch = qsChecklist.match(/(\d+)nm/)
+              const energyMatch = qsChecklist.match(/(\d+)mJ/)
+              const fluenceMatch = qsChecklist.match(/(\d+(\.\d+)?) J\/cm²/)
+              const frequencyMatch = qsChecklist.match(/(\d+)Hz/)
+              fixed_protocol.q_switch = {
+                use: true,
+                wavelength_nm: wavelengthMatch ? parseInt(wavelengthMatch[1]) : 1064,
+                energy_mj: energyMatch ? parseInt(energyMatch[1]) : 0,
+                fluence_j_cm2: fluenceMatch ? parseFloat(fluenceMatch[1]) : 0,
+                frequency_hz: frequencyMatch ? parseInt(frequencyMatch[1]) : 0,
+                passes: 2,
+                endpoint: t.preparations_checklist_for_therapist?.find(line => line.includes('Laser Endpoint:'))?.replace('Laser Endpoint:', '').trim() || ''
+              }
+            }
+
+            const peelChecklist = t.preparations_checklist_for_therapist?.find(line => line.includes('Peel:'))
+            if (peelChecklist) {
+              const nameMatch = peelChecklist.match(/Prepare (.+?) \(contact/)
+              const timeMatch = peelChecklist.match(/contact time: (\d+) mins/)
+              fixed_protocol.peel = {
+                use: true,
+                peel_name: nameMatch ? nameMatch[1].trim() : 'Chemical Peel',
+                contact_time_minutes: timeMatch ? parseInt(timeMatch[1]) : 5,
+                neutralization_required: peelChecklist.includes('neutralization: Yes')
+              }
+            }
+
+            return {
+              session_number: t.session_number,
+              timing: `week_${t.week || t.session_number}`,
+              goal: t.concerns_addressed?.[0] || 'Pigmentation treatment',
+              selected_modalities,
+              fixed_protocol
+            }
+          })
+
+          this.lastPlan = {
+            plan_name: 'Treatment Plan',
+            plan_status: data.status === 'completed' ? 'approved' : 'pending_review',
+            duration: data.treatment_sessions.total_time || `${data.treatment_sessions.treatments.length * 2} weeks`,
+            clinical_recommendation_mode: {
+              optimize_for: 'efficacy_balanced_with_safety',
+              doctor_constraints_used_as: 'hard_filters',
+              doctor_can_edit_before_finalization: true
+            },
+            baseline_summary: {
+              fitzpatrick_type: this.formData.fitz,
+              melanin_load_index: parseInt(this.formData.mel) || 50,
+              erythema_load_index: parseInt(this.formData.ery) || 20,
+              depth_call: this.formData.depth,
+              composition: this.formData.comp
+            },
+            sessions
+          }
+        }
+
+        // Always start at Step 1 (Capture Stage) when editing/resuming from CRM
+        this.currentStage = 0
+
+        // Populate attachedImages from database images
+        if (data.images && data.images.length > 0) {
+          this.attachedImages = data.images.map((img) => ({
+            id: img.id,
+            name: img.name,
+            dataUrl: img.url,
+            url: img.url,
+            openai_file_id: img.custom_properties?.openai_file_id || '',
+            mode: img.custom_properties?.mode || 'white',
+          }))
+        }
+      } catch (e) {
+        console.error('Error loading assessment from database:', e)
+      } finally {
+        Loading.hide()
+      }
+    },
+
+    async updateAssessment() {
+      if (!this.id) return
+
+      const pigmentation_inputs = {
+        formData: this.formData,
+        fixedHistory: this.fixedHistory,
+        dynamicAnswers: this.dynamicAnswers,
+        safety: this.safety,
+        redFlags: this.redFlags,
+        goals: this.goals,
+        reviewState: this.reviewState,
+        lastPlan: this.lastPlan,
+        diagnosis: this.diagnosis ? this.diagnosis.data : null,
+        confirmedDx: this.diagnosis ? this.diagnosis.confirmedDx : '',
+        aiAnalysis: this.aiAnalysis,
+        dynamicQuestions: this.dynamicQuestions,
+      }
+
+      const diagnosis = this.diagnosis ? this.diagnosis.data : null
+
+      // Construct treatment_plans object from lastPlan to save in the database treatment_sessions
+      let treatment_plans = null
+      if (this.lastPlan) {
+        const treatments = (this.lastPlan.sessions || []).map((session) => {
+          const weekMatch = String(session.timing || '').match(/\d+/)
+          const weekNum = weekMatch ? parseInt(weekMatch[0]) : session.session_number
+
+          // Build checklist
+          const checklist = ['Check patient identification and consent']
+          if (session.fixed_protocol?.q_switch?.use) {
+            const qs = session.fixed_protocol.q_switch
+            checklist.push(
+              `Laser: Set Q-Switch to ${qs.wavelength_nm}nm, ${qs.energy_mj}mJ, ${qs.fluence_j_cm2} J/cm², ${qs.frequency_hz}Hz`
+            )
+            if (qs.endpoint) checklist.push(`Laser Endpoint: ${qs.endpoint}`)
+          }
+          if (session.fixed_protocol?.peel?.use) {
+            const p = session.fixed_protocol.peel
+            checklist.push(
+              `Peel: Prepare ${p.peel_name} (contact time: ${p.contact_time_minutes} mins, neutralization: ${p.neutralization_required ? 'Yes' : 'No'})`
+            )
+          }
+          if (session.fixed_protocol?.microneedling?.use) {
+            const mn = session.fixed_protocol.microneedling
+            checklist.push(`Microneedling: Prepare device (${mn.device}) with actives: ${mn.actives?.join(', ')}`)
+          }
+          if (session.fixed_protocol?.led?.use) {
+            checklist.push(`LED: Prepare ${session.fixed_protocol.led.mode} (${session.fixed_protocol.led.role})`)
+          }
+
+          // Build steps
+          const steps = []
+          if (session.fixed_protocol?.peel?.use) {
+            steps.push(`Apply ${session.fixed_protocol.peel.peel_name} for ${session.fixed_protocol.peel.contact_time_minutes} minutes. Neutralize if required.`)
+          }
+          if (session.fixed_protocol?.q_switch?.use) {
+            steps.push(`Perform Q-Switch Laser toning using settings: Wavelength ${session.fixed_protocol.q_switch.wavelength_nm}nm, Fluence ${session.fixed_protocol.q_switch.fluence_j_cm2} J/cm², ${session.fixed_protocol.q_switch.passes} passes. Target endpoint: ${session.fixed_protocol.q_switch.endpoint}.`)
+          }
+          if (session.fixed_protocol?.microneedling?.use) {
+            steps.push(`Perform microneedling using ${session.fixed_protocol.microneedling.device} and apply actives: ${session.fixed_protocol.microneedling.actives?.join(', ')}.`)
+          }
+          if (session.fixed_protocol?.led?.use) {
+            steps.push(`Apply LED therapy (${session.fixed_protocol.led.mode}) for skin calming and support.`)
+          }
+
+          // Build daily home care routine
+          const homecareMorning = session.fixed_protocol?.homecare?.morning || []
+          const homecareNight = session.fixed_protocol?.homecare?.night || []
+          const homecareAvoid = session.fixed_protocol?.homecare?.avoid || []
+          const daily_home_care_routine = [
+            `Morning: ${homecareMorning.join(', ')}`,
+            `Night: ${homecareNight.join(', ')}`,
+            homecareAvoid.length ? `Avoid: ${homecareAvoid.join(', ')}` : null,
+          ].filter(Boolean)
+
+          return {
+            session_number: session.session_number,
+            title: session.selected_modalities?.join(' + ') || session.goal || 'Pigmentation Session',
+            treatment_time: '45 mins',
+            week: weekNum,
+            preparations_checklist_for_therapist: checklist,
+            concerns_addressed: [session.goal || 'Pigmentation treatment'],
+            steps: steps.length ? steps : ['Perform clinical protocol as per doctor instructions.'],
+            daily_home_care_routine: daily_home_care_routine,
+            script: '',
+          }
+        })
+
+        treatment_plans = {
+          treatment_plans: {
+            total_time: this.lastPlan.duration || '6 weeks',
+          },
+          treatment_plan: {
+            treatments: treatments,
+          },
+          recommended_full_plan: {
+            plan_name: this.lastPlan.plan_name,
+            duration: this.lastPlan.duration,
+            sessions: this.lastPlan.sessions,
+          },
+        }
+      }
+
+      const payload = {
+        _method: 'PUT',
+        assessment_type: 'pigmentation',
+        user_id: this.formData.mrn || null,
+        age: this.formData.age || null,
+        is_pregnant: this.safety.pregnancy ? 1 : 0,
+        breastfeeding: this.safety.pregnancy ? 'yes' : 'no',
+        pigmentation_inputs: pigmentation_inputs,
+        diagnosis: diagnosis,
+        status: this.reviewState.finalized ? 'completed' : 'in_progress',
+        selected_plan_type: 'multiple',
+        conversation_id: this.conversationId || null,
+        ...(treatment_plans && { treatment_plans }),
+      }
+
+      try {
+        Loading.show({
+          message: 'Saving assessment details to database...',
+        })
+        const response = await api.post(`/assessments/${this.id}`, payload)
+        console.log('Assessment updated in database:', response.data)
+      } catch (e) {
+        console.error('Error updating assessment in database:', e)
+        throw e
+      } finally {
+        Loading.hide()
+      }
+    },
+
     setPatientData(data) {
       const firstInitial = data.first_name ? data.first_name.charAt(0).toUpperCase() : ''
       const lastInitial = data.last_name ? data.last_name.charAt(0).toUpperCase() : ''
@@ -228,6 +525,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
           const formData = new FormData()
           formData.append('image', img.file)
           formData.append('assessment_type', 'pigmentation-pre')
+          if (img.mode) {
+            formData.append('mode', img.mode)
+          }
 
           try {
             const response = await api.post(`assessments/${assessmentId}/images`, formData, {
@@ -285,6 +585,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
         for (const item of content) {
           if (item.type === 'text') {
             formattedContent.push({ type: 'input_text', text: item.text })
+          } else if (item.type === 'image_id') {
+            formattedContent.push({ type: 'input_image', file_id: item.file_id })
           } else if (item.type === 'image') {
             const base64Data = item.source?.data
             const img =
@@ -370,10 +672,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
       const content = [{ type: 'text', text: this.buildImageContext() }]
       this.attachedImages.forEach((img) => {
-        content.push({
-          type: 'image',
-          source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
-        })
+        if (img.openai_file_id) {
+          content.push({
+            type: 'image_id',
+            file_id: img.openai_file_id,
+          })
+        } else {
+          content.push({
+            type: 'image',
+            source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
+          })
+        }
       })
 
       try {
@@ -386,7 +695,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         const a = this.parseJSON(raw)
         this.aiAnalysis = { data: a, confirmed: false }
-        this.dynamicQuestions = Array.isArray(a.history_questions) ? a.history_questions : []
+        if (!this.dynamicQuestions || this.dynamicQuestions.length === 0) {
+          this.dynamicQuestions = Array.isArray(a.history_questions) ? a.history_questions : []
+        }
 
         // Populate readings fields in form
         if (a.global_indices) {
@@ -439,6 +750,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           this.formData.comp = a.composition?.dominant || ''
           this.formData.depth = a.depth?.verdict || ''
         }
+        await this.updateAssessment()
       } catch (err) {
         console.error(err)
         throw err
@@ -454,6 +766,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
 
     async generateDynamicQuestions() {
+      if (this.dynamicQuestions && this.dynamicQuestions.length > 0) {
+        return
+      }
       this.isLoading = true
       this.loadingMessage = 'Generating dynamic follow-up questions…'
 
@@ -715,6 +1030,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         }
 
         this.diagnosis = { data: mappedData, confirmedDx: '' }
+        await this.updateAssessment()
       } catch (err) {
         console.error(err)
         throw err
@@ -747,6 +1063,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
 
     async generatePlan() {
+      if (this.lastPlan) {
+        return
+      }
       this.isLoading = true
       this.loadingMessage = 'Drafting the tiered plan…'
 
@@ -824,6 +1143,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         }
 
         this.goals = goals
+        await this.updateAssessment()
       } catch (err) {
         console.error(err)
         throw err
