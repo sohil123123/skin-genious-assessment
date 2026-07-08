@@ -175,6 +175,79 @@ export const PIGMENTATION_CONFIG = {
       downtime: 0.05,
       recurrence_prevention: 0.05,
     },
+    zone_wavelength_planning: {
+      enabled: true,
+      principle:
+        'The treatment planner must not apply the single best global wavelength uniformly to all zones. It must generate a zone-wise safe-efficacy plan using a global base wavelength plus regional/spot overrides where justified.',
+      session_strategy_rules: {
+        allow_global_base_wavelength: true,
+        allow_regional_overrides: true,
+        allow_spot_only_overrides: true,
+        max_distinct_wavelength_strategies_per_session: 3,
+        preferred_structure: [
+          'one_global_base_wavelength',
+          'up_to_one_regional_override_strategy',
+          'up_to_one_spot_only_override_strategy',
+        ],
+        note: 'Avoid unnecessary complexity. Use zone-wise or spot-wise wavelength changes only when there is a meaningful efficacy advantage and safety remains acceptable.',
+      },
+      zone_strategy_types: [
+        'base_global_toning',
+        'regional_override',
+        'spot_only_override',
+        'exclude_from_treatment',
+        'defer_zone',
+      ],
+      zone_selection_logic: {
+        use_global_base_when: [
+          'zone_pattern_is_diffuse_or_patchy',
+          'pigment_is_melanin_dominant_or_mixed_without_focal_superficial_macule_advantage',
+          '1064_has_best_safety_efficacy_balance',
+        ],
+        use_regional_override_when: [
+          'zone_pattern_differs_materially_from_rest_of_face',
+          'regional_override_improves_efficacy_without_unacceptable_PIH_risk',
+          'doctor_review_requirements_are_met',
+        ],
+        use_spot_only_override_when: [
+          'there_is_a_doctor_cleared_focal_superficial_macule_or_focal_target',
+          'spot_wavelength_offers_clear_advantage_over_global_base',
+          'surrounding_zone_should_not_receive_that_wavelength',
+        ],
+        exclude_zone_or_subzone_when: [
+          'suspect_lesion_pending_doctor_review',
+          'open_skin',
+          'active_infection',
+          'barrier_break_or_active_irritation',
+          'scar_shadow_should_not_be_treated_as_pigment',
+        ],
+      },
+      wavelength_zone_preferences: {
+        1064: {
+          preferred_zone_roles: [
+            'base_global_toning',
+            'regional_override_for_diffuse_melanin_dominant_pigment',
+          ],
+          best_for: [
+            'forehead_diffuse_tone',
+            'malar_diffuse_or_mixed_pigment',
+            'nose_bridge_if_treated_conservatively',
+            'upper_lip_perioral_conservative_toning',
+            'chin_jaw_blending',
+          ],
+        },
+        532: {
+          preferred_zone_roles: ['spot_only_override'],
+          best_for: ['doctor_cleared_superficial_epidermal_focal_macules'],
+          should_not_be_used_as: ['global_full_face_toning'],
+        },
+        755: {
+          preferred_zone_roles: ['regional_override', 'spot_only_override'],
+          best_for: ['doctor_selected_focal_or_mixed_regional_pigment'],
+          should_not_be_used_as: ['routine_full_face_toning_in_high_PIH_risk_patterns'],
+        },
+      },
+    },
     wavelength_rules: {
       1064: {
         ai_can_select: true,
@@ -231,14 +304,92 @@ export const PIGMENTATION_CONFIG = {
         'melasma_or_pih_with_high_inflammation_first_required',
       ],
     },
+    region_specific_selection_rules: {
+      principle:
+        'Every wavelength recommendation must specify whether it is suitable for full-face use, regional use, focal spot use, or not recommended.',
+      treatment_scope_values: ['full_face', 'regional', 'spot_only', 'not_recommended'],
+      required_region_fields_for_each_candidate: [
+        'eligible_regions',
+        'best_use_regions',
+        'avoid_regions',
+        'requires_doctor_visual_review_regions',
+        'rationale_by_region',
+      ],
+      region_list: [
+        'forehead',
+        'right_malar',
+        'left_malar',
+        'nose_bridge',
+        'periocular',
+        'upper_lip_perioral',
+        'chin_jaw',
+        'isolated_spot_or_macule',
+        'scar_modifier_region',
+        'friction_modifier_region',
+      ],
+      wavelength_region_logic: {
+        1064: {
+          typical_scope: 'full_face_or_regional',
+          eligible_regions: [
+            'forehead',
+            'right_malar',
+            'left_malar',
+            'nose_bridge',
+            'upper_lip_perioral',
+            'chin_jaw',
+          ],
+          cautious_regions: [
+            'periocular',
+            'active_erythema_regions',
+            'barrier_compromised_regions',
+          ],
+          avoid_regions: ['suspect_lesion_pending_doctor_review', 'open_skin', 'active_infection'],
+        },
+        532: {
+          typical_scope: 'spot_only',
+          eligible_regions: [
+            'doctor_cleared_superficial_focal_macule',
+            'doctor_cleared_epidermal_spot',
+          ],
+          cautious_regions: [
+            'forehead_if_focal_epidermal_spots_only',
+            'malar_if_focal_epidermal_spots_only',
+          ],
+          avoid_regions: [
+            'full_face',
+            'melasma_like_patches',
+            'periocular',
+            'perioral',
+            'high_erythema_regions',
+            'fitzpatrick_IV_to_VI_high_pih_risk_regions',
+            'suspect_lesion_pending_doctor_review',
+          ],
+        },
+        755: {
+          typical_scope: 'regional_or_spot_only_doctor_selected',
+          eligible_regions: ['doctor_selected_focal_or_mixed_pigment'],
+          cautious_regions: ['malar_focal_macules', 'forehead_focal_macules'],
+          avoid_regions: [
+            'unstable_melasma',
+            'high_erythema_regions',
+            'periocular',
+            'active_inflammation',
+            'suspect_lesion_pending_doctor_review',
+          ],
+        },
+      },
+    },
     output_required_fields: [
       'candidate_settings',
-      'selected_setting',
+      'candidate_region_applicability',
+      'selected_global_setting',
+      'selected_regional_or_spot_settings',
       'efficacy_score_100',
       'safety_score_100',
       'overall_score_100',
       'selection_reason',
       'zone_adjustments',
+      'avoid_zones',
     ],
   },
   microneedling: {

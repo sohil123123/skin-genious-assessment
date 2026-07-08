@@ -483,7 +483,22 @@ Rules:
 - Separate local modifiers such as scar-related pigmentation and friction-related pigmentation from global pigmentation.
 - If spectacle-friction pigmentation is suspected, include friction reduction as part of treatment.
 - If scar-like modifier is present, do not judge pigment plan as failed only because scar shadow remains.
-- Do not automatically fix Q-switch at 1064nm. Evaluate 532, 755 and 1064 using the q_switch_setting_optimizer. Select the most effective safe option.
+- Do not automatically fix Q-switch at 1064nm. Evaluate 532, 755 and 1064 using the q_switch_setting_optimizer.
+- For every wavelength candidate, specify whether it is suitable for full-face use, regional use, spot-only use, or not recommended.
+- If a wavelength is not selected globally but may be useful for specific areas, do not discard it. Return it under selected_regional_or_spot_settings with region, subregion, status and doctor-review requirement.
+- For every wavelength candidate, list exact eligible regions, avoid regions, and regions requiring doctor visual review.
+- Do not recommend 532nm or 755nm as a general full-face pigmentation setting. They may be considered only for doctor-cleared focal/spot/regional pigment where safety is acceptable.
+- If a zone or sub-zone has a more efficacious safe wavelength than the selected global base wavelength, the planner must use that wavelength as a regional_override or spot_only_override for that zone/sub-zone instead of repeating the global winner everywhere.
+- The treatment planner must generate a zone-wise wavelength strategy, not just a single global wavelength repeated across all zones.
+- The final plan should distinguish:
+  1. base_global_wavelength
+  2. regional_override_wavelengths
+  3. spot_only_override_wavelengths
+- A zone may use the global base wavelength, or a safer/more efficacious regional override, or a focal spot-only override, or be partially excluded.
+- If 532nm or 755nm is more efficacious for a particular area, sub-zone, or focal lesion, include that as a regional_override or spot_only_override if safety is acceptable.
+- Do not recommend 532nm or 755nm as routine full-face toning wavelengths.
+- If a suspicious lesion is present, exclude it and maintain a no-fire margin rather than assigning an efficacious wavelength to it.
+- The planner should prefer the most efficacious safe wavelength for each zone/sub-zone, while keeping the session practical and not unnecessarily complex.
 - Use 1064nm as the default safe workhorse if no safer/more effective reason exists for 532 or 755.
 - 532nm and 755nm may be selected only when the pattern supports it and doctor visual review/clearance is required.
 - Use Q-switch energy in mJ and calculated fluence in J/cm2 using spot area 1cm2.
@@ -548,23 +563,139 @@ Return valid JSON only matching this schema:
       "candidate_settings": [
         {
           "wavelength_nm": 1064,
+          "treatment_scope": "full_face|regional|spot_only|not_recommended",
           "energy_mj": 300,
           "fluence_j_cm2": 0.3,
           "frequency_hz": 5,
+          "passes": 2,
+          "efficacy_score_100": 76,
+          "safety_score_100": 90,
+          "overall_score_100": 83,
+          "eligible_regions": [
+            "forehead",
+            "right_malar",
+            "left_malar",
+            "nose_bridge",
+            "upper_lip_perioral",
+            "chin_jaw"
+          ],
+          "best_use_regions": [
+            {
+              "region": "forehead",
+              "zone_strategy_type": "base_global_toning",
+              "reason": "Diffuse tone support; safest effective broad-zone toning option."
+            },
+            {
+              "region": "right_malar",
+              "zone_strategy_type": "base_global_toning",
+              "reason": "Primary diffuse pigmentation zone with acceptable safety-efficacy balance."
+            }
+          ],
+          "avoid_regions": [
+            {
+              "region": "suspect_lesion_pending_doctor_review",
+              "reason": "Do not treat until review."
+            }
+          ],
+          "rationale": "string"
+        },
+        {
+          "wavelength_nm": 532,
+          "treatment_scope": "spot_only",
+          "energy_mj": 150,
+          "fluence_j_cm2": 0.15,
+          "frequency_hz": 2,
           "passes": 1,
-          "efficacy_score_100": 78,
-          "safety_score_100": 86,
-          "overall_score_100": 82,
-          "reason": "string"
+          "efficacy_score_100": 80,
+          "safety_score_100": 62,
+          "overall_score_100": 71,
+          "eligible_regions": [
+            "doctor_cleared_superficial_focal_macules_only"
+          ],
+          "best_use_regions": [
+            {
+              "region": "right_malar",
+              "subregion": "focal superficial macules only",
+              "zone_strategy_type": "spot_only_override",
+              "reason": "Higher efficacy for superficial focal epidermal pigment compared with full-zone 1064 toning."
+            }
+          ],
+          "avoid_regions": [
+            {
+              "region": "periocular",
+              "reason": "Sensitive area; avoid."
+            },
+            {
+              "region": "melasma_like_patches",
+              "reason": "Not preferred for broad melasma-like pigment."
+            },
+            {
+              "region": "suspect_lesion_pending_doctor_review",
+              "reason": "Do not treat."
+            }
+          ],
+          "rationale": "string"
+        },
+        {
+          "wavelength_nm": 755,
+          "treatment_scope": "regional|spot_only|not_recommended",
+          "energy_mj": 220,
+          "fluence_j_cm2": 0.22,
+          "frequency_hz": 3,
+          "passes": 1,
+          "efficacy_score_100": 74,
+          "safety_score_100": 70,
+          "overall_score_100": 72,
+          "eligible_regions": [
+            "doctor_selected_focal_or_mixed_pigment"
+          ],
+          "best_use_regions": [
+            {
+              "region": "left_malar",
+              "subregion": "selected focal pigment separate from scar modifier",
+              "zone_strategy_type": "regional_override",
+              "reason": "Could outperform 1064 in selected focal/regional pigment if doctor confirms benign target."
+            }
+          ],
+          "avoid_regions": [
+            {
+              "region": "scar_modifier_region",
+              "reason": "Scar-shadow should not be treated as pigment target."
+            },
+            {
+              "region": "suspect_lesion_pending_doctor_review",
+              "reason": "Do not treat."
+            }
+          ],
+          "rationale": "string"
         }
       ],
-      "selected_setting": {
+      "selected_global_setting": {
         "wavelength_nm": 1064,
         "energy_mj": 300,
         "fluence_j_cm2": 0.3,
         "frequency_hz": 5,
-        "passes": 1,
-        "selection_reason": "string"
+        "passes": 2,
+        "selection_reason": "Best base full-face / broad-zone strategy."
+      },
+      "selected_regional_or_spot_settings": [
+        {
+          "region": "right_malar",
+          "subregion": "superficial focal macules only",
+          "zone_strategy_type": "spot_only_override",
+          "wavelength_nm": 532,
+          "energy_mj": 150,
+          "fluence_j_cm2": 0.15,
+          "frequency_hz": 2,
+          "passes": 1,
+          "status": "optional_doctor_review_required",
+          "reason": "More efficacious for superficial focal epidermal pigment than uniform 1064 toning."
+        }
+      ],
+      "final_q_switch_strategy": {
+        "base_global_strategy": "1064nm broad-zone toning",
+        "zone_override_strategy": "Use regional or spot overrides only where efficacy advantage is meaningful and safety acceptable.",
+        "execution_rule": "The zone treatment sequence must reflect zone-specific wavelength selection, not just repeat the global winner in every zone."
       }
     },
     "sessions": [
@@ -616,22 +747,59 @@ Return valid JSON only matching this schema:
             {
               "order": 1,
               "zone": "forehead",
-              "reason": "string",
-              "settings": {
+              "zone_strategy_type": "base_global_toning|regional_override|spot_only_override|exclude_from_treatment|defer_zone",
+              "why_this_zone_strategy": "string",
+              "base_zone_setting": {
+                "selected": true,
+                "selection_source": "selected_global_setting|regional_override",
                 "wavelength_nm": 1064,
                 "energy_mj": 300,
                 "fluence_j_cm2": 0.3,
                 "frequency_hz": 5,
-                "passes": 1
+                "passes": 1,
+                "coverage_instruction": "string",
+                "endpoint": "string"
               },
-              "coverage_instruction": "string",
-              "endpoint": "string"
+              "regional_override_setting": {
+                "selected": false,
+                "selection_reason": null,
+                "wavelength_nm": null,
+                "energy_mj": null,
+                "fluence_j_cm2": null,
+                "frequency_hz": null,
+                "passes": null,
+                "coverage_instruction": null,
+                "endpoint": null
+              },
+              "spot_only_overrides": [
+                {
+                  "selected": false,
+                  "subregion": "string",
+                  "target_description": "string",
+                  "wavelength_nm": 532,
+                  "energy_mj": 150,
+                  "fluence_j_cm2": 0.15,
+                  "frequency_hz": 2,
+                  "passes": 1,
+                  "coverage_instruction": "spot_only_or_focal_application",
+                  "endpoint": "string",
+                  "doctor_visual_review_required": true
+                }
+              ],
+              "excluded_subregions": [
+                {
+                  "subregion": "string",
+                  "reason": "suspect_lesion_pending_review|scar_shadow_not_primary_pigment|open_skin|active_irritation"
+                }
+              ],
+              "avoid_zone_instruction": "string_or_null"
             }
           ],
           "avoid_zones": [
             {
               "zone": "string",
-              "reason": "string"
+              "reason": "string",
+              "zone_defination": "string",
             }
           ],
           "endpoint_rules": ["string"],

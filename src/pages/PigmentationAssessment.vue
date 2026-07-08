@@ -47,6 +47,7 @@
                 { active: store.currentStage === idx, done: idx < store.currentStage },
               ]"
               @click="goToStage(idx)"
+              :disabled="store.isLoading"
             >
               <span class="num">{{ idx + 1 }}</span>
               <span class="lbl">
@@ -75,10 +76,10 @@
             </div>
           </div>
           <div class="nav-btns">
-            <button class="btn" id="backBtn" @click="goBack" v-show="store.currentStage > 0">
+            <button class="btn" id="backBtn" @click="goBack" v-show="store.currentStage > 0" :disabled="store.isLoading">
               ← Back
             </button>
-            <button class="btn btn-primary" id="nextBtn" @click="goNext">
+            <button class="btn btn-primary" id="nextBtn" @click="goNext()" :disabled="store.isLoading">
               {{ store.currentStage === 3 ? 'Done ✓' : 'Continue →' }}
             </button>
           </div>
@@ -157,17 +158,52 @@ const steps = [
 
 const disclaimerText = 'CLINICAL TRIAL PILOT · OPENAI ADVISOR · SYSTEM ACCESSED DIRECTLY'
 
-const goToStage = (idx) => {
-  if (idx === 0) {
-    store.currentStage = 0
-    return
-  }
+const goToStage = async (idx) => {
+  if (store.isLoading) return
+  if (idx === store.currentStage) return
+
   if (idx > store.currentStage) {
-    if (store.currentStage === 0 && idx >= 1) {
-      goNext()
+    if (store.currentStage === 0) {
+      await goNext(idx)
       return
     }
+    if (store.currentStage === 1) {
+      const unanswered = []
+      if (store.dynamicQuestions && store.dynamicQuestions.length > 0) {
+        store.dynamicQuestions.forEach((q) => {
+          const answer = store.dynamicAnswers[q.question_id]
+          if (
+            answer === undefined ||
+            answer === null ||
+            answer === '' ||
+            (Array.isArray(answer) && answer.length === 0)
+          ) {
+            unanswered.push(q.question)
+          }
+        })
+      }
+      if (unanswered.length > 0) {
+        $q.dialog({
+          title: 'Incomplete Assessment',
+          message: `<div style="font-size: 14px; color: #555; margin-bottom: 8px;">Please answer all dynamic follow-up questions first:</div><ul style="padding-left: 20px; font-size: 13px; color: #333; line-height: 1.5; margin: 0;">${unanswered.map(q => `<li style="margin-bottom: 6px;">${q}</li>`).join('')}</ul>`,
+          html: true,
+          ok: { label: 'OK', color: 'primary' }
+        })
+        return
+      }
+    }
+    if (store.currentStage === 2) {
+      if (!store.diagnosis?.confirmedDx) {
+        $q.notify({
+          type: 'warning',
+          message: 'Please confirm the working diagnosis first.',
+          position: 'top'
+        })
+        return
+      }
+    }
   }
+
   if (store.isConnected) {
     store.currentStage = idx
   }
@@ -216,10 +252,18 @@ const finalizeAndExit = () => {
     })
 }
 
-const goNext = async () => {
+const goNext = async (targetIdx = null) => {
+  if (store.isLoading) return
+  if (targetIdx && typeof targetIdx === 'object') {
+    targetIdx = null
+  }
   if (store.currentStage === 0) {
     if (!store.aiAnalysis && !store.formData.fitz) {
-      alert('Please analyze the captures first.')
+      $q.notify({
+        type: 'warning',
+        message: 'Please analyze the captures first.',
+        position: 'top'
+      })
       return
     }
 
@@ -250,7 +294,12 @@ const goNext = async () => {
     })
 
     if (missing.length > 0) {
-      alert(`Please answer the following required fields first: \n- ${missing.join('\n- ')}`)
+      $q.dialog({
+        title: 'Required Fields Missing',
+        message: `<div style="font-size: 14px; color: #555; margin-bottom: 8px;">Please answer the following required fields first:</div><ul style="padding-left: 20px; font-size: 13px; color: #333; line-height: 1.5; margin: 0;">${missing.map(m => `<li style="margin-bottom: 6px;">${m}</li>`).join('')}</ul>`,
+        html: true,
+        ok: { label: 'OK', color: 'primary' }
+      })
       return
     }
 
@@ -262,30 +311,71 @@ const goNext = async () => {
         await store.generateDynamicQuestions()
       }
       await store.updateAssessment()
-      store.currentStage = 1
+      store.currentStage = targetIdx !== null ? targetIdx : 1
     } catch (err) {
-      alert(err.message || 'Failed to generate dynamic questions.')
+      $q.notify({
+        type: 'negative',
+        message: err.message || 'Failed to generate dynamic questions.',
+        position: 'top'
+      })
     } finally {
       store.isLoading = false
       Loading.hide()
     }
   } else if (store.currentStage < 3) {
     try {
-      if (store.currentStage === 2) {
-        if (!store.diagnosis?.confirmedDx) {
-          alert('Please confirm the working diagnosis first.')
+      if (store.currentStage === 1) {
+        const unanswered = []
+        if (store.dynamicQuestions && store.dynamicQuestions.length > 0) {
+          store.dynamicQuestions.forEach((q) => {
+            const answer = store.dynamicAnswers[q.question_id]
+            if (
+              answer === undefined ||
+              answer === null ||
+              answer === '' ||
+              (Array.isArray(answer) && answer.length === 0)
+            ) {
+              unanswered.push(q.question)
+            }
+          })
+        }
+        if (unanswered.length > 0) {
+          $q.dialog({
+            title: 'Incomplete Assessment',
+            message: `<div style="font-size: 14px; color: #555; margin-bottom: 8px;">Please answer all dynamic follow-up questions first:</div><ul style="padding-left: 20px; font-size: 13px; color: #333; line-height: 1.5; margin: 0;">${unanswered.map(q => `<li style="margin-bottom: 6px;">${q}</li>`).join('')}</ul>`,
+            html: true,
+            ok: { label: 'OK', color: 'primary' }
+          })
           return
         }
       }
-      store.currentStage++
+      if (store.currentStage === 2) {
+        if (!store.diagnosis?.confirmedDx) {
+          $q.notify({
+            type: 'warning',
+            message: 'Please confirm the working diagnosis first.',
+            position: 'top'
+          })
+          return
+        }
+      }
+      store.currentStage = targetIdx !== null ? targetIdx : (store.currentStage + 1)
       await store.updateAssessment()
     } catch (err) {
       console.log(err)
-      alert('Failed to save assessment progress.')
+      $q.notify({
+        type: 'negative',
+        message: 'Failed to save assessment progress.',
+        position: 'top'
+      })
     }
   } else {
     if (!store.reviewState.finalized) {
-      alert('Please complete the clinician review and sign-off/finalize the plan first.')
+      $q.notify({
+        type: 'warning',
+        message: 'Please complete the clinician review and sign-off/finalize the plan first.',
+        position: 'top'
+      })
       return
     }
     finalizeAndExit()

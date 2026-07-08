@@ -49,29 +49,100 @@
       <div>
         <!-- primary diagnosis -->
         <div class="pblock">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 10px;
+            "
+          >
             <h3><span class="bar"></span>Differential Diagnoses</h3>
-            <button class="btn btn-primary" @click="runGenerateDx" :disabled="store.isLoading" style="font-size: 12px; padding: 4px 10px;">
+            <button
+              class="btn btn-primary"
+              @click="runGenerateDx"
+              :disabled="store.isLoading"
+              style="font-size: 12px; padding: 4px 10px"
+            >
               ✦ Regenerate Diagnosis
             </button>
           </div>
-          <div class="dx-primary" style="margin-bottom: 10px">
+          <div class="dx-primary" style="margin-bottom: 12px">
             <div>
-              <div class="nm">{{ store.diagnosis.data.differential?.primary?.dx }}</div>
-              <div class="rs">{{ store.diagnosis.data.differential?.primary?.reasoning }}</div>
+              <div class="nm">
+                {{
+                  formatCategoryLabel(
+                    store.diagnosis.data.working_impression?.primary_category ||
+                      store.diagnosis.data.differential?.primary?.dx,
+                  )
+                }}
+              </div>
+              <div class="rs" style="margin-top: 4px">
+                {{
+                  store.diagnosis.data.clinical_summary_for_doctor ||
+                  store.diagnosis.data.differential?.primary?.reasoning
+                }}
+              </div>
             </div>
-            <div class="conf">{{ store.diagnosis.data.differential?.primary?.confidence }}%</div>
+            <div class="conf">
+              {{
+                store.diagnosis.data.working_impression?.primary_confidence_100 ||
+                store.diagnosis.data.differential?.primary?.confidence
+              }}%
+            </div>
           </div>
 
-          <!-- alternatives -->
-          <div v-if="store.diagnosis.data.differential?.alternatives?.length">
+          <!-- alternatives & secondary categories -->
+          <div v-if="store.diagnosis.data.working_impression?.secondary_categories?.length">
+            <div
+              v-for="(sec, idx) in store.diagnosis.data.working_impression.secondary_categories"
+              :key="idx"
+              class="dx-alt q-mb-sm"
+              style="
+                display: block;
+                border-left: 3px solid var(--slate-light);
+                padding-left: 12px;
+                margin-bottom: 12px;
+                border-radius: 0 4px 4px 0;
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-weight: bold;
+                  font-size: 13.5px;
+                  color: #1e293b;
+                "
+              >
+                <span>{{ formatCategoryLabel(sec.category) }}</span>
+                <span style="color: #64748b; font-weight: normal; font-size: 12px"
+                  >{{ sec.confidence_100 }}% confidence</span
+                >
+              </div>
+              <ul
+                style="
+                  margin: 4px 0 0 16px;
+                  padding: 0;
+                  font-size: 12px;
+                  color: #475569;
+                  list-style-type: disc;
+                "
+              >
+                <li v-for="(b, bIdx) in sec.basis" :key="bIdx" style="margin-bottom: 2px">
+                  {{ b }}
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div v-else-if="store.diagnosis.data.differential?.alternatives?.length">
             <div
               v-for="(alt, aIdx) in store.diagnosis.data.differential.alternatives"
               :key="aIdx"
               class="dx-alt"
             >
               <div class="l">
-                <b>{{ alt.dx }}</b>
+                <b>{{ formatCategoryLabel(alt.dx) }}</b>
                 <span v-if="alt.reconsider_when">Reconsider if: {{ alt.reconsider_when }}</span>
               </div>
               <div class="r" style="text-transform: lowercase">{{ alt.likelihood }} likelihood</div>
@@ -121,10 +192,71 @@
         </div>
 
         <!-- scores -->
-        <div class="pblock" v-if="store.diagnosis.data.scores?.length">
+        <div class="pblock">
           <h3><span class="bar"></span>Scores</h3>
-          <div class="scoregrid">
-            <div class="scorecard" v-for="(s, sIdx) in store.diagnosis.data.scores" :key="sIdx">
+          <div
+            class="scoregrid"
+            v-if="store.diagnosis.data.scores && !Array.isArray(store.diagnosis.data.scores)"
+          >
+            <div
+              class="scorecard"
+              v-if="store.diagnosis.data.scores.melanin_load_index !== undefined"
+            >
+              <div class="sl">Melanin Load Index</div>
+              <div class="sv">{{ store.diagnosis.data.scores.melanin_load_index }}</div>
+              <div class="si">Estimated melanin burden</div>
+            </div>
+            <div
+              class="scorecard"
+              v-if="store.diagnosis.data.scores.erythema_load_index !== undefined"
+            >
+              <div class="sl">Erythema Load Index</div>
+              <div class="sv">{{ store.diagnosis.data.scores.erythema_load_index }}</div>
+              <div class="si">Vascular redness indicator</div>
+            </div>
+            <div
+              class="scorecard"
+              v-if="store.diagnosis.data.scores.composition_melanin_percent !== undefined"
+            >
+              <div class="sl">Composition</div>
+              <div class="sv">
+                {{ store.diagnosis.data.scores.composition_melanin_percent }}% /
+                {{ store.diagnosis.data.scores.composition_vascular_percent }}%
+              </div>
+              <div class="si">Melanin / Vascular ratio</div>
+            </div>
+            <div
+              class="scorecard"
+              v-if="store.diagnosis.data.scores.recurrence_risk_index !== undefined"
+            >
+              <div class="sl">Recurrence Risk</div>
+              <div class="sv">{{ store.diagnosis.data.scores.recurrence_risk_index }}</div>
+              <div class="si">Relapse likelihood indicator</div>
+            </div>
+            <div
+              class="scorecard"
+              v-if="store.diagnosis.data.scores.procedure_risk_index !== undefined"
+            >
+              <div class="sl">Procedure Risk</div>
+              <div class="sv">{{ store.diagnosis.data.scores.procedure_risk_index }}</div>
+              <div class="si">Adverse reaction probability</div>
+            </div>
+            <div
+              class="scorecard"
+              v-if="store.diagnosis.data.scores.sunscreen_compliance_index !== undefined"
+            >
+              <div class="sl">Sunscreen Compliance</div>
+              <div class="sv">{{ store.diagnosis.data.scores.sunscreen_compliance_index }}</div>
+              <div class="si">Photoprotection adherence rating</div>
+            </div>
+          </div>
+          <div
+            class="scoregrid"
+            v-else-if="
+              Array.isArray(store.diagnosis.data.scores_list) && store.diagnosis.data.scores_list.length
+            "
+          >
+            <div class="scorecard" v-for="(s, sIdx) in store.diagnosis.data.scores_list" :key="sIdx">
               <div class="sl">
                 {{ s.name }}
                 <span style="text-transform: none; font-weight: 400" v-if="s.scale"
@@ -140,42 +272,388 @@
           </p>
         </div>
 
-        <!-- severity & drivers -->
-        <div class="pblock" v-if="store.diagnosis.data.severity_interpretation">
-          <h3><span class="bar"></span>Severity</h3>
-          <div class="summary-box">{{ store.diagnosis.data.severity_interpretation }}</div>
+        <!-- Key Drivers -->
+        <div
+          class="pblock"
+          v-if="
+            store.diagnosis.data.key_drivers && !Array.isArray(store.diagnosis.data.key_drivers)
+          "
+        >
+          <h3><span class="bar"></span>Key Drivers</h3>
+          <div
+            class="drivers-container"
+            style="display: grid; grid-template-columns: 1fr; gap: 12px"
+          >
+            <div
+              v-for="(driverData, driverKey) in store.diagnosis.data.key_drivers"
+              :key="driverKey"
+              class="driver-card q-pa-md"
+              style="border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc"
+            >
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 6px;
+                "
+              >
+                <b style="font-size: 13.5px; color: #1e293b">{{
+                  formatCategoryLabel(driverKey)
+                }}</b>
+                <div>
+                  <span
+                    class="status-badge"
+                    style="
+                      font-size: 10px;
+                      margin-right: 6px;
+                      padding: 2px 6px;
+                      background: #f1f5f9;
+                      color: #475569;
+                    "
+                  >
+                    Likelihood: {{ cap(driverData.likelihood) }}
+                  </span>
+                  <span style="font-size: 11.5px; color: #64748b"
+                    >{{ driverData.confidence_100 }}% confidence</span
+                  >
+                </div>
+              </div>
+              <ul
+                style="
+                  margin: 4px 0 0 16px;
+                  padding: 0;
+                  font-size: 12px;
+                  color: #475569;
+                  list-style-type: disc;
+                "
+              >
+                <li v-for="(b, bIdx) in driverData.basis" :key="bIdx" style="margin-bottom: 2px">
+                  {{ b }}
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
-
-        <div class="pblock" v-if="store.diagnosis.data.key_drivers?.length">
+        <div
+          class="pblock"
+          v-else-if="
+            Array.isArray(store.diagnosis.data.key_drivers) &&
+            store.diagnosis.data.key_drivers.length
+          "
+        >
           <h3><span class="bar"></span>Key drivers</h3>
           <div class="summary-box">
             {{ store.diagnosis.data.key_drivers.join(' · ') }}
           </div>
         </div>
 
-        <!-- red flags -->
-        <div class="pblock" v-if="store.diagnosis.data.red_flags?.present">
-          <div class="redflag">
-            <span class="ic">!</span>
-            <div class="bd">
-              <b>RED FLAGS PRESENT:</b> {{ store.diagnosis.data.red_flags.items?.join('; ') }}
-              <div style="margin-top: 4px">
-                <b>Action advised:</b> {{ store.diagnosis.data.red_flags.action }}
+        <!-- Clinical Activity & Risk Profile -->
+        <div
+          class="pblock"
+          v-if="store.diagnosis.data.clinical_activity || store.diagnosis.data.risk_profile"
+        >
+          <div class="twin">
+            <!-- Clinical Activity -->
+            <div class="vbox" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 14px">
+              <div class="lab" style="font-weight: bold; font-size: 11.5px">Clinical Activity</div>
+              <div style="margin-top: 8px">
+                <div
+                  style="
+                    font-size: 13px;
+                    margin-bottom: 8px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                  "
+                >
+                  <b>Stability Status:</b>
+                  <span
+                    class="status-badge"
+                    style="
+                      font-weight: bold;
+                      background: #e3f2fd;
+                      color: #1565c0;
+                      padding: 2px 6px;
+                      font-size: 11px;
+                    "
+                  >
+                    {{ cap(store.diagnosis.data.clinical_activity?.stability_status || 'unknown') }}
+                  </span>
+                </div>
+                <div
+                  style="
+                    font-size: 12px;
+                    margin-bottom: 6px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    justify-content: space-between;
+                  "
+                >
+                  <span>Acne Driver:</span>
+                  <span
+                    :class="[
+                      'status-badge',
+                      store.diagnosis.data.clinical_activity?.active_acne_driver
+                        ? 'danger'
+                        : 'safe',
+                    ]"
+                    style="padding: 1px 6px; font-size: 10px; font-weight: bold"
+                  >
+                    {{
+                      store.diagnosis.data.clinical_activity?.active_acne_driver ? 'ACTIVE' : 'NONE'
+                    }}
+                  </span>
+                </div>
+                <div
+                  style="
+                    font-size: 12px;
+                    margin-bottom: 6px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    justify-content: space-between;
+                  "
+                >
+                  <span>Inflammation Control:</span>
+                  <span
+                    :class="[
+                      'status-badge',
+                      store.diagnosis.data.clinical_activity?.inflammation_first_required
+                        ? 'warn'
+                        : 'safe',
+                    ]"
+                    style="padding: 1px 6px; font-size: 10px; font-weight: bold"
+                  >
+                    {{
+                      store.diagnosis.data.clinical_activity?.inflammation_first_required
+                        ? 'REQUIRED'
+                        : 'NO'
+                    }}
+                  </span>
+                </div>
+                <div
+                  style="
+                    font-size: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    justify-content: space-between;
+                  "
+                >
+                  <span>Barrier Repair First:</span>
+                  <span
+                    :class="[
+                      'status-badge',
+                      store.diagnosis.data.clinical_activity?.barrier_repair_first_required
+                        ? 'warn'
+                        : 'safe',
+                    ]"
+                    style="padding: 1px 6px; font-size: 10px; font-weight: bold"
+                  >
+                    {{
+                      store.diagnosis.data.clinical_activity?.barrier_repair_first_required
+                        ? 'REQUIRED'
+                        : 'NO'
+                    }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Risk Profile -->
+            <div class="vbox" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 14px">
+              <div class="lab" style="font-weight: bold; font-size: 11.5px">Risk Profile</div>
+              <div style="margin-top: 8px; font-size: 12px; line-height: 1.6">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px">
+                  <b>Recurrence:</b>
+                  <span>{{
+                    cap(store.diagnosis.data.risk_profile?.recurrence_risk || 'moderate')
+                  }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px">
+                  <b>Procedure Risk:</b>
+                  <span>{{
+                    cap(store.diagnosis.data.risk_profile?.procedure_risk || 'moderate')
+                  }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px">
+                  <b>Sunscreen compliance:</b>
+                  <span>{{
+                    cap(store.diagnosis.data.risk_profile?.sunscreen_compliance_risk || 'moderate')
+                  }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px">
+                  <b>PIH Risk:</b>
+                  <span>{{
+                    formatCategoryLabel(store.diagnosis.data.risk_profile?.pih_risk || 'moderate')
+                  }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between">
+                  <b>Red flag lesion risk:</b>
+                  <span>{{
+                    cap(store.diagnosis.data.risk_profile?.red_flag_lesion_risk || 'low')
+                  }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- uncertainties -->
-        <div class="pblock" v-if="store.diagnosis.data.uncertainties?.length">
+        <!-- mMASI Assessment -->
+        <div class="pblock" v-if="store.diagnosis.data.mmasi">
+          <h3><span class="bar"></span>mMASI Assessment</h3>
+          <div
+            v-if="store.diagnosis.data.mmasi.applicable"
+            class="summary-box"
+            style="
+              border-left: 3px solid var(--primary);
+              padding: 12px;
+              background: #f0fdf4;
+              color: #166534;
+              font-size: 13px;
+            "
+          >
+            <b>mMASI Total Score:</b> {{ store.diagnosis.data.mmasi.score_0_24 }}/24 (Confidence:
+            {{ store.diagnosis.data.mmasi.confidence_100 }}%)
+          </div>
+          <div
+            v-else
+            class="summary-box"
+            style="
+              font-style: italic;
+              color: #64748b;
+              font-size: 12px;
+              background: #f8fafc;
+              border: 1px dashed #cbd5e1;
+              padding: 12px;
+            "
+          >
+            <b>Not Applicable:</b> {{ store.diagnosis.data.mmasi.reason }}
+          </div>
+        </div>
+
+        <!-- Withhold Treatment Areas -->
+        <div
+          class="pblock"
+          v-if="store.diagnosis.data.localized_restrictions?.do_not_treat_lesions?.length"
+        >
+          <h3><span class="bar" style="background: #ef4444"></span>Withhold Treatment Areas</h3>
+          <div
+            class="redflag"
+            style="
+              display: block;
+              padding: 14px;
+              background: #fef2f2;
+              border: 1px solid #fee2e2;
+              color: #991b1b;
+              margin-bottom: 12px;
+              border-radius: 6px;
+            "
+          >
+            <div
+              v-for="lesion in store.diagnosis.data.localized_restrictions.do_not_treat_lesions"
+              :key="lesion.lesion_id"
+              style="margin-bottom: 10px"
+            >
+              <strong style="font-size: 13px"
+                >⚠️ {{ lesion.lesion_id }} (Region:
+                {{ formatCategoryLabel(lesion.region) }})</strong
+              >
+              <div style="font-size: 12px; margin-top: 3px; color: #7f1d1d; opacity: 0.9">
+                <em>Location description:</em> {{ lesion.subregion_description }}
+              </div>
+              <div
+                style="
+                  font-weight: bold;
+                  font-size: 11.5px;
+                  margin-top: 3px;
+                  text-transform: uppercase;
+                  color: #b91c1c;
+                "
+              >
+                Restriction details: {{ formatCategoryLabel(lesion.reason) }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Local Modifiers & Implications -->
+        <div
+          class="pblock"
+          v-if="store.diagnosis.data.localized_restrictions?.local_modifiers?.length"
+        >
+          <h3><span class="bar"></span>Local Modifiers &amp; Implications</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+            <div
+              v-for="(mod, modIdx) in store.diagnosis.data.localized_restrictions.local_modifiers"
+              :key="modIdx"
+              style="
+                padding: 10px;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                background: #ffffff;
+                font-size: 12px;
+              "
+            >
+              <strong style="color: #1e293b">{{ formatCategoryLabel(mod.region) }}</strong>
+              <span
+                class="status-badge"
+                style="
+                  font-size: 9px;
+                  margin-left: 6px;
+                  padding: 1px 4px;
+                  background: #f1f5f9;
+                  color: #475569;
+                "
+              >
+                Type: {{ formatCategoryLabel(mod.modifier_type) }}
+              </span>
+              <div style="margin-top: 6px; color: #475569; line-height: 1.4">
+                {{ mod.treatment_implication }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clinical Summary Callout -->
+        <div
+          class="pblock"
+          v-if="
+            store.diagnosis.data.clinical_summary_for_doctor ||
+            store.diagnosis.data.working_impression?.doctor_review_reason
+          "
+        >
           <h3>
-            <span class="bar" style="background: var(--amber)"></span>Uncertainties &amp; gaps
+            <span class="bar" style="background: var(--amber)"></span>Clinical Summary for Doctor
           </h3>
-          <ul class="ulist">
-            <li v-for="(u, uIdx) in store.diagnosis.data.uncertainties" :key="uIdx">
-              {{ u }}
-            </li>
-          </ul>
+          <div
+            class="summary-box"
+            style="
+              margin-bottom: 12px;
+              font-size: 13px;
+              line-height: 1.5;
+              color: #334155;
+              padding: 14px;
+              background: #fafafa;
+              border-radius: 6px;
+              border: 1px solid #e2e8f0;
+            "
+          >
+            {{ store.diagnosis.data.clinical_summary_for_doctor }}
+          </div>
+          <div
+            v-if="store.diagnosis.data.working_impression?.doctor_review_reason"
+            class="redflag"
+            style="margin-top: 8px"
+          >
+            <span class="ic">!</span>
+            <div class="bd">
+              <b>Doctor Review Required:</b>
+              {{ store.diagnosis.data.working_impression.doctor_review_reason }}
+            </div>
+          </div>
         </div>
 
         <!-- confirmed working dx selection -->
@@ -242,7 +720,9 @@ onMounted(async () => {
   }
 })
 const validationError = ref('')
-const selectedDxChoice = ref(store.diagnosis?.confirmedDx || store.diagnosis?.data?.differential?.primary?.dx || '')
+const selectedDxChoice = ref(
+  store.diagnosis?.confirmedDx || store.diagnosis?.data?.differential?.primary?.dx || '',
+)
 const customDxValue = ref('')
 
 const runGenerateDx = async () => {
@@ -275,8 +755,6 @@ const runGenerateDx = async () => {
   }
 }
 
-
-
 const formatCategoryLabel = (val) => {
   if (!val) return ''
   return val
@@ -297,10 +775,10 @@ const dxSelectOptions = computed(() => {
     list.push({ value: primary, label: formatCategoryLabel(primary) })
   }
   secondaries.forEach((sec) => {
-    const categoryName = typeof sec === 'object' && sec ? (sec.category || '') : String(sec || '')
+    const categoryName = typeof sec === 'object' && sec ? sec.category || '' : String(sec || '')
     // Strip any severity prefix from secondary categories to match allowed values if necessary
     const cleanedSec = categoryName.replace(/^(mild|moderate|severe)_/, '')
-    if (cleanedSec && cleanedSec !== primary && !list.some(i => i.value === cleanedSec)) {
+    if (cleanedSec && cleanedSec !== primary && !list.some((i) => i.value === cleanedSec)) {
       list.push({ value: cleanedSec, label: formatCategoryLabel(categoryName) })
     }
   })
@@ -316,11 +794,11 @@ const dxSelectOptions = computed(() => {
     'frictional_body_fold_pigmentation',
     'isolated_spot_doctor_review',
     'active_inflammatory_pigmentation',
-    'unclear_doctor_review'
+    'unclear_doctor_review',
   ]
 
   allCategories.forEach((cat) => {
-    if (cat !== primary && !list.some(i => i.value === cat)) {
+    if (cat !== primary && !list.some((i) => i.value === cat)) {
       list.push({ value: cat, label: formatCategoryLabel(cat) })
     }
   })

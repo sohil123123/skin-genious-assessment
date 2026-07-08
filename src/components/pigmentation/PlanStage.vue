@@ -309,15 +309,10 @@
             <table class="clinic-table">
               <thead>
                 <tr>
-                  <th>Wavelength</th>
-                  <th>Energy</th>
-                  <th>Fluence</th>
-                  <th>Freq</th>
-                  <th>Passes</th>
-                  <th class="text-center">Efficacy</th>
-                  <th class="text-center">Safety</th>
-                  <th class="text-center">Overall</th>
-                  <th>Rationale</th>
+                  <th style="min-width: 140px;">Laser Settings</th>
+                  <th style="min-width: 130px;">Scores</th>
+                  <th>Scope &amp; Regions</th>
+                  <th style="max-width: 320px;">Rationale</th>
                 </tr>
               </thead>
               <tbody>
@@ -326,22 +321,53 @@
                   :key="idx"
                 >
                   <td>
-                    <b>{{ cand.wavelength_nm }} nm</b>
+                    <div style="font-weight: bold; font-size: 13px; color: #0f172a;">{{ cand.wavelength_nm }} nm</div>
+                    <div style="font-size: 11.5px; color: #475569; margin-top: 4px;">
+                      {{ cand.energy_mj }} mJ • {{ cand.fluence_j_cm2 }} J/cm²
+                    </div>
+                    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                      {{ cand.frequency_hz }} Hz • {{ cand.passes }} {{ cand.passes > 1 ? 'passes' : 'pass' }}
+                    </div>
                   </td>
-                  <td>{{ cand.energy_mj }} mJ</td>
-                  <td>{{ cand.fluence_j_cm2 }} J/cm²</td>
-                  <td>{{ cand.frequency_hz }} Hz</td>
-                  <td>{{ cand.passes }}</td>
-                  <td class="text-center">
-                    <span class="score-pill good">{{ cand.efficacy_score_100 }}/100</span>
+                  <td>
+                    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px;">
+                      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <span>Efficacy:</span>
+                        <span class="score-pill good" style="font-size: 10px; padding: 1px 4px;">{{ cand.efficacy_score_100 }}/100</span>
+                      </div>
+                      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <span>Safety:</span>
+                        <span class="score-pill safe" style="font-size: 10px; padding: 1px 4px;">{{ cand.safety_score_100 }}/100</span>
+                      </div>
+                      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: bold;">
+                        <span>Overall:</span>
+                        <span class="score-pill overall" style="font-size: 10px; padding: 1px 4px;">{{ cand.overall_score_100 }}/100</span>
+                      </div>
+                    </div>
                   </td>
-                  <td class="text-center">
-                    <span class="score-pill safe">{{ cand.safety_score_100 }}/100</span>
+                  <td>
+                    <div style="font-size: 12px; margin-bottom: 4px;">
+                      <b>Scope:</b> <span class="status-badge" style="font-size: 10px; padding: 2px 4px; background: rgba(var(--slate-rgb), 0.1); font-weight: bold;">{{ formatLabel(cand.treatment_scope) }}</span>
+                    </div>
+                    <div v-if="cand.eligible_regions?.length" style="font-size: 11px; margin-bottom: 4px; color: #475569;">
+                      <b>Eligible:</b> {{ cand.eligible_regions.map(formatLabel).join(', ') }}
+                    </div>
+                    <div v-if="cand.best_use_regions?.length" style="font-size: 11px; margin-bottom: 4px;">
+                      <b style="color: #2e7d32;">Best Use:</b>
+                      <div v-for="bu in cand.best_use_regions" :key="bu.region" style="margin-left: 6px; color: #37474f; font-size: 10.5px;">
+                        • {{ formatLabel(bu.region) }}{{ bu.subregion ? ' (' + bu.subregion + ')' : '' }}: {{ bu.reason }}
+                      </div>
+                    </div>
+                    <div v-if="cand.avoid_regions?.length" style="font-size: 11px;">
+                      <b style="color: #c62828;">Avoid:</b>
+                      <div v-for="ar in cand.avoid_regions" :key="ar.region" style="margin-left: 6px; color: #37474f; font-size: 10.5px;">
+                        • {{ formatLabel(ar.region) }}: {{ ar.reason }}
+                      </div>
+                    </div>
                   </td>
-                  <td class="text-center">
-                    <span class="score-pill overall">{{ cand.overall_score_100 }}/100</span>
+                  <td class="rationale-col" style="max-width: 320px; white-space: normal; font-size: 11.5px; line-height: 1.4; color: #334155;">
+                    {{ cand.rationale || cand.reason }}
                   </td>
-                  <td class="rationale-col">{{ cand.reason }}</td>
                 </tr>
               </tbody>
             </table>
@@ -570,7 +596,7 @@
                       <thead>
                         <tr>
                           <th>Seq</th>
-                          <th>Zone</th>
+                          <th style="min-width: 140px;">Zone</th>
                           <th>Settings</th>
                           <th>Coverage Instruction</th>
                           <th>Endpoint Target</th>
@@ -582,19 +608,130 @@
                             <b>#{{ z.order }}</b>
                           </td>
                           <td>
-                            <div class="z-name">{{ formatLabel(z.zone) }}</div>
-                            <div class="z-reason">{{ z.reason }}</div>
+                            <div class="z-name" style="font-weight: bold; font-size: 13.5px; color: #0f172a;">{{ formatLabel(z.zone) }}</div>
+                            <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
+                              <span v-if="z.zone_strategy_type" class="status-badge" :style="getStrategyBadgeStyle(z.zone_strategy_type)">
+                                {{ formatLabel(z.zone_strategy_type) }}
+                              </span>
+                              <div v-if="z.why_this_zone_strategy" style="font-size: 11px; color: #475569; font-style: italic; line-height: 1.3;">
+                                {{ z.why_this_zone_strategy }}
+                              </div>
+                              <div v-else-if="z.reason" class="z-reason" style="font-size: 11px; color: #64748b;">
+                                {{ z.reason }}
+                              </div>
+                            </div>
                           </td>
-                          <td>
-                            <div class="z-settings" v-if="z.settings">
+                          <td style="font-size: 11.5px; line-height: 1.45;">
+                            <!-- Old format fallback -->
+                            <div v-if="z.settings" class="z-settings" style="color: #334155;">
                               {{ z.settings.wavelength_nm }}nm | {{ z.settings.energy_mj }}mJ |
                               {{ z.settings.fluence_j_cm2 }} J/cm² | {{ z.settings.frequency_hz }}Hz
                               | {{ z.settings.passes }} passes
                             </div>
+
+                            <!-- New format strategies -->
+                            <div v-else style="display: flex; flex-direction: column; gap: 6px;">
+                              <!-- Deferred Zone -->
+                              <div v-if="z.zone_strategy_type === 'defer_zone'" style="color: #c62828; font-weight: bold;">
+                                ⛔ Treatment Deferred / Avoided
+                                <div v-if="z.avoid_zone_instruction" style="font-size: 11px; margin-top: 2px; font-weight: normal; color: #37474f;">
+                                  Instruction: {{ z.avoid_zone_instruction }}
+                                </div>
+                              </div>
+
+                              <!-- Base Zone Setting -->
+                              <div v-if="z.base_zone_setting && (z.base_zone_setting.selected || z.zone_strategy_type === 'base_global_toning')" style="border-left: 2.5px solid #1976d2; padding-left: 6px;">
+                                <span style="font-weight: bold; color: #1565c0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.02em;">Global Toning:</span>
+                                <div style="margin-top: 1px; color: #334155;">
+                                  {{ z.base_zone_setting.wavelength_nm }}nm • {{ z.base_zone_setting.energy_mj }}mJ • {{ z.base_zone_setting.fluence_j_cm2 }} J/cm² • {{ z.base_zone_setting.passes }} passes ({{ z.base_zone_setting.frequency_hz }}Hz)
+                                </div>
+                              </div>
+
+                              <!-- Regional Override Setting -->
+                              <div v-if="z.regional_override_setting && z.regional_override_setting.selected" style="border-left: 2.5px solid #ef6c00; padding-left: 6px;">
+                                <span style="font-weight: bold; color: #e65100; font-size: 10px; text-transform: uppercase; letter-spacing: 0.02em;">Regional Override:</span>
+                                <div style="margin-top: 1px; color: #334155;">
+                                  {{ z.regional_override_setting.wavelength_nm }}nm • {{ z.regional_override_setting.energy_mj }}mJ • {{ z.regional_override_setting.fluence_j_cm2 }} J/cm² • {{ z.regional_override_setting.passes }} passes
+                                </div>
+                                <div v-if="z.regional_override_setting.selection_reason" style="font-size: 10.5px; font-style: italic; color: #64748b; margin-top: 2px;">
+                                  Reason: {{ z.regional_override_setting.selection_reason }}
+                                </div>
+                              </div>
+
+                              <!-- Spot Only Overrides -->
+                              <div v-if="z.spot_only_overrides && z.spot_only_overrides.some(s => s.selected || (s.wavelength_nm && s.wavelength_nm !== 532))" style="border-left: 2.5px solid #2e7d32; padding-left: 6px;">
+                                <span style="font-weight: bold; color: #1b5e20; font-size: 10px; text-transform: uppercase; letter-spacing: 0.02em;">Spot Overrides:</span>
+                                <div v-for="(spot, sidx) in z.spot_only_overrides" :key="sidx" style="margin-top: 2px; color: #334155;">
+                                  <div v-if="spot.selected || spot.wavelength_nm !== 532">
+                                    Subregion: <b>{{ spot.subregion }}</b> ({{ spot.target_description }})
+                                    <div>
+                                      {{ spot.wavelength_nm }}nm • {{ spot.energy_mj }}mJ • {{ spot.fluence_j_cm2 }} J/cm² • {{ spot.passes }} passes ({{ spot.frequency_hz }}Hz)
+                                      <span v-if="spot.doctor_visual_review_required" style="color: #c62828; font-weight: bold; font-size: 9.5px; margin-left: 4px;">[REVIEW REQ]</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <!-- Excluded Subregions / Margins -->
+                              <div v-if="z.excluded_subregions?.length" style="border-left: 2.5px solid #d32f2f; padding-left: 6px; background: #fff5f5; padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
+                                <span style="font-weight: bold; color: #c62828; font-size: 10px; text-transform: uppercase; letter-spacing: 0.02em;">Exclusions &amp; Margins:</span>
+                                <div v-for="(ex, eidx) in z.excluded_subregions" :key="eidx" style="font-size: 10.5px; margin-top: 2px; color: #b71c1c;">
+                                  • <b>{{ ex.subregion }}</b>: {{ ex.reason }}
+                                </div>
+                              </div>
+                            </div>
                           </td>
-                          <td class="text-caption">{{ z.coverage_instruction }}</td>
-                          <td>
-                            <b>{{ formatLabel(z.endpoint) }}</b>
+                          <td style="font-size: 11.5px; color: #334155; line-height: 1.45;">
+                            <!-- Old format fallback -->
+                            <div v-if="z.coverage_instruction">{{ z.coverage_instruction }}</div>
+
+                            <!-- New format -->
+                            <div v-else>
+                              <div v-if="z.zone_strategy_type === 'defer_zone'">
+                                {{ z.avoid_zone_instruction || 'Deferred' }}
+                              </div>
+                              <div v-else>
+                                <div v-if="z.base_zone_setting?.selected || z.zone_strategy_type === 'base_global_toning'" style="margin-bottom: 4px;">
+                                  Global: {{ z.base_zone_setting.coverage_instruction || 'Standard full-zone passes' }}
+                                </div>
+                                <div v-if="z.regional_override_setting?.selected" style="margin-bottom: 4px;">
+                                  Override: {{ z.regional_override_setting.coverage_instruction }}
+                                </div>
+                                <div v-if="z.spot_only_overrides?.length">
+                                  <div v-for="(spot, sidx) in z.spot_only_overrides" :key="sidx">
+                                    <span v-if="spot.selected || spot.wavelength_nm !== 532" style="display: block; font-size: 11px;">
+                                      Spot ({{ spot.subregion }}): {{ spot.coverage_instruction }}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td style="font-size: 11.5px; color: #0f172a;">
+                            <!-- Old format fallback -->
+                            <div v-if="z.endpoint"><b>{{ formatLabel(z.endpoint) }}</b></div>
+
+                            <!-- New format -->
+                            <div v-else>
+                              <div v-if="z.zone_strategy_type === 'defer_zone'">
+                                N/A
+                              </div>
+                              <div v-else>
+                                <div v-if="z.base_zone_setting?.selected || z.zone_strategy_type === 'base_global_toning'">
+                                  Global: <b>{{ formatLabel(z.base_zone_setting.endpoint) }}</b>
+                                </div>
+                                <div v-if="z.regional_override_setting?.selected" style="margin-top: 2px;">
+                                  Override: <b>{{ formatLabel(z.regional_override_setting.endpoint) }}</b>
+                                </div>
+                                <div v-if="z.spot_only_overrides?.length" style="margin-top: 2px;">
+                                  <div v-for="(spot, sidx) in z.spot_only_overrides" :key="sidx">
+                                    <span v-if="(spot.selected || spot.wavelength_nm !== 532) && spot.endpoint !== 'N/A'" style="display: block; font-size: 11px;">
+                                      Spot ({{ spot.subregion }}): <b>{{ formatLabel(spot.endpoint) }}</b>
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </td>
                         </tr>
                       </tbody>
@@ -612,9 +749,18 @@
                     class="az-row"
                     v-for="az in session.provider_protocol.avoid_zones"
                     :key="az.zone"
+                    style="margin-bottom: 8px"
                   >
                     <span class="az-zone">{{ formatLabel(az.zone) }}:</span>
-                    <span class="az-reason">{{ az.reason }}</span>
+                    <span class="az-reason">
+                      {{ az.reason }}
+                      <span
+                        v-if="az.zone_defination"
+                        style="display: block; font-size: 12px; color: var(--slate); margin-top: 4px; font-style: italic;"
+                      >
+                        ({{ az.zone_defination }})
+                      </span>
+                    </span>
                   </div>
                 </div>
 
@@ -1085,6 +1231,19 @@ const formatLabel = (str) => {
   if (!str) return '—'
   if (typeof str !== 'string') return String(str)
   return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+const getStrategyBadgeStyle = (type) => {
+  const t = String(type || '').toLowerCase()
+  if (t === 'defer_zone') {
+    return 'font-size: 10px; padding: 2px 6px; background: #ffebee; color: #c62828; font-weight: bold; border-radius: 4px;'
+  } else if (t.includes('global') || t.includes('base')) {
+    return 'font-size: 10px; padding: 2px 6px; background: #e3f2fd; color: #1565c0; font-weight: bold; border-radius: 4px;'
+  } else if (t.includes('spot')) {
+    return 'font-size: 10px; padding: 2px 6px; background: #e8f5e9; color: #2e7d32; font-weight: bold; border-radius: 4px;'
+  } else {
+    return 'font-size: 10px; padding: 2px 6px; background: #fff3e0; color: #ef6c00; font-weight: bold; border-radius: 4px;'
+  }
 }
 
 const resetPlan = async () => {

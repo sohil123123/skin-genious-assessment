@@ -450,6 +450,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { Notify } from 'quasar'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
 
 const store = usePigmentationStore()
@@ -712,14 +713,42 @@ const runAnalysis = async () => {
   if (!store.attachedImages.some(img => img.mode === 'white')) {
     statusMsg.value = 'Attach a white light image at minimum.'
     statusType.value = 'error'
+    Notify.create({
+      type: 'warning',
+      message: 'Attach a white light image at minimum.',
+      position: 'top'
+    })
     return
   }
 
+  const dismissNotify = Notify.create({
+    group: false,
+    timeout: 0,
+    spinner: true,
+    message: 'Analysing captures with skin-AI...',
+    color: 'primary',
+    position: 'top'
+  })
+
   try {
     await store.analyseCaptures()
+    dismissNotify()
+    Notify.create({
+      type: 'positive',
+      message: 'AI capture analysis completed successfully!',
+      position: 'top',
+      timeout: 3000
+    })
   } catch (err) {
+    dismissNotify()
     statusType.value = 'error'
     statusMsg.value = (err.message || 'Analysis failed.') + ' Retry, or continue and enter the readings by hand.'
+    Notify.create({
+      type: 'negative',
+      message: err.message || 'Analysis failed. Click retry, or enter the readings by hand.',
+      position: 'top',
+      timeout: 5000
+    })
   }
 }
 
