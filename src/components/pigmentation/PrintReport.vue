@@ -59,9 +59,9 @@
     </div>
 
     <!-- Scores -->
-    <div class="row" v-for="(s, sIdx) in store.diagnosis?.data?.scores" :key="sIdx">
+    <div class="row" v-for="(s, sIdx) in (store.diagnosis?.data?.scores_list || store.diagnosis?.data?.scores)" :key="sIdx">
       <span class="k"
-        >{{ s.name }} <span v-if="s.scale">({{ s.scale }})</span></span
+        >{{ s.name || sIdx }} <span v-if="s.scale">({{ s.scale }})</span></span
       >
       <span>
         {{ s.value !== null && s.value !== '' ? s.value : '—' }}
@@ -248,7 +248,7 @@
             </div>
           </div>
           <div v-if="session.provider_protocol.avoid_zones?.length" style="margin-left: 6px; margin-top: 2px; color: #a22;">
-            <u>Zones to Avoid:</u> <span v-for="az in session.provider_protocol.avoid_zones" :key="az.zone">{{ formatLabel(az.zone) }} ({{ az.reason }}); </span>
+            <u>Zones to Avoid:</u> <span v-for="az in session.provider_protocol.avoid_zones" :key="az.zone">{{ formatLabel(az.zone) }} (Reason: {{ az.reason }}{{ az.zone_defination ? ' - ' + az.zone_defination : '' }}); </span>
           </div>
           <div v-if="session.provider_protocol.endpoint_rules?.length" style="margin-left: 6px; margin-top: 2px;">
             <u>Stop/Safety rules:</u> {{ session.provider_protocol.endpoint_rules.join('; ') }}

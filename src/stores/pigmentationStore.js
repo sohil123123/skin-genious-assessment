@@ -162,7 +162,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
           const pi = data.pigmentation_inputs
           if (pi.formData) this.formData = { ...this.formData, ...pi.formData }
           if (pi.fixedHistory) this.fixedHistory = { ...this.fixedHistory, ...pi.fixedHistory }
-          if (pi.dynamicAnswers) this.dynamicAnswers = { ...this.dynamicAnswers, ...pi.dynamicAnswers }
+          if (pi.dynamicAnswers)
+            this.dynamicAnswers = { ...this.dynamicAnswers, ...pi.dynamicAnswers }
           if (pi.safety) this.safety = { ...this.safety, ...pi.safety }
           if (pi.redFlags) this.redFlags = pi.redFlags || []
           if (pi.goals) this.goals = pi.goals || []
@@ -193,16 +194,71 @@ export const usePigmentationStore = defineStore('pigmentation', {
           }
         }
 
+        // Auto-repair diagnosis scores if empty/array
+        if (this.diagnosis && this.diagnosis.data) {
+          const diagObj = this.diagnosis.data
+          if (!diagObj.scores || Array.isArray(diagObj.scores)) {
+            const list = Array.isArray(diagObj.scores) ? diagObj.scores : diagObj.scores_list || []
+            diagObj.scores_list = list
+            const obj = {}
+            list.forEach((s) => {
+              const nameLower = String(s.name || '').toLowerCase()
+              let key = ''
+              if (nameLower.includes('melanin')) key = 'melanin_load_index'
+              else if (nameLower.includes('erythema')) key = 'erythema_load_index'
+              else if (nameLower.includes('recurrence')) key = 'recurrence_risk_index'
+              else if (nameLower.includes('procedure')) key = 'procedure_risk_index'
+              else if (nameLower.includes('sunscreen')) key = 'sunscreen_compliance_index'
+              else if (nameLower.includes('confidence')) key = 'diagnosis_confidence_index'
+              else key = nameLower.replace(/ /g, '_').replace(/_score$/, '_index')
+
+              if (key) {
+                obj[key] = parseInt(s.value) || 0
+              }
+            })
+            // If the object is empty (because list was empty), try to rebuild from other keys/defaults
+            if (Object.keys(obj).length === 0) {
+              obj.melanin_load_index = parseInt(this.formData.mel) || 50
+              obj.erythema_load_index = parseInt(this.formData.ery) || 20
+              obj.composition_melanin_percent =
+                this.formData.comp === 'melanin' ? 70 : this.formData.comp === 'vascular' ? 30 : 50
+              obj.composition_vascular_percent = 100 - obj.composition_melanin_percent
+              obj.recurrence_risk_index = 50
+              obj.procedure_risk_index = 30
+              obj.sunscreen_compliance_index = 50
+              obj.diagnosis_confidence_index =
+                diagObj.working_impression?.primary_confidence_100 || 80
+            }
+            // Always set composition percentages
+            if (obj.composition_melanin_percent === undefined) {
+              obj.composition_melanin_percent =
+                this.formData.comp === 'melanin' ? 70 : this.formData.comp === 'vascular' ? 30 : 50
+              obj.composition_vascular_percent = 100 - obj.composition_melanin_percent
+            }
+            diagObj.scores = obj
+          }
+        }
+
         if (data.recommended_full_plan && !this.lastPlan) {
           this.lastPlan = data.recommended_full_plan
         }
 
         // Fallback: reconstruct lastPlan from treatment_sessions if not retrieved yet
-        if (!this.lastPlan && data.treatment_sessions && Array.isArray(data.treatment_sessions.treatments) && data.treatment_sessions.treatments.length > 0) {
+        if (
+          !this.lastPlan &&
+          data.treatment_sessions &&
+          Array.isArray(data.treatment_sessions.treatments) &&
+          data.treatment_sessions.treatments.length > 0
+        ) {
           const sessions = data.treatment_sessions.treatments.map((t) => {
             const selected_modalities = []
             const titleLower = String(t.title || '').toLowerCase()
-            if (titleLower.includes('q_switch') || titleLower.includes('laser') || titleLower.includes('toning')) selected_modalities.push('q_switch')
+            if (
+              titleLower.includes('q_switch') ||
+              titleLower.includes('laser') ||
+              titleLower.includes('toning')
+            )
+              selected_modalities.push('q_switch')
             if (titleLower.includes('peel')) selected_modalities.push('peel')
             if (titleLower.includes('microneedling')) selected_modalities.push('microneedling')
             if (titleLower.includes('led')) selected_modalities.push('led')
@@ -211,23 +267,40 @@ export const usePigmentationStore = defineStore('pigmentation', {
             const night = []
             const avoid = []
             if (Array.isArray(t.daily_home_care_routine)) {
-              t.daily_home_care_routine.forEach(line => {
+              t.daily_home_care_routine.forEach((line) => {
                 const cleanLine = String(line || '')
                 if (cleanLine.startsWith('Morning:')) {
-                  morning.push(...cleanLine.replace('Morning:', '').split(',').map(s => s.trim()))
+                  morning.push(
+                    ...cleanLine
+                      .replace('Morning:', '')
+                      .split(',')
+                      .map((s) => s.trim()),
+                  )
                 } else if (cleanLine.startsWith('Night:')) {
-                  night.push(...cleanLine.replace('Night:', '').split(',').map(s => s.trim()))
+                  night.push(
+                    ...cleanLine
+                      .replace('Night:', '')
+                      .split(',')
+                      .map((s) => s.trim()),
+                  )
                 } else if (cleanLine.startsWith('Avoid:')) {
-                  avoid.push(...cleanLine.replace('Avoid:', '').split(',').map(s => s.trim()))
+                  avoid.push(
+                    ...cleanLine
+                      .replace('Avoid:', '')
+                      .split(',')
+                      .map((s) => s.trim()),
+                  )
                 }
               })
             }
 
             const fixed_protocol = {
-              homecare: { morning, night, avoid }
+              homecare: { morning, night, avoid },
             }
 
-            const qsChecklist = t.preparations_checklist_for_therapist?.find(line => line.includes('Laser:'))
+            const qsChecklist = t.preparations_checklist_for_therapist?.find((line) =>
+              line.includes('Laser:'),
+            )
             if (qsChecklist) {
               const wavelengthMatch = qsChecklist.match(/(\d+)nm/)
               const energyMatch = qsChecklist.match(/(\d+)mJ/)
@@ -240,11 +313,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
                 fluence_j_cm2: fluenceMatch ? parseFloat(fluenceMatch[1]) : 0,
                 frequency_hz: frequencyMatch ? parseInt(frequencyMatch[1]) : 0,
                 passes: 2,
-                endpoint: t.preparations_checklist_for_therapist?.find(line => line.includes('Laser Endpoint:'))?.replace('Laser Endpoint:', '').trim() || ''
+                endpoint:
+                  t.preparations_checklist_for_therapist
+                    ?.find((line) => line.includes('Laser Endpoint:'))
+                    ?.replace('Laser Endpoint:', '')
+                    .trim() || '',
               }
             }
 
-            const peelChecklist = t.preparations_checklist_for_therapist?.find(line => line.includes('Peel:'))
+            const peelChecklist = t.preparations_checklist_for_therapist?.find((line) =>
+              line.includes('Peel:'),
+            )
             if (peelChecklist) {
               const nameMatch = peelChecklist.match(/Prepare (.+?) \(contact/)
               const timeMatch = peelChecklist.match(/contact time: (\d+) mins/)
@@ -252,7 +331,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
                 use: true,
                 peel_name: nameMatch ? nameMatch[1].trim() : 'Chemical Peel',
                 contact_time_minutes: timeMatch ? parseInt(timeMatch[1]) : 5,
-                neutralization_required: peelChecklist.includes('neutralization: Yes')
+                neutralization_required: peelChecklist.includes('neutralization: Yes'),
               }
             }
 
@@ -261,27 +340,29 @@ export const usePigmentationStore = defineStore('pigmentation', {
               timing: `week_${t.week || t.session_number}`,
               goal: t.concerns_addressed?.[0] || 'Pigmentation treatment',
               selected_modalities,
-              fixed_protocol
+              fixed_protocol,
             }
           })
 
           this.lastPlan = {
             plan_name: 'Treatment Plan',
             plan_status: data.status === 'completed' ? 'approved' : 'pending_review',
-            duration: data.treatment_sessions.total_time || `${data.treatment_sessions.treatments.length * 2} weeks`,
+            duration:
+              data.treatment_sessions.total_time ||
+              `${data.treatment_sessions.treatments.length * 2} weeks`,
             clinical_recommendation_mode: {
               optimize_for: 'efficacy_balanced_with_safety',
               doctor_constraints_used_as: 'hard_filters',
-              doctor_can_edit_before_finalization: true
+              doctor_can_edit_before_finalization: true,
             },
             baseline_summary: {
               fitzpatrick_type: this.formData.fitz,
               melanin_load_index: parseInt(this.formData.mel) || 50,
               erythema_load_index: parseInt(this.formData.ery) || 20,
               depth_call: this.formData.depth,
-              composition: this.formData.comp
+              composition: this.formData.comp,
             },
-            sessions
+            sessions,
           }
         }
 
@@ -338,37 +419,49 @@ export const usePigmentationStore = defineStore('pigmentation', {
           if (session.fixed_protocol?.q_switch?.use) {
             const qs = session.fixed_protocol.q_switch
             checklist.push(
-              `Laser: Set Q-Switch to ${qs.wavelength_nm}nm, ${qs.energy_mj}mJ, ${qs.fluence_j_cm2} J/cm², ${qs.frequency_hz}Hz`
+              `Laser: Set Q-Switch to ${qs.wavelength_nm}nm, ${qs.energy_mj}mJ, ${qs.fluence_j_cm2} J/cm², ${qs.frequency_hz}Hz`,
             )
             if (qs.endpoint) checklist.push(`Laser Endpoint: ${qs.endpoint}`)
           }
           if (session.fixed_protocol?.peel?.use) {
             const p = session.fixed_protocol.peel
             checklist.push(
-              `Peel: Prepare ${p.peel_name} (contact time: ${p.contact_time_minutes} mins, neutralization: ${p.neutralization_required ? 'Yes' : 'No'})`
+              `Peel: Prepare ${p.peel_name} (contact time: ${p.contact_time_minutes} mins, neutralization: ${p.neutralization_required ? 'Yes' : 'No'})`,
             )
           }
           if (session.fixed_protocol?.microneedling?.use) {
             const mn = session.fixed_protocol.microneedling
-            checklist.push(`Microneedling: Prepare device (${mn.device}) with actives: ${mn.actives?.join(', ')}`)
+            checklist.push(
+              `Microneedling: Prepare device (${mn.device}) with actives: ${mn.actives?.join(', ')}`,
+            )
           }
           if (session.fixed_protocol?.led?.use) {
-            checklist.push(`LED: Prepare ${session.fixed_protocol.led.mode} (${session.fixed_protocol.led.role})`)
+            checklist.push(
+              `LED: Prepare ${session.fixed_protocol.led.mode} (${session.fixed_protocol.led.role})`,
+            )
           }
 
           // Build steps
           const steps = []
           if (session.fixed_protocol?.peel?.use) {
-            steps.push(`Apply ${session.fixed_protocol.peel.peel_name} for ${session.fixed_protocol.peel.contact_time_minutes} minutes. Neutralize if required.`)
+            steps.push(
+              `Apply ${session.fixed_protocol.peel.peel_name} for ${session.fixed_protocol.peel.contact_time_minutes} minutes. Neutralize if required.`,
+            )
           }
           if (session.fixed_protocol?.q_switch?.use) {
-            steps.push(`Perform Q-Switch Laser toning using settings: Wavelength ${session.fixed_protocol.q_switch.wavelength_nm}nm, Fluence ${session.fixed_protocol.q_switch.fluence_j_cm2} J/cm², ${session.fixed_protocol.q_switch.passes} passes. Target endpoint: ${session.fixed_protocol.q_switch.endpoint}.`)
+            steps.push(
+              `Perform Q-Switch Laser toning using settings: Wavelength ${session.fixed_protocol.q_switch.wavelength_nm}nm, Fluence ${session.fixed_protocol.q_switch.fluence_j_cm2} J/cm², ${session.fixed_protocol.q_switch.passes} passes. Target endpoint: ${session.fixed_protocol.q_switch.endpoint}.`,
+            )
           }
           if (session.fixed_protocol?.microneedling?.use) {
-            steps.push(`Perform microneedling using ${session.fixed_protocol.microneedling.device} and apply actives: ${session.fixed_protocol.microneedling.actives?.join(', ')}.`)
+            steps.push(
+              `Perform microneedling using ${session.fixed_protocol.microneedling.device} and apply actives: ${session.fixed_protocol.microneedling.actives?.join(', ')}.`,
+            )
           }
           if (session.fixed_protocol?.led?.use) {
-            steps.push(`Apply LED therapy (${session.fixed_protocol.led.mode}) for skin calming and support.`)
+            steps.push(
+              `Apply LED therapy (${session.fixed_protocol.led.mode}) for skin calming and support.`,
+            )
           }
 
           // Build daily home care routine
@@ -383,7 +476,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
           return {
             session_number: session.session_number,
-            title: session.selected_modalities?.join(' + ') || session.goal || 'Pigmentation Session',
+            title:
+              session.selected_modalities?.join(' + ') || session.goal || 'Pigmentation Session',
             treatment_time: '45 mins',
             week: weekNum,
             preparations_checklist_for_therapist: checklist,
@@ -544,7 +638,6 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
 
     async callOpenAI({ system, content }) {
-
       const { getOrCreateConversation, runResponse } = useOpenAI()
       const assessmentStore = useAssessmentStore()
       const ivAssessmentStore = useIVAssessmentStore()
@@ -941,12 +1034,14 @@ export const usePigmentationStore = defineStore('pigmentation', {
               })
             }
           }
-          mapScore('pigmentation_score_100', 'Melanin Load Index', '0–100')
-          mapScore('inflammation_score_100', 'Erythema Load Index', '0–100')
-          mapScore('recurrence_risk_score_100', 'Recurrence Risk Score', '0–100')
-          mapScore('procedure_risk_score_100', 'Procedure Risk Score', '0–100')
-          mapScore('sunscreen_compliance_score_100', 'Sunscreen Compliance Score', '0–100')
-          mapScore('ai_planning_confidence_score_100', 'AI Planning Confidence', '0–100')
+          mapScore('melanin_load_index', 'Melanin Load Index', '0–100')
+          mapScore('erythema_load_index', 'Erythema Load Index', '0–100')
+          mapScore('composition_melanin_percent', 'Composition Melanin %', '0–100')
+          mapScore('composition_vascular_percent', 'Composition Vascular %', '0–100')
+          mapScore('recurrence_risk_index', 'Recurrence Risk Score', '0–100')
+          mapScore('procedure_risk_index', 'Procedure Risk Score', '0–100')
+          mapScore('sunscreen_compliance_index', 'Sunscreen Compliance Score', '0–100')
+          mapScore('diagnosis_confidence_index', 'Diagnosis Confidence Score', '0–100')
         }
 
         // Map key_drivers
@@ -989,45 +1084,46 @@ export const usePigmentationStore = defineStore('pigmentation', {
           compVal = 'melanin'
         }
 
-        const mappedData = {
-          ...dx,
-          needs_summary: false,
-          needs_dermoscopy: false,
-          dermoscopy_request: {
-            reason:
-              dx.working_impression?.doctor_review_reason ||
-              'Suspicion of ochronosis or atypical lesion.',
-            look_for: ['banana-shaped ochre structures', 'blue-grey globules'],
-          },
-          differential: {
-            primary: {
-              dx: primaryDx,
-              confidence: primaryConfidence,
-              reasoning: primaryReasoning,
-            },
-            alternatives: alternatives,
-          },
-          depth_assessment: {
-            verdict: depthVal,
-            basis: 'Derived from diagnostic category & clinical activity',
-            prognosis: 'Requires regular assessment',
-          },
-          composition_assessment: {
-            dominant: compVal,
-            note: 'Derived from primary category composition',
-          },
-          scores: scoresArray,
-          severity_interpretation: `Confidence: ${dx.working_impression?.diagnostic_confidence || 'moderate'}. Recurrence: ${dx.risk_profile?.recurrence_risk || 'moderate'}.`,
-          key_drivers: drivers,
-          red_flags: {
-            present: redFlagsPresent,
-            items: redFlagsItems,
-            action: redFlagsAction,
-          },
-          uncertainties: [
-            dx.working_impression?.doctor_review_reason || 'Clinical verification required',
-          ],
+        const mappedData = JSON.parse(JSON.stringify(dx))
+        mappedData.needs_summary = false
+        mappedData.needs_dermoscopy = false
+        mappedData.dermoscopy_request = {
+          reason:
+            dx.working_impression?.doctor_review_reason ||
+            'Suspicion of ochronosis or atypical lesion.',
+          look_for: ['banana-shaped ochre structures', 'blue-grey globules'],
         }
+        mappedData.differential = {
+          primary: {
+            dx: primaryDx,
+            confidence: primaryConfidence,
+            reasoning: primaryReasoning,
+          },
+          alternatives: alternatives,
+        }
+        mappedData.depth_assessment = {
+          verdict: depthVal,
+          basis: 'Derived from diagnostic category & clinical activity',
+          prognosis: 'Requires regular assessment',
+        }
+        mappedData.composition_assessment = {
+          dominant: compVal,
+          note: 'Derived from primary category composition',
+        }
+        mappedData.scores = dx.scores ? JSON.parse(JSON.stringify(dx.scores)) : {}
+        mappedData.scores_list = scoresArray
+        mappedData.severity_interpretation = `Confidence: ${dx.working_impression?.diagnostic_confidence || 'moderate'}. Recurrence: ${dx.risk_profile?.recurrence_risk || 'moderate'}.`
+        mappedData.key_drivers = drivers
+        mappedData.red_flags = {
+          present: redFlagsPresent,
+          items: redFlagsItems,
+          action: redFlagsAction,
+        }
+        mappedData.uncertainties = [
+          dx.working_impression?.doctor_review_reason || 'Clinical verification required',
+        ]
+
+        console.log('mappedData', mappedData)
 
         this.diagnosis = { data: mappedData, confirmedDx: '' }
         await this.updateAssessment()
@@ -1038,8 +1134,6 @@ export const usePigmentationStore = defineStore('pigmentation', {
         this.isLoading = false
       }
     },
-
-
 
     confirmDx(selectedDx) {
       if (!this.diagnosis) this.diagnosis = { data: null, confirmedDx: '' }
