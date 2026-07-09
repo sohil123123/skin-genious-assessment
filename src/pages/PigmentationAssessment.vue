@@ -63,7 +63,7 @@
           <CaptureStage v-if="store.currentStage === 0" />
           <AssessStage v-if="store.currentStage === 1" />
           <DiagnosisStage v-if="store.currentStage === 2" />
-          <PlanStage v-if="store.currentStage === 3" @trigger-print="triggerPrint" />
+          <PlanStage v-if="store.currentStage === 3" />
           <ReassessStage v-if="store.currentStage === 4" />
         </main>
 
@@ -80,7 +80,7 @@
               ← Back
             </button>
             <button class="btn btn-primary" id="nextBtn" @click="goNext()" :disabled="store.isLoading">
-              {{ store.currentStage === 3 ? 'Done ✓' : 'Continue →' }}
+              {{ store.currentStage === 4 ? 'Done ✓' : 'Continue →' }}
             </button>
           </div>
         </footer>
@@ -90,9 +90,6 @@
           <span>{{ disclaimerText }}</span>
         </div>
       </div>
-
-      <!-- Printable Report -->
-      <PrintReport />
     </div>
   </q-page>
 </template>
@@ -110,7 +107,6 @@ import AssessStage from 'src/components/pigmentation/AssessStage.vue'
 import DiagnosisStage from 'src/components/pigmentation/DiagnosisStage.vue'
 import PlanStage from 'src/components/pigmentation/PlanStage.vue'
 import ReassessStage from 'src/components/pigmentation/ReassessStage.vue'
-import PrintReport from 'src/components/pigmentation/PrintReport.vue'
 
 import { useAuthStore } from 'src/stores/authStore'
 
@@ -153,7 +149,7 @@ const steps = [
   { title: 'Assess', sub: 'Data + history' },
   { title: 'Diagnosis', sub: 'Confirm working dx' },
   { title: 'Plan', sub: 'Generate & sign-off' },
-  // { title: 'Reassess', sub: 'Check goals' },
+  { title: 'Reassess', sub: 'Check goals' },
 ]
 
 const disclaimerText = 'CLINICAL TRIAL PILOT · OPENAI ADVISOR · SYSTEM ACCESSED DIRECTLY'
@@ -369,7 +365,7 @@ const goNext = async (targetIdx = null) => {
         position: 'top'
       })
     }
-  } else {
+  } else if (store.currentStage === 3) {
     if (!store.reviewState.finalized) {
       $q.notify({
         type: 'warning',
@@ -378,6 +374,9 @@ const goNext = async (targetIdx = null) => {
       })
       return
     }
+    store.currentStage = targetIdx !== null ? targetIdx : 4
+    await store.updateAssessment()
+  } else {
     finalizeAndExit()
   }
 }
@@ -386,10 +385,6 @@ const goBack = () => {
   if (store.currentStage > 0) {
     store.currentStage--
   }
-}
-
-const triggerPrint = () => {
-  window.print()
 }
 
 // Clean up store on page unmount

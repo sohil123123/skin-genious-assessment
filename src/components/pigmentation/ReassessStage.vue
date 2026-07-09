@@ -169,8 +169,16 @@
         </ul>
       </div>
 
-      <!-- re-run button -->
-      <div style="margin-top:14px">
+      <!-- re-run button and download report button -->
+      <div style="margin-top:14px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <q-btn
+          color="primary"
+          unelevated
+          no-caps
+          label="Download Reassessment PDF"
+          icon="download"
+          @click="downloadReassessReport"
+        />
         <button class="btn" @click="resetReassess">
           ↺ Reassess again
         </button>
@@ -183,8 +191,42 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
+import { api } from 'src/boot/axios'
+import { Loading, Notify } from 'quasar'
 
 const store = usePigmentationStore()
+
+const downloadReassessReport = async () => {
+  Loading.show({ message: 'Downloading Reassessment Report...' })
+  try {
+    const response = await api.get(
+      `download-pigmentation-report/reassessment/${store.id}`,
+      {
+        responseType: 'blob',
+      },
+    )
+
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute(
+      'download',
+      `${store.formData.initials || 'patient'}_pigmentation_reassessment.pdf`,
+    )
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('PDF download failed:', error)
+    Notify.create({
+      type: 'negative',
+      message: 'Failed to download report. Please try again.',
+    })
+  } finally {
+    Loading.hide()
+  }
+}
 const raInput = ref(null)
 const validationError = ref('')
 

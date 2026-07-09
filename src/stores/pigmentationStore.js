@@ -20,6 +20,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
     isConnected: false,
     conversationId: '',
     id: null,
+    clinic_id: null,
+    therapist_id: null,
+    user_id: null,
 
     currentStage: 0,
 
@@ -151,6 +154,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         this.id = data.id
         this.conversationId = data.conversation_id || ''
+        this.clinic_id = data.clinic_id || null
+        this.therapist_id = data.therapist_id || null
+        this.user_id = data.user_id || null
 
         // Fetch patient demographics
         if (data.user_id) {
@@ -239,8 +245,26 @@ export const usePigmentationStore = defineStore('pigmentation', {
           }
         }
 
-        if (data.recommended_full_plan && !this.lastPlan) {
+        if (data.recommended_full_plan) {
           this.lastPlan = data.recommended_full_plan
+          if (
+            data.treatment_sessions &&
+            Array.isArray(data.treatment_sessions.treatments) &&
+            this.lastPlan.sessions
+          ) {
+            this.lastPlan.sessions.forEach((s) => {
+              const matchedDbSession = data.treatment_sessions.treatments.find(
+                (t) => Number(t.session_number) === Number(s.session_number)
+              )
+              if (matchedDbSession) {
+                s.id = matchedDbSession.id
+                s.status = matchedDbSession.status || 'pending'
+              } else {
+                s.id = s.session_number
+                s.status = 'pending'
+              }
+            })
+          }
         }
 
         // Fallback: reconstruct lastPlan from treatment_sessions if not retrieved yet
@@ -336,6 +360,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
             }
 
             return {
+              id: t.id || t.session_number,
+              status: t.status || 'pending',
               session_number: t.session_number,
               timing: `week_${t.week || t.session_number}`,
               goal: t.concerns_addressed?.[0] || 'Pigmentation treatment',
@@ -443,25 +469,99 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
           // Build steps
           const steps = []
-          if (session.fixed_protocol?.peel?.use) {
-            steps.push(
-              `Apply ${session.fixed_protocol.peel.peel_name} for ${session.fixed_protocol.peel.contact_time_minutes} minutes. Neutralize if required.`,
-            )
+          let stepCounter = 1
+
+          const formatLabel = (str) => {
+            if (!str) return ''
+            return str
+              .split('_')
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ')
           }
-          if (session.fixed_protocol?.q_switch?.use) {
-            steps.push(
-              `Perform Q-Switch Laser toning using settings: Wavelength ${session.fixed_protocol.q_switch.wavelength_nm}nm, Fluence ${session.fixed_protocol.q_switch.fluence_j_cm2} J/cm², ${session.fixed_protocol.q_switch.passes} passes. Target endpoint: ${session.fixed_protocol.q_switch.endpoint}.`,
+
+          const hasLaserModality = session.selected_modalities?.some(
+            (m) => m === 'q_switch' || m === 'laser' || m === 'toning'
+          )
+
+          let hasZoneSequence = false
+          if (hasLaserModality && session.provider_protocol?.zone_sequence && session.provider_protocol.zone_sequence.length > 0) {
+            const activeZones = session.provider_protocol.zone_sequence.filter(
+              (z) => z.zone_strategy_type !== 'exclude_from_treatment' && z.zone_strategy_type !== 'defer_zone'
             )
+            if (activeZones.length > 0) {
+              hasZoneSequence = true
+              activeZones.forEach((z) => {
+                let settingsStr = ''
+                let equipments = []
+                if (z.base_zone_setting) {
+                  const b = z.base_zone_setting
+                  settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
+                  equipments.push(`Laser (${b.wavelength_nm}nm)`)
+                } else if (z.regional_override_setting) {
+                  const r = z.regional_override_setting
+                  settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${r.fluence_j_cm2} J/cm² • ${r.passes} passes`
+                  equipments.push(`Laser (${r.wavelength_nm}nm)`)
+                } else {
+                  settingsStr = 'Standard protocol settings'
+                  equipments.push('Laser')
+                }
+
+                steps.push({
+                  step_number: stepCounter++,
+                  duration: '5 mins',
+                  ingredients_equipments: equipments,
+                  how_to_do: `Treat Zone: ${z.zone.toUpperCase()}\nStrategy: ${formatLabel(z.zone_strategy_type || '')}\nSettings: ${settingsStr}\nCoverage Instruction: ${z.coverage_instruction || z.base_zone_setting?.coverage_instruction || 'Standard full-zone passes.'}\nEndpoint Target: ${z.endpoint || z.base_zone_setting?.endpoint || 'Mild erythema.'}`,
+                })
+              })
+            }
           }
-          if (session.fixed_protocol?.microneedling?.use) {
-            steps.push(
-              `Perform microneedling using ${session.fixed_protocol.microneedling.device} and apply actives: ${session.fixed_protocol.microneedling.actives?.join(', ')}.`,
-            )
+
+          if (!hasZoneSequence) {
+            if (session.fixed_protocol?.peel?.use) {
+              const p = session.fixed_protocol.peel
+              steps.push({
+                step_number: stepCounter++,
+                duration: `${p.contact_time_minutes || 5} mins`,
+                ingredients_equipments: [p.peel_name],
+                how_to_do: `Apply ${p.peel_name} for ${p.contact_time_minutes} minutes. Neutralize if required.`,
+              })
+            }
+            if (session.fixed_protocol?.q_switch?.use) {
+              const qs = session.fixed_protocol.q_switch
+              steps.push({
+                step_number: stepCounter++,
+                duration: '10 mins',
+                ingredients_equipments: [`Q-Switch Laser (${qs.wavelength_nm}nm)`],
+                how_to_do: `Perform Q-Switch Laser toning using settings: Wavelength ${qs.wavelength_nm}nm, Fluence ${qs.fluence_j_cm2} J/cm², ${qs.passes} passes. Target endpoint: ${qs.endpoint}.`,
+              })
+            }
+            if (session.fixed_protocol?.microneedling?.use) {
+              const mn = session.fixed_protocol.microneedling
+              steps.push({
+                step_number: stepCounter++,
+                duration: '15 mins',
+                ingredients_equipments: [mn.device || 'Microneedling'].concat(mn.actives || []),
+                how_to_do: `Perform microneedling using ${mn.device} and apply actives: ${mn.actives?.join(', ')}. Route: ${mn.route || ''}, Injectable: ${mn.injectable || ''}.`,
+              })
+            }
+            if (session.fixed_protocol?.led?.use) {
+              const led = session.fixed_protocol.led
+              steps.push({
+                step_number: stepCounter++,
+                duration: '10 mins',
+                ingredients_equipments: [`LED Therapy (${led.mode})`],
+                how_to_do: `Apply LED therapy (${led.mode}) for skin calming and support. Role: ${led.role || ''}.`,
+              })
+            }
           }
-          if (session.fixed_protocol?.led?.use) {
-            steps.push(
-              `Apply LED therapy (${session.fixed_protocol.led.mode}) for skin calming and support.`,
-            )
+
+          if (steps.length === 0) {
+            steps.push({
+              step_number: 1,
+              duration: '45 mins',
+              ingredients_equipments: [],
+              how_to_do: 'Perform clinical protocol as per doctor instructions.',
+            })
           }
 
           // Build daily home care routine
@@ -482,8 +582,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
             week: weekNum,
             preparations_checklist_for_therapist: checklist,
             concerns_addressed: [session.goal || 'Pigmentation treatment'],
-            steps: steps.length ? steps : ['Perform clinical protocol as per doctor instructions.'],
+            steps: steps,
             daily_home_care_routine: daily_home_care_routine,
+            provider_protocol: session.provider_protocol || null,
             script: '',
           }
         })
@@ -506,7 +607,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
       const payload = {
         _method: 'PUT',
         assessment_type: 'pigmentation',
-        user_id: this.formData.mrn || null,
+        user_id: this.formData.mrn || this.user_id || null,
+        ...(this.clinic_id && { clinic_id: this.clinic_id }),
+        ...(this.therapist_id && { therapist_id: this.therapist_id }),
         age: this.formData.age || null,
         is_pregnant: this.safety.pregnancy ? 1 : 0,
         breastfeeding: this.safety.pregnancy ? 'yes' : 'no',
@@ -524,6 +627,10 @@ export const usePigmentationStore = defineStore('pigmentation', {
         })
         const response = await api.post(`/assessments/${this.id}`, payload)
         console.log('Assessment updated in database:', response.data)
+        const updated = response.data.results
+        if (updated && updated.recommended_full_plan) {
+          this.lastPlan = updated.recommended_full_plan
+        }
       } catch (e) {
         console.error('Error updating assessment in database:', e)
         throw e
@@ -1156,8 +1263,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
       return JSON.stringify(request, null, 2)
     },
 
-    async generatePlan() {
-      if (this.lastPlan) {
+    async generatePlan(force = false) {
+      if (this.lastPlan && !force) {
         return
       }
       this.isLoading = true
@@ -1181,6 +1288,14 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         const res = this.parseJSON(raw)
         const planObj = res.linear_treatment_plan || res
+
+        if (planObj.sessions) {
+          planObj.sessions = planObj.sessions.map((s) => ({
+            id: s.id || s.session_number,
+            status: s.status || 'pending',
+            ...s,
+          }))
+        }
 
         this.lastPlan = planObj
         this.reviewState = {

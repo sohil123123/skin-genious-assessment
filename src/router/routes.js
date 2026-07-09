@@ -53,6 +53,24 @@ const routes = [
         props: true,
       },
       {
+        path: ':user_id/pigmentation-treatment-prep/:assessment_id/:session_id/:appointment_id?',
+        name: 'PigmentationTreatmentPrep',
+        component: () => import('pages/PigmentationTreatmentPrep.vue'),
+        props: true,
+      },
+      {
+        path: ':user_id/pigmentation-treatment-steps/:assessment_id/:session_id/:step/:appointment_id?',
+        name: 'PigmentationTreatmentSteps',
+        component: () => import('pages/PigmentationTreatmentSteps.vue'),
+        props: true,
+      },
+      {
+        path: ':user_id/pigmentation-treatment-complete/:assessment_id/:session_id/:appointment_id?',
+        name: 'PigmentationTreatmentComplete',
+        component: () => import('pages/PigmentationTreatmentComplete.vue'),
+        props: true,
+      },
+      {
         path: ':user_id/iv-treatment-prep/:assessment_id/:session_id/:appointment_id?',
         name: 'IVTreatmentPrep',
         component: () => import('pages/IVTreatmentPrep.vue'),
