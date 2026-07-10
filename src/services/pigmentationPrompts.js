@@ -936,3 +936,32 @@ Return ONLY one valid JSON object:
   "disclaimer": "AI-proposed reassessment for clinician confirmation."
 }
 Keep it concise. Do not invent precise measurements you cannot support.`
+
+export const REASSESS_QUESTIONS_PROMPT = `You are a clinical assistant generating dynamic follow-up questions for a pigmentation treatment reassessment.
+
+You will receive:
+1. The original diagnosis, treatment plan, and baseline metrics.
+2. Current goals set at the beginning of the treatment.
+3. Attached follow-up captures.
+
+Your task:
+Generate 2-4 clinically relevant dynamic questions to ask the patient before executing the final trajectory assessment.
+These questions should focus on details the images cannot tell:
+- Compliance: Did they apply their topical creams (Kligman's, sunscreen) exactly as prescribed?
+- Irritation/PIH risk: Did they experience any significant redness, peeling, burning, or darkening after laser/peel sessions?
+- Triggers: Have they had any high sun exposure, travel, or heat exposure during the treatment period?
+- Patient subjective response: How does the patient feel their pigmentation has changed?
+
+Return ONLY one valid JSON object in this format:
+{
+  "dynamic_questions": [
+    {
+      "question_id": "req_q1",
+      "question": "string",
+      "answer_type": "single_choice|multi_choice|text|boolean",
+      "options": ["string"],
+      "why_asked": "string"
+    }
+  ]
+}
+`

@@ -11,6 +11,7 @@ import {
   DIAGNOSIS_PROMPT,
   PLAN_PROMPT,
   REASSESS_PROMPT,
+  REASSESS_QUESTIONS_PROMPT,
 } from 'src/services/pigmentationPrompts'
 import { PIGMENTATION_CONFIG } from 'src/services/pigmentationConfig'
 
@@ -103,6 +104,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
     // Reassessment outputs (Stage 5)
     goals: [],
     reassessment: null,
+    reassessQuestions: [],
+    reassessAnswers: {},
 
     // Loading indicators
     aiAnalysis: null,
@@ -113,12 +116,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
   getters: {
     stageLabel: (state) => {
-      const names = ['Capture', 'Assess', 'Diagnosis', 'Plan']
+      const names = ['Capture', 'Assess', 'Diagnosis', 'Plan', 'Reassess']
       const pad = (x) => (x < 10 ? '0' : '') + x
-      return `${pad(state.currentStage + 1)} / 04 — ${names[state.currentStage]}`
+      return `${pad(state.currentStage + 1)} / 05 — ${names[state.currentStage]}`
     },
     progressPercent: (state) => {
-      return ((state.currentStage + 1) / 4) * 100
+      return ((state.currentStage + 1) / 5) * 100
     },
   },
 
@@ -173,6 +176,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
           if (pi.safety) this.safety = { ...this.safety, ...pi.safety }
           if (pi.redFlags) this.redFlags = pi.redFlags || []
           if (pi.goals) this.goals = pi.goals || []
+          if (pi.reassessQuestions) this.reassessQuestions = pi.reassessQuestions || []
+          if (pi.reassessAnswers) this.reassessAnswers = pi.reassessAnswers || {}
           if (pi.reviewState) {
             this.reviewState = {
               ...this.reviewState,
@@ -191,6 +196,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
           }
           if (pi.aiAnalysis) this.aiAnalysis = pi.aiAnalysis
           if (pi.dynamicQuestions) this.dynamicQuestions = pi.dynamicQuestions || []
+        }
+
+        if (data.post_diagnosis && data.post_diagnosis.reassessment) {
+          this.reassessment = data.post_diagnosis.reassessment
+        } else if (data.pigmentation_inputs && data.pigmentation_inputs.reassessment) {
+          this.reassessment = data.pigmentation_inputs.reassessment
         }
 
         if (data.diagnosis && !this.diagnosis) {
@@ -392,9 +403,6 @@ export const usePigmentationStore = defineStore('pigmentation', {
           }
         }
 
-        // Always start at Step 1 (Capture Stage) when editing/resuming from CRM
-        this.currentStage = 0
-
         // Populate attachedImages from database images
         if (data.images && data.images.length > 0) {
           this.attachedImages = data.images.map((img) => ({
@@ -405,6 +413,24 @@ export const usePigmentationStore = defineStore('pigmentation', {
             openai_file_id: img.custom_properties?.openai_file_id || '',
             mode: img.custom_properties?.mode || 'white',
           }))
+        }
+
+        if (data.post_images && data.post_images.length > 0) {
+          this.reassessImages = data.post_images.map((img) => ({
+            id: img.id,
+            name: img.name,
+            dataUrl: img.url,
+            url: img.url,
+            openai_file_id: img.custom_properties?.openai_file_id || '',
+            mode: img.custom_properties?.mode || 'white',
+          }))
+        }
+
+        // If plan is already finalized and signed-off, start at Step 5 (Reassess Stage)
+        if (this.reviewState.finalized) {
+          this.currentStage = 4
+        } else {
+          this.currentStage = 0
         }
       } catch (e) {
         console.error('Error loading assessment from database:', e)
@@ -429,6 +455,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
         confirmedDx: this.diagnosis ? this.diagnosis.confirmedDx : '',
         aiAnalysis: this.aiAnalysis,
         dynamicQuestions: this.dynamicQuestions,
+        reassessment: this.reassessment,
+        reassessQuestions: this.reassessQuestions,
+        reassessAnswers: this.reassessAnswers,
       }
 
       const diagnosis = this.diagnosis ? this.diagnosis.data : null
@@ -615,6 +644,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         breastfeeding: this.safety.pregnancy ? 'yes' : 'no',
         pigmentation_inputs: pigmentation_inputs,
         diagnosis: diagnosis,
+        post_diagnosis: this.reassessment ? { reassessment: this.reassessment } : null,
         status: this.reviewState.finalized ? 'completed' : 'in_progress',
         selected_plan_type: 'multiple',
         conversation_id: this.conversationId || null,
@@ -715,17 +745,19 @@ export const usePigmentationStore = defineStore('pigmentation', {
       }
       this.goals = []
       this.reassessment = null
+      this.reassessQuestions = []
+      this.reassessAnswers = {}
       this.conversationId = ''
       this.id = null
     },
 
-    async uploadStoreImages(images, assessmentId) {
+    async uploadStoreImages(images, assessmentId, type = 'pigmentation-pre') {
       if (!Array.isArray(images)) return
       for (const img of images) {
         if (img.file && !img.openai_file_id) {
           const formData = new FormData()
           formData.append('image', img.file)
-          formData.append('assessment_type', 'pigmentation-pre')
+          formData.append('assessment_type', type)
           if (img.mode) {
             formData.append('mode', img.mode)
           }
@@ -774,8 +806,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.conversationId = convId
 
       // Upload local images first if not uploaded yet
-      await this.uploadStoreImages(this.attachedImages, assessmentId)
-      await this.uploadStoreImages(this.reassessImages, assessmentId)
+      await this.uploadStoreImages(this.attachedImages, assessmentId, 'pigmentation-pre')
+      await this.uploadStoreImages(this.reassessImages, assessmentId, 'pigmentation-post')
 
       // Convert content to the backend format
       let formattedContent = []
@@ -1384,6 +1416,18 @@ export const usePigmentationStore = defineStore('pigmentation', {
       })
 
       lines.push('')
+      lines.push('PATIENT REASSESSMENT HISTORY & ANSWERS:')
+      if (this.reassessQuestions && this.reassessQuestions.length > 0) {
+        this.reassessQuestions.forEach((q) => {
+          const ans = this.reassessAnswers[q.question_id]
+          lines.push(`Question: ${q.question}`)
+          lines.push(`Answer: ${Array.isArray(ans) ? ans.join(', ') : ans || 'no answer'}`)
+        })
+      } else {
+        lines.push('None provided.')
+      }
+
+      lines.push('')
       if (this.reassessImages.length) {
         lines.push(
           `Follow-up captures (${this.reassessImages.length}) are attached below — re-read them to inform current status where a value was not entered.`,
@@ -1418,6 +1462,69 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         const r = this.parseJSON(raw)
         this.reassessment = r
+        await this.updateAssessment()
+      } catch (err) {
+        console.error(err)
+        throw err
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async generateReassessQuestions() {
+      if (this.reassessQuestions && this.reassessQuestions.length > 0) {
+        return
+      }
+      this.isLoading = true
+      this.loadingMessage = 'Formulating reassessment questions…'
+
+      const content = [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              session_id: this.id || '1',
+              diagnosis: this.diagnosis?.data || {},
+              plan: this.lastPlan || {},
+              goals: this.goals || [],
+              max_questions: 4,
+            },
+            null,
+            2,
+          ),
+        },
+      ]
+      this.reassessImages.forEach((img) => {
+        if (img.openai_file_id) {
+          content.push({
+            type: 'image_id',
+            file_id: img.openai_file_id,
+          })
+        } else {
+          content.push({
+            type: 'image',
+            source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
+          })
+        }
+      })
+
+      try {
+        const raw = await this.callOpenAI({
+          system: REASSESS_QUESTIONS_PROMPT,
+          content: content,
+          max_tokens: 2000,
+          temperature: 0.3,
+        })
+
+        const res = this.parseJSON(raw)
+        this.reassessQuestions = Array.isArray(res.dynamic_questions) ? res.dynamic_questions : []
+
+        const answers = {}
+        this.reassessQuestions.forEach((q) => {
+          answers[q.question_id] = q.answer_type === 'multi_choice' ? [] : ''
+        })
+        this.reassessAnswers = answers
+        await this.updateAssessment()
       } catch (err) {
         console.error(err)
         throw err

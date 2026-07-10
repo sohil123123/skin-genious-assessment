@@ -76,6 +76,15 @@
             </div>
           </div>
           <div class="nav-btns">
+            <button
+              class="btn"
+              style="border-color: var(--erythema); color: var(--erythema);"
+              @click="confirmClearConvId"
+              :disabled="store.isLoading"
+              v-if="store.id"
+            >
+              Clear Conversation
+            </button>
             <button class="btn" id="backBtn" @click="goBack" v-show="store.currentStage > 0" :disabled="store.isLoading">
               ← Back
             </button>
@@ -99,6 +108,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
 import { Loading, LocalStorage, useQuasar } from 'quasar'
+import { api } from 'src/boot/axios'
 
 // Step Components
 import ConnectGate from 'src/components/pigmentation/ConnectGate.vue'
@@ -125,6 +135,40 @@ const backToCrm = async () => {
   })
   await authStore.logout()
   window.location.href = `${process.env.CRM_URL}`
+}
+
+const confirmClearConvId = () => {
+  $q.dialog({
+    title: 'Confirm',
+    message:
+      'Are you sure you want to clear the current conversation ID and start a fresh conversation?',
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    try {
+      Loading.show({
+        message: 'Clearing conversation...',
+      })
+      await api.post('/assessments/clear-conversation-id', {
+        assessment_id: store.id,
+      })
+
+      $q.notify({
+        type: 'positive',
+        message: 'Conversation ID cleared successfully.',
+      })
+
+      window.location.reload()
+    } catch (error) {
+      console.error(error)
+      $q.notify({
+        type: 'negative',
+        message: 'Failed to clear conversation ID.',
+      })
+    } finally {
+      Loading.hide()
+    }
+  })
 }
 
 const userId = route.params.user_id
@@ -206,13 +250,16 @@ const goToStage = async (idx) => {
 }
 
 const finalizeAndExit = () => {
+  const isReassess = store.currentStage === 4
   $q.dialog({
-    title: 'Confirm',
-    message: 'Would you like to confirm the treatment plan and return to CRM?',
+    title: isReassess ? 'Confirm Reassessment' : 'Confirm',
+    message: isReassess
+      ? 'Would you like to complete the reassessment and return to CRM?'
+      : 'Would you like to confirm the treatment plan and return to CRM?',
     persistent: true,
 
     ok: {
-      label: 'Yes, Confirm & Exit',
+      label: isReassess ? 'Yes, Complete & Exit' : 'Yes, Confirm & Exit',
       color: 'positive',
       icon: 'check_circle',
       unelevated: true,
@@ -226,9 +273,11 @@ const finalizeAndExit = () => {
   })
     .onOk(async () => {
       LocalStorage.removeItem('user')
-      store.reviewState.finalized = true
-      store.reviewState.decision = store.reviewState.decision || 'approve'
-      store.reviewState.ts = new Date()
+      if (!isReassess) {
+        store.reviewState.finalized = true
+        store.reviewState.decision = store.reviewState.decision || 'approve'
+        store.reviewState.ts = new Date()
+      }
 
       try {
         await store.updateAssessment()
@@ -440,6 +489,23 @@ onUnmounted(() => {
 
 .spectra-theme * {
   box-sizing: border-box;
+}
+
+.spectra-theme h1,
+.spectra-theme h2,
+.spectra-theme h3,
+.spectra-theme h4,
+.spectra-theme h5,
+.spectra-theme h6,
+.spectra-theme p,
+.spectra-theme ul,
+.spectra-theme ol,
+.spectra-theme dl,
+.spectra-theme dt,
+.spectra-theme dd,
+.spectra-theme figure,
+.spectra-theme fieldset,
+.spectra-theme legend {
   margin: 0;
   padding: 0;
 }
@@ -2627,5 +2693,23 @@ onUnmounted(() => {
   .spectra-theme .so-radios {
     flex-direction: column;
   }
+}
+
+/* Custom button and icon layouts for Quasar elements inside Spectra Co-Pilot */
+.spectra-theme .q-btn {
+  padding: 10px 18px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  line-height: 1.5 !important;
+  display: inline-flex !important;
+}
+.spectra-theme .q-btn .q-icon {
+  font-size: 18px !important;
+  margin-right: 8px !important;
+}
+.spectra-theme .q-btn__content {
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
 }
 </style>

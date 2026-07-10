@@ -206,15 +206,27 @@ const nextSession = computed(() => {
 })
 
 function toPostAssessment() {
-  const routeData = router.resolve({
-    name: 'index-with-id',
-    params: {
-      user_id: route.params.user_id,
-      step: 'step-6',
-      assessment_id: route.params.assessment_id,
-      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
-    },
-  })
+  let routeData
+  if (assessmentStore.assessmentData?.assessment_type === 'pigmentation') {
+    routeData = router.resolve({
+      name: 'pigmentation-assessment',
+      params: {
+        user_id: route.params.user_id,
+        assessment_id: route.params.assessment_id,
+        ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+      },
+    })
+  } else {
+    routeData = router.resolve({
+      name: 'index-with-id',
+      params: {
+        user_id: route.params.user_id,
+        step: 'step-6',
+        assessment_id: route.params.assessment_id,
+        ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+      },
+    })
+  }
   window.open(routeData.href, '_blank')
 }
 
