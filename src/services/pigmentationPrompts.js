@@ -360,6 +360,14 @@ Diagnosis categories allowed:
 - active_inflammatory_pigmentation
 - unclear_doctor_review
 
+- Preserve the image-derived composition and depth assessment in the diagnosis output. Do not independently recalculate them unless history materially changes the clinical interpretation.
+- Include a concise patient-facing summary written in plain language.
+- Include patient-facing explanations for each supported pigmentation component.
+- For every pigmentation component, explain its likely treatment implication without generating the complete treatment plan.
+- Include a regional distribution interpretation based on the image-analysis regional findings.
+- Do not expose internal category codes, lesion IDs, or technical confidence logic in patient-facing text.
+- Preserve lesion IDs internally, but provide natural anatomical descriptions in patient-facing output.
+
 Return valid JSON only matching this schema:
 {
   "session_id": "string",
@@ -375,6 +383,26 @@ Return valid JSON only matching this schema:
     ],
     "doctor_review_required": true,
     "doctor_review_reason": "string"
+  },
+  "pigmentation_profile": {
+    "melanin_load_index": 32,
+    "erythema_load_index": 28,
+    "composition": {
+      "type": "melanin_dominant|vascular_dominant|mixed",
+      "melanin_percent": 65,
+      "vascular_percent": 35
+    },
+    "estimated_depth": {
+      "call": "epidermal_predominant|dermal_predominant|mixed_epidermal_predominant|mixed|uncertain",
+      "confidence_100": 72,
+      "patient_label": "Mostly superficial, with some mixed-depth areas",
+      "patient_explanation": "Most of the visible pigment appears closer to the skin surface, while some areas may extend deeper."
+    },
+    "estimated_fitzpatrick": {
+      "type": "III_to_IV",
+      "confidence_100": 65,
+      "patient_display": "Estimated skin phototype III–IV"
+    }
   },
   "key_drivers": {
     "sun_exposure": {
@@ -413,6 +441,70 @@ Return valid JSON only matching this schema:
       "basis": ["string"]
     }
   },
+  "regional_interpretation": {
+    "overall_distribution": "mild_diffuse_with_scattered_macules",
+    "symmetry": "mildly_symmetric",
+    "dominant_regions": [
+      "malar_cheeks",
+      "forehead",
+      "nose_bridge"
+    ],
+    "patient_summary": "Pigmentation is most noticeable across the cheeks and forehead, with a smaller localized component over the nose bridge.",
+    "regions": [
+      {
+        "region": "malar_cheeks",
+        "support_level": "strongly_supported",
+        "patient_description": "Pigmentation is most visible across both cheeks.",
+        "clinical_interpretation": "Diffuse melanin-dominant pigment with some mixed-depth features."
+      },
+      {
+        "region": "periocular",
+        "support_level": "moderately_supported",
+        "patient_description": "Mild darkness is visible under the eyes.",
+        "clinical_interpretation": "Likely mixed pigment and shadow contribution."
+      },
+      {
+        "region": "upper_lip_perioral",
+        "support_level": "possible_component",
+        "patient_description": "A mild pigmentation component is visible around the mouth.",
+        "clinical_interpretation": "Trigger remains uncertain and may require history correlation."
+      }
+    ]
+  },
+  "patient_facing_components": [
+    {
+      "component": "sun_related_or_diffuse_pigmentation",
+      "support_level": "strongly_supported|moderately_supported|possible|not_supported",
+      "confidence_100": 70,
+      "title": "Sun-related and diffuse pigmentation",
+      "explanation": "The distribution and your exposure history suggest that sunlight is contributing to the uneven pigmentation.",
+      "treatment_meaning": "Photoprotection and treatments aimed at diffuse surface pigment will be important."
+    },
+    {
+      "component": "periocular_pigmentation",
+      "support_level": "moderately_supported",
+      "confidence_100": 62,
+      "title": "Under-eye pigmentation",
+      "explanation": "Mild darkness is visible under both eyes and may include pigment as well as natural shadowing.",
+      "treatment_meaning": "The doctor will first determine how much is caused by pigment versus vascular or structural factors."
+    },
+    {
+      "component": "perioral_pigmentation",
+      "support_level": "possible",
+      "confidence_100": 52,
+      "title": "Pigmentation around the mouth",
+      "explanation": "A mild pigmentation component is visible around the upper lip and mouth.",
+      "treatment_meaning": "Treatment should remain gentle if friction, sensitivity or irritation is contributing."
+    },
+    {
+      "component": "melasma_like_pigmentation",
+      "support_level": "possible",
+      "confidence_100": 45,
+      "title": "Melasma-like features",
+      "explanation": "Some parts of the cheek or around-mouth pattern resemble melasma, although the overall pattern may not be classic.",
+      "treatment_meaning": "If confirmed by the doctor, long-term control and recurrence prevention will be as important as pigment reduction."
+    }
+  ],
   "clinical_activity": {
     "stability_status": "stable|worsening|improving|spreading|not_sure",
     "inflammation_first_required": true,
@@ -459,7 +551,27 @@ Return valid JSON only matching this schema:
       }
     ]
   },
-  "clinical_summary_for_doctor": "string clinical impression summary"
+  "patient_doctor_review_note": {
+    "required": true,
+    "headline": "Doctor review before direct spot treatment",
+    "summary": "Two individual dark spots should be visually reviewed by the doctor before any direct laser or spot treatment.",
+    "reassurance": "This is a precaution and does not by itself mean that the spots are harmful.",
+    "areas": [
+      {
+        "natural_location": "left cheek near the outer corner of the eye",
+        "instruction": "Avoid direct treatment until reviewed"
+      },
+      {
+        "natural_location": "right mid-cheek",
+        "instruction": "Avoid direct treatment until reviewed"
+      }
+    ]
+  },
+  "summaries": {
+    "clinical_summary_for_doctor": "Technical doctor-facing working impression including image findings, history correlation, confidence, drivers, risk and local restrictions.",
+    "patient_summary": "Plain-language summary of the pigmentation pattern, main contributing factors, depth and next doctor-review step.",
+    "patient_summary_short": "One- or two-sentence summary suitable for the top of the report."
+  }
 }
 `
 
@@ -510,6 +622,9 @@ Rules:
 - Doctor approval/performance is an execution requirement and authorization layer, not an efficacy penalty.
 - All final plans require doctor sign-off before execution.
 - Include detailed step-by-step provider protocol: pre-treatment checklist, zone sequence, settings by zone, endpoint rules, avoid zones, post-treatment steps, and homecare handover.
+- CRITICAL: Every session in the sessions array MUST contain a fully populated provider_protocol object. Do NOT omit provider_protocol from any session. The provider_protocol for every session MUST include: pre_treatment_checklist (array of strings), zone_sequence (array of zone objects with full settings), avoid_zones, endpoint_rules, post_treatment_steps, and homecare_handover.
+- CRITICAL: The pre_treatment_checklist in provider_protocol must be the patient-specific safety checklist for that session (e.g., doctor sign-off status, active burning/sensitivity check, sunburn/open skin check, recent peel/laser history check, lesion marking instructions). Do NOT leave it empty.
+- CRITICAL: The zone_sequence in provider_protocol must be generated for every treatment session, not just session 1. Each subsequent session must have a complete, recalculated zone_sequence reflecting any protocol changes or progression.
 
 Return valid JSON only matching this schema:
 {
@@ -749,6 +864,12 @@ Return valid JSON only matching this schema:
               "zone": "forehead",
               "zone_strategy_type": "base_global_toning|regional_override|spot_only_override|exclude_from_treatment|defer_zone",
               "why_this_zone_strategy": "string",
+              "endpoint_rules": ["string"],
+              "post_treatment_steps": [{
+                "step": "string",
+                "instructions": "string",
+                "duration_minutes": "number"
+              }],
               "base_zone_setting": {
                 "selected": true,
                 "selection_source": "selected_global_setting|regional_override",
@@ -802,8 +923,6 @@ Return valid JSON only matching this schema:
               "zone_defination": "string",
             }
           ],
-          "endpoint_rules": ["string"],
-          "post_treatment_steps": ["string"],
           "homecare_handover": ["string"]
         },
         "authorization": {

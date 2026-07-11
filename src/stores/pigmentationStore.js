@@ -68,6 +68,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
       // Patient Demographics (Stage 2)
       initials: '',
+      full_name: '',
       mrn: '',
       age: '',
       sex: '',
@@ -469,31 +470,37 @@ export const usePigmentationStore = defineStore('pigmentation', {
           const weekMatch = String(session.timing || '').match(/\d+/)
           const weekNum = weekMatch ? parseInt(weekMatch[0]) : session.session_number
 
-          // Build checklist
-          const checklist = ['Check patient identification and consent']
-          if (session.fixed_protocol?.q_switch?.use) {
-            const qs = session.fixed_protocol.q_switch
-            checklist.push(
-              `Laser: Set Q-Switch to ${qs.wavelength_nm}nm, ${qs.energy_mj}mJ, ${qs.fluence_j_cm2} J/cm², ${qs.frequency_hz}Hz`,
-            )
-            if (qs.endpoint) checklist.push(`Laser Endpoint: ${qs.endpoint}`)
-          }
-          if (session.fixed_protocol?.peel?.use) {
-            const p = session.fixed_protocol.peel
-            checklist.push(
-              `Peel: Prepare ${p.peel_name} (contact time: ${p.contact_time_minutes} mins, neutralization: ${p.neutralization_required ? 'Yes' : 'No'})`,
-            )
-          }
-          if (session.fixed_protocol?.microneedling?.use) {
-            const mn = session.fixed_protocol.microneedling
-            checklist.push(
-              `Microneedling: Prepare device (${mn.device}) with actives: ${mn.actives?.join(', ')}`,
-            )
-          }
-          if (session.fixed_protocol?.led?.use) {
-            checklist.push(
-              `LED: Prepare ${session.fixed_protocol.led.mode} (${session.fixed_protocol.led.role})`,
-            )
+          // Build checklist — prefer AI-generated pre_treatment_checklist from provider_protocol
+          const aiChecklist = session.provider_protocol?.pre_treatment_checklist
+          let checklist
+          if (Array.isArray(aiChecklist) && aiChecklist.length > 0) {
+            checklist = aiChecklist
+          } else {
+            checklist = ['Check patient identification and consent']
+            if (session.fixed_protocol?.q_switch?.use) {
+              const qs = session.fixed_protocol.q_switch
+              checklist.push(
+                `Laser: Set Q-Switch to ${qs.wavelength_nm}nm, ${qs.energy_mj}mJ, ${qs.fluence_j_cm2} J/cm², ${qs.frequency_hz}Hz`,
+              )
+              if (qs.endpoint) checklist.push(`Laser Endpoint: ${qs.endpoint}`)
+            }
+            if (session.fixed_protocol?.peel?.use) {
+              const p = session.fixed_protocol.peel
+              checklist.push(
+                `Peel: Prepare ${p.peel_name} (contact time: ${p.contact_time_minutes} mins, neutralization: ${p.neutralization_required ? 'Yes' : 'No'})`,
+              )
+            }
+            if (session.fixed_protocol?.microneedling?.use) {
+              const mn = session.fixed_protocol.microneedling
+              checklist.push(
+                `Microneedling: Prepare device (${mn.device}) with actives: ${mn.actives?.join(', ')}`,
+              )
+            }
+            if (session.fixed_protocol?.led?.use) {
+              checklist.push(
+                `LED: Prepare ${session.fixed_protocol.led.mode} (${session.fixed_protocol.led.role})`,
+              )
+            }
           }
 
           // Build steps
@@ -508,13 +515,16 @@ export const usePigmentationStore = defineStore('pigmentation', {
               .join(' ')
           }
 
+          // Use string includes to handle combined modality names like "q_switch_1064_toning"
           const hasLaserModality = session.selected_modalities?.some(
-            (m) => m === 'q_switch' || m === 'laser' || m === 'toning'
+            (m) => m.includes('q_switch') || m.includes('laser') || m.includes('toning') || m.includes('ndyag')
           )
 
           let hasZoneSequence = false
-          if (hasLaserModality && session.provider_protocol?.zone_sequence && session.provider_protocol.zone_sequence.length > 0) {
-            const activeZones = session.provider_protocol.zone_sequence.filter(
+          // Use zone_sequence if available in provider_protocol, even if modality naming varies
+          const zoneSeqSource = session.provider_protocol?.zone_sequence
+          if (Array.isArray(zoneSeqSource) && zoneSeqSource.length > 0 && (hasLaserModality || session.fixed_protocol?.q_switch?.use)) {
+            const activeZones = zoneSeqSource.filter(
               (z) => z.zone_strategy_type !== 'exclude_from_treatment' && z.zone_strategy_type !== 'defer_zone'
             )
             if (activeZones.length > 0) {
@@ -522,11 +532,11 @@ export const usePigmentationStore = defineStore('pigmentation', {
               activeZones.forEach((z) => {
                 let settingsStr = ''
                 let equipments = []
-                if (z.base_zone_setting) {
+                if (z.base_zone_setting && (z.base_zone_setting.wavelength_nm || z.base_zone_setting.energy_mj)) {
                   const b = z.base_zone_setting
                   settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
                   equipments.push(`Laser (${b.wavelength_nm}nm)`)
-                } else if (z.regional_override_setting) {
+                } else if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
                   const r = z.regional_override_setting
                   settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${r.fluence_j_cm2} J/cm² • ${r.passes} passes`
                   equipments.push(`Laser (${r.wavelength_nm}nm)`)
@@ -673,6 +683,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
       const firstInitial = data.first_name ? data.first_name.charAt(0).toUpperCase() : ''
       const lastInitial = data.last_name ? data.last_name.charAt(0).toUpperCase() : ''
       this.formData.initials = firstInitial + (lastInitial ? '.' + lastInitial : '')
+      this.formData.full_name = [data.first_name, data.last_name].filter(Boolean).join(' ')
       this.formData.mrn = String(data.id || '')
       if (data.date_of_birth) {
         this.formData.age = useCommonStore().getAgeFromDate(data.date_of_birth)
@@ -721,6 +732,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         woods: '',
         depth: '',
         initials: '',
+        full_name: '',
         mrn: '',
         age: '',
         sex: '',
@@ -1252,7 +1264,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
         mappedData.scores = dx.scores ? JSON.parse(JSON.stringify(dx.scores)) : {}
         mappedData.scores_list = scoresArray
         mappedData.severity_interpretation = `Confidence: ${dx.working_impression?.diagnostic_confidence || 'moderate'}. Recurrence: ${dx.risk_profile?.recurrence_risk || 'moderate'}.`
-        mappedData.key_drivers = drivers
+        // key_drivers is already preserved from the deep clone of dx (line 1238)
+        // Do NOT overwrite with the flat `drivers` array
         mappedData.red_flags = {
           present: redFlagsPresent,
           items: redFlagsItems,

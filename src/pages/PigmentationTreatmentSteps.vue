@@ -56,7 +56,7 @@
               <span class="text-subtitle1 text-weight-medium text-dark">
                 Client:
                 <strong class="text-black"
-                  >{{ pigmentationStore.formData.initials
+                  >{{ pigmentationStore.formData.full_name || pigmentationStore.formData.initials
                   }}{{
                     pigmentationStore.formData.mrn
                       ? ' (ID: ' + pigmentationStore.formData.mrn + ')'
@@ -303,12 +303,13 @@ onMounted(async () => {
         }
 
         const hasLaserModality = s.selected_modalities?.some(
-          (m) => m === 'q_switch' || m === 'laser' || m === 'toning'
+          (m) => m.includes('q_switch') || m.includes('laser') || m.includes('toning') || m.includes('ndyag')
         )
 
         let hasZoneSequence = false
-        if (hasLaserModality && s.provider_protocol?.zone_sequence && s.provider_protocol.zone_sequence.length > 0) {
-          const activeZones = s.provider_protocol.zone_sequence.filter(
+        const zoneSeqSrc = s.provider_protocol?.zone_sequence
+        if (Array.isArray(zoneSeqSrc) && zoneSeqSrc.length > 0 && (hasLaserModality || s.fixed_protocol?.q_switch?.use)) {
+          const activeZones = zoneSeqSrc.filter(
             (z) => z.zone_strategy_type !== 'exclude_from_treatment' && z.zone_strategy_type !== 'defer_zone'
           )
           if (activeZones.length > 0) {

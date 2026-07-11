@@ -32,33 +32,58 @@
             <div class="flex items-center gap-2">
               <q-icon name="person" size="24px" color="primary" />
               <span class="text-subtitle1 text-weight-medium text-dark">
-                Client: <strong class="text-black">{{ pigmentationStore.formData.initials }}{{ pigmentationStore.formData.mrn ? ' (ID: ' + pigmentationStore.formData.mrn + ')' : '' }}</strong>
+                Client:
+                <strong class="text-black"
+                  >{{ pigmentationStore.formData.full_name || pigmentationStore.formData.initials
+                  }}{{
+                    pigmentationStore.formData.mrn
+                      ? ' (ID: ' + pigmentationStore.formData.mrn + ')'
+                      : ''
+                  }}</strong
+                >
               </span>
             </div>
-            <div v-if="pigmentationStore.formData?.age || pigmentationStore.formData?.sex" class="text-caption text-grey-7">
-              {{ pigmentationStore.formData?.sex ? pigmentationStore.formData.sex + ', ' : '' }}{{ pigmentationStore.formData?.age ? pigmentationStore.formData.age + ' years' : '' }} · Fitzpatrick Type: {{ pigmentationStore.formData?.fitz || '—' }}
+            <div
+              v-if="pigmentationStore.formData?.age || pigmentationStore.formData?.sex"
+              class="text-caption text-grey-7"
+            >
+              {{ pigmentationStore.formData?.sex ? pigmentationStore.formData.sex + ', ' : ''
+              }}{{
+                pigmentationStore.formData?.age ? pigmentationStore.formData.age + ' years' : ''
+              }}
+              · Fitzpatrick Type: {{ pigmentationStore.formData?.fitz || '—' }}
             </div>
           </q-card-section>
         </q-card>
 
         <q-card flat class="q-pa-md">
           <div class="header mb-4">
-            <div class="text-h5 text-weight-bold text-black">Session {{ sessionID }} Preparation</div>
-            <div class="text-subtitle2 text-grey-7">{{ session?.title || 'Pigmentation Session' }}</div>
-          </div>
-
-          <!-- Safety Warning Banner -->
-          <div v-if="!isSafetyChecked" class="bg-red-1 text-red-10 q-pa-md rounded-lg q-mb-md border border-red-3 flex items-start gap-2">
-            <q-icon name="warning" size="24px" class="q-mt-xs" />
-            <div>
-              <div class="text-weight-bold text-subtitle1">Safety Checklist Incomplete</div>
-              <div>All pre-treatment safety checks are mandatory and must be verified by the therapist before starting the treatment.</div>
+            <div class="text-h5 text-weight-bold text-black">
+              Session {{ sessionID }} Preparation
+            </div>
+            <div class="text-subtitle2 text-grey-7">
+              {{ session?.title || 'Pigmentation Session' }}
             </div>
           </div>
 
-          <div class="row q-col-gutter-lg">
-            <!-- Left Side Checklists -->
-            <div class="col-12 col-md-6">
+          <!-- Safety Warning Banner -->
+          <div
+            v-if="!isSafetyChecked"
+            class="bg-red-1 text-red-10 q-pa-md rounded-lg q-mb-md border border-red-3 flex items-start gap-2"
+          >
+            <q-icon name="warning" size="24px" class="q-mt-xs" />
+            <div>
+              <div class="text-weight-bold text-subtitle1">Safety Checklist Incomplete</div>
+              <div>
+                All pre-treatment safety checks are mandatory and must be verified by the therapist
+                before starting the treatment.
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <!-- Safety Checklist (full width) -->
+            <div class="col-12">
               <!-- Safety Gates Checklist -->
               <q-card flat bordered class="rounded-lg q-mb-md">
                 <q-card-section class="text-white bg-red-8">
@@ -68,7 +93,11 @@
                   </div>
                 </q-card-section>
                 <q-card-section class="q-py-sm">
-                  <div v-for="(item, idx) in safetyChecklist" :key="'safety-' + idx" class="q-py-xs border-b last-no-border">
+                  <div
+                    v-for="(item, idx) in safetyChecklist"
+                    :key="'safety-' + idx"
+                    class="q-py-xs border-b last-no-border"
+                  >
                     <q-checkbox
                       v-model="checkedSafety"
                       :val="item"
@@ -83,73 +112,6 @@
                   </div>
                 </q-card-section>
               </q-card>
-
-              <!-- Equipment Checklist -->
-              <q-card flat bordered class="rounded-lg">
-                <q-card-section class="text-white bg-indigo-9">
-                  <div class="text-h6 flex items-center gap-2">
-                    <q-icon name="construction" />
-                    🧪 Equipment &amp; Product Checklist
-                  </div>
-                </q-card-section>
-                <q-card-section class="q-py-sm">
-                  <div v-if="!prepList.length" class="text-grey-6 q-pa-md text-center">No checklist items defined.</div>
-                  <div v-for="(item, index) in prepList" :key="'prep-' + index" class="q-py-xs">
-                    <q-checkbox
-                      v-model="checkedPrep"
-                      :val="item"
-                      color="primary"
-                      size="md"
-                      :label="item"
-                      :class="{
-                        'text-dark text-weight-medium': checkedPrep.includes(item),
-                        'text-grey-8': !checkedPrep.includes(item),
-                      }"
-                    />
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <!-- Right Side Zone Treatment Sequence -->
-            <div class="col-12 col-md-6">
-              <q-card flat bordered class="rounded-lg full-height">
-                <q-card-section class="text-white bg-teal-8">
-                  <div class="text-h6 flex items-center gap-2">
-                    <q-icon name="map" />
-                    🗺️ Zone Treatment Sequence
-                  </div>
-                </q-card-section>
-                <q-card-section class="q-pa-none">
-                  <div v-if="!zoneSequence || !zoneSequence.length" class="text-grey-6 q-pa-md text-center">No zone treatment sequence defined for this session.</div>
-                  <q-list separator v-else>
-                    <q-item v-for="z in zoneSequence" :key="z.order" class="q-py-md">
-                      <q-item-section top avatar>
-                        <q-avatar color="teal-1" text-color="teal-9" size="md"><b>#{{ z.order }}</b></q-avatar>
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label class="text-weight-bold text-subtitle1">{{ formatLabel(z.zone) }}</q-item-label>
-                        <q-item-label caption class="text-grey-9 text-weight-medium">
-                          Strategy: {{ formatLabel(z.zone_strategy_type) }}
-                        </q-item-label>
-                        <q-item-label caption class="q-mt-xs text-dark">
-                          <strong>Settings:</strong>
-                          <span v-if="z.base_zone_setting">
-                            {{ z.base_zone_setting.wavelength_nm }}nm • {{ z.base_zone_setting.energy_mj }}mJ • {{ z.base_zone_setting.fluence_j_cm2 }} J/cm² • {{ z.base_zone_setting.passes }} passes ({{ z.base_zone_setting.frequency_hz }}Hz)
-                          </span>
-                          <span v-else>Standard protocol settings</span>
-                        </q-item-label>
-                        <q-item-label caption class="q-mt-xs">
-                          <strong>Coverage:</strong> {{ z.coverage_instruction || z.base_zone_setting?.coverage_instruction || 'Standard full-zone passes.' }}
-                        </q-item-label>
-                        <q-item-label caption class="q-mt-xs">
-                          <strong>Endpoint:</strong> {{ z.endpoint || z.base_zone_setting?.endpoint || 'Mild erythema.' }}
-                        </q-item-label>
-                      </q-item-section>
-                    </q-item>
-                  </q-list>
-                </q-card-section>
-              </q-card>
             </div>
           </div>
         </q-card>
@@ -158,7 +120,7 @@
 
         <div class="q-px-lg">
           <div class="text-dark q-mb-sm text-subtitle1 text-weight-medium">
-            Progress: {{ completedTotal }} / {{ totalItems }} Tasks Completed
+            Progress: {{ checkedSafety.length }} / {{ safetyChecklist.length }} Checks Completed
           </div>
           <q-linear-progress
             :value="progress"
@@ -174,11 +136,19 @@
               class="gredient text-white px-8"
               size="lg"
               rounded
-              :disable="!isSafetyChecked || checkedPrep.length !== prepList.length"
+              :disable="!isSafetyChecked"
               @click="startSteps"
               no-caps
             />
-            <q-btn flat label="Back to Plan" size="lg" rounded class="text-grey-8" @click="backToPlan" no-caps />
+            <q-btn
+              flat
+              label="Back to Plan"
+              size="lg"
+              rounded
+              class="text-grey-8"
+              @click="backToPlan"
+              no-caps
+            />
           </div>
         </div>
       </div>
@@ -229,34 +199,35 @@ const store = useTreatmentFlowStore()
 const sessionParam = route.params.session_id
 const sessionID = sessionParam ? Number(sessionParam) : 1
 
-// Safety checklist items from the clinical protocol image
-const safetyChecklist = [
-  'Doctor sign-off (mandatory)',
-  'Confirm no active burning/sensitivity today (history: none)',
-  'Confirm no sunburn/active infection/open skin',
-  'Confirm no recent outside clinic aggressive peel/laser in last 14 days',
-  'Mark suspect lesions & set no-fire safety margin (minimum 5mm)',
-]
-
 const checkedSafety = ref([])
-const checkedPrep = ref([])
 
 onMounted(async () => {
   await pigmentationStore.getSingleAssessment(route.params.assessment_id)
-  
+
   // Backwards compatibility and sync with treatmentFlowStore
   if (pigmentationStore.lastPlan && pigmentationStore.lastPlan.sessions) {
     store.treatmentPlan = {
       treatments: pigmentationStore.lastPlan.sessions.map((s) => {
         let mappedSteps = []
         const hasLaserModality = s.selected_modalities?.some(
-          (m) => m === 'q_switch' || m === 'laser' || m === 'toning'
+          (m) =>
+            m.includes('q_switch') ||
+            m.includes('laser') ||
+            m.includes('toning') ||
+            m.includes('ndyag'),
         )
 
         let hasZoneSequence = false
-        if (hasLaserModality && s.provider_protocol?.zone_sequence && s.provider_protocol.zone_sequence.length > 0) {
-          const activeZones = s.provider_protocol.zone_sequence.filter(
-            (z) => z.zone_strategy_type !== 'exclude_from_treatment' && z.zone_strategy_type !== 'defer_zone'
+        const zoneSeqSrc = s.provider_protocol?.zone_sequence
+        if (
+          Array.isArray(zoneSeqSrc) &&
+          zoneSeqSrc.length > 0 &&
+          (hasLaserModality || s.fixed_protocol?.q_switch?.use)
+        ) {
+          const activeZones = zoneSeqSrc.filter(
+            (z) =>
+              z.zone_strategy_type !== 'exclude_from_treatment' &&
+              z.zone_strategy_type !== 'defer_zone',
           )
           if (activeZones.length > 0) {
             hasZoneSequence = true
@@ -307,7 +278,8 @@ onMounted(async () => {
           title: s.goal || 'Pigmentation Session',
           treatment_time: '45 mins',
           week: s.timing?.replace('week_', '') || s.session_number,
-          preparations_checklist_for_therapist: s.fixed_protocol?.preparations_checklist_for_therapist || [],
+          preparations_checklist_for_therapist:
+            s.fixed_protocol?.preparations_checklist_for_therapist || [],
           concerns_addressed: [s.goal || 'Pigmentation treatment'],
           steps: mappedSteps,
           provider_protocol: s.provider_protocol || null,
@@ -321,18 +293,33 @@ onMounted(async () => {
 const session = computed(() => {
   if (!store.treatmentPlan?.treatments) return null
   return store.treatmentPlan.treatments.find(
-    (s) => Number(s.id) === Number(sessionID) || Number(s.session_number) === Number(sessionID)
+    (s) => Number(s.id) === Number(sessionID) || Number(s.session_number) === Number(sessionID),
   )
 })
 
-const prepList = computed(() => session.value?.preparations_checklist_for_therapist ?? [])
-const zoneSequence = computed(() => session.value?.provider_protocol?.zone_sequence ?? [])
-const text = computed(() => session.value?.script ?? 'Please complete the pre-treatment checklist and prepare the required equipment.')
+// Use AI-generated pre_treatment_checklist if available, else use default safety items
+const safetyChecklist = computed(() => {
+  const aiList = session.value?.provider_protocol?.pre_treatment_checklist
+  if (Array.isArray(aiList) && aiList.length > 0) return aiList
+  return [
+    'Doctor sign-off (mandatory)',
+    'Confirm no active burning/sensitivity today (history: none)',
+    'Confirm no sunburn/active infection/open skin',
+    'Confirm no recent outside clinic aggressive peel/laser in last 14 days',
+    'Mark suspect lesions & set no-fire safety margin (minimum 5mm)',
+  ]
+})
 
-const isSafetyChecked = computed(() => checkedSafety.value.length === safetyChecklist.length)
-const totalItems = computed(() => safetyChecklist.length + prepList.value.length)
-const completedTotal = computed(() => checkedSafety.value.length + checkedPrep.value.length)
-const progress = computed(() => totalItems.value ? completedTotal.value / totalItems.value : 0)
+const text = computed(
+  () =>
+    session.value?.script ??
+    'Please complete the pre-treatment checklist and prepare the required equipment.',
+)
+
+const isSafetyChecked = computed(() => checkedSafety.value.length === safetyChecklist.value.length)
+const totalItems = computed(() => safetyChecklist.value.length)
+const completedTotal = computed(() => checkedSafety.value.length)
+const progress = computed(() => (totalItems.value ? completedTotal.value / totalItems.value : 0))
 
 async function startSteps() {
   const realSessionId = session.value?.id || sessionID
