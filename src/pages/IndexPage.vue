@@ -215,6 +215,45 @@ const { assessmentData } = storeToRefs(store)
 
 const route = useRoute()
 const router = useRouter()
+
+const sessionId = computed(() => route.query.session_id ? Number(route.query.session_id) : null)
+const currentSession = computed(() => {
+  if (!sessionId.value || !assessmentData.value.treatment_sessions?.treatments) return null
+  return assessmentData.value.treatment_sessions.treatments.find(t => t.id === sessionId.value)
+})
+
+function getPreviousScores() {
+  if (!sessionId.value || !currentSession.value) {
+    return {
+      source: 'baseline',
+      scores: assessmentData.value.diagnosis
+    }
+  }
+
+  const currentNum = currentSession.value.session_number
+  if (currentNum === 1) {
+    return {
+      source: 'baseline',
+      scores: assessmentData.value.diagnosis
+    }
+  }
+
+  const prevSess = assessmentData.value.treatment_sessions?.treatments?.find(
+    t => t.session_number === currentNum - 1
+  )
+
+  if (prevSess && prevSess.post_diagnosis) {
+    return {
+      source: `session_${currentNum - 1}`,
+      scores: prevSess.post_diagnosis
+    }
+  }
+
+  return {
+    source: 'baseline',
+    scores: assessmentData.value.diagnosis
+  }
+}
 const currentStep = ref(route.params.step || 'selection')
 const isInitializing = ref(true)
 
@@ -308,6 +347,7 @@ function navigateToStep(step) {
       ...(route.params.assessment_id && { assessment_id: route.params.assessment_id }),
       ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
     },
+    query: route.query,
   })
 }
 
@@ -432,11 +472,11 @@ async function handleDiagnosis(files) {
 }
 
 async function handlePostAssessment(files) {
-  postTreatmentImages.value = assessmentData.value.post_images.map((img) => img.url)
-  // if (files.length > 0) {
-  //   const uploadedImages = await store.storeFaceImages(files, 'post')
-  //   postTreatmentImages.value.push(...uploadedImages)
-  // }
+  if (sessionId.value && currentSession.value) {
+    postTreatmentImages.value = currentSession.value.post_images.map((img) => img.url)
+  } else {
+    postTreatmentImages.value = assessmentData.value.post_images.map((img) => img.url)
+  }
 
   const machineMode = assessmentData.value.face_scan_machine?.charAt(0) || '6'
   const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
@@ -446,7 +486,14 @@ async function handlePostAssessment(files) {
 
   if (process.env.APP_TEST) {
     startProcessingStep.value = false
-    assessmentData.value.post_diagnosis = reassessment
+    if (sessionId.value) {
+      currentSession.value.post_diagnosis = reassessment
+      await store.saveTreatmentSessionPostAssessment(sessionId.value, {
+        post_diagnosis: reassessment
+      })
+    } else {
+      assessmentData.value.post_diagnosis = reassessment
+    }
     goNext()
   } else {
     const apiResponse = await callApiForPostDiagnosis(assessmentData.value, files)
@@ -467,8 +514,16 @@ async function handlePostAssessment(files) {
       })
     } else {
       startProcessingStep.value = false
-      assessmentData.value.post_diagnosis = apiResponse
-      submit(['post_diagnosis'])
+      if (sessionId.value) {
+        currentSession.value.post_diagnosis = apiResponse
+        await store.saveTreatmentSessionPostAssessment(sessionId.value, {
+          post_feature_packet: currentSession.value.post_feature_packet,
+          post_diagnosis: apiResponse
+        })
+      } else {
+        assessmentData.value.post_diagnosis = apiResponse
+        submit(['post_diagnosis'])
+      }
       goNext()
     }
   }
@@ -545,11 +600,11 @@ const updateTreatmentDurations = async (apiResponse) => {
   )
 }
 
-async function uploadImageFileToOpenAI(files, type) {
+async function uploadImageFileToOpenAI(files, type, session_id = null) {
   const uploaded = []
 
   for (const f of files) {
-    const fileId = await store.storeFaceImages(f, type)
+    const fileId = await store.storeFaceImages(f, type, session_id)
     uploaded.push({ type: 'input_image', file_id: fileId })
   }
 
@@ -750,9 +805,12 @@ async function callApiForPostDiagnosis(data, images) {
   // const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
 
   processingMessage.value = 'Uploading images to OpenAI...'
-  await uploadImageFileToOpenAI(images, 'post')
+  await uploadImageFileToOpenAI(images, 'post', sessionId.value)
+
+  const targetPostImages = sessionId.value && currentSession.value ? currentSession.value.post_images : data.post_images
+
   const storedFiles = await Promise.all(
-    data.post_images.map((item) => ({
+    targetPostImages.map((item) => ({
       type: 'input_image',
       file_id: item.custom_properties?.openai_file_id ?? null,
     })),
@@ -760,6 +818,10 @@ async function callApiForPostDiagnosis(data, images) {
   // let finalFileIdArray = [...fileArrar, ...storedFiles]
 
   const prompts = await getFacialPrompts(data.face_scan_machine)
+
+  const prevContext = getPreviousScores()
+  const sessionLabel = currentSession.value ? `Session ${currentSession.value.session_number}` : 'Session 1'
+
   const input = [
     {
       role: 'user',
@@ -781,12 +843,18 @@ async function callApiForPostDiagnosis(data, images) {
         },
         {
           type: 'input_text',
+          text: `IMPORTANT: For this reassessment, compare the patient's current post-treatment condition (provided in files above) against the following previous scores representing the patient's state before this treatment session. Use these previous values as the "before_treatment_score_or_label" values to evaluate progress:
+Reference Source: ${prevContext.source}
+Reference Scores: ${JSON.stringify(prevContext.scores)}`
+        },
+        {
+          type: 'input_text',
           text: JSON.stringify(
             {
               metadata: {
                 phase: 'reassessment',
                 evaluation_type: 'post_treatment',
-                treatment_session: 'Session 1',
+                treatment_session: sessionLabel,
               },
             },
             null,

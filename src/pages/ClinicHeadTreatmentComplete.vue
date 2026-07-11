@@ -130,8 +130,6 @@
         </q-card>
       </div>
     </div>
-
-
   </q-page>
 </template>
 
@@ -158,7 +156,6 @@ const router = useRouter()
 const store = useTreatmentFlowStore()
 const { getOrCreateConversation, runResponse } = useOpenAI()
 const isGeneratingRoutine = ref(false)
-
 
 onMounted(async () => {
   store.currentSessionId = Number(route.params.session_id)
@@ -269,8 +266,6 @@ function skipAndFinish() {
       console.log('User cancelled')
     })
 }
-
-
 
 async function generateDailyRoute() {
   try {
