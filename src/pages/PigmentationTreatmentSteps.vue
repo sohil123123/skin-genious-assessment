@@ -86,14 +86,7 @@
               <div class="title text-weight-bold text-h5 q-mb-xs">{{ session?.title }}</div>
               <div class="title text-grey-6 text-subtitle2 q-mb-md">Step {{ stepNumber }}</div>
               <div
-                class="desc text-body1 text-dark q-mb-md"
-                style="white-space: pre-line; line-height: 1.6"
-              >
-                {{ step.how_to_do }}
-              </div>
-
-              <div
-                class="q-mt-lg"
+                class="q-mt-lg q-mb-md"
                 v-if="step.ingredients_equipments && step.ingredients_equipments.length"
               >
                 <div class="info-main text-subtitle2 text-weight-bold q-mb-sm text-grey-8">
@@ -114,40 +107,86 @@
                   </q-item>
                 </q-list>
               </div>
-            </q-card>
-
-            <!-- Complete Button -->
-            <q-card flat bordered class="q-pa-lg text-center q-mt-md rounded-lg">
-              <q-btn
-                label="Mark Step Complete"
-                size="lg"
-                rounded
-                class="gredient text-white px-8"
-                @click="next"
-                no-caps
-              />
+              <div
+                class="desc text-body1 text-dark"
+                style="white-space: pre-line; line-height: 1.6"
+              >
+                {{ step.how_to_do }}
+              </div>
             </q-card>
           </div>
 
           <!-- RIGHT SIDE -->
           <div v-if="session" class="col-md-4 col-sm-12 col-xs-12">
-            <q-card flat bordered class="q-pa-lg full-height rounded-lg">
+            <q-card flat bordered class="q-pa-lg full-height rounded-lg text-center flex column items-center justify-center">
               <div class="text-subtitle1 text-weight-bold text-grey-8 q-mb-md">Step Timer</div>
-              <div class="col-md-6 col-sm-6 col-xs-12">
-                <q-card flat class="timer-card full-height">
-                  <TreatmentTimerV1
-                    ref="timerRef"
-                    :duration="
-                      Number(
-                        String(step.duration)
-                          .replace(/(mins|minutes|min)/g, '')
-                          .trim() * 60,
-                      ) || 300
-                    "
-                    @start="onTimerStart"
-                    @finished="onTimerFinished"
-                  />
-                </q-card>
+              
+              <!-- Knob Timer Display -->
+              <div class="q-mb-md">
+                <q-knob
+                  :model-value="elapsedSeconds % 60"
+                  :min="0"
+                  :max="60"
+                  size="160px"
+                  color="teal-8"
+                  track-color="grey-3"
+                  show-value
+                  readonly
+                >
+                  <template #default>
+                    <div class="text-h4 text-weight-bold text-teal-9">{{ formattedTime }}</div>
+                  </template>
+                </q-knob>
+              </div>
+
+              <!-- Controls -->
+              <div class="row q-gutter-sm justify-center q-mt-sm">
+                <!-- Start / End / Resume Button -->
+                <q-btn
+                  v-if="!timerRunning"
+                  color="teal-8"
+                  size="md"
+                  rounded
+                  :label="elapsedSeconds > 0 ? 'Resume' : 'Start'"
+                  icon="play_arrow"
+                  @click="startTimer"
+                  no-caps
+                  class="px-4"
+                />
+                <q-btn
+                  v-else
+                  color="negative"
+                  size="md"
+                  rounded
+                  label="End"
+                  icon="stop"
+                  @click="endStep"
+                  no-caps
+                  class="px-4"
+                />
+
+                <!-- Pause Button -->
+                <q-btn
+                  v-if="timerRunning"
+                  color="orange-8"
+                  round
+                  icon="pause"
+                  @click="pauseTimer"
+                >
+                  <q-tooltip>Pause</q-tooltip>
+                </q-btn>
+
+                <!-- Reset Button -->
+                <q-btn
+                  v-if="elapsedSeconds > 0 && !timerRunning"
+                  color="grey"
+                  round
+                  flat
+                  icon="replay"
+                  @click="resetTimer"
+                >
+                  <q-tooltip>Reset</q-tooltip>
+                </q-btn>
               </div>
             </q-card>
           </div>
@@ -178,7 +217,6 @@
               rounded
               class="text-white px-4"
               @click="next"
-              :disable="!timerIsFinished"
               no-caps
             />
             <q-btn
@@ -199,12 +237,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
 import { useCommonStore } from 'stores/commonStore'
-import TreatmentTimerV1 from 'src/components/common/TreatmentTimerV1.vue'
 import { useQuasar } from 'quasar'
 import { useElevenLabsAudio } from 'src/composables/useElevenLabsAudio'
 
@@ -229,6 +266,9 @@ function cleanup() {
 
 onBeforeUnmount(() => {
   bgMusicPlayer.pause()
+  if (timerInterval) {
+    clearInterval(timerInterval)
+  }
 })
 
 const $q = useQuasar()
@@ -268,24 +308,73 @@ watch(
 const sessionID = Number(route.params.session_id)
 const stepNumber = ref(Number(route.params.step))
 
-const timerIsFinished = ref(false)
-const timerRef = ref(null)
 const isAudioPlayed = ref(false)
 
 const session = computed(() => store.currentSession)
 const step = computed(() => store.currentStep)
 const totalSteps = computed(() => store.totalSteps)
 const isFirstStep = computed(() => store.currentStepIndex === 0)
-const stepDuration = computed(() => {
-  if (!step.value?.duration) return 300
-  return (
-    Number(
-      String(step.value.duration)
-        .replace(/(mins|minutes|min)/g, '')
-        .trim() * 60,
-    ) || 300
-  )
+
+// Count-up Timer States & Handlers
+const elapsedSeconds = ref(0)
+let timerInterval = null
+const timerRunning = ref(false)
+
+const formattedTime = computed(() => {
+  const m = Math.floor(elapsedSeconds.value / 60)
+  const s = elapsedSeconds.value % 60
+  return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`
 })
+
+function startTimer() {
+  if (timerInterval) return
+  timerRunning.value = true
+
+  if (!isAudioPlayed.value) {
+    isAudioPlayed.value = true
+    if (commonStore.isAudioEnabled) {
+      if (commonStore.isVoiceEnabled) {
+        bgMusicPlayer.pause()
+        handleAudioAction(
+          step.value?.how_to_do || 'Please follow doctor instructions for this step.',
+        )
+      } else {
+        bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
+      }
+    }
+  }
+
+  timerInterval = setInterval(() => {
+    elapsedSeconds.value++
+  }, 1000)
+}
+
+function pauseTimer() {
+  timerRunning.value = false
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
+}
+
+function resetTimer() {
+  pauseTimer()
+  elapsedSeconds.value = 0
+}
+
+function endStep() {
+  pauseTimer()
+  if (step.value) {
+    step.value.actual_duration_seconds = elapsedSeconds.value
+    store.saveToLocal()
+  }
+  $q.notify({
+    type: 'positive',
+    message: `Step completed! Time taken: ${formattedTime.value}`,
+    position: 'top',
+  })
+  next()
+}
 
 onMounted(async () => {
   await pigmentationStore.getSingleAssessment(route.params.assessment_id)
@@ -303,38 +392,64 @@ onMounted(async () => {
         }
 
         const hasLaserModality = s.selected_modalities?.some(
-          (m) => m.includes('q_switch') || m.includes('laser') || m.includes('toning') || m.includes('ndyag')
+          (m) =>
+            m.includes('q_switch') ||
+            m.includes('laser') ||
+            m.includes('toning') ||
+            m.includes('ndyag'),
         )
 
         let hasZoneSequence = false
         const zoneSeqSrc = s.provider_protocol?.zone_sequence
-        if (Array.isArray(zoneSeqSrc) && zoneSeqSrc.length > 0 && (hasLaserModality || s.fixed_protocol?.q_switch?.use)) {
+        if (
+          Array.isArray(zoneSeqSrc) &&
+          zoneSeqSrc.length > 0 &&
+          (hasLaserModality || s.fixed_protocol?.q_switch?.use)
+        ) {
           const activeZones = zoneSeqSrc.filter(
-            (z) => z.zone_strategy_type !== 'exclude_from_treatment' && z.zone_strategy_type !== 'defer_zone'
+            (z) =>
+              z.zone_strategy_type !== 'exclude_from_treatment' &&
+              z.zone_strategy_type !== 'defer_zone',
           )
           if (activeZones.length > 0) {
             hasZoneSequence = true
-            mappedSteps = activeZones.map((z, idx) => {
+             mappedSteps = activeZones.map((z, idx) => {
               let settingsStr = ''
               let equipments = []
-              if (z.base_zone_setting) {
-                const b = z.base_zone_setting
-                settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
-                equipments.push(`Laser (${b.wavelength_nm}nm)`)
-              } else if (z.regional_override_setting) {
+              let activeCoverage = 'Standard full-zone passes.'
+              let activeEndpoint = 'Mild erythema.'
+              
+              const formatSentenceCase = (str) => {
+                if (!str) return ''
+                if (typeof str !== 'string') return String(str)
+                const clean = str.replace(/_/g, ' ')
+                return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase()
+              }
+
+              if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
                 const r = z.regional_override_setting
                 settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${r.fluence_j_cm2} J/cm² • ${r.passes} passes`
                 equipments.push(`Laser (${r.wavelength_nm}nm)`)
+                activeCoverage = r.coverage_instruction || 'Standard full-zone passes.'
+                activeEndpoint = formatSentenceCase(r.endpoint || 'Mild erythema.')
+              } else if (z.base_zone_setting) {
+                const b = z.base_zone_setting
+                settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
+                equipments.push(`Laser (${b.wavelength_nm}nm)`)
+                activeCoverage = b.coverage_instruction || z.coverage_instruction || 'Standard full-zone passes.'
+                activeEndpoint = formatSentenceCase(b.endpoint || z.endpoint || 'Mild erythema.')
               } else {
                 settingsStr = 'Standard protocol settings'
                 equipments.push('Laser')
+                activeCoverage = z.coverage_instruction || 'Standard full-zone passes.'
+                activeEndpoint = formatSentenceCase(z.endpoint || 'Mild erythema.')
               }
 
               return {
                 step_number: idx + 1,
                 duration: '5 mins',
                 ingredients_equipments: equipments,
-                how_to_do: `Treat Zone: ${z.zone.toUpperCase()}\nStrategy: ${formatLabelLocal(z.zone_strategy_type || '')}\nSettings: ${settingsStr}\nCoverage Instruction: ${z.coverage_instruction || z.base_zone_setting?.coverage_instruction || 'Standard full-zone passes.'}\nEndpoint Target: ${z.endpoint || z.base_zone_setting?.endpoint || 'Mild erythema.'}`,
+                how_to_do: `Treat Zone: ${z.zone.toUpperCase()}\nStrategy: ${formatLabelLocal(z.zone_strategy_type || '')}\nSettings: ${settingsStr}\nCoverage Instruction: ${activeCoverage}\nEndpoint Target: ${activeEndpoint}`,
               }
             })
           }
@@ -361,7 +476,8 @@ onMounted(async () => {
           title: s.goal || 'Pigmentation Session',
           treatment_time: '45 mins',
           week: s.timing?.replace('week_', '') || s.session_number,
-          preparations_checklist_for_therapist: s.fixed_protocol?.preparations_checklist_for_therapist || [],
+          preparations_checklist_for_therapist:
+            s.fixed_protocol?.preparations_checklist_for_therapist || [],
           concerns_addressed: [s.goal || 'Pigmentation treatment'],
           steps: mappedSteps,
           provider_protocol: s.provider_protocol || null,
@@ -372,7 +488,7 @@ onMounted(async () => {
   }
 
   const matchedSession = store.treatmentPlan?.treatments?.find(
-    (s) => Number(s.id) === Number(sessionID) || Number(s.session_number) === Number(sessionID)
+    (s) => Number(s.id) === Number(sessionID) || Number(s.session_number) === Number(sessionID),
   )
 
   if (matchedSession) {
@@ -395,52 +511,6 @@ watch(
     cleanup()
   },
 )
-
-watch(
-  () => route.params.step,
-  () => {
-    stepNumber.value = Number(route.params.step)
-    store.setStepByNumber(stepNumber.value)
-    timerRef.value?.restartTimer(stepDuration.value)
-  },
-)
-
-watch(stepDuration, async () => {
-  await nextTick()
-  if (timerRef.value) {
-    timerRef.value.pauseTimer()
-    timerRef.value.restartTimer()
-  }
-})
-
-function onTimerStart() {
-  if (!isAudioPlayed.value) {
-    isAudioPlayed.value = true
-    if (commonStore.isAudioEnabled) {
-      if (commonStore.isVoiceEnabled) {
-        bgMusicPlayer.pause()
-        handleAudioAction(
-          step.value?.how_to_do || 'Please follow doctor instructions for this step.',
-        )
-      } else {
-        bgMusicPlayer.play().catch((e) => console.error('BG music error:', e))
-      }
-    }
-  }
-}
-
-function resetTimer() {
-  timerIsFinished.value = false
-  setTimeout(() => {
-    if (timerRef.value?.restartTimer) {
-      timerRef.value.restartTimer(stepDuration.value)
-    }
-  }, 50)
-}
-
-function onTimerFinished() {
-  timerIsFinished.value = true
-}
 
 function next() {
   store.nextStep()

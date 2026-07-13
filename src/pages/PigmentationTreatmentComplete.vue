@@ -157,24 +157,40 @@ onMounted(async () => {
             mappedSteps = activeZones.map((z, idx) => {
               let settingsStr = ''
               let equipments = []
-              if (z.base_zone_setting) {
-                const b = z.base_zone_setting
-                settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
-                equipments.push(`Laser (${b.wavelength_nm}nm)`)
-              } else if (z.regional_override_setting) {
+              let activeCoverage = 'Standard full-zone passes.'
+              let activeEndpoint = 'Mild erythema.'
+
+              const formatSentenceCase = (str) => {
+                if (!str) return ''
+                if (typeof str !== 'string') return String(str)
+                const clean = str.replace(/_/g, ' ')
+                return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase()
+              }
+
+              if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
                 const r = z.regional_override_setting
                 settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${r.fluence_j_cm2} J/cm² • ${r.passes} passes`
                 equipments.push(`Laser (${r.wavelength_nm}nm)`)
+                activeCoverage = r.coverage_instruction || 'Standard full-zone passes.'
+                activeEndpoint = formatSentenceCase(r.endpoint || 'Mild erythema.')
+              } else if (z.base_zone_setting) {
+                const b = z.base_zone_setting
+                settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
+                equipments.push(`Laser (${b.wavelength_nm}nm)`)
+                activeCoverage = b.coverage_instruction || z.coverage_instruction || 'Standard full-zone passes.'
+                activeEndpoint = formatSentenceCase(b.endpoint || z.endpoint || 'Mild erythema.')
               } else {
                 settingsStr = 'Standard protocol settings'
                 equipments.push('Laser')
+                activeCoverage = z.coverage_instruction || 'Standard full-zone passes.'
+                activeEndpoint = formatSentenceCase(z.endpoint || 'Mild erythema.')
               }
 
               return {
                 step_number: idx + 1,
                 duration: '5 mins',
                 ingredients_equipments: equipments,
-                how_to_do: `Treat Zone: ${z.zone.toUpperCase()}\nStrategy: ${formatLabelLocal(z.zone_strategy_type || '')}\nSettings: ${settingsStr}\nCoverage Instruction: ${z.coverage_instruction || z.base_zone_setting?.coverage_instruction || 'Standard full-zone passes.'}\nEndpoint Target: ${z.endpoint || z.base_zone_setting?.endpoint || 'Mild erythema.'}`,
+                how_to_do: `Treat Zone: ${z.zone.toUpperCase()}\nStrategy: ${formatLabelLocal(z.zone_strategy_type || '')}\nSettings: ${settingsStr}\nCoverage Instruction: ${activeCoverage}\nEndpoint Target: ${activeEndpoint}`,
               }
             })
           }
