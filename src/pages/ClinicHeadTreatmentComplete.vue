@@ -206,7 +206,7 @@ function toPostAssessment() {
   let routeData
   if (assessmentStore.assessmentData?.assessment_type === 'pigmentation') {
     routeData = router.resolve({
-      name: 'pigmentation-assessment',
+      name: 'pigmentation-reassessment',
       params: {
         user_id: route.params.user_id,
         assessment_id: route.params.assessment_id,

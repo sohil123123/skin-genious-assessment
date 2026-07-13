@@ -117,12 +117,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
   getters: {
     stageLabel: (state) => {
-      const names = ['Capture', 'Assess', 'Diagnosis', 'Plan', 'Reassess']
+      const names = ['Capture', 'Assess', 'Diagnosis', 'Plan']
       const pad = (x) => (x < 10 ? '0' : '') + x
-      return `${pad(state.currentStage + 1)} / 05 — ${names[state.currentStage]}`
+      return `${pad(state.currentStage + 1)} / 04 — ${names[state.currentStage] || ''}`
     },
     progressPercent: (state) => {
-      return ((state.currentStage + 1) / 5) * 100
+      return ((state.currentStage + 1) / 4) * 100
     },
   },
 

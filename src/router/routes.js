@@ -112,6 +112,11 @@ const routes = [
         component: () => import('src/pages/PigmentationAssessment.vue'),
       },
       {
+        path: 'pigmentation-reassessment/:user_id?/:assessment_id?/:appointment_id?',
+        name: 'pigmentation-reassessment',
+        component: () => import('src/pages/PigmentationReassessment.vue'),
+      },
+      {
         path: 'edit/:user_id/:step/:assessment_id/:appointment_id?',
         name: 'index-with-id',
         component: () => import('pages/IndexPage.vue'),
