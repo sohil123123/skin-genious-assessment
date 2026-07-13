@@ -116,7 +116,47 @@
 
             <!-- Daily Home Care Routine Section -->
             <div class="col-12">
+              <q-card
+                v-if="assessmentData?.assessment_type === 'pigmentation'"
+                flat
+                class="q-pa-md bg-grey-2"
+                style="border-radius: 8px"
+              >
+                <div class="row items-center justify-between q-mb-md">
+                  <div class="row items-center gap-2">
+                    <q-icon name="handshake" size="24px" class="text-grey-7" />
+                    <div class="text-h6 q-my-none">Homecare Handover Instructions</div>
+                  </div>
+                </div>
+                <q-separator class="q-my-md" />
+                <div v-if="session?.daily_home_care_routine?.length" class="row q-col-gutter-sm">
+                  <div class="col-12">
+                    <q-list bordered separator class="rounded-borders bg-white">
+                      <q-item
+                        v-for="(instruction, idx) in session.daily_home_care_routine"
+                        :key="idx"
+                      >
+                        <q-item-section avatar>
+                          <q-avatar color="orange-1" text-color="orange-8" size="md">
+                            {{ idx + 1 }}
+                          </q-avatar>
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label class="text-bold text-grey-9" style="font-size: 14.5px">{{
+                            instruction
+                          }}</q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </div>
+                </div>
+                <div v-else class="text-center q-pa-lg text-grey-7">
+                  No homecare handover instructions defined for this session.
+                </div>
+              </q-card>
+
               <DailyHomeCareRoutine
+                v-else
                 :routine="dailyRoutine"
                 :is-generating="isGeneratingRoutine"
                 :assessment-id="assessmentData?.id"
