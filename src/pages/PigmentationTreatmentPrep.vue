@@ -66,59 +66,167 @@
             </div>
           </div>
 
-          <!-- Safety Warning Banner -->
-          <div
-            v-if="!isSafetyChecked"
-            class="bg-red-1 text-red-10 q-pa-md rounded-lg q-mb-md border border-red-3 flex items-start gap-2"
-          >
-            <q-icon name="warning" size="24px" class="q-mt-xs" />
-            <div>
-              <div class="text-weight-bold text-subtitle1">Safety Checklist Incomplete</div>
-              <div>
-                All pre-treatment safety checks are mandatory and must be verified by the therapist
-                before starting the treatment.
-              </div>
-            </div>
-          </div>
-
-          <div class="row">
-            <!-- Safety Checklist (full width) -->
-            <div class="col-12">
-              <!-- Safety Gates Checklist -->
-              <q-card flat bordered class="rounded-lg q-mb-md">
-                <q-card-section class="text-white bg-red-8">
-                  <div class="text-h6 flex items-center gap-2">
-                    <q-icon name="security" />
-                    📋 Pre-treatment Safety Checklist (Mandatory)
+          <!-- PRE-SESSION VALIDATION LAYER (Step 15) -->
+          <div v-if="!validationCompleted && sessionID > 1" class="q-mb-md">
+            <q-card flat bordered class="border-amber rounded-lg">
+              <q-card-section class="bg-amber-1 text-amber-10">
+                <div class="text-h6 flex items-center gap-2">
+                  <q-icon name="shield" color="amber-8" />
+                  🛡️ Pre-Session Clinical Safety Validation (Session {{ sessionID }})
+                </div>
+                <div class="text-caption text-amber-9">
+                  Since this is a planned future session, you must confirm the patient's clinical status before proceeding.
+                </div>
+              </q-card-section>
+              
+              <q-card-section class="q-col-gutter-y-md">
+                <div class="text-subtitle2 text-weight-bold text-grey-8">Please check if any of the following are present:</div>
+                
+                <div class="row q-col-gutter-sm">
+                  <div class="col-12 col-md-6">
+                    <q-checkbox v-model="preSessionVal.active_burning_or_sensitivity" label="Active burning, stinging, or sensitivity today" />
                   </div>
-                </q-card-section>
-                <q-card-section class="q-py-sm">
-                  <div
-                    v-for="(item, idx) in safetyChecklist"
-                    :key="'safety-' + idx"
-                    class="q-py-xs border-b last-no-border"
-                  >
-                    <q-checkbox
-                      v-model="checkedSafety"
-                      :val="item"
-                      color="negative"
-                      size="md"
-                      :label="item"
-                      :class="{
-                        'text-dark text-weight-medium': checkedSafety.includes(item),
-                        'text-grey-8': !checkedSafety.includes(item),
-                      }"
+                  <div class="col-12 col-md-6">
+                    <q-checkbox v-model="preSessionVal.prolonged_erythema_from_previous_session" label="Prolonged redness (erythema) from previous session" />
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-checkbox v-model="preSessionVal.open_skin_or_infection" label="Open skin, barrier disruption, or active infection" />
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-checkbox v-model="preSessionVal.recent_sunburn" label="Recent sunburn or intense UV exposure" />
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-checkbox v-model="preSessionVal.new_or_changing_lesion" label="New or changing atypical lesion in treatment area" />
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-checkbox v-model="preSessionVal.unexpected_pigment_worsening" label="Unexpected darkening or worsening of pigmentation" />
+                  </div>
+                </div>
+
+                <q-separator class="q-my-md" />
+
+                <div class="row items-center justify-between">
+                  <div>
+                    <div class="text-subtitle2 text-weight-bold">Doctor Decision Recommendation:</div>
+                    <div class="text-caption text-grey-7">
+                      Suggested action based on inputs: 
+                      <strong class="text-primary">{{ formatLabel(suggestedDecision) }}</strong>
+                    </div>
+                  </div>
+                  <div>
+                    <q-select
+                      v-model="preSessionVal.doctor_decision"
+                      :options="decisionOptions"
+                      outlined
+                      dense
+                      options-dense
+                      style="min-width: 250px"
+                      emit-value
+                      map-options
                     />
                   </div>
-                </q-card-section>
-              </q-card>
+                </div>
+
+                <!-- CLINICAL ADJUSTMENT PANEL -->
+                <div v-if="preSessionVal.doctor_decision === 'approved_with_minor_adjustment'" class="bg-blue-1 text-blue-10 q-pa-md rounded-lg border border-blue-3 q-mt-md">
+                  <div class="text-weight-bold text-subtitle2 q-mb-sm">⚙️ Parameter Minor Adjustments</div>
+                  <div class="row q-col-gutter-sm">
+                    <div class="col-12 col-sm-6" v-if="session?.fixed_protocol?.q_switch?.use">
+                      <q-input v-model="adjustments.q_switch.energy_mj" type="number" label="Q-Switch Energy (mJ)" outlined dense />
+                    </div>
+                    <div class="col-12 col-sm-6" v-if="session?.fixed_protocol?.q_switch?.use">
+                      <q-input v-model="adjustments.q_switch.fluence_j_cm2" type="number" step="0.01" label="Fluence (J/cm²)" outlined dense />
+                    </div>
+                    <div class="col-12 col-sm-6" v-if="session?.fixed_protocol?.q_switch?.use">
+                      <q-input v-model="adjustments.q_switch.passes" type="number" label="Passes" outlined dense />
+                    </div>
+                    <div class="col-12 col-sm-6" v-if="session?.fixed_protocol?.peel?.use">
+                      <q-input v-model="adjustments.peel.contact_time_minutes" type="number" label="Peel Contact Time (mins)" outlined dense />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- DECISION IMPLICATIONS AND WARNINGS -->
+                <div v-if="preSessionVal.doctor_decision === 'requires_early_reassessment'" class="bg-red-1 text-red-10 q-pa-md rounded-lg border border-red-3 flex items-start gap-2 q-mt-md">
+                  <q-icon name="error" size="24px" class="q-mt-xs" />
+                  <div>
+                    <div class="text-weight-bold text-subtitle2">Early Reassessment Required</div>
+                    <div>This clinical finding requires performing a formal reassessment (Stage 5) to evaluate the treatment trajectory and generate an updated block plan.</div>
+                    <q-btn label="Go to Reassessment Page" color="negative" class="q-mt-sm" @click="goToReassess" no-caps unelevated />
+                  </div>
+                </div>
+
+                <div v-else-if="preSessionVal.doctor_decision === 'deferred'" class="bg-amber-1 text-amber-10 q-pa-md rounded-lg border border-amber-3 flex items-start gap-2 q-mt-md">
+                  <q-icon name="warning" size="24px" class="q-mt-xs" />
+                  <div>
+                    <div class="text-weight-bold text-subtitle2">Session Deferral Indicated</div>
+                    <div>Do not proceed with active energy procedures or chemical peels today. Initiate barrier repair protocol or wait for symptoms to clear.</div>
+                  </div>
+                </div>
+
+              </q-card-section>
+              
+              <q-card-actions align="right" class="q-pb-md q-px-md">
+                <q-btn label="Confirm Safety Validation" color="primary" @click="confirmPreSessionValidation" :disable="preSessionVal.doctor_decision === 'requires_early_reassessment'" no-caps unelevated />
+              </q-card-actions>
+            </q-card>
+          </div>
+
+          <div v-else>
+            <!-- Safety Warning Banner -->
+            <div
+              v-if="!isSafetyChecked"
+              class="bg-red-1 text-red-10 q-pa-md rounded-lg q-mb-md border border-red-3 flex items-start gap-2"
+            >
+              <q-icon name="warning" size="24px" class="q-mt-xs" />
+              <div>
+                <div class="text-weight-bold text-subtitle1">Safety Checklist Incomplete</div>
+                <div>
+                  All pre-treatment safety checks are mandatory and must be verified by the therapist
+                  before starting the treatment.
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <!-- Safety Checklist (full width) -->
+              <div class="col-12">
+                <!-- Safety Gates Checklist -->
+                <q-card flat bordered class="rounded-lg q-mb-md">
+                  <q-card-section class="text-white bg-red-8">
+                    <div class="text-h6 flex items-center gap-2">
+                      <q-icon name="security" />
+                      📋 Pre-treatment Safety Checklist (Mandatory)
+                    </div>
+                  </q-card-section>
+                  <q-card-section class="q-py-sm">
+                    <div
+                      v-for="(item, idx) in safetyChecklist"
+                      :key="'safety-' + idx"
+                      class="q-py-xs border-b last-no-border"
+                    >
+                      <q-checkbox
+                        v-model="checkedSafety"
+                        :val="item"
+                        color="negative"
+                        size="md"
+                        :label="item"
+                        :class="{
+                          'text-dark text-weight-medium': checkedSafety.includes(item),
+                          'text-grey-8': !checkedSafety.includes(item),
+                        }"
+                      />
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </div>
             </div>
           </div>
         </q-card>
 
-        <q-separator class="q-my-lg" />
+        <q-separator class="q-my-lg" v-if="validationCompleted" />
 
-        <div class="q-px-lg">
+        <div class="q-px-lg" v-if="validationCompleted">
           <div class="text-dark q-mb-sm text-subtitle1 text-weight-medium">
             Progress: {{ checkedSafety.length }} / {{ safetyChecklist.length }} Checks Completed
           </div>
@@ -178,7 +286,7 @@
 </template>
 
 <script setup>
-import { onMounted, computed, ref } from 'vue'
+import { onMounted, computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
@@ -201,8 +309,84 @@ const sessionID = sessionParam ? Number(sessionParam) : 1
 
 const checkedSafety = ref([])
 
+// Pre-session validation layer state
+const validationCompleted = ref(false)
+const preSessionVal = ref({
+  active_burning_or_sensitivity: false,
+  prolonged_erythema_from_previous_session: false,
+  open_skin_or_infection: false,
+  recent_sunburn: false,
+  new_or_changing_lesion: false,
+  unexpected_pigment_worsening: false,
+  doctor_decision: 'approved_without_change'
+})
+
+const decisionOptions = [
+  { label: 'Approved without change', value: 'approved_without_change' },
+  { label: 'Approved with minor adjustment', value: 'approved_with_minor_adjustment' },
+  { label: 'Requires early reassessment', value: 'requires_early_reassessment' },
+  { label: 'Deferred', value: 'deferred' }
+]
+
+const adjustments = ref({
+  q_switch: {
+    energy_mj: 300,
+    fluence_j_cm2: 0.3,
+    passes: 1
+  },
+  peel: {
+    contact_time_minutes: 5
+  }
+})
+
+const suggestedDecision = computed(() => {
+  if (preSessionVal.value.unexpected_pigment_worsening) {
+    return 'requires_early_reassessment'
+  }
+  if (
+    preSessionVal.value.open_skin_or_infection ||
+    preSessionVal.value.recent_sunburn ||
+    preSessionVal.value.new_or_changing_lesion
+  ) {
+    return 'deferred'
+  }
+  if (
+    preSessionVal.value.active_burning_or_sensitivity ||
+    preSessionVal.value.prolonged_erythema_from_previous_session
+  ) {
+    return 'approved_with_minor_adjustment'
+  }
+  return 'approved_without_change'
+})
+
+watch(suggestedDecision, (newVal) => {
+  preSessionVal.value.doctor_decision = newVal
+})
+
 onMounted(async () => {
   await pigmentationStore.getSingleAssessment(route.params.assessment_id)
+
+  const matchedSession = pigmentationStore.lastPlan?.sessions?.find(
+    (s) => Number(s.session_number) === Number(sessionID)
+  )
+
+  if (matchedSession) {
+    if (matchedSession.pre_session_validation) {
+      preSessionVal.value = { ...matchedSession.pre_session_validation }
+      validationCompleted.value = true
+    } else if (sessionID === 1) {
+      validationCompleted.value = true
+    }
+
+    if (matchedSession.fixed_protocol?.q_switch?.use) {
+      adjustments.value.q_switch = { ...matchedSession.fixed_protocol.q_switch }
+    }
+    if (matchedSession.fixed_protocol?.peel?.use) {
+      adjustments.value.peel = { ...matchedSession.fixed_protocol.peel }
+    }
+  } else if (sessionID === 1) {
+    validationCompleted.value = true
+  }
 
   // Backwards compatibility and sync with treatmentFlowStore
   if (pigmentationStore.lastPlan && pigmentationStore.lastPlan.sessions) {
@@ -364,6 +548,52 @@ function backToPlan() {
       ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
     },
   })
+}
+function goToReassess() {
+  router.push({
+    name: 'PigmentationReassessment',
+    params: {
+      user_id: route.params.user_id,
+      assessment_id: pigmentationStore.id,
+      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+    }
+  })
+}
+
+async function confirmPreSessionValidation() {
+  const matchedSession = pigmentationStore.lastPlan?.sessions?.find(
+    (s) => Number(s.session_number) === Number(sessionID)
+  )
+  if (matchedSession) {
+    if (preSessionVal.value.doctor_decision === 'approved_with_minor_adjustment') {
+      if (!matchedSession.original_protocol) {
+        matchedSession.original_protocol = JSON.parse(JSON.stringify(matchedSession.fixed_protocol))
+      }
+      if (matchedSession.fixed_protocol?.q_switch?.use) {
+        matchedSession.fixed_protocol.q_switch.energy_mj = Number(adjustments.value.q_switch.energy_mj || matchedSession.fixed_protocol.q_switch.energy_mj)
+        matchedSession.fixed_protocol.q_switch.fluence_j_cm2 = Number(adjustments.value.q_switch.fluence_j_cm2 || matchedSession.fixed_protocol.q_switch.fluence_j_cm2)
+        matchedSession.fixed_protocol.q_switch.passes = Number(adjustments.value.q_switch.passes || matchedSession.fixed_protocol.q_switch.passes)
+      }
+      if (matchedSession.fixed_protocol?.peel?.use) {
+        matchedSession.fixed_protocol.peel.contact_time_minutes = Number(adjustments.value.peel.contact_time_minutes || matchedSession.fixed_protocol.peel.contact_time_minutes)
+      }
+      matchedSession.protocol_version = (matchedSession.protocol_version || 1) + 1
+    }
+
+    matchedSession.pre_session_validation = {
+      session_number: sessionID,
+      planned_protocol_available: true,
+      ...preSessionVal.value
+    }
+  }
+
+  pigmentationStore.pre_session_validation = {
+    session_number: sessionID,
+    ...preSessionVal.value
+  }
+
+  await pigmentationStore.updateAssessment()
+  validationCompleted.value = true
 }
 
 function formatLabel(str) {

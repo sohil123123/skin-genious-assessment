@@ -107,6 +107,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
     reassessment: null,
     reassessQuestions: [],
     reassessAnswers: {},
+    pre_session_validation: null,
 
     // Loading indicators
     aiAnalysis: null,
@@ -186,6 +187,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
               ts: pi.reviewState.ts ? new Date(pi.reviewState.ts) : null,
             }
           }
+          console.log(pi)
           if (pi.lastPlan && !this.lastPlan) {
             this.lastPlan = pi.lastPlan
           }
@@ -197,6 +199,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           }
           if (pi.aiAnalysis) this.aiAnalysis = pi.aiAnalysis
           if (pi.dynamicQuestions) this.dynamicQuestions = pi.dynamicQuestions || []
+          if (pi.pre_session_validation) this.pre_session_validation = pi.pre_session_validation
         }
 
         if (data.post_diagnosis && data.post_diagnosis.reassessment) {
@@ -261,21 +264,47 @@ export const usePigmentationStore = defineStore('pigmentation', {
           this.lastPlan = data.recommended_full_plan
           if (
             data.treatment_sessions &&
-            Array.isArray(data.treatment_sessions.treatments) &&
-            this.lastPlan.sessions
+            Array.isArray(data.treatment_sessions.treatments)
           ) {
-            this.lastPlan.sessions.forEach((s) => {
-              const matchedDbSession = data.treatment_sessions.treatments.find(
-                (t) => Number(t.session_number) === Number(s.session_number)
+            if (!this.lastPlan.sessions) {
+              this.lastPlan.sessions = []
+            }
+
+            data.treatment_sessions.treatments.forEach((dbS) => {
+              const extS = this.lastPlan.sessions.find(
+                (s) => Number(s.session_number) === Number(dbS.session_number),
               )
-              if (matchedDbSession) {
-                s.id = matchedDbSession.id
-                s.status = matchedDbSession.status || 'pending'
+              if (extS) {
+                extS.id = dbS.id
+                extS.status = dbS.status || extS.status || 'pending'
               } else {
-                s.id = s.session_number
-                s.status = 'pending'
+                const modalities = Array.isArray(dbS.title)
+                  ? dbS.title
+                  : (typeof dbS.title === 'string' ? dbS.title.split(' + ') : [])
+
+                this.lastPlan.sessions.push({
+                  id: dbS.id,
+                  session_number: dbS.session_number,
+                  timing: `week_${dbS.week || dbS.session_number}`,
+                  goal: dbS.concerns_addressed?.[0] || dbS.title || 'Pigmentation Session',
+                  selected_modalities: modalities,
+                  status: dbS.status || 'pending',
+                  fixed_protocol: {
+                    procedure: dbS.title,
+                    peel: { use: modalities.includes('peel') },
+                    q_switch: { use: modalities.some(m => m.includes('q_switch') || m.includes('laser')) },
+                    microneedling: { use: modalities.includes('microneedling') },
+                    led: { use: modalities.includes('led') },
+                    steps: dbS.steps || []
+                  },
+                  provider_protocol: dbS.provider_protocol || {
+                    pre_treatment_checklist: dbS.preparations_checklist_for_therapist || []
+                  }
+                })
               }
             })
+
+            this.lastPlan.sessions.sort((a, b) => Number(a.session_number) - Number(b.session_number))
           }
         }
 
@@ -459,6 +488,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         reassessment: this.reassessment,
         reassessQuestions: this.reassessQuestions,
         reassessAnswers: this.reassessAnswers,
+        pre_session_validation: this.pre_session_validation,
       }
 
       const diagnosis = this.diagnosis ? this.diagnosis.data : null
@@ -517,26 +547,43 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
           // Use string includes to handle combined modality names like "q_switch_1064_toning"
           const hasLaserModality = session.selected_modalities?.some(
-            (m) => m.includes('q_switch') || m.includes('laser') || m.includes('toning') || m.includes('ndyag')
+            (m) =>
+              m.includes('q_switch') ||
+              m.includes('laser') ||
+              m.includes('toning') ||
+              m.includes('ndyag'),
           )
 
           let hasZoneSequence = false
           // Use zone_sequence if available in provider_protocol, even if modality naming varies
           const zoneSeqSource = session.provider_protocol?.zone_sequence
-          if (Array.isArray(zoneSeqSource) && zoneSeqSource.length > 0 && (hasLaserModality || session.fixed_protocol?.q_switch?.use)) {
+          if (
+            Array.isArray(zoneSeqSource) &&
+            zoneSeqSource.length > 0 &&
+            (hasLaserModality || session.fixed_protocol?.q_switch?.use)
+          ) {
             const activeZones = zoneSeqSource.filter(
-              (z) => z.zone_strategy_type !== 'exclude_from_treatment' && z.zone_strategy_type !== 'defer_zone'
+              (z) =>
+                z.zone_strategy_type !== 'exclude_from_treatment' &&
+                z.zone_strategy_type !== 'defer_zone',
             )
             if (activeZones.length > 0) {
               hasZoneSequence = true
               activeZones.forEach((z) => {
                 let settingsStr = ''
                 let equipments = []
-                if (z.base_zone_setting && (z.base_zone_setting.wavelength_nm || z.base_zone_setting.energy_mj)) {
+                if (
+                  z.base_zone_setting &&
+                  (z.base_zone_setting.wavelength_nm || z.base_zone_setting.energy_mj)
+                ) {
                   const b = z.base_zone_setting
                   settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
                   equipments.push(`Laser (${b.wavelength_nm}nm)`)
-                } else if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
+                } else if (
+                  z.regional_override_setting &&
+                  (z.regional_override_setting.wavelength_nm ||
+                    z.regional_override_setting.energy_mj)
+                ) {
                   const r = z.regional_override_setting
                   settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${r.fluence_j_cm2} J/cm² • ${r.passes} passes`
                   equipments.push(`Laser (${r.wavelength_nm}nm)`)
@@ -636,8 +683,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
             treatments: treatments,
           },
           recommended_full_plan: {
-            plan_name: this.lastPlan.plan_name,
-            duration: this.lastPlan.duration,
+            ...this.lastPlan,
             sessions: this.lastPlan.sessions,
           },
         }
@@ -759,6 +805,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.reassessment = null
       this.reassessQuestions = []
       this.reassessAnswers = {}
+      this.pre_session_validation = null
       this.conversationId = ''
       this.id = null
     },
@@ -1334,7 +1381,13 @@ export const usePigmentationStore = defineStore('pigmentation', {
         const res = this.parseJSON(raw)
         const planObj = res.linear_treatment_plan || res
 
-        if (planObj.sessions) {
+        if (planObj.current_treatment_block && planObj.current_treatment_block.sessions) {
+          planObj.sessions = planObj.current_treatment_block.sessions.map((s) => ({
+            id: s.id || s.session_number,
+            status: s.status || 'pending',
+            ...s,
+          }))
+        } else if (planObj.sessions) {
           planObj.sessions = planObj.sessions.map((s) => ({
             id: s.id || s.session_number,
             status: s.status || 'pending',
@@ -1475,6 +1528,49 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         const r = this.parseJSON(raw)
         this.reassessment = r
+
+        if (r.current_treatment_block) {
+          const sessionsMapped = r.current_treatment_block.sessions.map((s) => ({
+            id: s.id || s.session_number,
+            status: s.status || 'pending',
+            ...s,
+          }))
+          if (this.lastPlan) {
+            const existingSessions = this.lastPlan.sessions || []
+            const mergedSessions = [...existingSessions]
+            sessionsMapped.forEach((newS) => {
+              const idx = mergedSessions.findIndex(
+                (extS) => Number(extS.session_number) === Number(newS.session_number),
+              )
+              if (idx !== -1) {
+                mergedSessions[idx] = { ...mergedSessions[idx], ...newS }
+              } else {
+                mergedSessions.push(newS)
+              }
+            })
+            mergedSessions.sort((a, b) => Number(a.session_number) - Number(b.session_number))
+
+            this.lastPlan = {
+              ...this.lastPlan,
+              current_treatment_block: r.current_treatment_block,
+              future_treatment_roadmap:
+                r.future_treatment_roadmap || this.lastPlan.future_treatment_roadmap,
+              master_treatment_roadmap:
+                r.updated_master_treatment_roadmap || this.lastPlan.master_treatment_roadmap,
+              sessions: mergedSessions,
+            }
+          } else {
+            this.lastPlan = {
+              plan_name: 'Post-Reassessment Treatment Plan',
+              duration: r.current_treatment_block.expected_duration || '6 weeks',
+              plan_status: 'ai_generated_pending_doctor_review',
+              current_treatment_block: r.current_treatment_block,
+              future_treatment_roadmap: r.future_treatment_roadmap,
+              master_treatment_roadmap: r.updated_master_treatment_roadmap,
+              sessions: sessionsMapped,
+            }
+          }
+        }
         await this.updateAssessment()
       } catch (err) {
         console.error(err)

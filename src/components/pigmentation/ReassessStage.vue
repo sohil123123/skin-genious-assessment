@@ -209,10 +209,10 @@
         <span class="ic">{{ bannerIcon }}</span>
         <div>
           <span class="text-weight-bold text-h6 block">
-            Overall Trajectory: {{ cap(store.reassessment.overall?.trajectory || 'unknown') }}
+            Overall Trajectory: {{ cap(comparisonData.overall?.trajectory || 'unknown') }}
           </span>
           <p style="margin: 4px 0 0 0; font-weight: 400; line-height: 1.4;">
-            {{ store.reassessment.overall?.summary || '' }}
+            {{ comparisonData.overall?.summary || '' }}
           </p>
         </div>
       </div>
@@ -231,13 +231,13 @@
       </div>
 
       <!-- 3. GOALS TRACKING SCORECARD -->
-      <div class="pblock" v-if="store.reassessment.goals?.length">
+      <div class="pblock" v-if="comparisonData.goals?.length">
         <h3><span class="bar"></span>Goal-by-goal scorecard</h3>
         <div class="goal-tbl">
           <div 
             class="goal-row" 
             style="grid-template-columns: 1.5fr 1fr 1fr 1fr 1.2fr"
-            v-for="(g, idx) in store.reassessment.goals" 
+            v-for="(g, idx) in comparisonData.goals" 
             :key="idx"
           >
             <div>
@@ -270,7 +270,7 @@
       </div>
 
       <!-- 4. REGIONAL CHANGES DETAIL -->
-      <div class="pblock" v-if="store.reassessment.regional_changes?.length">
+      <div class="pblock" v-if="comparisonData.regional_changes?.length">
         <h3><span class="bar"></span>Regional changes</h3>
         <div class="goal-tbl">
           <div class="goal-hdr" style="grid-template-columns: 1fr 1fr 1fr 1.2fr">
@@ -282,7 +282,7 @@
           <div 
             class="goal-row" 
             style="grid-template-columns: 1fr 1fr 1fr 1.2fr"
-            v-for="(reg, rIdx) in store.reassessment.regional_changes" 
+            v-for="(reg, rIdx) in comparisonData.regional_changes" 
             :key="rIdx"
           >
             <div>
@@ -304,6 +304,43 @@
               </span>
               <div class="gsub q-mt-xs" v-if="reg.comment" style="font-size: 11px;">
                 {{ reg.comment }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4.5 PREVIOUS BLOCK CLOSURE & CONTINUITY -->
+      <div class="row q-col-gutter-md q-mt-md" v-if="store.reassessment.previous_block_closure || store.reassessment.continuity_with_master_roadmap">
+        <div class="col-xs-12 col-md-6" v-if="store.reassessment.previous_block_closure">
+          <div class="pblock" style="height: 100%;">
+            <h3><span class="bar" style="background: var(--good);"></span>Previous Block Closure</h3>
+            <div class="card q-pa-md bg-teal-0" style="border: 1px solid var(--good); height: calc(100% - 32px);">
+              <div class="text-subtitle2 text-weight-bold text-teal-10 uppercase q-mb-xs">
+                {{ formatOptionLabel(store.reassessment.previous_block_closure.block_id) }} Completed
+              </div>
+              <div class="text-caption text-grey-8 q-mb-sm">
+                <strong>Completed Sessions:</strong> {{ store.reassessment.previous_block_closure.completed_sessions }}
+              </div>
+              <p class="text-body2 text-grey-9 q-mb-none" style="line-height: 1.5;">
+                {{ store.reassessment.previous_block_closure.block_outcome_summary }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xs-12 col-md-6" v-if="store.reassessment.continuity_with_master_roadmap">
+          <div class="pblock" style="height: 100%;">
+            <h3><span class="bar" style="background: var(--primary);"></span>Roadmap Continuity</h3>
+            <div class="card q-pa-md" style="border: 1px solid var(--primary); height: calc(100% - 32px); background-color: #eff6ff; border-color: #bfdbfe;">
+              <div class="text-subtitle2 text-weight-bold text-primary uppercase q-mb-xs">
+                Action: {{ formatOptionLabel(store.reassessment.continuity_with_master_roadmap.action) }}
+              </div>
+              <p class="text-body2 text-grey-9 q-mb-sm" style="line-height: 1.5; font-size: 13px;">
+                {{ store.reassessment.continuity_with_master_roadmap.detail }}
+              </p>
+              <div class="text-caption text-grey-7" style="border-top: 1px dashed #dbeafe; padding-top: 6px; font-style: italic;">
+                <strong>Changes Explained:</strong> {{ store.reassessment.continuity_with_master_roadmap.changes_explained }}
               </div>
             </div>
           </div>
@@ -404,6 +441,10 @@ import { api } from 'src/boot/axios'
 import { Loading, Notify } from 'quasar'
 
 const store = usePigmentationStore()
+const comparisonData = computed(() => {
+  if (!store.reassessment) return {}
+  return store.reassessment.reassessment_comparison || store.reassessment
+})
 const raInput = ref(null)
 const validationError = ref('')
 
@@ -626,7 +667,7 @@ const formatOptionLabel = (val) => {
 
 const bannerClass = computed(() => {
   if (!store.reassessment) return 'pending'
-  const traj = String(store.reassessment.overall?.trajectory || '').toLowerCase()
+  const traj = String(comparisonData.value.overall?.trajectory || '').toLowerCase()
   if (traj === 'improving') return 'approved'
   if (traj === 'worsening') return 'rejected'
   if (traj === 'mixed') return 'pending'
@@ -635,7 +676,7 @@ const bannerClass = computed(() => {
 
 const bannerIcon = computed(() => {
   if (!store.reassessment) return '•'
-  const traj = String(store.reassessment.overall?.trajectory || '').toLowerCase()
+  const traj = String(comparisonData.value.overall?.trajectory || '').toLowerCase()
   if (traj === 'improving') return '✓'
   if (traj === 'worsening') return '!'
   return '•'

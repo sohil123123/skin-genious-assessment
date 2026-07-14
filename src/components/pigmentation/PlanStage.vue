@@ -29,13 +29,13 @@
             : 'Confirm working diagnosis first'
         }}
       </div>
-      <p class="note q-mx-auto q-mb-lg" style="max-width: 500px; line-height: 1.5">
+      <p class="note q-mx-auto q-mb-lg" style="line-height: 1.5">
         OpenAI will construct a tiered treatment plan tailored to the confirmed diagnosis. Standard
         safety rules apply (pregnancy, thromboembolic checks, hydroquinone limits, Fitzpatrick FST
         limits).
       </p>
       <button
-        class="btn btn-primary"
+        class="btn btn-primary q-mt-md"
         @click="runGeneratePlan"
         :disabled="!store.diagnosis?.confirmedDx"
       >
@@ -85,9 +85,9 @@
               options-dense
               color="amber-8"
               @update:model-value="updateTherapist"
-              style="min-width: 180px;"
+              style="min-width: 180px"
               class="therapist-select"
-              :class="{'therapist-missing': !store.therapist_id}"
+              :class="{ 'therapist-missing': !store.therapist_id }"
               :error="!store.therapist_id"
               hide-bottom-space
             >
@@ -1208,7 +1208,10 @@
                 </div>
               </div>
 
-              <div class="flex justify-end q-mt-md" v-if="store.reviewState.finalized && session.status !== 'completed'">
+              <div
+                class="flex justify-end q-mt-md"
+                v-if="store.reviewState.finalized && session.status !== 'completed'"
+              >
                 <q-btn
                   class="gredient text-white"
                   :label="`Start Session ${session.session_number}`"
@@ -1223,6 +1226,160 @@
                 <span class="status-badge approved">✓ Session Completed</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MASTER TREATMENT ROADMAP OVERVIEW -->
+      <div class="pblock q-mt-lg" v-if="store.lastPlan.master_treatment_roadmap">
+        <h3>
+          <span class="bar" style="background: #0d9488"></span>Master Treatment Roadmap Overview
+        </h3>
+        <div class="card bg-grey-1 q-pa-md q-mb-md" style="border: 1px solid var(--line)">
+          <div class="row q-col-gutter-md">
+            <div class="col-xs-12 col-sm-4 text-center">
+              <div class="text-caption text-grey-7 uppercase">Expected Total Sessions</div>
+              <div class="text-h5 text-weight-bold text-teal-9">
+                {{ store.lastPlan.master_treatment_roadmap.expected_total_sessions }} Sessions
+              </div>
+            </div>
+            <div class="col-xs-12 col-sm-4 text-center border-left">
+              <div class="text-caption text-grey-7 uppercase">Expected Duration</div>
+              <div class="text-h5 text-weight-bold text-teal-9">
+                {{ store.lastPlan.master_treatment_roadmap.expected_duration }}
+              </div>
+            </div>
+            <div class="col-xs-12 col-sm-4 text-center border-left">
+              <div class="text-caption text-grey-7 uppercase">Roadmap Status</div>
+              <div class="text-subtitle1 text-weight-bold text-teal-9">
+                {{ formatLabel(store.lastPlan.master_treatment_roadmap.roadmap_status) }}
+              </div>
+            </div>
+          </div>
+
+          <q-separator class="q-my-md" />
+
+          <!-- Reassessment Points -->
+          <div class="q-px-sm">
+            <div class="text-subtitle2 text-weight-bold q-mb-sm text-grey-8">
+              AI-Selected Reassessment Points:
+            </div>
+            <div class="row q-col-gutter-md">
+              <div
+                v-for="pt in store.lastPlan.master_treatment_roadmap
+                  .ai_generated_reassessment_points"
+                :key="pt.reassessment_id"
+                class="col-xs-12 col-sm-6"
+              >
+                <div class="bg-white q-pa-sm rounded-lg border flex items-start gap-2">
+                  <q-icon name="query_builder" color="primary" size="20px" class="q-mt-xs" />
+                  <div>
+                    <div class="text-weight-bold text-dark" style="font-size: 13px">
+                      {{ formatLabel(pt.reassessment_id) }} (After Session
+                      {{ pt.planned_after_session }})
+                    </div>
+                    <div class="text-caption text-grey-7">{{ pt.reason }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <q-separator class="q-my-md" />
+
+          <!-- Master Blocks list -->
+          <div class="q-px-sm">
+            <div class="text-subtitle2 text-weight-bold q-mb-sm text-grey-8">
+              Treatment Blocks Progression:
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <div
+                v-for="mb in store.lastPlan.master_treatment_roadmap.blocks"
+                :key="mb.block_number"
+                class="bg-white q-py-sm q-px-md rounded-lg border flex items-center gap-2"
+                style="min-width: 150px"
+              >
+                <q-badge color="teal" rounded>{{ mb.block_number }}</q-badge>
+                <div>
+                  <div class="text-weight-bold text-dark text-caption">
+                    {{ formatLabel(mb.session_range) }}
+                  </div>
+                  <q-badge
+                    :color="
+                      mb.detail_status === 'fully_generated' || mb.detail_status === 'completed'
+                        ? 'positive'
+                        : 'grey'
+                    "
+                    size="10px"
+                  >
+                    {{ formatLabel(mb.detail_status) }}
+                  </q-badge>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FUTURE TREATMENT ROADMAP (BRIEF) -->
+      <div
+        class="pblock q-mt-lg"
+        v-if="store.lastPlan.future_treatment_roadmap?.future_blocks?.length"
+      >
+        <h3>
+          <span class="bar" style="background: #475569"></span>Future Treatment Roadmap
+          (Provisional)
+        </h3>
+        <p class="note q-mb-md">
+          These blocks are provisional. Detailed protocols are not generated yet and will be
+          customized following the respective reassessments.
+        </p>
+
+        <div class="row q-col-gutter-md">
+          <div
+            v-for="block in store.lastPlan.future_treatment_roadmap.future_blocks"
+            :key="block.provisional_block_id"
+            class="col-xs-12 col-sm-6"
+          >
+            <q-card flat bordered class="rounded-lg bg-white" style="height: 100%">
+              <q-card-section class="bg-teal-1 text-teal-10 q-pa-md border-bottom">
+                <div class="text-subtitle2 text-weight-bold flex items-center justify-between">
+                  <span>{{ formatLabel(block.provisional_block_id) }} ({{ formatLabel(block.expected_session_range) }})</span>
+                  <q-badge color="teal-9" outline>Provisional Roadmap</q-badge>
+                </div>
+              </q-card-section>
+              <q-card-section class="q-pa-md" style="line-height: 1.6;">
+                <div class="text-caption text-grey-8 q-mb-xs">
+                  <strong>Expected Objectives:</strong>
+                </div>
+                <ul class="q-pl-lg q-my-none text-caption text-grey-9" style="padding-left: 24px;">
+                  <li v-for="obj in block.expected_objectives" :key="obj" class="q-mb-xs">{{ obj }}</li>
+                </ul>
+
+                <div class="text-caption text-grey-8 q-mt-md q-mb-xs">
+                  <strong>Likely Modality Categories:</strong>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap q-mb-md">
+                  <q-badge
+                    v-for="mod in block.likely_modality_categories"
+                    :key="mod"
+                    outline
+                    color="primary"
+                    size="sm"
+                    class="q-px-sm q-py-xs text-weight-medium"
+                  >
+                    {{ formatLabel(mod) }}
+                  </q-badge>
+                </div>
+
+                <div class="text-caption text-grey-8 q-mt-sm">
+                  <strong>Expected Response:</strong> {{ block.expected_response }}
+                </div>
+                <div class="text-caption text-grey-6 q-mt-md italic" style="border-top: 1px dashed #eee; padding-top: 6px; font-size: 11px;">
+                  * {{ block.finalization_rule }}
+                </div>
+              </q-card-section>
+            </q-card>
           </div>
         </div>
       </div>
@@ -1472,7 +1629,7 @@ watch(
       fetchTherapists(newClinicId)
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 const updateTherapist = async (val) => {
@@ -1511,12 +1668,9 @@ const startPigmentationSession = (session) => {
 const downloadReport = async (reportType) => {
   Loading.show({ message: `Downloading ${reportType.replace('-', ' ')}...` })
   try {
-    const response = await api.get(
-      `download-pigmentation-report/${reportType}/${store.id}`,
-      {
-        responseType: 'blob',
-      },
-    )
+    const response = await api.get(`download-pigmentation-report/${reportType}/${store.id}`, {
+      responseType: 'blob',
+    })
 
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')

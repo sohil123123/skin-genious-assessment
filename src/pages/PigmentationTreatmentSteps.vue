@@ -118,9 +118,13 @@
 
           <!-- RIGHT SIDE -->
           <div v-if="session" class="col-md-4 col-sm-12 col-xs-12">
-            <q-card flat bordered class="q-pa-lg full-height rounded-lg text-center flex column items-center justify-center">
+            <q-card
+              flat
+              bordered
+              class="q-pa-lg full-height rounded-lg text-center flex column items-center justify-center"
+            >
               <div class="text-subtitle1 text-weight-bold text-grey-8 q-mb-md">Step Timer</div>
-              
+
               <!-- Knob Timer Display -->
               <div class="q-mb-md">
                 <q-knob
@@ -166,13 +170,7 @@
                 />
 
                 <!-- Pause Button -->
-                <q-btn
-                  v-if="timerRunning"
-                  color="orange-8"
-                  round
-                  icon="pause"
-                  @click="pauseTimer"
-                >
+                <q-btn v-if="timerRunning" color="orange-8" round icon="pause" @click="pauseTimer">
                   <q-tooltip>Pause</q-tooltip>
                 </q-btn>
 
@@ -413,12 +411,12 @@ onMounted(async () => {
           )
           if (activeZones.length > 0) {
             hasZoneSequence = true
-             mappedSteps = activeZones.map((z, idx) => {
+            mappedSteps = activeZones.map((z, idx) => {
               let settingsStr = ''
               let equipments = []
               let activeCoverage = 'Standard full-zone passes.'
               let activeEndpoint = 'Mild erythema.'
-              
+
               const formatSentenceCase = (str) => {
                 if (!str) return ''
                 if (typeof str !== 'string') return String(str)
@@ -426,7 +424,10 @@ onMounted(async () => {
                 return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase()
               }
 
-              if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
+              if (
+                z.regional_override_setting &&
+                (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)
+              ) {
                 const r = z.regional_override_setting
                 settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${r.fluence_j_cm2} J/cm² • ${r.passes} passes`
                 equipments.push(`Laser (${r.wavelength_nm}nm)`)
@@ -436,7 +437,8 @@ onMounted(async () => {
                 const b = z.base_zone_setting
                 settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
                 equipments.push(`Laser (${b.wavelength_nm}nm)`)
-                activeCoverage = b.coverage_instruction || z.coverage_instruction || 'Standard full-zone passes.'
+                activeCoverage =
+                  b.coverage_instruction || z.coverage_instruction || 'Standard full-zone passes.'
                 activeEndpoint = formatSentenceCase(b.endpoint || z.endpoint || 'Mild erythema.')
               } else {
                 settingsStr = 'Standard protocol settings'
@@ -457,17 +459,84 @@ onMounted(async () => {
 
         if (!hasZoneSequence) {
           let rawSteps = s.fixed_protocol?.steps || s.steps || []
-          mappedSteps = rawSteps.map((step, idx) => {
-            if (typeof step === 'string') {
-              return {
-                step_number: idx + 1,
-                duration: '10 mins',
-                ingredients_equipments: [],
-                how_to_do: step,
+          if (rawSteps.length === 0) {
+            let stepIdx = 1
+
+            // 1. Double Cleanse
+            mappedSteps.push({
+              step_number: stepIdx++,
+              duration: '5 mins',
+              ingredients_equipments: ['Cleanser'],
+              how_to_do:
+                'Perform a thorough double cleanse of the face to prepare the skin barrier for treatment.',
+            })
+
+            // 2. Peel
+            if (s.fixed_protocol?.peel?.use) {
+              const p = s.fixed_protocol.peel
+              mappedSteps.push({
+                step_number: stepIdx++,
+                duration: `${p.contact_time_minutes || 5} mins`,
+                ingredients_equipments: [formatLabelLocal(p.peel_name || 'chemical_peel')],
+                how_to_do: `Apply ${formatLabelLocal(p.peel_name || 'chemical_peel')} evenly across the face. Leave on for ${p.contact_time_minutes || 5} minutes. Monitor client comfort and erythema endpoint closely.`,
+              })
+              if (p.neutralization_required) {
+                mappedSteps.push({
+                  step_number: stepIdx++,
+                  duration: '2 mins',
+                  ingredients_equipments: ['Neutralizer'],
+                  how_to_do:
+                    'Apply neutralizing solution to deactivate the peel acid, then rinse thoroughly with cool water.',
+                })
               }
             }
-            return step
-          })
+
+            // 3. Microneedling
+            if (s.fixed_protocol?.microneedling?.use) {
+              const m = s.fixed_protocol.microneedling
+              const activesList = Array.isArray(m.actives)
+                ? m.actives.map((a) => formatLabelLocal(a)).join(', ')
+                : ''
+              mappedSteps.push({
+                step_number: stepIdx++,
+                duration: '15 mins',
+                ingredients_equipments: [m.device || 'Microneedling Device', ...(m.actives || [])],
+                how_to_do: `Perform microneedling using ${m.device || 'device'}. Infuse active ingredients: ${activesList || 'treatment serum'}.`,
+              })
+            }
+
+            // 4. LED
+            if (s.fixed_protocol?.led?.use) {
+              const l = s.fixed_protocol.led
+              mappedSteps.push({
+                step_number: stepIdx++,
+                duration: '10 mins',
+                ingredients_equipments: [formatLabelLocal(l.mode || 'red_led')],
+                how_to_do: `Position the LED light device set to ${formatLabelLocal(l.mode || 'red_led')} mode for ${l.role || 'calming support'}.`,
+              })
+            }
+
+            // 5. Post Care
+            mappedSteps.push({
+              step_number: stepIdx++,
+              duration: '3 mins',
+              ingredients_equipments: ['Moisturizer', 'Sunscreen'],
+              how_to_do:
+                'Apply a soothing barrier repair cream followed by a physical broad-spectrum sunscreen to protect the skin.',
+            })
+          } else {
+            mappedSteps = rawSteps.map((step, idx) => {
+              if (typeof step === 'string') {
+                return {
+                  step_number: idx + 1,
+                  duration: '10 mins',
+                  ingredients_equipments: [],
+                  how_to_do: step,
+                }
+              }
+              return step
+            })
+          }
         }
 
         return {
@@ -477,7 +546,9 @@ onMounted(async () => {
           treatment_time: '45 mins',
           week: s.timing?.replace('week_', '') || s.session_number,
           preparations_checklist_for_therapist:
-            s.fixed_protocol?.preparations_checklist_for_therapist || [],
+            s.provider_protocol?.pre_treatment_checklist ||
+            s.fixed_protocol?.preparations_checklist_for_therapist ||
+            [],
           concerns_addressed: [s.goal || 'Pigmentation treatment'],
           steps: mappedSteps,
           provider_protocol: s.provider_protocol || null,
