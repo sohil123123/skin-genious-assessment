@@ -360,6 +360,14 @@ Diagnosis categories allowed:
 - active_inflammatory_pigmentation
 - unclear_doctor_review
 
+- Preserve the image-derived composition and depth assessment in the diagnosis output. Do not independently recalculate them unless history materially changes the clinical interpretation.
+- Include a concise patient-facing summary written in plain language.
+- Include patient-facing explanations for each supported pigmentation component.
+- For every pigmentation component, explain its likely treatment implication without generating the complete treatment plan.
+- Include a regional distribution interpretation based on the image-analysis regional findings.
+- Do not expose internal category codes, lesion IDs, or technical confidence logic in patient-facing text.
+- Preserve lesion IDs internally, but provide natural anatomical descriptions in patient-facing output.
+
 Return valid JSON only matching this schema:
 {
   "session_id": "string",
@@ -375,6 +383,26 @@ Return valid JSON only matching this schema:
     ],
     "doctor_review_required": true,
     "doctor_review_reason": "string"
+  },
+  "pigmentation_profile": {
+    "melanin_load_index": 32,
+    "erythema_load_index": 28,
+    "composition": {
+      "type": "melanin_dominant|vascular_dominant|mixed",
+      "melanin_percent": 65,
+      "vascular_percent": 35
+    },
+    "estimated_depth": {
+      "call": "epidermal_predominant|dermal_predominant|mixed_epidermal_predominant|mixed|uncertain",
+      "confidence_100": 72,
+      "patient_label": "Mostly superficial, with some mixed-depth areas",
+      "patient_explanation": "Most of the visible pigment appears closer to the skin surface, while some areas may extend deeper."
+    },
+    "estimated_fitzpatrick": {
+      "type": "III_to_IV",
+      "confidence_100": 65,
+      "patient_display": "Estimated skin phototype III–IV"
+    }
   },
   "key_drivers": {
     "sun_exposure": {
@@ -413,6 +441,70 @@ Return valid JSON only matching this schema:
       "basis": ["string"]
     }
   },
+  "regional_interpretation": {
+    "overall_distribution": "mild_diffuse_with_scattered_macules",
+    "symmetry": "mildly_symmetric",
+    "dominant_regions": [
+      "malar_cheeks",
+      "forehead",
+      "nose_bridge"
+    ],
+    "patient_summary": "Pigmentation is most noticeable across the cheeks and forehead, with a smaller localized component over the nose bridge.",
+    "regions": [
+      {
+        "region": "malar_cheeks",
+        "support_level": "strongly_supported",
+        "patient_description": "Pigmentation is most visible across both cheeks.",
+        "clinical_interpretation": "Diffuse melanin-dominant pigment with some mixed-depth features."
+      },
+      {
+        "region": "periocular",
+        "support_level": "moderately_supported",
+        "patient_description": "Mild darkness is visible under the eyes.",
+        "clinical_interpretation": "Likely mixed pigment and shadow contribution."
+      },
+      {
+        "region": "upper_lip_perioral",
+        "support_level": "possible_component",
+        "patient_description": "A mild pigmentation component is visible around the mouth.",
+        "clinical_interpretation": "Trigger remains uncertain and may require history correlation."
+      }
+    ]
+  },
+  "patient_facing_components": [
+    {
+      "component": "sun_related_or_diffuse_pigmentation",
+      "support_level": "strongly_supported|moderately_supported|possible|not_supported",
+      "confidence_100": 70,
+      "title": "Sun-related and diffuse pigmentation",
+      "explanation": "The distribution and your exposure history suggest that sunlight is contributing to the uneven pigmentation.",
+      "treatment_meaning": "Photoprotection and treatments aimed at diffuse surface pigment will be important."
+    },
+    {
+      "component": "periocular_pigmentation",
+      "support_level": "moderately_supported",
+      "confidence_100": 62,
+      "title": "Under-eye pigmentation",
+      "explanation": "Mild darkness is visible under both eyes and may include pigment as well as natural shadowing.",
+      "treatment_meaning": "The doctor will first determine how much is caused by pigment versus vascular or structural factors."
+    },
+    {
+      "component": "perioral_pigmentation",
+      "support_level": "possible",
+      "confidence_100": 52,
+      "title": "Pigmentation around the mouth",
+      "explanation": "A mild pigmentation component is visible around the upper lip and mouth.",
+      "treatment_meaning": "Treatment should remain gentle if friction, sensitivity or irritation is contributing."
+    },
+    {
+      "component": "melasma_like_pigmentation",
+      "support_level": "possible",
+      "confidence_100": 45,
+      "title": "Melasma-like features",
+      "explanation": "Some parts of the cheek or around-mouth pattern resemble melasma, although the overall pattern may not be classic.",
+      "treatment_meaning": "If confirmed by the doctor, long-term control and recurrence prevention will be as important as pigment reduction."
+    }
+  ],
   "clinical_activity": {
     "stability_status": "stable|worsening|improving|spreading|not_sure",
     "inflammation_first_required": true,
@@ -459,7 +551,27 @@ Return valid JSON only matching this schema:
       }
     ]
   },
-  "clinical_summary_for_doctor": "string clinical impression summary"
+  "patient_doctor_review_note": {
+    "required": true,
+    "headline": "Doctor review before direct spot treatment",
+    "summary": "Two individual dark spots should be visually reviewed by the doctor before any direct laser or spot treatment.",
+    "reassurance": "This is a precaution and does not by itself mean that the spots are harmful.",
+    "areas": [
+      {
+        "natural_location": "left cheek near the outer corner of the eye",
+        "instruction": "Avoid direct treatment until reviewed"
+      },
+      {
+        "natural_location": "right mid-cheek",
+        "instruction": "Avoid direct treatment until reviewed"
+      }
+    ]
+  },
+  "summaries": {
+    "clinical_summary_for_doctor": "Technical doctor-facing working impression including image findings, history correlation, confidence, drivers, risk and local restrictions.",
+    "patient_summary": "Plain-language summary of the pigmentation pattern, main contributing factors, depth and next doctor-review step.",
+    "patient_summary_short": "One- or two-sentence summary suitable for the top of the report."
+  }
 }
 `
 
@@ -472,10 +584,45 @@ Inputs:
 4. Working diagnosis with confidence and drivers
 5. Clinic inventory and treatment configuration
 
+TREATMENT PLAN STRUCTURE:
+- Generate one optimum linear treatment roadmap covering the expected complete treatment duration, which may extend up to 6 months.
+- The AI must determine clinically meaningful reassessment points dynamically based on diagnosis and clinical severity (do not hardcode reassessment after session 3 or 6; let it be dynamic).
+- Divide the complete roadmap into treatment blocks separated by AI-generated formal reassessment points.
+- Generate complete detailed protocols for every session inside the current treatment block.
+- Do not generate complete protocols for sessions occurring after the next formal reassessment point.
+- Sessions after the next formal reassessment point must appear only as a brief future roadmap.
+- At every formal reassessment, generate a new detailed treatment block extending from the current reassessment to the next AI-generated reassessment point.
+
+CURRENT TREATMENT BLOCK:
+- The current treatment block starts at the current assessment or reassessment point.
+- The current treatment block ends immediately before the next AI-generated formal reassessment.
+- Every session within the current treatment block must have a complete detailed treatment protocol.
+- Sessions expected after the next formal reassessment point must not contain detailed protocols; they should only appear in the future treatment roadmap.
+
+DETAILED SESSION PROTOCOL DEFINITION:
+A detailed session protocol must include:
+1. Session goal
+2. Selected modalities
+3. Procedure and treatment settings
+4. Zone-wise treatment sequence
+5. Wavelength strategy where applicable
+6. Pre-treatment safety checklist
+7. Avoid zones and excluded subregions
+8. Endpoint rules
+9. Post-treatment steps
+10. Homecare handover
+11. Doctor authorization requirements
+12. Conditions for maintaining, reducing, modifying, deferring or stopping the planned protocol
+
+A detailed session protocol must not become an unnecessary minute-by-minute schedule.
+Only include duration in minutes when clinically required, such as:
+- Peel contact time
+- LED duration
+- Cooling duration
+- Procedure-specific observation time
+Do not generate artificial timings for every action.
+
 Rules:
-- Generate a single best sequential treatment plan, not a menu of options.
-- The plan may extend up to 6 months.
-- Include fixed reassessment points.
 - Include measurable goals for Melanin Load Index, Erythema Load Index, regional load, composition, depth call and mMASI where applicable.
 - Use 1–100 scores only.
 - For melasma-like cases, include mMASI goals.
@@ -511,6 +658,37 @@ Rules:
 - All final plans require doctor sign-off before execution.
 - Include detailed step-by-step provider protocol: pre-treatment checklist, zone sequence, settings by zone, endpoint rules, avoid zones, post-treatment steps, and homecare handover.
 
+CRITICAL:
+- Every session inside current_treatment_block.sessions MUST contain a fully populated provider_protocol object.
+- Do not omit provider_protocol from any session inside the current treatment block.
+- Sessions outside the current treatment block must not be placed inside current_treatment_block.sessions.
+- Sessions expected after the next formal reassessment must be returned only under future_treatment_roadmap.
+
+ZONE SEQUENCE PROTOCOL PROGRESSION:
+- Generate a complete zone_sequence for every session inside the current treatment block.
+- The zone_sequence for each session must reflect the planned progression of treatment across the block.
+- Do not simply duplicate Session 1 settings across all sessions.
+- Later sessions inside the block may progress, maintain, reduce or change settings according to explicitly defined response assumptions and safety conditions.
+- Exact execution remains subject to the pre-session safety review and doctor approval.
+
+SESSION STATUS AND ADAPTATION:
+- Session 1 is the immediate executable protocol.
+- Sessions later in the current treatment block are detailed planned protocols.
+- Detailed planned protocols remain provisional until the pre-session safety review is completed.
+- A planned future session may be maintained, reduced, modified, deferred or replaced if the patient's response or safety findings differ from the expected response.
+
+INITIAL ASSESSMENT GENERATION:
+When generation_event is initial_assessment:
+1. Generate the complete master treatment roadmap.
+2. Estimate the likely total number of treatment sessions dynamically (e.g. 6 to 12 sessions depending on severity).
+3. Generate clinically meaningful AI-selected reassessment points dynamically (e.g. planned after Session 3 or 4).
+4. Identify the first current treatment block, beginning at Session 1 and ending immediately before Reassessment 1.
+5. Generate complete detailed protocols for every session inside the first current treatment block.
+6. If Reassessment 1 is planned after Session 3, generate complete detailed protocols for Sessions 1, 2 and 3.
+7. Generate only a brief roadmap for all sessions after Reassessment 1.
+8. Clearly mark Sessions 2 onward inside the current block as planned protocols pending pre-session safety confirmation.
+9. Do not create detailed protocols for Sessions after the first reassessment point.
+
 Return valid JSON only matching this schema:
 {
   "linear_treatment_plan": {
@@ -544,18 +722,6 @@ Return valid JSON only matching this schema:
           }
         ],
         "clinical_goal": "string"
-      },
-      "month_3": {
-        "melanin_load_target": 22,
-        "erythema_load_target": 20,
-        "mmasi_target_if_applicable": null,
-        "clinical_goal": "string"
-      },
-      "month_6": {
-        "melanin_load_target": 18,
-        "erythema_load_target": 18,
-        "mmasi_target_if_applicable": null,
-        "clinical_goal": "string"
       }
     },
     "q_switch_optimizer": {
@@ -571,100 +737,18 @@ Return valid JSON only matching this schema:
           "efficacy_score_100": 76,
           "safety_score_100": 90,
           "overall_score_100": 83,
-          "eligible_regions": [
-            "forehead",
-            "right_malar",
-            "left_malar",
-            "nose_bridge",
-            "upper_lip_perioral",
-            "chin_jaw"
-          ],
+          "eligible_regions": ["forehead", "right_malar"],
           "best_use_regions": [
             {
               "region": "forehead",
               "zone_strategy_type": "base_global_toning",
-              "reason": "Diffuse tone support; safest effective broad-zone toning option."
-            },
-            {
-              "region": "right_malar",
-              "zone_strategy_type": "base_global_toning",
-              "reason": "Primary diffuse pigmentation zone with acceptable safety-efficacy balance."
+              "reason": "string"
             }
           ],
           "avoid_regions": [
             {
-              "region": "suspect_lesion_pending_doctor_review",
-              "reason": "Do not treat until review."
-            }
-          ],
-          "rationale": "string"
-        },
-        {
-          "wavelength_nm": 532,
-          "treatment_scope": "spot_only",
-          "energy_mj": 150,
-          "fluence_j_cm2": 0.15,
-          "frequency_hz": 2,
-          "passes": 1,
-          "efficacy_score_100": 80,
-          "safety_score_100": 62,
-          "overall_score_100": 71,
-          "eligible_regions": [
-            "doctor_cleared_superficial_focal_macules_only"
-          ],
-          "best_use_regions": [
-            {
-              "region": "right_malar",
-              "subregion": "focal superficial macules only",
-              "zone_strategy_type": "spot_only_override",
-              "reason": "Higher efficacy for superficial focal epidermal pigment compared with full-zone 1064 toning."
-            }
-          ],
-          "avoid_regions": [
-            {
-              "region": "periocular",
-              "reason": "Sensitive area; avoid."
-            },
-            {
-              "region": "melasma_like_patches",
-              "reason": "Not preferred for broad melasma-like pigment."
-            },
-            {
-              "region": "suspect_lesion_pending_doctor_review",
-              "reason": "Do not treat."
-            }
-          ],
-          "rationale": "string"
-        },
-        {
-          "wavelength_nm": 755,
-          "treatment_scope": "regional|spot_only|not_recommended",
-          "energy_mj": 220,
-          "fluence_j_cm2": 0.22,
-          "frequency_hz": 3,
-          "passes": 1,
-          "efficacy_score_100": 74,
-          "safety_score_100": 70,
-          "overall_score_100": 72,
-          "eligible_regions": [
-            "doctor_selected_focal_or_mixed_pigment"
-          ],
-          "best_use_regions": [
-            {
-              "region": "left_malar",
-              "subregion": "selected focal pigment separate from scar modifier",
-              "zone_strategy_type": "regional_override",
-              "reason": "Could outperform 1064 in selected focal/regional pigment if doctor confirms benign target."
-            }
-          ],
-          "avoid_regions": [
-            {
-              "region": "scar_modifier_region",
-              "reason": "Scar-shadow should not be treated as pigment target."
-            },
-            {
-              "region": "suspect_lesion_pending_doctor_review",
-              "reason": "Do not treat."
+              "region": "string",
+              "reason": "string"
             }
           ],
           "rationale": "string"
@@ -676,7 +760,7 @@ Return valid JSON only matching this schema:
         "fluence_j_cm2": 0.3,
         "frequency_hz": 5,
         "passes": 2,
-        "selection_reason": "Best base full-face / broad-zone strategy."
+        "selection_reason": "string"
       },
       "selected_regional_or_spot_settings": [
         {
@@ -689,28 +773,354 @@ Return valid JSON only matching this schema:
           "frequency_hz": 2,
           "passes": 1,
           "status": "optional_doctor_review_required",
-          "reason": "More efficacious for superficial focal epidermal pigment than uniform 1064 toning."
+          "reason": "string"
         }
       ],
       "final_q_switch_strategy": {
-        "base_global_strategy": "1064nm broad-zone toning",
-        "zone_override_strategy": "Use regional or spot overrides only where efficacy advantage is meaningful and safety acceptable.",
-        "execution_rule": "The zone treatment sequence must reflect zone-specific wavelength selection, not just repeat the global winner in every zone."
+        "base_global_strategy": "string",
+        "zone_override_strategy": "string",
+        "execution_rule": "string"
       }
+    },
+    "master_treatment_roadmap": {
+      "expected_total_sessions": 9,
+      "expected_duration": "18 weeks",
+      "roadmap_status": "provisional_response_based",
+      "ai_generated_reassessment_points": [
+        {
+          "reassessment_id": "reassessment_1",
+          "planned_after_session": 3,
+          "reason": "Verify early safety and pigment clearing rate",
+          "doctor_approval_required": true
+        },
+        {
+          "reassessment_id": "reassessment_2",
+          "planned_after_session": 6,
+          "reason": "Review mid-term clearance before third block",
+          "status": "provisional_to_be_confirmed_after_reassessment_1"
+        }
+      ],
+      "blocks": [
+        {
+          "block_number": 1,
+          "session_range": "sessions_1_to_3",
+          "detail_status": "fully_generated"
+        },
+        {
+          "block_number": 2,
+          "session_range": "sessions_4_to_6",
+          "detail_status": "summary_only"
+        },
+        {
+          "block_number": 3,
+          "session_range": "sessions_7_to_9",
+          "detail_status": "summary_only"
+        }
+      ]
+    },
+    "current_treatment_block": {
+      "block_id": "block_1",
+      "block_number": 1,
+      "starts_at": "initial_assessment",
+      "ends_at": "reassessment_1",
+      "block_goal": "Control active pigment output and initiate mild clearing",
+      "expected_duration": "6 weeks",
+      "session_range": {
+        "first_session": 1,
+        "last_session": 3,
+        "total_sessions_in_block": 3
+      },
+      "block_success_targets": {
+        "melanin_load_target": 26,
+        "erythema_load_target": 24,
+        "mmasi_target_if_applicable": null,
+        "regional_targets": []
+      },
+      "sessions": [
+        {
+          "session_number": 1,
+          "timing": "week_0",
+          "protocol_status": "immediate_executable",
+          "protocol_valid_for": "specific_session_only",
+          "pre_session_confirmation_required": true,
+          "goal": "string",
+          "selected_modalities": ["q_switch"],
+          "fixed_protocol": {
+            "procedure": "string",
+            "q_switch": {
+              "use": true,
+              "wavelength_nm": 1064,
+              "energy_mj": 300,
+              "fluence_j_cm2": 0.3,
+              "frequency_hz": 5,
+              "passes": 1,
+              "endpoint": "string"
+            },
+            "peel": {
+              "use": false,
+              "peel_name": null,
+              "contact_time_minutes": null,
+              "neutralization_required": null
+            },
+            "microneedling": {
+              "use": false,
+              "device": "Dr. Pen",
+              "depth_by_region": {},
+              "actives": [],
+              "route": "topical_transdermal_after_microneedling",
+              "injectable": "doctor_override_only"
+            },
+            "led": {
+              "use": true,
+              "mode": "red_led",
+              "role": "calming_support"
+            },
+            "homecare": {
+              "morning": ["string"],
+              "night": ["string"],
+              "avoid": ["string"]
+            }
+          },
+          "provider_protocol": {
+            "performed_by": "doctor|therapist_after_doctor_approval",
+            "pre_treatment_checklist": ["string"],
+            "zone_sequence": [
+              {
+                "order": 1,
+                "zone": "forehead",
+                "zone_strategy_type": "base_global_toning|regional_override|spot_only_override|exclude_from_treatment|defer_zone",
+                "why_this_zone_strategy": "string",
+                "endpoint_rules": ["string"],
+                "post_treatment_steps": [{
+                  "step": "string",
+                  "instructions": "string",
+                  "duration_minutes": 10
+                }],
+                "base_zone_setting": {
+                  "selected": true,
+                  "selection_source": "selected_global_setting|regional_override",
+                  "wavelength_nm": 1064,
+                  "energy_mj": 300,
+                  "fluence_j_cm2": 0.3,
+                  "frequency_hz": 5,
+                  "passes": 1,
+                  "coverage_instruction": "string",
+                  "endpoint": "string"
+                },
+                "regional_override_setting": {
+                  "selected": false,
+                  "selection_reason": null,
+                  "wavelength_nm": null,
+                  "energy_mj": null,
+                  "fluence_j_cm2": null,
+                  "frequency_hz": null,
+                  "passes": null,
+                  "coverage_instruction": null,
+                  "endpoint": null
+                },
+                "spot_only_overrides": [],
+                "excluded_subregions": [],
+                "avoid_zone_instruction": "string_or_null"
+              }
+            ],
+            "avoid_zones": [
+              {
+                "zone": "string",
+                "reason": "string",
+                "zone_defination": "string"
+              }
+            ],
+            "homecare_handover": ["string"]
+          },
+          "session_adaptation_rules": {
+            "proceed_as_planned_if": [
+              "Previous-session erythema settled within the expected period.",
+              "No new sensitivity, burning, open skin or pigment worsening is present."
+            ],
+            "reduce_or_modify_if": [
+              "Residual erythema is greater than expected.",
+              "The patient reports increased sensitivity."
+            ],
+            "defer_session_if": [
+              "Active irritation or sunburn is present.",
+              "A suspicious new lesion requires doctor review."
+            ],
+            "trigger_early_reassessment_if": [
+              "Pigmentation has meaningfully worsened.",
+              "The depth or composition pattern has materially changed."
+            ]
+          },
+          "authorization": {
+            "doctor_signoff_required": true,
+            "doctor_performed_steps": ["string"],
+            "therapist_after_approval_steps": ["string"],
+            "approval_status": "pending"
+          }
+        }
+      ]
+    },
+    "future_treatment_roadmap": {
+      "roadmap_status": "provisional_subject_to_reassessment",
+      "remaining_expected_sessions": 6,
+      "future_blocks": [
+        {
+          "provisional_block_id": "block_2",
+          "expected_session_range": "sessions_4_to_6",
+          "starts_after": "reassessment_1",
+          "expected_objectives": ["Initiate pigment shattering with laser overrides"],
+          "likely_modality_categories": ["q_switch_1064", "chemical_peel"],
+          "expected_response": "Gradual fading of primary malar zones",
+          "detailed_protocols_generated": false,
+          "finalization_rule": "Detailed protocols will be generated after Reassessment 1."
+        }
+      ]
+    },
+    "reassessment_plan": {
+      "repeat_images": ["white", "subsurface_polarized", "woods_uv"],
+      "metrics_to_compare": ["melanin_load_index", "erythema_load_index"],
+      "decision_rules": ["string"]
+    },
+    "client_report": {
+      "headline": "string",
+      "simple_explanation": "string",
+"roadmap": ["string"],
+      "disclaimer": "AI-assisted plan; final treatment requires doctor approval."
+    },
+    "whatsapp_summary": {
+      "message": "string"
+    }
+  }
+}
+`
+
+export const REASSESS_PROMPT = `You are a pigmentation reassessment assistant inside a doctor-reviewed dermatology/aesthetic workflow.
+
+You will receive:
+1. Baseline image-derived metrics and treatment goals.
+2. Current follow-up image-derived metrics.
+3. Fixed/dynamic follow-up history if available.
+4. Treatment sessions already performed in the completed block.
+5. The original treatment plan and master roadmap.
+6. Clinic inventory and treatment configuration parameters.
+
+FORMAL REASSESSMENT GENERATION:
+When generation_event is formal_reassessment:
+1. Compare current findings with baseline and the previous reassessment.
+2. Review all sessions actually performed in the completed treatment block.
+3. Close the previous treatment block.
+4. Evaluate whether the master roadmap remains appropriate.
+5. Preserve, shorten, extend or modify the roadmap according to the measured response dynamically (do not use hardcoded session counts like 9; make it dynamic based on severity and response).
+6. Generate the next AI-selected formal reassessment point dynamically (e.g. after Session 6 or 7).
+7. Generate complete detailed protocols for every session between the current reassessment and the next formal reassessment (the next treatment block).
+8. If the next block contains Sessions 4, 5 and 6, generate complete detailed protocols for all three sessions.
+9. Mark the first session of the new block (e.g. Session 4) as immediate_executable.
+10. Mark later sessions in the block (e.g. Sessions 5 and 6) as planned_pending_pre_session_review.
+11. Keep sessions after the next reassessment point as a brief future roadmap only (detailed_protocols_generated = false).
+12. Explain all meaningful changes from the previous roadmap.
+13. Include conditions for maintaining, reducing, modifying, deferring or stopping the planned protocol.
+
+DETAILED SESSION PROTOCOL DEFINITION:
+A detailed session protocol in the new block must include:
+1. Session goal
+2. Selected modalities
+3. Procedure and treatment settings (Q-switch wavelength, energy, fluence, passes; peel contact time; microneedling depths/actives; LED mode)
+4. Zone-wise treatment sequence with base global settings and regional/spot overrides
+5. Pre-treatment safety checklist
+6. Avoid zones and excluded subregions
+7. Endpoint rules
+8. Post-treatment steps
+9. Homecare handover
+10. Doctor authorization requirements
+11. Conditions for maintaining, reducing, modifying, deferring or stopping the planned protocol (session_adaptation_rules)
+
+Only include duration in minutes when clinically required. Do not generate artificial timings for every action.
+
+Return valid JSON matching this schema:
+{
+  "reassessment_comparison": {
+    "overall": {
+      "trajectory": "improving|mixed|plateaued|worsening|unknown",
+      "summary": "string"
+    },
+    "goals": [
+      {
+        "metric": "melanin_load_index|erythema_load_index|regional_load|composition|depth_call|mmasi|local_modifier|other",
+        "baseline": "number_or_string",
+        "current": "number_or_string",
+        "target": "number_or_string",
+        "status": "met|on_track|plateaued|worsening|unknown",
+        "delta": "string",
+        "comment": "string"
+      }
+    ],
+    "regional_changes": [
+      {
+        "region": "string",
+        "baseline_melanin_load": 0,
+        "current_melanin_load": 0,
+        "baseline_erythema_load": 0,
+        "current_erythema_load": 0,
+        "trajectory": "improving|mixed|plateaued|worsening|unknown",
+        "comment": "string"
+      }
+    ]
+  },
+  "previous_block_closure": {
+    "block_id": "string",
+    "completed_sessions": 3,
+    "block_outcome_summary": "string"
+  },
+  "continuity_with_master_roadmap": {
+    "action": "continue|escalate|maintain|de_escalate|re_examine|refer",
+    "detail": "string",
+    "changes_explained": "string"
+  },
+  "updated_master_treatment_roadmap": {
+    "expected_total_sessions": 9,
+    "expected_duration": "string",
+    "roadmap_status": "provisional_response_based",
+    "ai_generated_reassessment_points": [
+      {
+        "reassessment_id": "string",
+        "planned_after_session": 6,
+        "reason": "string",
+        "status": "string"
+      }
+    ],
+    "blocks": [
+      {
+        "block_number": 2,
+        "session_range": "sessions_4_to_6",
+        "detail_status": "fully_generated"
+      }
+    ]
+  },
+  "current_treatment_block": {
+    "block_id": "block_2",
+    "block_number": 2,
+    "starts_at": "reassessment_1",
+    "ends_at": "reassessment_2",
+    "session_range": {
+      "first_session": 4,
+      "last_session": 6,
+      "total_sessions_in_block": 3
     },
     "sessions": [
       {
-        "session_number": 1,
-        "timing": "week_0",
+        "session_number": 4,
+        "timing": "week_6",
+        "protocol_status": "immediate_executable",
+        "protocol_valid_for": "specific_session_only",
+        "pre_session_confirmation_required": true,
         "goal": "string",
-        "selected_modalities": ["string"],
+        "selected_modalities": ["q_switch"],
         "fixed_protocol": {
           "procedure": "string",
           "q_switch": {
             "use": true,
             "wavelength_nm": 1064,
-            "energy_mj": 300,
-            "fluence_j_cm2": 0.3,
+            "energy_mj": 320,
+            "fluence_j_cm2": 0.32,
             "frequency_hz": 5,
             "passes": 1,
             "endpoint": "string"
@@ -747,192 +1157,88 @@ Return valid JSON only matching this schema:
             {
               "order": 1,
               "zone": "forehead",
-              "zone_strategy_type": "base_global_toning|regional_override|spot_only_override|exclude_from_treatment|defer_zone",
+              "zone_strategy_type": "base_global_toning",
               "why_this_zone_strategy": "string",
+              "endpoint_rules": ["string"],
+              "post_treatment_steps": [],
               "base_zone_setting": {
                 "selected": true,
-                "selection_source": "selected_global_setting|regional_override",
+                "selection_source": "selected_global_setting",
                 "wavelength_nm": 1064,
-                "energy_mj": 300,
-                "fluence_j_cm2": 0.3,
+                "energy_mj": 320,
+                "fluence_j_cm2": 0.32,
                 "frequency_hz": 5,
                 "passes": 1,
                 "coverage_instruction": "string",
                 "endpoint": "string"
               },
-              "regional_override_setting": {
-                "selected": false,
-                "selection_reason": null,
-                "wavelength_nm": null,
-                "energy_mj": null,
-                "fluence_j_cm2": null,
-                "frequency_hz": null,
-                "passes": null,
-                "coverage_instruction": null,
-                "endpoint": null
-              },
-              "spot_only_overrides": [
-                {
-                  "selected": false,
-                  "subregion": "string",
-                  "target_description": "string",
-                  "wavelength_nm": 532,
-                  "energy_mj": 150,
-                  "fluence_j_cm2": 0.15,
-                  "frequency_hz": 2,
-                  "passes": 1,
-                  "coverage_instruction": "spot_only_or_focal_application",
-                  "endpoint": "string",
-                  "doctor_visual_review_required": true
-                }
-              ],
-              "excluded_subregions": [
-                {
-                  "subregion": "string",
-                  "reason": "suspect_lesion_pending_review|scar_shadow_not_primary_pigment|open_skin|active_irritation"
-                }
-              ],
-              "avoid_zone_instruction": "string_or_null"
+              "regional_override_setting": null,
+              "spot_only_overrides": [],
+              "excluded_subregions": [],
+              "avoid_zone_instruction": null
             }
           ],
-          "avoid_zones": [
-            {
-              "zone": "string",
-              "reason": "string",
-              "zone_defination": "string",
-            }
-          ],
-          "endpoint_rules": ["string"],
-          "post_treatment_steps": ["string"],
+          "avoid_zones": [],
           "homecare_handover": ["string"]
+        },
+        "session_adaptation_rules": {
+          "proceed_as_planned_if": ["string"],
+          "reduce_or_modify_if": ["string"],
+          "defer_session_if": ["string"],
+          "trigger_early_reassessment_if": ["string"]
         },
         "authorization": {
           "doctor_signoff_required": true,
-          "doctor_performed_steps": ["string"],
-          "therapist_after_approval_steps": ["string"],
+          "doctor_performed_steps": [],
+          "therapist_after_approval_steps": [],
           "approval_status": "pending"
         }
       }
-    ],
-    "reassessment_plan": {
-      "repeat_images": [
-        "white",
-        "surface_polarized",
-        "subsurface_polarized",
-        "red",
-        "woods_uv"
-      ],
-      "metrics_to_compare": [
-        "melanin_load_index",
-        "erythema_load_index",
-        "regional_melanin_loads",
-        "regional_erythema_loads",
-        "composition",
-        "depth_call",
-        "mmasi_if_applicable"
-      ],
-      "decision_rules": [
-        "string"
-      ]
-    },
-    "client_report": {
-      "headline": "string",
-      "simple_explanation": "string",
-      "roadmap": ["string"],
-      "disclaimer": "AI-assisted plan; final treatment requires doctor approval."
-    },
-    "whatsapp_summary": {
-      "message": "string"
-    }
+    ]
+  },
+  "future_treatment_roadmap": {
+    "roadmap_status": "provisional_subject_to_reassessment",
+    "remaining_expected_sessions": 3,
+    "future_blocks": [
+      {
+        "provisional_block_id": "block_3",
+        "expected_session_range": "sessions_7_to_9",
+        "starts_after": "reassessment_2",
+        "expected_objectives": ["string"],
+        "likely_modality_categories": ["string"],
+        "expected_response": "string",
+        "detailed_protocols_generated": false,
+        "finalization_rule": "Detailed protocols will be generated after Reassessment 2."
+      }
+    ]
   }
-}
-`
+}`
 
-export const REASSESS_PROMPT = `You are a pigmentation reassessment assistant inside a doctor-reviewed dermatology/aesthetic workflow.
+export const REASSESS_QUESTIONS_PROMPT = `You are a clinical assistant generating dynamic follow-up questions for a pigmentation treatment reassessment.
 
 You will receive:
-1. Baseline image-derived metrics and treatment goals.
-2. Current follow-up image-derived metrics.
-3. Fixed/dynamic follow-up history if available.
-4. Treatment sessions already performed.
+1. The original diagnosis, treatment plan, and baseline metrics.
+2. Current goals set at the beginning of the treatment.
+3. Attached follow-up captures.
 
-Population context:
-- Predominantly Fitzpatrick III–VI Indian skin.
-- PIH risk is important.
-- Visible light and sun exposure can worsen melasma and recurrent pigmentation.
-- Unsupervised fairness cream, steroid cream or hydroquinone misuse may cause worsening or ochronosis-like patterns.
-- Do not escalate blindly if pigment worsens.
+Your task:
+Generate 2-4 clinically relevant dynamic questions to ask the patient before executing the final trajectory assessment.
+These questions should focus on details the images cannot tell:
+- Compliance: Did they apply their topical creams (Kligman's, sunscreen) exactly as prescribed?
+- Irritation/PIH risk: Did they experience any significant redness, peeling, burning, or darkening after laser/peel sessions?
+- Triggers: Have they had any high sun exposure, travel, or heat exposure during the treatment period?
+- Patient subjective response: How does the patient feel their pigmentation has changed?
 
-Your job:
-For each goal, classify trajectory using only 1–100 metrics and mMASI where applicable.
-
-Metrics to reassess:
-- Melanin Load Index
-- Erythema Load Index
-- Regional melanin load
-- Regional erythema load
-- Composition shift: melanin_dominant, vascular_dominant, mixed
-- Depth call shift: epidermal_predominant, dermal_predominant, mixed, uncertain
-- mMASI if applicable
-- Local modifiers such as scar/friction pigmentation
-- Sunscreen compliance and recurrence risk if provided
-
-For each goal classify status:
-- met
-- on_track
-- plateaued
-- worsening
-- unknown
-
-If anything is worsening, especially pigment darkening or erythema increase:
-- Flag re-examining the diagnosis.
-- Consider procedure-induced PIH, inflammation-first failure, poor sunscreen compliance, friction persistence, acne activity, hydroquinone misuse or incorrect diagnosis.
-- Caution against escalating blindly.
-
-Return ONLY one valid JSON object:
+Return ONLY one valid JSON object in this format:
 {
-  "overall": {
-    "trajectory": "improving|mixed|plateaued|worsening|unknown",
-    "summary": "string"
-  },
-  "goals": [
+  "dynamic_questions": [
     {
-      "metric": "melanin_load_index|erythema_load_index|regional_load|composition|depth_call|mmasi|local_modifier|other",
-      "baseline": "number_or_string",
-      "current": "number_or_string",
-      "target": "number_or_string",
-      "status": "met|on_track|plateaued|worsening|unknown",
-      "delta": "string",
-      "comment": "string"
+      "question_id": "req_q1",
+      "question": "string",
+      "answer_type": "single_choice|multi_choice|text|boolean",
+      "options": ["string"],
+      "why_asked": "string"
     }
-  ],
-  "regional_changes": [
-    {
-      "region": "string",
-      "baseline_melanin_load": 0,
-      "current_melanin_load": 0,
-      "baseline_erythema_load": 0,
-      "current_erythema_load": 0,
-      "trajectory": "improving|mixed|plateaued|worsening|unknown",
-      "comment": "string"
-    }
-  ],
-  "recommendation": {
-    "action": "continue|escalate|maintain|de_escalate|re_examine|refer",
-    "detail": "string"
-  },
-  "diagnosis_reexamine": {
-    "needed": false,
-    "reason": "string"
-  },
-  "treatment_adjustment_suggestion": {
-    "q_switch": "continue|reduce_energy|increase_cautiously|defer|not_applicable",
-    "peel": "continue|switch_peel|defer|not_applicable",
-    "microneedling": "consider|continue|defer|not_applicable",
-    "homecare": "continue|strengthen_sunscreen|barrier_first|doctor_review_rx|not_applicable"
-  },
-  "patient_summary": "string",
-  "uncertainties": ["string"],
-  "disclaimer": "AI-proposed reassessment for clinician confirmation."
+  ]
 }
-Keep it concise. Do not invent precise measurements you cannot support.`
+`

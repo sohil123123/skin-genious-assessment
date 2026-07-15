@@ -1,6 +1,6 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated v-if="route.name !== 'pigmentation-assessment'">
+    <q-header elevated v-if="route.name !== 'pigmentation-assessment' && route.name !== 'pigmentation-reassessment'">
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 

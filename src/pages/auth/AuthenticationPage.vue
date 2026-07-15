@@ -112,16 +112,28 @@ onMounted(async () => {
               ...(appointmentId && { appointment_id: appointmentId }),
             },
           })
-        } else if (type == 'treatment') {
-          router.push({
-            name: 'TreatmentPrep',
-            params: {
-              user_id: userId,
-              assessment_id: assessment_id,
-              session_id: session_id,
-              ...(appointmentId && { appointment_id: appointmentId }),
-            },
-          })
+        } else if (type == 'treatment' || type == 'pigmentation-treatment') {
+          if (assessment_type == 'pigmentation' || type == 'pigmentation-treatment') {
+            router.push({
+              name: 'PigmentationTreatmentPrep',
+              params: {
+                user_id: userId,
+                assessment_id: assessment_id,
+                session_id: session_id,
+                ...(appointmentId && { appointment_id: appointmentId }),
+              },
+            })
+          } else {
+            router.push({
+              name: 'TreatmentPrep',
+              params: {
+                user_id: userId,
+                assessment_id: assessment_id,
+                session_id: session_id,
+                ...(appointmentId && { appointment_id: appointmentId }),
+              },
+            })
+          }
         } else if (type == 'clinic-head-complete') {
           router.push({
             name: 'ClinicHeadTreatmentComplete',

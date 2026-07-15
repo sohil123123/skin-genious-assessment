@@ -116,7 +116,47 @@
 
             <!-- Daily Home Care Routine Section -->
             <div class="col-12">
+              <q-card
+                v-if="assessmentData?.assessment_type === 'pigmentation'"
+                flat
+                class="q-pa-md bg-grey-2"
+                style="border-radius: 8px"
+              >
+                <div class="row items-center justify-between q-mb-md">
+                  <div class="row items-center gap-2">
+                    <q-icon name="handshake" size="24px" class="text-grey-7" />
+                    <div class="text-h6 q-my-none">Homecare Handover Instructions</div>
+                  </div>
+                </div>
+                <q-separator class="q-my-md" />
+                <div v-if="session?.daily_home_care_routine?.length" class="row q-col-gutter-sm">
+                  <div class="col-12">
+                    <q-list bordered separator class="rounded-borders bg-white">
+                      <q-item
+                        v-for="(instruction, idx) in session.daily_home_care_routine"
+                        :key="idx"
+                      >
+                        <q-item-section avatar>
+                          <q-avatar color="orange-1" text-color="orange-8" size="md">
+                            {{ idx + 1 }}
+                          </q-avatar>
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label class="text-bold text-grey-9" style="font-size: 14.5px">{{
+                            instruction
+                          }}</q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </div>
+                </div>
+                <div v-else class="text-center q-pa-lg text-grey-7">
+                  No homecare handover instructions defined for this session.
+                </div>
+              </q-card>
+
               <DailyHomeCareRoutine
+                v-else
                 :routine="dailyRoutine"
                 :is-generating="isGeneratingRoutine"
                 :assessment-id="assessmentData?.id"
@@ -130,8 +170,6 @@
         </q-card>
       </div>
     </div>
-
-
   </q-page>
 </template>
 
@@ -158,7 +196,6 @@ const router = useRouter()
 const store = useTreatmentFlowStore()
 const { getOrCreateConversation, runResponse } = useOpenAI()
 const isGeneratingRoutine = ref(false)
-
 
 onMounted(async () => {
   store.currentSessionId = Number(route.params.session_id)
@@ -206,18 +243,27 @@ const nextSession = computed(() => {
 })
 
 function toPostAssessment() {
-  const routeData = router.resolve({
-    name: 'index-with-id',
-    params: {
-      user_id: route.params.user_id,
-      step: 'step-6',
-      assessment_id: route.params.assessment_id,
-      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
-    },
-    query: {
-      session_id: route.params.session_id,
-    },
-  })
+  let routeData
+  if (assessmentStore.assessmentData?.assessment_type === 'pigmentation') {
+    routeData = router.resolve({
+      name: 'pigmentation-reassessment',
+      params: {
+        user_id: route.params.user_id,
+        assessment_id: route.params.assessment_id,
+        ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+      },
+    })
+  } else {
+    routeData = router.resolve({
+      name: 'index-with-id',
+      params: {
+        user_id: route.params.user_id,
+        step: 'step-6',
+        assessment_id: route.params.assessment_id,
+        ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+      },
+    })
+  }
   window.open(routeData.href, '_blank')
 }
 
@@ -260,8 +306,6 @@ function skipAndFinish() {
       console.log('User cancelled')
     })
 }
-
-
 
 async function generateDailyRoute() {
   try {

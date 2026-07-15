@@ -127,6 +127,24 @@
                   @update:model-value="getTreatmentSessions"
                 />
               </div>
+              <div
+                v-if="
+                  appointmentData.type == 'treatment' &&
+                  appointmentData.user_id &&
+                  appointmentData.assessment_id &&
+                  selectedAssessmentTypeLabel
+                "
+                class="col-md-12"
+              >
+                <q-input
+                  :model-value="selectedAssessmentTypeLabel"
+                  label="Appointment Type"
+                  outlined
+                  dense
+                  readonly
+                  disable
+                />
+              </div>
               <div v-if="loadingTreatmentSessions" class="col-md-12">
                 <q-skeleton type="QInput" />
               </div>
@@ -219,6 +237,18 @@ const emit = defineEmits(['update:modelValue', 'submit'])
 const appointmentData = computed({
   get: () => props.appointmentData,
   set: (value) => emit('update:modelValue', value),
+})
+
+const selectedAssessmentTypeLabel = computed(() => {
+  const selected = assessments.value.find((a) => a.value === appointmentData.value.assessment_id)
+  if (!selected) return ''
+  let typeLabel = 'Facial'
+  if (selected.assessment_type === 'pigmentation') {
+    typeLabel = 'Pigmentation'
+  } else if (selected.assessment_type === 'iv' || selected.assessment_type === 'instant-iv') {
+    typeLabel = 'IV'
+  }
+  return typeLabel
 })
 
 const appointmentTypes = [
@@ -360,7 +390,18 @@ async function getAssessments() {
     await api
       .get(url)
       .then((response) => {
-        assessments.value = response.data.results
+        assessments.value = (response.data.results || []).map((item) => {
+          let typeLabel = 'Normal(Facial)'
+          if (item.assessment_type === 'pigmentation') {
+            typeLabel = 'Pigmentation'
+          } else if (item.assessment_type === 'iv' || item.assessment_type === 'instant-iv') {
+            typeLabel = 'IV'
+          }
+          return {
+            ...item,
+            label: `${item.label} (${typeLabel})`,
+          }
+        })
         if (assessments.value.length === 0) {
           Notify.create({
             type: 'warning',
@@ -381,7 +422,11 @@ async function getAssessments() {
 }
 
 function getTreatmentSessions() {
-  if (appointmentData.value.type == 'treatment' && appointmentData.value.user_id) {
+  if (
+    appointmentData.value.type == 'treatment' &&
+    appointmentData.value.user_id &&
+    appointmentData.value.assessment_id
+  ) {
     loadingTreatmentSessions.value = true
     let url = `get-treatment-sessions?is_dropdown=1`
     let filterArray = [
@@ -401,6 +446,17 @@ function getTreatmentSessions() {
             type: 'warning',
             message: 'No treatment sessions found for the selected assessment',
           })
+        } else if (!appointmentData.value.treatment_session_id) {
+          // Auto-select the next session (lowest pending session_number)
+          let nextSession = treatmentSessionsOptions.value[0]
+          for (const s of treatmentSessionsOptions.value) {
+            const currentNum = s.session_number || s.value || 9999
+            const nextNum = nextSession.session_number || nextSession.value || 9999
+            if (currentNum < nextNum) {
+              nextSession = s
+            }
+          }
+          appointmentData.value.treatment_session_id = nextSession.value
         }
       })
       .catch((error) => {
