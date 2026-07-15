@@ -262,10 +262,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         if (data.recommended_full_plan) {
           this.lastPlan = data.recommended_full_plan
-          if (
-            data.treatment_sessions &&
-            Array.isArray(data.treatment_sessions.treatments)
-          ) {
+          if (data.treatment_sessions && Array.isArray(data.treatment_sessions.treatments)) {
             if (!this.lastPlan.sessions) {
               this.lastPlan.sessions = []
             }
@@ -280,7 +277,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
               } else {
                 const modalities = Array.isArray(dbS.title)
                   ? dbS.title
-                  : (typeof dbS.title === 'string' ? dbS.title.split(' + ') : [])
+                  : typeof dbS.title === 'string'
+                    ? dbS.title.split(' + ')
+                    : []
 
                 this.lastPlan.sessions.push({
                   id: dbS.id,
@@ -292,19 +291,23 @@ export const usePigmentationStore = defineStore('pigmentation', {
                   fixed_protocol: {
                     procedure: dbS.title,
                     peel: { use: modalities.includes('peel') },
-                    q_switch: { use: modalities.some(m => m.includes('q_switch') || m.includes('laser')) },
+                    q_switch: {
+                      use: modalities.some((m) => m.includes('q_switch') || m.includes('laser')),
+                    },
                     microneedling: { use: modalities.includes('microneedling') },
                     led: { use: modalities.includes('led') },
-                    steps: dbS.steps || []
+                    steps: dbS.steps || [],
                   },
                   provider_protocol: dbS.provider_protocol || {
-                    pre_treatment_checklist: dbS.preparations_checklist_for_therapist || []
-                  }
+                    pre_treatment_checklist: dbS.preparations_checklist_for_therapist || [],
+                  },
                 })
               }
             })
 
-            this.lastPlan.sessions.sort((a, b) => Number(a.session_number) - Number(b.session_number))
+            this.lastPlan.sessions.sort(
+              (a, b) => Number(a.session_number) - Number(b.session_number),
+            )
           }
         }
 
@@ -726,9 +729,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
 
     setPatientData(data) {
-      const firstInitial = data.first_name ? data.first_name.charAt(0).toUpperCase() : ''
-      const lastInitial = data.last_name ? data.last_name.charAt(0).toUpperCase() : ''
-      this.formData.initials = firstInitial + (lastInitial ? '.' + lastInitial : '')
+      // const firstInitial = data.first_name ? data.first_name.charAt(0).toUpperCase() : ''
+      // const lastInitial = data.last_name ? data.last_name.charAt(0).toUpperCase() : ''
+      this.formData.initials = [data.first_name, data.last_name].filter(Boolean).join(' ')
       this.formData.full_name = [data.first_name, data.last_name].filter(Boolean).join(' ')
       this.formData.mrn = String(data.id || '')
       if (data.date_of_birth) {
