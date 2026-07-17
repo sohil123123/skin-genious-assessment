@@ -115,6 +115,42 @@ export function useOpenAI() {
       }
 
       const res = await api.post(`ai/responses`, body)
+      
+      // Auto-Recovery: Sync new thread ID back to Pinia stores if backend swapped it
+      const newConvId = res.headers?.['x-new-conversation-id'] || res.headers?.['X-New-Conversation-Id']
+      if (newConvId) {
+        console.log('🔄 Syncing new conversation ID from backend:', newConvId)
+        try {
+          const { usePigmentationStore } = await import('src/stores/pigmentationStore')
+          const pigStore = usePigmentationStore()
+          if (pigStore && pigStore.conversationId === convId) {
+            pigStore.conversationId = newConvId
+          }
+        } catch (err) {
+          console.warn('PigmentationStore is not loaded/available:', err.message)
+        }
+
+        try {
+          const { useAssessmentStore } = await import('src/stores/assessmentStore')
+          const assessmentStore = useAssessmentStore()
+          if (assessmentStore && assessmentStore.assessmentData && assessmentStore.assessmentData.conversation_id === convId) {
+            assessmentStore.assessmentData.conversation_id = newConvId
+          }
+        } catch (err) {
+          console.warn('AssessmentStore is not loaded/available:', err.message)
+        }
+
+        try {
+          const { useIVAssessmentStore } = await import('src/stores/ivAssessmentStore')
+          const ivStore = useIVAssessmentStore()
+          if (ivStore && ivStore.formData && ivStore.formData.conversation_id === convId) {
+            ivStore.formData.conversation_id = newConvId
+          }
+        } catch (err) {
+          console.warn('IVAssessmentStore is not loaded/available:', err.message)
+        }
+      }
+
       const data = res.data
       if (!data) return data
 
