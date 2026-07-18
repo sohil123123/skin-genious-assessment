@@ -59,7 +59,7 @@
         <q-card flat class="q-pa-md">
           <div class="header mb-4">
             <div class="text-h5 text-weight-bold text-black">
-              Session {{ sessionID }} Preparation
+              Session {{ sessionNumber }} Preparation
             </div>
             <div class="text-subtitle2 text-grey-7">
               {{ session?.title || 'Pigmentation Session' }}
@@ -67,12 +67,12 @@
           </div>
 
           <!-- PRE-SESSION VALIDATION LAYER (Step 15) -->
-          <div v-if="!validationCompleted && sessionID > 1" class="q-mb-md">
+          <div v-if="!validationCompleted && sessionNumber > 1" class="q-mb-md">
             <q-card flat bordered class="border-amber rounded-lg">
               <q-card-section class="bg-amber-1 text-amber-10">
                 <div class="text-h6 flex items-center gap-2">
                   <q-icon name="shield" color="amber-8" />
-                  🛡️ Pre-Session Clinical Safety Validation (Session {{ sessionID }})
+                  🛡️ Pre-Session Clinical Safety Validation (Session {{ sessionNumber }})
                 </div>
                 <div class="text-caption text-amber-9">
                   Since this is a planned future session, you must confirm the patient's clinical status before proceeding.
@@ -367,14 +367,14 @@ onMounted(async () => {
   await pigmentationStore.getSingleAssessment(route.params.assessment_id)
 
   const matchedSession = pigmentationStore.lastPlan?.sessions?.find(
-    (s) => Number(s.session_number) === Number(sessionID)
+    (s) => Number(s.session_number) === Number(sessionID) || Number(s.id) === Number(sessionID)
   )
 
   if (matchedSession) {
     if (matchedSession.pre_session_validation) {
       preSessionVal.value = { ...matchedSession.pre_session_validation }
       validationCompleted.value = true
-    } else if (sessionID === 1) {
+    } else if (matchedSession.session_number === 1) {
       validationCompleted.value = true
     }
 
@@ -384,7 +384,7 @@ onMounted(async () => {
     if (matchedSession.fixed_protocol?.peel?.use) {
       adjustments.value.peel = { ...matchedSession.fixed_protocol.peel }
     }
-  } else if (sessionID === 1) {
+  } else if (sessionNumber.value === 1) {
     validationCompleted.value = true
   }
 
@@ -402,24 +402,158 @@ onMounted(async () => {
         )
 
         let hasZoneSequence = false
+        let hasCustomSequence = false
         const zoneSeqSrc = s.provider_protocol?.zone_sequence
-        if (
+        const execSequence = s.provider_protocol?.session_execution_sequence
+
+        if (Array.isArray(execSequence) && execSequence.length > 0) {
+          hasCustomSequence = true
+          let globalStepIdx = 1
+          execSequence.forEach((execStep) => {
+            const stepTypeLower = String(execStep.step_type || '').toLowerCase()
+            const isToningOrLaser = stepTypeLower === 'q_switch' || stepTypeLower === 'peel' || stepTypeLower === 'laser'
+
+            if (isToningOrLaser && Array.isArray(zoneSeqSrc) && zoneSeqSrc.length > 0) {
+              const activeZones = zoneSeqSrc.filter(
+                (z) => {
+                  const strategy = String(z.zone_strategy_type || z.selected_treatment || '').toLowerCase()
+                  return !strategy.includes('defer') && !strategy.includes('exclude') && !strategy.includes('avoid')
+                }
+              )
+              if (activeZones.length > 0) {
+                activeZones.forEach((z) => {
+                  let settingsStr = ''
+                  let equipments = []
+                  
+                  if (z.selected_treatment) {
+                    equipments.push(z.selected_treatment)
+                  } else {
+                    equipments.push('Laser Toning')
+                  }
+
+                  const formatSentenceCase = (str) => {
+                    if (!str) return ''
+                    if (typeof str !== 'string') return String(str)
+                    const clean = str.replace(/_/g, ' ')
+                    return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase()
+                  }
+
+                  const getFluence = (f, e) => {
+                    const val = Number(f)
+                    if (f !== undefined && f !== null && !isNaN(val) && val > 0) return val
+                    const energy = Number(e)
+                    if (e !== undefined && e !== null && !isNaN(energy) && energy > 0) return (energy / 1000).toFixed(2)
+                    return 0.3
+                  }
+
+                  const qSwitch = s.fixed_protocol?.q_switch
+                  if (qSwitch) {
+                    const zoneSetting = qSwitch.settings_by_zone?.find(sz => String(sz.zone || '').toLowerCase() === String(z.zone || '').toLowerCase())
+                    if (zoneSetting) {
+                      settingsStr = `${zoneSetting.wavelength_nm}nm • ${zoneSetting.energy_mj}mJ • ${getFluence(zoneSetting.fluence_j_cm2, zoneSetting.energy_mj)} J/cm² • ${zoneSetting.passes} passes`
+                    } else if (qSwitch.wavelength_nm || qSwitch.energy_mj) {
+                      settingsStr = `${qSwitch.wavelength_nm}nm • ${qSwitch.energy_mj}mJ • ${getFluence(qSwitch.fluence_j_cm2, qSwitch.energy_mj)} J/cm² • ${qSwitch.passes || 1} passes`
+                    }
+                  }
+
+                  if (!settingsStr) {
+                    if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
+                      const r = z.regional_override_setting
+                      settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${getFluence(r.fluence_j_cm2, r.energy_mj)} J/cm² • ${r.passes} passes`
+                    } else if (z.base_zone_setting) {
+                      const b = z.base_zone_setting
+                      settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${getFluence(b.fluence_j_cm2, b.energy_mj)} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
+                    } else {
+                      settingsStr = 'Conservative starting parameters'
+                    }
+                  }
+
+                  const activeCoverage = z.coverage_instruction || 'Standard full-zone passes.'
+                  
+                  let activeEndpoint = ''
+                  if (Array.isArray(z.endpoint_rules) && z.endpoint_rules.length > 0) {
+                    activeEndpoint = z.endpoint_rules.map(formatSentenceCase).join(' • ')
+                  } else {
+                    activeEndpoint = formatSentenceCase(z.endpoint || 'Mild erythema.')
+                  }
+
+                  let exclusionsStr = ''
+                  if (Array.isArray(z.excluded_subregions) && z.excluded_subregions.length > 0) {
+                    exclusionsStr = z.excluded_subregions.join(', ')
+                  }
+
+                  const avoidInstruction = z.avoid_zone_instruction || ''
+
+                  let stepText = `Treat Zone: ${z.zone.toUpperCase()}\n`
+                  if (z.selected_treatment || z.zone_strategy_type) {
+                    stepText += `Treatment: ${formatLabel(z.selected_treatment || z.zone_strategy_type)}\n`
+                  }
+                  stepText += `Settings: ${settingsStr}\n`
+                  stepText += `Coverage Instruction: ${activeCoverage}\n`
+                  stepText += `Endpoint Target: ${activeEndpoint}`
+                  if (exclusionsStr) {
+                    stepText += `\nExclusion Zones: ${exclusionsStr}`
+                  }
+                  if (avoidInstruction) {
+                    stepText += `\nAvoid Instruction: ${avoidInstruction}`
+                  }
+
+                  mappedSteps.push({
+                    step_number: globalStepIdx++,
+                    duration: '5 mins',
+                    ingredients_equipments: equipments,
+                    how_to_do: stepText,
+                  })
+                })
+                return
+              }
+            }
+
+            // Otherwise, map standard step
+            let equipments = []
+            if (execStep.settings_or_product_id) {
+              equipments.push(formatLabel(execStep.settings_or_product_id))
+            }
+            const durationText = execStep.duration_minutes ? `${execStep.duration_minutes} mins` : '5 mins'
+
+            let stepText = `Step: ${formatLabel(execStep.step_type).toUpperCase()}\n`
+            if (execStep.zones && execStep.zones.length > 0) {
+              stepText += `Apply To: ${execStep.zones.map(formatLabel).join(', ')}\n`
+            }
+            stepText += `Instructions: ${execStep.instructions}\n`
+            if (execStep.endpoint_or_completion_rule) {
+              stepText += `Completion Rule: ${execStep.endpoint_or_completion_rule}`
+            }
+
+            mappedSteps.push({
+              step_number: globalStepIdx++,
+              duration: durationText,
+              ingredients_equipments: equipments,
+              how_to_do: stepText,
+            })
+          })
+        } else if (
           Array.isArray(zoneSeqSrc) &&
           zoneSeqSrc.length > 0 &&
           (hasLaserModality || s.fixed_protocol?.q_switch?.use)
         ) {
           const activeZones = zoneSeqSrc.filter(
-            (z) =>
-              z.zone_strategy_type !== 'exclude_from_treatment' &&
-              z.zone_strategy_type !== 'defer_zone',
+            (z) => {
+              const strategy = String(z.zone_strategy_type || z.selected_treatment || '').toLowerCase()
+              return !strategy.includes('defer') && !strategy.includes('exclude') && !strategy.includes('avoid')
+            }
           )
           if (activeZones.length > 0) {
             hasZoneSequence = true
             mappedSteps = activeZones.map((z, idx) => {
               let settingsStr = ''
               let equipments = []
-              let activeCoverage = 'Standard full-zone passes.'
-              let activeEndpoint = 'Mild erythema.'
+              
+              if (z.selected_treatment) {
+                equipments.push(z.selected_treatment)
+              } else {
+                equipments.push('Laser Toning')
+              }
 
               const formatSentenceCase = (str) => {
                 if (!str) return ''
@@ -428,36 +562,77 @@ onMounted(async () => {
                 return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase()
               }
 
-              if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
-                const r = z.regional_override_setting
-                settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${r.fluence_j_cm2} J/cm² • ${r.passes} passes`
-                equipments.push(`Laser (${r.wavelength_nm}nm)`)
-                activeCoverage = r.coverage_instruction || 'Standard full-zone passes.'
-                activeEndpoint = formatSentenceCase(r.endpoint || 'Mild erythema.')
-              } else if (z.base_zone_setting) {
-                const b = z.base_zone_setting
-                settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
-                equipments.push(`Laser (${b.wavelength_nm}nm)`)
-                activeCoverage = b.coverage_instruction || z.coverage_instruction || 'Standard full-zone passes.'
-                activeEndpoint = formatSentenceCase(b.endpoint || z.endpoint || 'Mild erythema.')
+              const getFluence = (f, e) => {
+                const val = Number(f)
+                if (f !== undefined && f !== null && !isNaN(val) && val > 0) return val
+                const energy = Number(e)
+                if (e !== undefined && e !== null && !isNaN(energy) && energy > 0) return (energy / 1000).toFixed(2)
+                return 0.3
+              }
+
+              const qSwitch = s.fixed_protocol?.q_switch
+              if (qSwitch) {
+                const zoneSetting = qSwitch.settings_by_zone?.find(sz => String(sz.zone || '').toLowerCase() === String(z.zone || '').toLowerCase())
+                if (zoneSetting) {
+                  settingsStr = `${zoneSetting.wavelength_nm}nm • ${zoneSetting.energy_mj}mJ • ${getFluence(zoneSetting.fluence_j_cm2, zoneSetting.energy_mj)} J/cm² • ${zoneSetting.passes} passes`
+                } else if (qSwitch.wavelength_nm || qSwitch.energy_mj) {
+                  settingsStr = `${qSwitch.wavelength_nm}nm • ${qSwitch.energy_mj}mJ • ${getFluence(qSwitch.fluence_j_cm2, qSwitch.energy_mj)} J/cm² • ${qSwitch.passes || 1} passes`
+                }
+              }
+
+              if (!settingsStr) {
+                if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
+                  const r = z.regional_override_setting
+                  settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${getFluence(r.fluence_j_cm2, r.energy_mj)} J/cm² • ${r.passes} passes`
+                } else if (z.base_zone_setting) {
+                  const b = z.base_zone_setting
+                  settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${getFluence(b.fluence_j_cm2, b.energy_mj)} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
+                } else {
+                  settingsStr = 'Conservative starting parameters'
+                }
+              }
+
+              const activeCoverage = z.coverage_instruction || 'Standard full-zone passes.'
+              
+              let activeEndpoint = ''
+              if (Array.isArray(z.endpoint_rules) && z.endpoint_rules.length > 0) {
+                activeEndpoint = z.endpoint_rules.map(formatSentenceCase).join(' • ')
               } else {
-                settingsStr = 'Standard protocol settings'
-                equipments.push('Laser')
-                activeCoverage = z.coverage_instruction || 'Standard full-zone passes.'
                 activeEndpoint = formatSentenceCase(z.endpoint || 'Mild erythema.')
+              }
+
+              let exclusionsStr = ''
+              if (Array.isArray(z.excluded_subregions) && z.excluded_subregions.length > 0) {
+                exclusionsStr = z.excluded_subregions.join(', ')
+              }
+
+              const avoidInstruction = z.avoid_zone_instruction || ''
+
+              let stepText = `Treat Zone: ${z.zone.toUpperCase()}\n`
+              if (z.selected_treatment || z.zone_strategy_type) {
+                stepText += `Treatment: ${formatLabel(z.selected_treatment || z.zone_strategy_type)}\n`
+              }
+              stepText += `Settings: ${settingsStr}\n`
+              stepText += `Coverage Instruction: ${activeCoverage}\n`
+              stepText += `Endpoint Target: ${activeEndpoint}`
+              if (exclusionsStr) {
+                stepText += `\nExclusion Zones: ${exclusionsStr}`
+              }
+              if (avoidInstruction) {
+                stepText += `\nAvoid Instruction: ${avoidInstruction}`
               }
 
               return {
                 step_number: idx + 1,
                 duration: '5 mins',
                 ingredients_equipments: equipments,
-                how_to_do: `Treat Zone: ${z.zone.toUpperCase()}\nStrategy: ${formatLabel(z.zone_strategy_type || '')}\nSettings: ${settingsStr}\nCoverage Instruction: ${activeCoverage}\nEndpoint Target: ${activeEndpoint}`,
+                how_to_do: stepText,
               }
             })
           }
         }
 
-        if (!hasZoneSequence) {
+        if (!hasCustomSequence && !hasZoneSequence) {
           let rawSteps = s.fixed_protocol?.steps || s.steps || []
           mappedSteps = rawSteps.map((step, idx) => {
             if (typeof step === 'string') {
@@ -495,6 +670,10 @@ const session = computed(() => {
   return store.treatmentPlan.treatments.find(
     (s) => Number(s.id) === Number(sessionID) || Number(s.session_number) === Number(sessionID),
   )
+})
+
+const sessionNumber = computed(() => {
+  return session.value?.session_number || sessionID
 })
 
 // Use AI-generated pre_treatment_checklist if available, else use default safety items
@@ -562,7 +741,7 @@ function goToReassess() {
 
 async function confirmPreSessionValidation() {
   const matchedSession = pigmentationStore.lastPlan?.sessions?.find(
-    (s) => Number(s.session_number) === Number(sessionID)
+    (s) => Number(s.session_number) === Number(sessionNumber.value) || Number(s.id) === Number(sessionID)
   )
   if (matchedSession) {
     if (preSessionVal.value.doctor_decision === 'approved_with_minor_adjustment') {
@@ -570,9 +749,14 @@ async function confirmPreSessionValidation() {
         matchedSession.original_protocol = JSON.parse(JSON.stringify(matchedSession.fixed_protocol))
       }
       if (matchedSession.fixed_protocol?.q_switch?.use) {
-        matchedSession.fixed_protocol.q_switch.energy_mj = Number(adjustments.value.q_switch.energy_mj || matchedSession.fixed_protocol.q_switch.energy_mj)
-        matchedSession.fixed_protocol.q_switch.fluence_j_cm2 = Number(adjustments.value.q_switch.fluence_j_cm2 || matchedSession.fixed_protocol.q_switch.fluence_j_cm2)
-        matchedSession.fixed_protocol.q_switch.passes = Number(adjustments.value.q_switch.passes || matchedSession.fixed_protocol.q_switch.passes)
+        const energy = Number(adjustments.value.q_switch.energy_mj || matchedSession.fixed_protocol.q_switch.energy_mj || 300)
+        let fluence = adjustments.value.q_switch.fluence_j_cm2 || matchedSession.fixed_protocol.q_switch.fluence_j_cm2
+        if (fluence === undefined || fluence === null || isNaN(Number(fluence)) || Number(fluence) === 0) {
+          fluence = energy / 1000
+        }
+        matchedSession.fixed_protocol.q_switch.energy_mj = energy
+        matchedSession.fixed_protocol.q_switch.fluence_j_cm2 = Number(fluence)
+        matchedSession.fixed_protocol.q_switch.passes = Number(adjustments.value.q_switch.passes || matchedSession.fixed_protocol.q_switch.passes || 1)
       }
       if (matchedSession.fixed_protocol?.peel?.use) {
         matchedSession.fixed_protocol.peel.contact_time_minutes = Number(adjustments.value.peel.contact_time_minutes || matchedSession.fixed_protocol.peel.contact_time_minutes)
@@ -581,14 +765,14 @@ async function confirmPreSessionValidation() {
     }
 
     matchedSession.pre_session_validation = {
-      session_number: sessionID,
+      session_number: sessionNumber.value,
       planned_protocol_available: true,
       ...preSessionVal.value
     }
   }
 
   pigmentationStore.pre_session_validation = {
-    session_number: sessionID,
+    session_number: sessionNumber.value,
     ...preSessionVal.value
   }
 

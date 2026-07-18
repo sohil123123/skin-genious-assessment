@@ -10,9 +10,10 @@ import {
   DYNAMIC_QUESTIONS_PROMPT,
   DIAGNOSIS_PROMPT,
   PLAN_PROMPT,
+  PIGMENTATION_CLINICAL_POLICY_V2,
   REASSESS_PROMPT,
   REASSESS_QUESTIONS_PROMPT,
-} from 'src/services/pigmentationPrompts'
+} from 'src/services/pigmentationPromptsV2_1'
 import { PIGMENTATION_CONFIG } from 'src/services/pigmentationConfig'
 
 export const usePigmentationStore = defineStore('pigmentation', {
@@ -457,6 +458,93 @@ export const usePigmentationStore = defineStore('pigmentation', {
             openai_file_id: img.custom_properties?.openai_file_id || '',
             mode: img.custom_properties?.mode || 'white',
           }))
+        }
+
+        // Auto-reconstruct goals if empty
+        if ((!this.goals || this.goals.length === 0) && this.lastPlan) {
+          const goals = []
+          const planObj = this.lastPlan
+          const base = planObj.baseline_summary || {}
+
+          const cleanLabel = (str) => {
+            if (!str) return ''
+            return String(str).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+          }
+
+          const nextReassessment = planObj.treatment_goals?.next_reassessment || planObj.next_reassessment
+          if (nextReassessment) {
+            const timeframe = planObj.duration ? cleanLabel(planObj.duration) : 'Next Reassessment'
+            
+            if (Array.isArray(nextReassessment.component_targets)) {
+              nextReassessment.component_targets.forEach((ct) => {
+                goals.push({
+                  metric: `${cleanLabel(ct.metric || 'Target')} (${ct.diagnostic_component_id || ''})`,
+                  baseline: String(ct.baseline !== undefined && ct.baseline !== null ? ct.baseline : '—'),
+                  target: String(ct.target !== undefined && ct.target !== null ? ct.target : '—'),
+                  timeframe: timeframe,
+                  how_measured: 'Clinical assessment / Analyser re-read',
+                })
+              })
+            }
+            
+            if (goals.length === 0 && nextReassessment.clinical_goal) {
+              goals.push({
+                metric: 'Clinical Goal',
+                baseline: '—',
+                target: nextReassessment.clinical_goal,
+                timeframe: timeframe,
+                how_measured: 'Clinical observation',
+              })
+            }
+          }
+
+          if (goals.length === 0) {
+            const mLoad = base.global_background_melanin_load_index !== undefined ? base.global_background_melanin_load_index : base.melanin_load_index
+            const eLoad = base.global_background_erythema_load_index !== undefined ? base.global_background_erythema_load_index : base.erythema_load_index
+
+            if (mLoad !== undefined) {
+              let target = 'Reduction'
+              let timeframe = 'Week 4-6'
+
+              const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
+              if (reassessSession) {
+                timeframe = reassessSession.timing.replace(/_/g, ' ')
+                if (reassessSession.continue_if.melanin_load_index_reduction_min) {
+                  target = `≤${mLoad - reassessSession.continue_if.melanin_load_index_reduction_min} (reduction of ≥${reassessSession.continue_if.melanin_load_index_reduction_min})`
+                }
+              }
+              goals.push({
+                metric: 'Melanin Load Index',
+                baseline: String(mLoad),
+                target: target,
+                timeframe: timeframe,
+                how_measured: 'Analyser re-read under identical lighting',
+              })
+            }
+
+            if (eLoad !== undefined) {
+              let target = 'Control'
+              let timeframe = 'Week 4-6'
+              const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
+              if (reassessSession) {
+                timeframe = reassessSession.timing.replace(/_/g, ' ')
+                if (
+                  reassessSession.continue_if.erythema_load_not_increased_by_more_than !== undefined
+                ) {
+                  target = `≤${eLoad + reassessSession.continue_if.erythema_load_not_increased_by_more_than} (increase ≤${reassessSession.continue_if.erythema_load_not_increased_by_more_than})`
+                }
+              }
+              goals.push({
+                metric: 'Erythema Load Index',
+                baseline: String(eLoad),
+                target: target,
+                timeframe: timeframe,
+                how_measured: 'Analyser re-read under identical lighting',
+              })
+            }
+          }
+
+          this.goals = goals
         }
 
         // If plan is already finalized and signed-off, start at Step 5 (Reassess Stage)
@@ -994,9 +1082,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
         }
 
         // Populate readings fields in form
-        if (a.global_indices) {
-          const gi = a.global_indices
-
+        const gi = a.global_background_indices || a.global_indices
+        if (gi) {
           // Map Fitzpatrick skin type
           let fitzVal = ''
           if (gi.estimated_fitzpatrick?.type) {
@@ -1031,9 +1118,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
           let depthVal = ''
           if (gi.depth_call?.type) {
             const d = gi.depth_call.type.toLowerCase()
-            if (d.includes('epidermal')) depthVal = 'epidermal'
+            if (d.includes('mixed')) depthVal = 'mixed'
+            else if (d.includes('epidermal')) depthVal = 'epidermal'
             else if (d.includes('dermal')) depthVal = 'dermal'
-            else if (d.includes('mixed')) depthVal = 'mixed'
             else depthVal = 'uncertain'
           }
           this.formData.depth = depthVal
@@ -1201,61 +1288,100 @@ export const usePigmentationStore = defineStore('pigmentation', {
         // We will store both the raw AI response in store.diagnosis.data AND the mapped fields.
 
         // Map working_impression to differential
-        const primaryDx = dx.working_impression?.primary_category || ''
-        const primaryConfidence = dx.scores?.ai_planning_confidence_score_100 || 80
-        const primaryReasoning = dx.clinical_summary_for_doctor || ''
+        // Map working_impression to differential
+        const primaryComp = dx.diagnostic_components?.find(
+          (c) => c.diagnostic_component_id === dx.working_impression?.dominant_treatable_component_id
+        ) || dx.diagnostic_components?.[0]
+        const primaryDx = primaryComp?.family || primaryComp?.subtype || dx.working_impression?.primary_category || ''
+        const primaryConfidence = primaryComp?.confidence_100 || dx.scores?.ai_planning_confidence_score_100 || 80
+        const primaryReasoning = dx.summaries?.clinical_summary_for_doctor || dx.working_impression?.overall_summary || dx.clinical_summary_for_doctor || ''
 
-        const alternatives = (dx.working_impression?.secondary_categories || []).map((cat) => {
-          const catName = typeof cat === 'object' && cat ? cat.category || '' : String(cat || '')
-          const conf =
-            typeof cat === 'object' && cat && cat.confidence_100 !== undefined
-              ? `${cat.confidence_100}%`
-              : 'moderate'
-          const basisText =
-            typeof cat === 'object' && cat && cat.basis?.length
-              ? `Basis: ${cat.basis.join('; ')}`
-              : 'if clinically indicated'
-          return {
-            dx: catName,
-            likelihood: conf,
-            reconsider_when: basisText,
-          }
-        })
+        let alternatives = []
+        if (dx.ranked_differential?.length) {
+          alternatives = dx.ranked_differential.map((diff) => {
+            return {
+              dx: diff.family || diff.subtype || '',
+              likelihood: diff.confidence_100 ? `${diff.confidence_100}%` : 'possible',
+              reconsider_when: diff.why_it_remains?.join('; ') || '',
+            }
+          })
+        } else {
+          alternatives = (dx.working_impression?.secondary_categories || []).map((cat) => {
+            const catName = typeof cat === 'object' && cat ? cat.category || '' : String(cat || '')
+            const conf =
+              typeof cat === 'object' && cat && cat.confidence_100 !== undefined
+                ? `${cat.confidence_100}%`
+                : 'moderate'
+            const basisText =
+              typeof cat === 'object' && cat && cat.basis?.length
+                ? `Basis: ${cat.basis.join('; ')}`
+                : 'if clinically indicated'
+            return {
+              dx: catName,
+              likelihood: conf,
+              reconsider_when: basisText,
+            }
+          })
+        }
 
         // Map scores object to scores array
         const scoresArray = []
-        if (dx.scores) {
-          const mapScore = (key, name, scale) => {
-            if (dx.scores[key] !== undefined) {
-              scoresArray.push({
-                name: name,
-                value: String(dx.scores[key]),
-                scale: scale,
-                interpretation: dx.scores[key] > 50 ? 'elevated' : 'mild/moderate',
-              })
-            }
-          }
-          mapScore('melanin_load_index', 'Melanin Load Index', '0–100')
-          mapScore('erythema_load_index', 'Erythema Load Index', '0–100')
-          mapScore('composition_melanin_percent', 'Composition Melanin %', '0–100')
-          mapScore('composition_vascular_percent', 'Composition Vascular %', '0–100')
-          mapScore('recurrence_risk_index', 'Recurrence Risk Score', '0–100')
-          mapScore('procedure_risk_index', 'Procedure Risk Score', '0–100')
-          mapScore('sunscreen_compliance_index', 'Sunscreen Compliance Score', '0–100')
-          mapScore('diagnosis_confidence_index', 'Diagnosis Confidence Score', '0–100')
+        const metrics = dx.immutable_image_metrics || {}
+        const dxScores = dx.scores || {}
+        const scoresObj = {
+          melanin_load_index: metrics.global_background_melanin_load_index !== undefined ? metrics.global_background_melanin_load_index : (dxScores.melanin_load_index !== undefined ? dxScores.melanin_load_index : parseInt(this.formData.mel) || 50),
+          erythema_load_index: metrics.global_background_erythema_load_index !== undefined ? metrics.global_background_erythema_load_index : (dxScores.erythema_load_index !== undefined ? dxScores.erythema_load_index : parseInt(this.formData.ery) || 20),
+          composition_melanin_percent: dxScores.composition_melanin_percent !== undefined ? dxScores.composition_melanin_percent : 70,
+          composition_vascular_percent: dxScores.composition_vascular_percent !== undefined ? dxScores.composition_vascular_percent : 30,
+          recurrence_risk_index: dxScores.recurrence_risk_index !== undefined ? dxScores.recurrence_risk_index : 50,
+          procedure_risk_index: dxScores.procedure_risk_index !== undefined ? dxScores.procedure_risk_index : 30,
+          sunscreen_compliance_index: dxScores.sunscreen_compliance_index !== undefined ? dxScores.sunscreen_compliance_index : 50,
+          diagnosis_confidence_index: primaryConfidence
         }
+
+        const mapScore = (key, name, scale) => {
+          if (scoresObj[key] !== undefined) {
+            scoresArray.push({
+              name: name,
+              value: String(scoresObj[key]),
+              scale: scale,
+              interpretation: scoresObj[key] > 50 ? 'elevated' : 'mild/moderate',
+            })
+          }
+        }
+        mapScore('melanin_load_index', 'Melanin Load Index', '0–100')
+        mapScore('erythema_load_index', 'Erythema Load Index', '0–100')
+        mapScore('composition_melanin_percent', 'Composition Melanin %', '0–100')
+        mapScore('composition_vascular_percent', 'Composition Vascular %', '0–100')
+        mapScore('recurrence_risk_index', 'Recurrence Risk Score', '0–100')
+        mapScore('procedure_risk_index', 'Procedure Risk Score', '0–100')
+        mapScore('sunscreen_compliance_index', 'Sunscreen Compliance Score', '0–100')
+        mapScore('diagnosis_confidence_index', 'Diagnosis Confidence Score', '0–100')
 
         // Map key_drivers
         const drivers = []
-        if (dx.clinical_activity) {
-          if (dx.clinical_activity.stability_status)
-            drivers.push(`Stability: ${dx.clinical_activity.stability_status}`)
-          if (dx.clinical_activity.inflammation_first_required)
-            drivers.push(`Inflammation Control Required First`)
-          if (dx.clinical_activity.active_acne_driver) drivers.push(`Active Acne Driver Present`)
-          if (dx.clinical_activity.barrier_repair_first_required)
-            drivers.push(`Barrier Repair Required First`)
+        if (Array.isArray(dx.key_drivers)) {
+          dx.key_drivers.forEach((drv) => {
+            drivers.push(`${drv.driver}: ${drv.likelihood || 'possible'} (${drv.confidence_100 || 50}% conf)`)
+          })
         }
+        
+        const activity = dx.clinical_activity || {}
+        const mappedActivity = {
+          stability_status: activity.global_stability_status || activity.stability_status || 'stable',
+          active_acne_driver: activity.active_acne_present !== undefined ? activity.active_acne_present : (activity.active_acne_driver || false),
+          inflammation_first_required: activity.inflammation_first_required_any_component !== undefined ? activity.inflammation_first_required_any_component : (activity.inflammation_first_required || false),
+          barrier_repair_first_required: activity.barrier_repair_first_required_any_component !== undefined ? activity.barrier_repair_first_required_any_component : (activity.barrier_repair_first_required || false),
+        }
+
+        if (mappedActivity.stability_status)
+          drivers.push(`Stability: ${mappedActivity.stability_status}`)
+        if (mappedActivity.inflammation_first_required)
+          drivers.push(`Inflammation Control Required First`)
+        if (mappedActivity.active_acne_driver) drivers.push(`Active Acne Driver Present`)
+        if (mappedActivity.barrier_repair_first_required)
+          drivers.push(`Barrier Repair Required First`)
+
         if (dx.risk_profile) {
           drivers.push(`Recurrence Risk: ${dx.risk_profile.recurrence_risk}`)
           drivers.push(`Procedure Risk: ${dx.risk_profile.procedure_risk}`)
@@ -1264,35 +1390,33 @@ export const usePigmentationStore = defineStore('pigmentation', {
         }
 
         // Map red_flags
-        const redFlagsPresent =
-          dx.risk_profile?.red_flag_lesion_risk &&
-          dx.risk_profile.red_flag_lesion_risk !== 'not_reported'
+        const redFlagsPresent = dx.working_impression?.doctor_review_required || (dx.risk_profile?.red_flag_lesion_risk && dx.risk_profile.red_flag_lesion_risk !== 'not_reported') || false
         const redFlagsAction = dx.working_impression?.doctor_review_reason || ''
-        const redFlagsItems = redFlagsPresent ? [dx.risk_profile.red_flag_lesion_risk] : []
+        const redFlagsItems = redFlagsPresent ? [redFlagsAction || dx.risk_profile?.red_flag_lesion_risk || 'Doctor Review Required'] : []
 
         // Map depth & composition (default back to form or construct from primary category)
-        let depthVal = this.formData.depth || 'mixed'
-        let compVal = this.formData.comp || 'melanin'
-        const primaryLower = primaryDx.toLowerCase()
-        if (primaryLower.includes('melasma')) {
-          depthVal = 'mixed'
-          compVal = 'melanin'
-        } else if (primaryLower.includes('pih')) {
-          depthVal = 'epidermal'
-          compVal = 'mixed'
-        } else if (primaryLower.includes('tanning')) {
-          depthVal = 'epidermal'
-          compVal = 'melanin'
+        let depthVal = this.formData.depth || primaryComp?.depth || 'mixed'
+        let compVal = this.formData.comp || primaryComp?.subtype || 'melanin'
+        if (primaryDx) {
+          const primaryLower = primaryDx.toLowerCase()
+          if (primaryLower.includes('melasma')) {
+            depthVal = 'mixed'
+            compVal = 'melanin'
+          } else if (primaryLower.includes('pih')) {
+            depthVal = 'epidermal'
+            compVal = 'mixed'
+          } else if (primaryLower.includes('tanning')) {
+            depthVal = 'epidermal'
+            compVal = 'melanin'
+          }
         }
 
         const mappedData = JSON.parse(JSON.stringify(dx))
         mappedData.needs_summary = false
-        mappedData.needs_dermoscopy = false
+        mappedData.needs_dermoscopy = !!redFlagsPresent
         mappedData.dermoscopy_request = {
-          reason:
-            dx.working_impression?.doctor_review_reason ||
-            'Suspicion of ochronosis or atypical lesion.',
-          look_for: ['banana-shaped ochre structures', 'blue-grey globules'],
+          reason: redFlagsAction || 'Suspicion of atypical lesion.',
+          look_for: ['atypical pigment network', 'asymmetry', 'heterogeneity'],
         }
         mappedData.differential = {
           primary: {
@@ -1311,18 +1435,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
           dominant: compVal,
           note: 'Derived from primary category composition',
         }
-        mappedData.scores = dx.scores ? JSON.parse(JSON.stringify(dx.scores)) : {}
+        mappedData.scores = scoresObj
         mappedData.scores_list = scoresArray
-        mappedData.severity_interpretation = `Confidence: ${dx.working_impression?.diagnostic_confidence || 'moderate'}. Recurrence: ${dx.risk_profile?.recurrence_risk || 'moderate'}.`
-        // key_drivers is already preserved from the deep clone of dx (line 1238)
-        // Do NOT overwrite with the flat `drivers` array
+        mappedData.clinical_activity = mappedActivity
+        mappedData.severity_interpretation = `Confidence: ${primaryConfidence}%. Recurrence: ${dx.risk_profile?.recurrence_risk || 'moderate'}.`
         mappedData.red_flags = {
           present: redFlagsPresent,
           items: redFlagsItems,
           action: redFlagsAction,
         }
         mappedData.uncertainties = [
-          dx.working_impression?.doctor_review_reason || 'Clinical verification required',
+          redFlagsAction || 'Clinical verification required',
         ]
 
         console.log('mappedData', mappedData)
@@ -1349,6 +1472,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         image_analysis: this.aiAnalysis?.data || {},
         fixed_history: this.fixedHistory,
         dynamic_history: this.dynamicAnswers,
+        clinicPolicy: PIGMENTATION_CLINICAL_POLICY_V2,
         clinic_config: PIGMENTATION_CONFIG,
         doctor_overrides: {
           allowed: true,
@@ -1411,45 +1535,82 @@ export const usePigmentationStore = defineStore('pigmentation', {
         const goals = []
         const base = planObj.baseline_summary || {}
 
-        if (base.melanin_load_index !== undefined) {
-          let target = 'Reduction'
-          let timeframe = 'Week 4-6'
-
-          const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
-          if (reassessSession) {
-            timeframe = reassessSession.timing.replace(/_/g, ' ')
-            if (reassessSession.continue_if.melanin_load_index_reduction_min) {
-              target = `≤${base.melanin_load_index - reassessSession.continue_if.melanin_load_index_reduction_min} (reduction of ≥${reassessSession.continue_if.melanin_load_index_reduction_min})`
-            }
-          }
-          goals.push({
-            metric: 'Melanin Load Index',
-            baseline: String(base.melanin_load_index),
-            target: target,
-            timeframe: timeframe,
-            how_measured: 'Analyser re-read under identical lighting',
-          })
+        const cleanLabel = (str) => {
+          if (!str) return ''
+          return String(str).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
         }
 
-        if (base.erythema_load_index !== undefined) {
-          let target = 'Control'
-          let timeframe = 'Week 4-6'
-          const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
-          if (reassessSession) {
-            timeframe = reassessSession.timing.replace(/_/g, ' ')
-            if (
-              reassessSession.continue_if.erythema_load_not_increased_by_more_than !== undefined
-            ) {
-              target = `≤${base.erythema_load_index + reassessSession.continue_if.erythema_load_not_increased_by_more_than} (increase ≤${reassessSession.continue_if.erythema_load_not_increased_by_more_than})`
-            }
+        const nextReassessment = planObj.treatment_goals?.next_reassessment || planObj.next_reassessment
+        if (nextReassessment) {
+          const timeframe = planObj.duration ? cleanLabel(planObj.duration) : 'Next Reassessment'
+          
+          if (Array.isArray(nextReassessment.component_targets)) {
+            nextReassessment.component_targets.forEach((ct) => {
+              goals.push({
+                metric: `${cleanLabel(ct.metric || 'Target')} (${ct.diagnostic_component_id || ''})`,
+                baseline: String(ct.baseline !== undefined && ct.baseline !== null ? ct.baseline : '—'),
+                target: String(ct.target !== undefined && ct.target !== null ? ct.target : '—'),
+                timeframe: timeframe,
+                how_measured: 'Clinical assessment / Analyser re-read',
+              })
+            })
           }
-          goals.push({
-            metric: 'Erythema Load Index',
-            baseline: String(base.erythema_load_index),
-            target: target,
-            timeframe: timeframe,
-            how_measured: 'Analyser re-read under identical lighting',
-          })
+          
+          if (goals.length === 0 && nextReassessment.clinical_goal) {
+            goals.push({
+              metric: 'Clinical Goal',
+              baseline: '—',
+              target: nextReassessment.clinical_goal,
+              timeframe: timeframe,
+              how_measured: 'Clinical observation',
+            })
+          }
+        }
+
+        if (goals.length === 0) {
+          const mLoad = base.global_background_melanin_load_index !== undefined ? base.global_background_melanin_load_index : base.melanin_load_index
+          const eLoad = base.global_background_erythema_load_index !== undefined ? base.global_background_erythema_load_index : base.erythema_load_index
+
+          if (mLoad !== undefined) {
+            let target = 'Reduction'
+            let timeframe = 'Week 4-6'
+
+            const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
+            if (reassessSession) {
+              timeframe = reassessSession.timing.replace(/_/g, ' ')
+              if (reassessSession.continue_if.melanin_load_index_reduction_min) {
+                target = `≤${mLoad - reassessSession.continue_if.melanin_load_index_reduction_min} (reduction of ≥${reassessSession.continue_if.melanin_load_index_reduction_min})`
+              }
+            }
+            goals.push({
+              metric: 'Melanin Load Index',
+              baseline: String(mLoad),
+              target: target,
+              timeframe: timeframe,
+              how_measured: 'Analyser re-read under identical lighting',
+            })
+          }
+
+          if (eLoad !== undefined) {
+            let target = 'Control'
+            let timeframe = 'Week 4-6'
+            const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
+            if (reassessSession) {
+              timeframe = reassessSession.timing.replace(/_/g, ' ')
+              if (
+                reassessSession.continue_if.erythema_load_not_increased_by_more_than !== undefined
+              ) {
+                target = `≤${eLoad + reassessSession.continue_if.erythema_load_not_increased_by_more_than} (increase ≤${reassessSession.continue_if.erythema_load_not_increased_by_more_than})`
+              }
+            }
+            goals.push({
+              metric: 'Erythema Load Index',
+              baseline: String(eLoad),
+              target: target,
+              timeframe: timeframe,
+              how_measured: 'Analyser re-read under identical lighting',
+            })
+          }
         }
 
         this.goals = goals

@@ -3,13 +3,21 @@
     <div class="stage-head">
       <span class="eyebrow">Stage 05 · Reassess</span>
       <h1 class="serif">Goal tracking &amp; reassessment</h1>
-      <p>Assess patient progress against the baseline goals. Upload follow-up captures, answer follow-up questions, and evaluate the treatment trajectory.</p>
+      <p>
+        Assess patient progress against the baseline goals. Upload follow-up captures, answer
+        follow-up questions, and evaluate the treatment trajectory.
+      </p>
     </div>
 
     <!-- VALIDATION ERROR -->
-    <div class="card bg-red-1 q-mb-md" v-if="validationError" id="raValidate" style="border: 1px solid var(--erythema)">
+    <div
+      class="card bg-red-1 q-mb-md"
+      v-if="validationError"
+      id="raValidate"
+      style="border: 1px solid var(--erythema)"
+    >
       <div class="err-box">
-        <b>Cannot run reassessment.</b><br>
+        <b>Cannot run reassessment.</b><br />
         <span v-html="validationError"></span>
       </div>
     </div>
@@ -32,26 +40,39 @@
 
     <!-- TAB 1: INPUT STATE -->
     <div v-if="subTab === 'inputs' && !store.isLoading" id="raStart">
-      
       <!-- STEP 1: FOLLOW-UP PHOTO UPLOADER -->
       <div class="pblock">
-        <h3><span class="bar"></span>1. Follow-up images <span style="font-weight:400;color:var(--slate);font-size:12px">· upload post-treatment captures</span></h3>
-        <div class="viewer-card" style="background:#261f30">
+        <h3>
+          <span class="bar"></span>1. Follow-up images
+          <span style="font-weight: 400; color: var(--slate); font-size: 12px"
+            >· upload post-treatment captures</span
+          >
+        </h3>
+        <div class="viewer-card" style="background: #261f30">
           <div class="viewer-head">
             <span class="t">Follow-up scans</span>
-            <span class="t" style="color:#a89fb6">{{ store.reassessImages.length }} attached</span>
+            <span class="t" style="color: #a89fb6">{{ store.reassessImages.length }} attached</span>
           </div>
-          
-          <div class="dropzone" @click="triggerRaInput" style="border-color:#534366">
+
+          <div class="dropzone" @click="triggerRaInput" style="border-color: #534366">
             <div class="big">⊕</div>
             <div>Attach follow-up captures</div>
-            <div class="sub">Upload new white-light or Wood's UV images to assess pigment changes — JPG/PNG.</div>
+            <div class="sub">
+              Upload new white-light or Wood's UV images to assess pigment changes — JPG/PNG.
+            </div>
           </div>
-          <input type="file" ref="raInput" accept="image/*" multiple hidden @change="onRaFileChange">
+          <input
+            type="file"
+            ref="raInput"
+            accept="image/*"
+            multiple
+            hidden
+            @change="onRaFileChange"
+          />
 
           <div class="thumbs" v-if="store.reassessImages.length > 0">
             <div v-for="(img, idx) in store.reassessImages" :key="idx" class="thumb">
-              <img :src="img.dataUrl" alt="">
+              <img :src="img.dataUrl" alt="" />
               <button class="rm" @click="removeRaImage(idx)">×</button>
             </div>
           </div>
@@ -60,88 +81,132 @@
 
       <!-- STEP 2: GOALS TRACKING VALUE INPUT -->
       <div class="pblock q-mt-lg">
-        <h3><span class="bar"></span>2. Goals baseline vs current <span style="font-weight:400;color:var(--slate);font-size:12px">· enter current indices</span></h3>
+        <h3>
+          <span class="bar"></span>2. Goals baseline vs current
+          <span style="font-weight: 400; color: var(--slate); font-size: 12px"
+            >· enter current indices</span
+          >
+        </h3>
         <div id="raGoals">
-          <div 
-            v-for="(g, idx) in store.goals" 
-            :key="idx" 
+          <div
+            v-for="(g, idx) in store.goals"
+            :key="idx"
             class="ra-goal"
-            style="position: relative; padding-right: 40px;"
+            style="position: relative; padding-right: 40px"
           >
             <!-- Delete goal button -->
-            <button 
-              class="btn-text text-negative" 
-              style="position: absolute; right: 8px; top: 8px; font-size: 20px; line-height: 1; border: none; background: transparent; cursor: pointer; padding: 4px; font-weight: bold; z-index: 10;"
+            <button
+              class="btn-text text-negative"
+              style="
+                position: absolute;
+                right: 8px;
+                top: 8px;
+                font-size: 20px;
+                line-height: 1;
+                border: none;
+                background: transparent;
+                cursor: pointer;
+                padding: 4px;
+                font-weight: bold;
+                z-index: 10;
+              "
               title="Remove Goal"
               @click="removeGoalRow(idx)"
               v-if="store.goals.length > 1"
             >
               ×
             </button>
-            <input 
-              class="ra-metric" 
-              placeholder="Metric (e.g. mMASI, lesion count, melanin index)" 
+            <input
+              class="ra-metric"
+              placeholder="Metric (e.g. mMASI, lesion count, melanin index)"
               v-model="g.metric"
-            >
+            />
             <div class="ra-grid">
               <div>
                 <div class="gh">Baseline</div>
-                <input class="ra-base" v-model="g.baseline">
+                <input class="ra-base" v-model="g.baseline" />
               </div>
               <div>
                 <div class="gh">Target</div>
-                <input class="ra-target" v-model="g.target">
+                <input class="ra-target" v-model="g.target" />
               </div>
               <div>
                 <div class="gh">Timeframe</div>
-                <input class="ra-tf" v-model="g.timeframe">
+                <input class="ra-tf" v-model="g.timeframe" />
               </div>
               <div>
                 <div class="gh">Current Value</div>
-                <input class="ra-current" placeholder="now" v-model="g.current">
+                <input class="ra-current" placeholder="now" v-model="g.current" />
               </div>
             </div>
           </div>
         </div>
 
-        <button class="btn btn-block" style="margin-top:10px; border-style:dashed" @click="addGoalRow">
+        <button
+          class="btn btn-block"
+          style="margin-top: 10px; border-style: dashed"
+          @click="addGoalRow"
+        >
           + Add another goal
         </button>
       </div>
 
       <!-- STEP 3: DYNAMIC QUESTIONS SECTION -->
       <div class="pblock q-mt-lg">
-        <h3><span class="bar"></span>3. Follow-up &amp; compliance history <span style="font-weight:400;color:var(--slate);font-size:12px">· dynamic AI questions</span></h3>
-        
+        <h3>
+          <span class="bar"></span>3. Follow-up &amp; compliance history
+          <span style="font-weight: 400; color: var(--slate); font-size: 12px"
+            >· dynamic AI questions</span
+          >
+        </h3>
+
         <div class="card bg-grey-1" style="border: 1px solid var(--line)">
-          <div v-if="!store.reassessQuestions || store.reassessQuestions.length === 0" class="text-center q-py-md">
-            <p class="note q-mb-md">AI needs to formulate dynamic compliance and side-effect questions based on the treatment plan and follow-up images.</p>
-            <button 
-              class="btn" 
-              @click="generateQuestions" 
-              :disabled="store.isLoading"
-            >
+          <div
+            v-if="!store.reassessQuestions || store.reassessQuestions.length === 0"
+            class="text-center q-py-md"
+          >
+            <p class="note q-mb-md">
+              AI needs to formulate dynamic compliance and side-effect questions based on the
+              treatment plan and follow-up images.
+            </p>
+            <button class="btn" @click="generateQuestions" :disabled="store.isLoading">
               ✦ Formulate follow-up questions
             </button>
           </div>
 
           <div v-else>
-            <div v-for="q in store.reassessQuestions" :key="q.question_id" class="field full q-mb-md">
+            <div
+              v-for="q in store.reassessQuestions"
+              :key="q.question_id"
+              class="field full q-mb-md"
+            >
               <label class="text-weight-bold">
                 {{ q.question }}
-                <span class="hint" style="display:block;font-weight:400;color:var(--slate)" v-if="q.why_asked">
+                <span
+                  class="hint"
+                  style="display: block; font-weight: 400; color: var(--slate)"
+                  v-if="q.why_asked"
+                >
                   <b>Why:</b> {{ q.why_asked }}
                 </span>
               </label>
 
               <!-- Single choice select -->
-              <select v-if="q.answer_type === 'single_choice' && q.options?.length" v-model="store.reassessAnswers[q.question_id]">
+              <select
+                v-if="q.answer_type === 'single_choice' && q.options?.length"
+                v-model="store.reassessAnswers[q.question_id]"
+              >
                 <option value="">— select —</option>
-                <option v-for="opt in q.options" :key="opt" :value="opt">{{ formatOptionLabel(opt) }}</option>
+                <option v-for="opt in q.options" :key="opt" :value="opt">
+                  {{ formatOptionLabel(opt) }}
+                </option>
               </select>
 
               <!-- Boolean select -->
-              <select v-else-if="q.answer_type === 'boolean'" v-model="store.reassessAnswers[q.question_id]">
+              <select
+                v-else-if="q.answer_type === 'boolean'"
+                v-model="store.reassessAnswers[q.question_id]"
+              >
                 <option value="">— select —</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
@@ -149,20 +214,31 @@
               </select>
 
               <!-- Multi-choice checks -->
-              <div v-else-if="q.answer_type === 'multi_choice' && q.options?.length" class="checks q-mt-xs">
-                <label v-for="opt in q.options" :key="opt" :class="['check', { 'is-checked': isOptionChecked(q.question_id, opt) }]">
+              <div
+                v-else-if="q.answer_type === 'multi_choice' && q.options?.length"
+                class="checks q-mt-xs"
+              >
+                <label
+                  v-for="opt in q.options"
+                  :key="opt"
+                  :class="['check', { 'is-checked': isOptionChecked(q.question_id, opt) }]"
+                >
                   <input
                     type="checkbox"
                     :value="opt"
                     :checked="isOptionChecked(q.question_id, opt)"
                     @change="toggleOption(q.question_id, opt)"
-                  >
+                  />
                   {{ formatOptionLabel(opt) }}
                 </label>
               </div>
 
               <!-- General text input -->
-              <input v-else placeholder="Type patient's response..." v-model="store.reassessAnswers[q.question_id]">
+              <input
+                v-else
+                placeholder="Type patient's response..."
+                v-model="store.reassessAnswers[q.question_id]"
+              />
             </div>
 
             <button class="btn btn-sm text-negative" @click="resetQuestions">
@@ -174,23 +250,28 @@
 
       <!-- MAIN ACTION -->
       <div class="row gap-md q-mt-xl">
-        <button 
-          class="btn btn-primary col" 
-          @click="runReassessment"
-          :disabled="store.isLoading || (store.reassessQuestions?.length > 0 && !allQuestionsAnswered)"
-        >
-          {{ store.reassessment ? '✦ Re-run Reassessment Analysis' : '✦ Generate Reassessment Analysis' }}
-        </button>
         <button
-          v-if="store.reassessment"
-          class="btn col-auto"
-          @click="subTab = 'results'"
+          class="btn btn-primary col"
+          @click="runReassessment"
+          :disabled="
+            store.isLoading || (store.reassessQuestions?.length > 0 && !allQuestionsAnswered)
+          "
         >
+          {{
+            store.reassessment
+              ? '✦ Re-run Reassessment Analysis'
+              : '✦ Generate Reassessment Analysis'
+          }}
+        </button>
+        <button v-if="store.reassessment" class="btn col-auto" @click="subTab = 'results'">
           Go to Results →
         </button>
       </div>
-      
-      <div v-if="store.reassessQuestions?.length > 0 && !allQuestionsAnswered" class="text-center note text-negative q-mt-sm">
+
+      <div
+        v-if="store.reassessQuestions?.length > 0 && !allQuestionsAnswered"
+        class="text-center note text-negative q-mt-sm"
+      >
         Please answer all follow-up questions before running analysis.
       </div>
     </div>
@@ -202,8 +283,11 @@
     </div>
 
     <!-- REASSESSMENT OUTPUT (PROFESSIONAL UI) -->
-    <div v-if="subTab === 'results' && store.reassessment && !store.isLoading" id="raOutput" class="q-col-gutter-y-md">
-      
+    <div
+      v-if="subTab === 'results' && store.reassessment && !store.isLoading"
+      id="raOutput"
+      class="q-col-gutter-y-md"
+    >
       <!-- 1. OVERALL TRAJECTORY BANNER -->
       <div :class="['review-banner', bannerClass]">
         <span class="ic">{{ bannerIcon }}</span>
@@ -211,33 +295,34 @@
           <span class="text-weight-bold text-h6 block">
             Overall Trajectory: {{ cap(comparisonData.overall?.trajectory || 'unknown') }}
           </span>
-          <p style="margin: 4px 0 0 0; font-weight: 400; line-height: 1.4;">
+          <p style="margin: 4px 0 0 0; font-weight: 400; line-height: 1.4">
             {{ comparisonData.overall?.summary || '' }}
           </p>
         </div>
       </div>
 
       <!-- 2. DIAGNOSIS RE-EXAMINE WARNING -->
-      <div v-if="store.reassessment.diagnosis_reexamine?.needed" class="pblock">
+      <div v-if="isDiagnosisRecheckTriggered" class="pblock">
         <div class="redflag">
           <span class="ic">!</span>
           <div class="bd">
-            <b>⚠ Action Required: Re-examine the Diagnosis</b> 
-            <p style="margin-top: 4px; font-size: 13px;">
-              {{ store.reassessment.diagnosis_reexamine.reason }}
+            <b>⚠ Action Required: Recheck or Re-examine Diagnosis</b>
+            <p style="margin-top: 4px; font-size: 13px">
+              One or more components have triggered a diagnosis recheck. Please review clinical
+              indicators or schedule closeup dermoscopy as needed.
             </p>
           </div>
         </div>
       </div>
 
-      <!-- 3. GOALS TRACKING SCORECARD -->
-      <div class="pblock" v-if="comparisonData.goals?.length">
+      <!-- 3. GOALS TRACKING SCORECARD (GLOBAL METRICS) -->
+      <div class="pblock" v-if="comparisonData.global_metrics?.length">
         <h3><span class="bar"></span>Goal-by-goal scorecard</h3>
         <div class="goal-tbl">
-          <div 
-            class="goal-row" 
+          <div
+            class="goal-row"
             style="grid-template-columns: 1.5fr 1fr 1fr 1fr 1.2fr"
-            v-for="(g, idx) in comparisonData.goals" 
+            v-for="(g, idx) in comparisonData.global_metrics"
             :key="idx"
           >
             <div>
@@ -250,7 +335,9 @@
             </div>
             <div>
               <div class="gh">Current</div>
-              <div><b>{{ g.current || '—' }}</b></div>
+              <div>
+                <b>{{ g.current || '—' }}</b>
+              </div>
             </div>
             <div>
               <div class="gh">Δ Delta</div>
@@ -261,7 +348,7 @@
               <span :class="['goal-status', getStatusClass(g.status)]">
                 {{ getStatusLabel(g.status) }}
               </span>
-              <div class="gsub q-mt-xs" v-if="g.comment" style="font-size: 11px;">
+              <div class="gsub q-mt-xs" v-if="g.comment" style="font-size: 11px">
                 {{ g.comment }}
               </div>
             </div>
@@ -269,60 +356,113 @@
         </div>
       </div>
 
-      <!-- 4. REGIONAL CHANGES DETAIL -->
-      <div class="pblock" v-if="comparisonData.regional_changes?.length">
-        <h3><span class="bar"></span>Regional changes</h3>
+      <!-- 4. COMPONENT OUTCOMES DETAIL -->
+      <div class="pblock" v-if="comparisonData.component_outcomes?.length">
+        <h3><span class="bar"></span>Component clinical outcomes</h3>
         <div class="goal-tbl">
-          <div class="goal-hdr" style="grid-template-columns: 1fr 1fr 1fr 1.2fr">
-            <div>Region</div>
-            <div>Melanin Load (B → C)</div>
-            <div>Erythema Load (B → C)</div>
-            <div>Trajectory &amp; Notes</div>
+          <div class="goal-hdr" style="grid-template-columns: 1fr 1.2fr 1fr 1.2fr">
+            <div>Component (ID)</div>
+            <div>Working Diagnosis</div>
+            <div>Trajectory</div>
+            <div>Status &amp; Notes</div>
           </div>
-          <div 
-            class="goal-row" 
-            style="grid-template-columns: 1fr 1fr 1fr 1.2fr"
-            v-for="(reg, rIdx) in comparisonData.regional_changes" 
-            :key="rIdx"
+          <div
+            class="goal-row"
+            style="grid-template-columns: 1fr 1.2fr 1fr 1.2fr"
+            v-for="(comp, cIdx) in comparisonData.component_outcomes"
+            :key="cIdx"
           >
             <div>
-              <div class="gh">Region</div>
-              <div class="text-weight-bold">{{ formatOptionLabel(reg.region) }}</div>
+              <div class="gh">Component (ID)</div>
+              <div class="text-weight-bold">{{ cleanLabel(comp.diagnostic_component_id) }}</div>
             </div>
             <div>
-              <div class="gh">Melanin Load</div>
-              <div>{{ reg.baseline_melanin_load || '—' }} → {{ reg.current_melanin_load || '—' }}</div>
-            </div>
-            <div>
-              <div class="gh">Erythema Load</div>
-              <div>{{ reg.baseline_erythema_load || '—' }} → {{ reg.current_erythema_load || '—' }}</div>
+              <div class="gh">Working Diagnosis</div>
+              <div style="font-size: 11.5px; color: #37474f">{{ cleanLabel(comp.diagnosis) }}</div>
             </div>
             <div>
               <div class="gh">Trajectory</div>
-              <span :class="['goal-status', getStatusClass(reg.trajectory)]">
-                {{ getStatusLabel(reg.trajectory) }}
+              <span :class="['goal-status', getStatusClass(comp.trajectory)]">
+                {{ getStatusLabel(comp.trajectory) }}
               </span>
-              <div class="gsub q-mt-xs" v-if="reg.comment" style="font-size: 11px;">
-                {{ reg.comment }}
+            </div>
+            <div>
+              <div class="gh">Status &amp; Notes</div>
+              <span
+                :class="['goal-status', getStatusClass(comp.target_status)]"
+                style="font-size: 10px"
+              >
+                {{ getStatusLabel(comp.target_status) }}
+              </span>
+              <div class="gsub q-mt-xs" v-if="comp.comment" style="font-size: 11px">
+                {{ comp.comment }}
               </div>
             </div>
           </div>
         </div>
       </div>
 
+      <!-- 4.2 NEW OR CHANGED MORPHOLOGY GROUPS -->
+      <div class="pblock" v-if="comparisonData.new_or_changed_morphology_groups?.length">
+        <h3><span class="bar" style="background: var(--amber)"></span>New or Changed Morphology</h3>
+        <div
+          class="card q-pa-md bg-amber-0 border-amber q-mb-md"
+          style="border: 1px solid var(--amber); background-color: #fffbeb"
+        >
+          <div
+            v-for="(mg, mIdx) in comparisonData.new_or_changed_morphology_groups"
+            :key="mIdx"
+            class="q-mb-sm"
+          >
+            <div class="text-weight-bold text-subtitle2 text-amber-9 uppercase">
+              ⚠️ Group {{ mg.group_id }}: {{ cleanLabel(mg.change) }}
+            </div>
+            <div class="text-body2 text-grey-9 q-mt-xs" style="line-height: 1.4">
+              {{ mg.clinical_implication }}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 4.5 PREVIOUS BLOCK CLOSURE & CONTINUITY -->
-      <div class="row q-col-gutter-md q-mt-md" v-if="store.reassessment.previous_block_closure || store.reassessment.continuity_with_master_roadmap">
+      <div
+        class="row q-col-gutter-md q-mt-md"
+        v-if="
+          store.reassessment.previous_block_closure ||
+          store.reassessment.continuity_with_master_roadmap
+        "
+      >
         <div class="col-xs-12 col-md-6" v-if="store.reassessment.previous_block_closure">
-          <div class="pblock" style="height: 100%;">
-            <h3><span class="bar" style="background: var(--good);"></span>Previous Block Closure</h3>
-            <div class="card q-pa-md bg-teal-0" style="border: 1px solid var(--good); height: calc(100% - 32px);">
+          <div class="pblock" style="height: 100%">
+            <h3><span class="bar" style="background: var(--good)"></span>Previous Block Closure</h3>
+            <div
+              class="card q-pa-md bg-teal-0"
+              style="border: 1px solid var(--good); height: calc(100% - 32px)"
+            >
               <div class="text-subtitle2 text-weight-bold text-teal-10 uppercase q-mb-xs">
-                {{ formatOptionLabel(store.reassessment.previous_block_closure.block_id) }} Completed
+                {{
+                  formatOptionLabel(store.reassessment.previous_block_closure.block_id)
+                }}
+                Completed
               </div>
               <div class="text-caption text-grey-8 q-mb-sm">
-                <strong>Completed Sessions:</strong> {{ store.reassessment.previous_block_closure.completed_sessions }}
+                <strong>Completed Sessions:</strong>
+                {{ store.reassessment.previous_block_closure.completed_sessions }}
               </div>
-              <p class="text-body2 text-grey-9 q-mb-none" style="line-height: 1.5;">
+              <ul
+                v-if="store.reassessment.previous_block_closure.deviations_from_plan?.length"
+                class="q-pl-md text-caption text-grey-9 q-mb-sm"
+                style="line-height: 1.4"
+              >
+                <li
+                  v-for="(dev, dIdx) in store.reassessment.previous_block_closure
+                    .deviations_from_plan"
+                  :key="dIdx"
+                >
+                  {{ dev }}
+                </li>
+              </ul>
+              <p class="text-body2 text-grey-9 q-mb-none" style="line-height: 1.5">
                 {{ store.reassessment.previous_block_closure.block_outcome_summary }}
               </p>
             </div>
@@ -330,41 +470,81 @@
         </div>
 
         <div class="col-xs-12 col-md-6" v-if="store.reassessment.continuity_with_master_roadmap">
-          <div class="pblock" style="height: 100%;">
-            <h3><span class="bar" style="background: var(--primary);"></span>Roadmap Continuity</h3>
-            <div class="card q-pa-md" style="border: 1px solid var(--primary); height: calc(100% - 32px); background-color: #eff6ff; border-color: #bfdbfe;">
+          <div class="pblock" style="height: 100%">
+            <h3><span class="bar" style="background: var(--primary)"></span>Roadmap Continuity</h3>
+            <div
+              class="card q-pa-md"
+              style="
+                border: 1px solid var(--primary);
+                height: calc(100% - 32px);
+                background-color: #eff6ff;
+                border-color: #bfdbfe;
+              "
+            >
               <div class="text-subtitle2 text-weight-bold text-primary uppercase q-mb-xs">
-                Action: {{ formatOptionLabel(store.reassessment.continuity_with_master_roadmap.action) }}
+                Action:
+                {{ formatOptionLabel(store.reassessment.continuity_with_master_roadmap.action) }}
               </div>
-              <p class="text-body2 text-grey-9 q-mb-sm" style="line-height: 1.5; font-size: 13px;">
+              <p class="text-body2 text-grey-9 q-mb-sm" style="line-height: 1.5; font-size: 13px">
                 {{ store.reassessment.continuity_with_master_roadmap.detail }}
               </p>
-              <div class="text-caption text-grey-7" style="border-top: 1px dashed #dbeafe; padding-top: 6px; font-style: italic;">
-                <strong>Changes Explained:</strong> {{ store.reassessment.continuity_with_master_roadmap.changes_explained }}
+              <div
+                class="text-caption text-grey-7"
+                style="border-top: 1px dashed #dbeafe; padding-top: 6px; font-style: italic"
+              >
+                <strong>Changes Explained:</strong>
+                {{ store.reassessment.continuity_with_master_roadmap.changes_explained }}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 5. TREATMENT ADJUSTMENT SUGGESTIONS -->
-      <div class="pblock" v-if="store.reassessment.treatment_adjustment_suggestion">
-        <h3><span class="bar"></span>Treatment adjustment suggestions</h3>
+      <!-- 5. COMPONENT DECISIONS -->
+      <div class="pblock q-mt-md" v-if="store.reassessment.component_decisions?.length">
+        <h3><span class="bar"></span>Component adjustments &amp; decisions</h3>
         <div class="row q-col-gutter-md">
-          <div 
-            v-for="(val, modality) in store.reassessment.treatment_adjustment_suggestion" 
-            :key="modality"
-            class="col-md-3 col-sm-6 col-xs-12"
+          <div
+            v-for="(cd, cdIdx) in store.reassessment.component_decisions"
+            :key="cdIdx"
+            class="col-md-4 col-sm-6 col-xs-12"
           >
-            <div class="vbox text-center" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+            <div
+              class="vbox"
+              style="
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 16px;
+                background-color: #fafafa;
+              "
+            >
               <div>
-                <div class="lab">{{ formatOptionLabel(modality) }}</div>
-                <div class="hd q-mt-sm">{{ getModalityStatusLabel(val) }}</div>
+                <div
+                  class="flex items-center justify-between q-mb-xs"
+                  style="display: flex; align-items: center; justify-content: space-between"
+                >
+                  <span class="text-weight-bold text-subtitle2" style="color: #475569">{{
+                    cleanLabel(cd.diagnostic_component_id)
+                  }}</span>
+                  <span :class="['goal-status', getModalityStatusClass(cd.decision)]">
+                    {{ cleanLabel(cd.decision) }}
+                  </span>
+                </div>
+                <p style="font-size: 12px; color: #64748b; line-height: 1.4; margin-bottom: 8px">
+                  {{ cd.reason }}
+                </p>
               </div>
-              <div class="q-mt-md">
-                <span :class="['goal-status', getModalityStatusClass(val)]">
-                  {{ formatOptionLabel(val) }}
-                </span>
+              <div style="border-top: 1px dashed #e2e8f0; padding-top: 8px; margin-top: 8px">
+                <div style="font-size: 11px; font-weight: bold; color: #475569">
+                  Preferred: {{ cleanLabel(cd.updated_preferred_modality) }}
+                </div>
+                <div style="font-size: 11px; color: #64748b" v-if="cd.updated_target">
+                  Target: {{ cd.updated_target }}
+                </div>
               </div>
             </div>
           </div>
@@ -372,37 +552,43 @@
       </div>
 
       <!-- 6. CLINICAL RECOMMENDATIONS -->
-      <div class="pblock" v-if="store.reassessment.recommendation?.action">
+      <div class="pblock" v-if="recommendationAction">
         <h3><span class="bar"></span>Clinician recommendation</h3>
         <div class="card bg-teal-0 q-pa-md" style="border: 1px solid var(--good)">
-          <div class="row items-center justify-between">
+          <div
+            class="row items-center justify-between"
+            style="display: flex; align-items: center; justify-content: space-between"
+          >
             <div>
               <span class="text-subtitle2 text-grey-7 uppercase block">Recommended Action</span>
               <span class="text-h6 text-weight-bold text-teal-10">
-                {{ cap(store.reassessment.recommendation.action) }}
+                {{ cap(recommendationAction) }}
               </span>
             </div>
             <div>
-              <span :class="['goal-status', getRecommendationClass(store.reassessment.recommendation.action)]">
-                {{ store.reassessment.recommendation.action }}
+              <span :class="['goal-status', getRecommendationClass(recommendationAction)]">
+                {{ recommendationAction }}
               </span>
             </div>
           </div>
-          <p class="q-mt-sm text-body2 text-grey-9" v-if="store.reassessment.recommendation.detail">
-            {{ store.reassessment.recommendation.detail }}
+          <p class="q-mt-sm text-body2 text-grey-9" v-if="recommendationDetail">
+            {{ recommendationDetail }}
           </p>
         </div>
       </div>
 
       <!-- 7. PATIENT SUMMARY -->
-      <div class="pblock" v-if="store.reassessment.patient_summary">
+      <div class="pblock" v-if="patientSummaryText">
         <h3><span class="bar"></span>Summary for the patient</h3>
-        <div class="summary-box">{{ store.reassessment.patient_summary }}</div>
+        <div class="summary-box">{{ patientSummaryText }}</div>
       </div>
 
       <!-- 8. UNCERTAINTIES -->
       <div class="pblock" v-if="store.reassessment.uncertainties?.length">
-        <h3><span class="bar" style="background:var(--amber)"></span>Clinical uncertainties &amp; Gaps</h3>
+        <h3>
+          <span class="bar" style="background: var(--amber)"></span>Clinical uncertainties &amp;
+          Gaps
+        </h3>
         <ul class="ulist">
           <li v-for="(u, idx) in store.reassessment.uncertainties" :key="idx">
             {{ u }}
@@ -411,8 +597,9 @@
       </div>
 
       <!-- DISCLAIMER -->
-      <div class="text-caption text-grey-7 q-my-md italic" v-if="store.reassessment.disclaimer">
-        * {{ store.reassessment.disclaimer }}
+      <div class="text-caption text-grey-7 q-my-md italic">
+        * This is an AI-assisted clinical reassessment. All final changes to the block plan require
+        doctor clearance.
       </div>
 
       <!-- RE-RUN & DOWNLOAD BUTTONS -->
@@ -425,11 +612,8 @@
           icon="download"
           @click="downloadReassessReport"
         />
-        <button class="btn" @click="resetReassess">
-          ↺ Reset &amp; Reassess again
-        </button>
+        <button class="btn" @click="resetReassess">↺ Reset &amp; Reassess again</button>
       </div>
-
     </div>
   </section>
 </template>
@@ -445,6 +629,41 @@ const comparisonData = computed(() => {
   if (!store.reassessment) return {}
   return store.reassessment.reassessment_comparison || store.reassessment
 })
+
+const isDiagnosisRecheckTriggered = computed(() => {
+  const decisions = store.reassessment?.component_decisions || []
+  return decisions.some((d) => d.diagnosis_recheck_triggered === true)
+})
+
+const recommendationAction = computed(() => {
+  if (store.reassessment?.recommendation?.action) {
+    return store.reassessment.recommendation.action
+  }
+  return store.reassessment?.continuity_with_master_roadmap?.action || ''
+})
+
+const recommendationDetail = computed(() => {
+  if (store.reassessment?.recommendation?.detail) {
+    return store.reassessment.recommendation.detail
+  }
+  return store.reassessment?.continuity_with_master_roadmap?.detail || ''
+})
+
+const patientSummaryText = computed(() => {
+  return (
+    store.reassessment?.patient_summary ||
+    store.reassessment?.reassessment_comparison?.overall?.summary ||
+    ''
+  )
+})
+
+const cleanLabel = (val) => {
+  if (!val) return ''
+  return String(val)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 const raInput = ref(null)
 const validationError = ref('')
 
@@ -461,7 +680,7 @@ const addGoalRow = () => {
     baseline: '',
     target: '',
     timeframe: '',
-    current: ''
+    current: '',
   })
 }
 
@@ -490,7 +709,7 @@ watch(
       }
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 // Uploader
@@ -518,13 +737,13 @@ const onRaFileChange = async () => {
         reader.onerror = () => rej(new Error('Read failed'))
         reader.readAsDataURL(f)
       })
-      
+
       store.reassessImages.push({
         name: f.name,
         mediaType: f.type,
         base64: dataUrl.split(',')[1],
         dataUrl: dataUrl,
-        file: f
+        file: f,
       })
     } catch (e) {
       console.error(e)
@@ -586,20 +805,22 @@ const allQuestionsAnswered = computed(() => {
 
 const runReassessment = async () => {
   validationError.value = ''
-  
+
   // Validate goals
-  const activeGoals = store.goals.filter(g => g.metric && String(g.metric).trim() !== '')
+  const activeGoals = store.goals.filter((g) => g.metric && String(g.metric).trim() !== '')
   if (activeGoals.length === 0) {
     validationError.value = 'Add at least one goal (with a metric) to reassess.'
     return
   }
-  
-  const hasCurrent = activeGoals.some(g => g.current && String(g.current).trim() !== '') || store.reassessImages.length > 0
+
+  const hasCurrent =
+    activeGoals.some((g) => g.current && String(g.current).trim() !== '') ||
+    store.reassessImages.length > 0
   if (!hasCurrent) {
     validationError.value = 'Enter at least one current value, or attach follow-up captures.'
     return
   }
-  
+
   try {
     await store.generateReassessment()
     subTab.value = 'results'
@@ -618,12 +839,9 @@ const resetReassess = () => {
 const downloadReassessReport = async () => {
   Loading.show({ message: 'Downloading Reassessment Report...' })
   try {
-    const response = await api.get(
-      `download-pigmentation-report/reassessment/${store.id}`,
-      {
-        responseType: 'blob',
-      },
-    )
+    const response = await api.get(`download-pigmentation-report/reassessment/${store.id}`, {
+      responseType: 'blob',
+    })
 
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
@@ -652,7 +870,7 @@ const formatOptionLabel = (val) => {
   if (!val) return ''
   return val
     .replace(/_/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/\b\w/g, (c) => c.toUpperCase())
     .replace(/Or/g, 'or')
     .replace(/To/g, 'to')
     .replace(/Aha/g, 'AHA')
@@ -663,7 +881,6 @@ const formatOptionLabel = (val) => {
     .replace(/Pih/g, 'PIH')
     .replace(/Q-switch/i, 'Q-Switch')
 }
-
 
 const bannerClass = computed(() => {
   if (!store.reassessment) return 'pending'
@@ -706,24 +923,15 @@ const getStatusLabel = (st) => {
 const getModalityStatusClass = (val) => {
   const v = String(val || '').toLowerCase()
   if (v.includes('continue') || v.includes('consider')) return 'gs-met'
-  if (v.includes('reduce') || v.includes('cautiously') || v.includes('strengthen') || v.includes('barrier')) return 'gs-plateau'
+  if (
+    v.includes('reduce') ||
+    v.includes('cautiously') ||
+    v.includes('strengthen') ||
+    v.includes('barrier')
+  )
+    return 'gs-plateau'
   if (v.includes('defer') || v.includes('switch') || v.includes('doctor')) return 'gs-worse'
   return 'gs-plateau'
-}
-
-const getModalityStatusLabel = (val) => {
-  const v = String(val || '').toLowerCase()
-  if (v.includes('continue')) return 'Continue'
-  if (v.includes('reduce')) return 'Reduce energy'
-  if (v.includes('increase')) return 'Increase cautiously'
-  if (v.includes('defer')) return 'Defer treatment'
-  if (v.includes('consider')) return 'Consider adding'
-  if (v.includes('switch')) return 'Switch agent'
-  if (v.includes('strengthen')) return 'Strengthen photoprotection'
-  if (v.includes('barrier')) return 'Barrier first protocol'
-  if (v.includes('doctor')) return 'Require doctor review'
-  if (v.includes('not_applicable')) return 'Not applicable'
-  return formatOptionLabel(val)
 }
 
 const getRecommendationClass = (val) => {
