@@ -439,30 +439,75 @@ onMounted(async () => {
                     if (f !== undefined && f !== null && !isNaN(val) && val > 0) return val
                     const energy = Number(e)
                     if (e !== undefined && e !== null && !isNaN(energy) && energy > 0) return (energy / 1000).toFixed(2)
-                    return 0.3
+                    return null
+                  }
+
+                  const formatSettingString = (settingObj) => {
+                    if (!settingObj || typeof settingObj !== 'object') return 'NA'
+                    const parts = []
+                    if (settingObj.wavelength_nm !== undefined && settingObj.wavelength_nm !== null) {
+                      parts.push(`${settingObj.wavelength_nm}nm`)
+                    }
+                    if (settingObj.energy_mj !== undefined && settingObj.energy_mj !== null) {
+                      parts.push(`${settingObj.energy_mj}mJ`)
+                    }
+                    const fVal = getFluence(settingObj.fluence_j_cm2, settingObj.energy_mj)
+                    if (fVal) {
+                      parts.push(`${fVal} J/cm²`)
+                    }
+                    if (settingObj.passes !== undefined && settingObj.passes !== null) {
+                      parts.push(`${settingObj.passes} ${settingObj.passes > 1 ? 'passes' : 'pass'}`)
+                    }
+                    if (settingObj.frequency_hz !== undefined && settingObj.frequency_hz !== null) {
+                      parts.push(`(${settingObj.frequency_hz}Hz)`)
+                    }
+                    return parts.length > 0 ? parts.join(' • ') : 'NA'
                   }
 
                   const qSwitch = s.fixed_protocol?.q_switch
-                  if (qSwitch) {
-                    const zoneSetting = qSwitch.settings_by_zone?.find(sz => String(sz.zone || '').toLowerCase() === String(z.zone || '').toLowerCase())
-                    if (zoneSetting) {
-                      settingsStr = `${zoneSetting.wavelength_nm}nm • ${zoneSetting.energy_mj}mJ • ${getFluence(zoneSetting.fluence_j_cm2, zoneSetting.energy_mj)} J/cm² • ${zoneSetting.passes} passes`
-                    } else if (qSwitch.wavelength_nm || qSwitch.energy_mj) {
-                      settingsStr = `${qSwitch.wavelength_nm}nm • ${qSwitch.energy_mj}mJ • ${getFluence(qSwitch.fluence_j_cm2, qSwitch.energy_mj)} J/cm² • ${qSwitch.passes || 1} passes`
+                  let foundSettingObj = null
+
+                  if (qSwitch && qSwitch.use) {
+                    if (Array.isArray(qSwitch.settings_by_zone) && qSwitch.settings_by_zone.length > 0) {
+                      const targetZoneStr = String(z.zone || '').toLowerCase().replace(/_/g, ' ')
+                      foundSettingObj = qSwitch.settings_by_zone.find((sz) => {
+                        const szZoneStr = String(sz.zone || '').toLowerCase().replace(/_/g, ' ')
+                        return szZoneStr === targetZoneStr
+                      })
+                      if (!foundSettingObj) {
+                        foundSettingObj = qSwitch.settings_by_zone.find((sz) => {
+                          const szZoneStr = String(sz.zone || '').toLowerCase().replace(/_/g, ' ')
+                          return (
+                            szZoneStr.includes(targetZoneStr) ||
+                            targetZoneStr.includes(szZoneStr) ||
+                            (szZoneStr.includes('malar') && targetZoneStr.includes('malar')) ||
+                            (szZoneStr.includes('temple') && targetZoneStr.includes('temple')) ||
+                            (szZoneStr.includes('forehead') && targetZoneStr.includes('forehead')) ||
+                            (szZoneStr.includes('perioral') && targetZoneStr.includes('perioral')) ||
+                            (szZoneStr.includes('periocular') && targetZoneStr.includes('periocular')) ||
+                            (szZoneStr.includes('cheek') && targetZoneStr.includes('cheek')) ||
+                            (szZoneStr.includes('chin') && targetZoneStr.includes('chin')) ||
+                            (szZoneStr.includes('nose') && targetZoneStr.includes('nose'))
+                          )
+                        })
+                      }
+                      if (!foundSettingObj) {
+                        foundSettingObj = qSwitch.settings_by_zone[0]
+                      }
+                    } else if (qSwitch.wavelength_nm !== undefined || qSwitch.energy_mj !== undefined) {
+                      foundSettingObj = qSwitch
                     }
                   }
 
-                  if (!settingsStr) {
-                    if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
-                      const r = z.regional_override_setting
-                      settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${getFluence(r.fluence_j_cm2, r.energy_mj)} J/cm² • ${r.passes} passes`
-                    } else if (z.base_zone_setting) {
-                      const b = z.base_zone_setting
-                      settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${getFluence(b.fluence_j_cm2, b.energy_mj)} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
-                    } else {
-                      settingsStr = 'Conservative starting parameters'
+                  if (!foundSettingObj) {
+                    if (z.regional_override_setting && typeof z.regional_override_setting === 'object') {
+                      foundSettingObj = z.regional_override_setting
+                    } else if (z.base_zone_setting && typeof z.base_zone_setting === 'object') {
+                      foundSettingObj = z.base_zone_setting
                     }
                   }
+
+                  settingsStr = formatSettingString(foundSettingObj)
 
                   const activeCoverage = z.coverage_instruction || 'Standard full-zone passes.'
                   
@@ -563,30 +608,75 @@ onMounted(async () => {
                 if (f !== undefined && f !== null && !isNaN(val) && val > 0) return val
                 const energy = Number(e)
                 if (e !== undefined && e !== null && !isNaN(energy) && energy > 0) return (energy / 1000).toFixed(2)
-                return 0.3
+                return null
+              }
+
+              const formatSettingString = (settingObj) => {
+                if (!settingObj || typeof settingObj !== 'object') return 'NA'
+                const parts = []
+                if (settingObj.wavelength_nm !== undefined && settingObj.wavelength_nm !== null) {
+                  parts.push(`${settingObj.wavelength_nm}nm`)
+                }
+                if (settingObj.energy_mj !== undefined && settingObj.energy_mj !== null) {
+                  parts.push(`${settingObj.energy_mj}mJ`)
+                }
+                const fVal = getFluence(settingObj.fluence_j_cm2, settingObj.energy_mj)
+                if (fVal) {
+                  parts.push(`${fVal} J/cm²`)
+                }
+                if (settingObj.passes !== undefined && settingObj.passes !== null) {
+                  parts.push(`${settingObj.passes} ${settingObj.passes > 1 ? 'passes' : 'pass'}`)
+                }
+                if (settingObj.frequency_hz !== undefined && settingObj.frequency_hz !== null) {
+                  parts.push(`(${settingObj.frequency_hz}Hz)`)
+                }
+                return parts.length > 0 ? parts.join(' • ') : 'NA'
               }
 
               const qSwitch = s.fixed_protocol?.q_switch
-              if (qSwitch) {
-                const zoneSetting = qSwitch.settings_by_zone?.find(sz => String(sz.zone || '').toLowerCase() === String(z.zone || '').toLowerCase())
-                if (zoneSetting) {
-                  settingsStr = `${zoneSetting.wavelength_nm}nm • ${zoneSetting.energy_mj}mJ • ${getFluence(zoneSetting.fluence_j_cm2, zoneSetting.energy_mj)} J/cm² • ${zoneSetting.passes} passes`
-                } else if (qSwitch.wavelength_nm || qSwitch.energy_mj) {
-                  settingsStr = `${qSwitch.wavelength_nm}nm • ${qSwitch.energy_mj}mJ • ${getFluence(qSwitch.fluence_j_cm2, qSwitch.energy_mj)} J/cm² • ${qSwitch.passes || 1} passes`
+              let foundSettingObj = null
+
+              if (qSwitch && qSwitch.use) {
+                if (Array.isArray(qSwitch.settings_by_zone) && qSwitch.settings_by_zone.length > 0) {
+                  const targetZoneStr = String(z.zone || '').toLowerCase().replace(/_/g, ' ')
+                  foundSettingObj = qSwitch.settings_by_zone.find((sz) => {
+                    const szZoneStr = String(sz.zone || '').toLowerCase().replace(/_/g, ' ')
+                    return szZoneStr === targetZoneStr
+                  })
+                  if (!foundSettingObj) {
+                    foundSettingObj = qSwitch.settings_by_zone.find((sz) => {
+                      const szZoneStr = String(sz.zone || '').toLowerCase().replace(/_/g, ' ')
+                      return (
+                        szZoneStr.includes(targetZoneStr) ||
+                        targetZoneStr.includes(szZoneStr) ||
+                        (szZoneStr.includes('malar') && targetZoneStr.includes('malar')) ||
+                        (szZoneStr.includes('temple') && targetZoneStr.includes('temple')) ||
+                        (szZoneStr.includes('forehead') && targetZoneStr.includes('forehead')) ||
+                        (szZoneStr.includes('perioral') && targetZoneStr.includes('perioral')) ||
+                        (szZoneStr.includes('periocular') && targetZoneStr.includes('periocular')) ||
+                        (szZoneStr.includes('cheek') && targetZoneStr.includes('cheek')) ||
+                        (szZoneStr.includes('chin') && targetZoneStr.includes('chin')) ||
+                        (szZoneStr.includes('nose') && targetZoneStr.includes('nose'))
+                      )
+                    })
+                  }
+                  if (!foundSettingObj) {
+                    foundSettingObj = qSwitch.settings_by_zone[0]
+                  }
+                } else if (qSwitch.wavelength_nm !== undefined || qSwitch.energy_mj !== undefined) {
+                  foundSettingObj = qSwitch
                 }
               }
 
-              if (!settingsStr) {
-                if (z.regional_override_setting && (z.regional_override_setting.wavelength_nm || z.regional_override_setting.energy_mj)) {
-                  const r = z.regional_override_setting
-                  settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${getFluence(r.fluence_j_cm2, r.energy_mj)} J/cm² • ${r.passes} passes`
-                } else if (z.base_zone_setting) {
-                  const b = z.base_zone_setting
-                  settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${getFluence(b.fluence_j_cm2, b.energy_mj)} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
-                } else {
-                  settingsStr = 'Conservative starting parameters'
+              if (!foundSettingObj) {
+                if (z.regional_override_setting && typeof z.regional_override_setting === 'object') {
+                  foundSettingObj = z.regional_override_setting
+                } else if (z.base_zone_setting && typeof z.base_zone_setting === 'object') {
+                  foundSettingObj = z.base_zone_setting
                 }
               }
+
+              settingsStr = formatSettingString(foundSettingObj)
 
               const activeCoverage = z.coverage_instruction || 'Standard full-zone passes.'
               

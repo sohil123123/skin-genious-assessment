@@ -14,7 +14,9 @@ import {
   REASSESS_PROMPT,
   REASSESS_QUESTIONS_PROMPT,
 } from 'src/services/pigmentationPromptsV2_1'
-import { PIGMENTATION_CONFIG } from 'src/services/pigmentationConfig'
+import { PIGMENTATION_CONFIG } from 'src/services/pigmentationConfigV2'
+import { buildRelevantPlanConfig } from 'src/services/pigmentationPlanOptimizer'
+import { validatePigmentationPlan } from 'src/services/pigmentation/Validators/pigmentationPlanValidator'
 
 export const usePigmentationStore = defineStore('pigmentation', {
   state: () => ({
@@ -474,7 +476,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           const nextReassessment = planObj.treatment_goals?.next_reassessment || planObj.next_reassessment
           if (nextReassessment) {
             const timeframe = planObj.duration ? cleanLabel(planObj.duration) : 'Next Reassessment'
-            
+
             if (Array.isArray(nextReassessment.component_targets)) {
               nextReassessment.component_targets.forEach((ct) => {
                 goals.push({
@@ -486,7 +488,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
                 })
               })
             }
-            
+
             if (goals.length === 0 && nextReassessment.clinical_goal) {
               goals.push({
                 metric: 'Clinical Goal',
@@ -1365,7 +1367,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
             drivers.push(`${drv.driver}: ${drv.likelihood || 'possible'} (${drv.confidence_100 || 50}% conf)`)
           })
         }
-        
+
         const activity = dx.clinical_activity || {}
         const mappedActivity = {
           stability_status: activity.global_stability_status || activity.stability_status || 'stable',
@@ -1466,14 +1468,22 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
 
     buildPlanInput() {
+      const { compactConfig, compactDiagnosis, compactImageAnalysis, compactPolicy } =
+        buildRelevantPlanConfig({
+          diagnosis: this.diagnosis?.data || {},
+          imageAnalysis: this.aiAnalysis?.data || {},
+          policy: PIGMENTATION_CLINICAL_POLICY_V2,
+          fullConfig: PIGMENTATION_CONFIG,
+        })
+
       const request = {
         session_id: this.conversationId || 'AIJ-PIG-000001',
-        diagnosis: this.diagnosis?.data || {},
-        image_analysis: this.aiAnalysis?.data || {},
+        diagnosis: compactDiagnosis,
+        image_analysis: compactImageAnalysis,
         fixed_history: this.fixedHistory,
         dynamic_history: this.dynamicAnswers,
-        clinicPolicy: PIGMENTATION_CLINICAL_POLICY_V2,
-        clinic_config: PIGMENTATION_CONFIG,
+        clinicPolicy: compactPolicy,
+        clinic_config: compactConfig,
         doctor_overrides: {
           allowed: true,
           notes: null,
@@ -1489,13 +1499,13 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.isLoading = true
       this.loadingMessage = 'Drafting the tiered plan…'
 
-      const content = [{ type: 'text', text: this.buildPlanInput() }]
-      this.attachedImages.forEach((img) => {
-        content.push({
-          type: 'image',
-          source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
-        })
-      })
+      const planInputText = this.buildPlanInput()
+      console.log(
+        `[PigmentationStore] Plan payload size: ${planInputText.length} chars (raw images excluded)`,
+      )
+
+      // Raw images are NOT included in treatment planning call!
+      const content = [{ type: 'text', text: planInputText }]
 
       try {
         const raw = await this.callOpenAI({
@@ -1507,6 +1517,15 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         const res = this.parseJSON(raw)
         const planObj = res.linear_treatment_plan || res
+
+        // Deterministic backend validation
+        const validation = validatePigmentationPlan(planObj, PIGMENTATION_CONFIG)
+        if (!validation.valid) {
+          console.warn(
+            '[PigmentationStore] Treatment plan validation errors:',
+            validation.errors,
+          )
+        }
 
         if (planObj.current_treatment_block && planObj.current_treatment_block.sessions) {
           planObj.sessions = planObj.current_treatment_block.sessions.map((s) => ({
@@ -1543,7 +1562,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         const nextReassessment = planObj.treatment_goals?.next_reassessment || planObj.next_reassessment
         if (nextReassessment) {
           const timeframe = planObj.duration ? cleanLabel(planObj.duration) : 'Next Reassessment'
-          
+
           if (Array.isArray(nextReassessment.component_targets)) {
             nextReassessment.component_targets.forEach((ct) => {
               goals.push({
@@ -1555,7 +1574,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
               })
             })
           }
-          
+
           if (goals.length === 0 && nextReassessment.clinical_goal) {
             goals.push({
               metric: 'Clinical Goal',
