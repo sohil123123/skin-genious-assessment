@@ -1,3 +1,15 @@
+/**
+ * Pigmentation Decode V2.3 — Pinia orchestration store.
+ *
+ * Clinical pipeline:
+ *   five-mode capture -> morphology census -> locked phenotype measurement
+ *   -> application validation/scoring -> group-linked history -> diagnosis audit
+ *   -> component/location-targeted treatment -> matched reassessment.
+ *
+ * This store deliberately preserves legacy UI/persistence fields while treating the
+ * validated V2.3 phenotype, diagnosis and normalized treatment operations as authoritative.
+ */
+
 import { defineStore } from 'pinia'
 import { useOpenAI } from 'src/composables/useOpenAI'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
@@ -6,35 +18,815 @@ import { api } from 'src/boot/axios'
 import { Loading, LocalStorage } from 'quasar'
 import { useCommonStore } from 'src/stores/commonStore'
 import {
-  IMAGE_SYSTEM_PROMPT,
+  MORPHOLOGY_CENSUS_PROMPT,
+  PHENOTYPE_MEASUREMENT_PROMPT,
   DYNAMIC_QUESTIONS_PROMPT,
   DIAGNOSIS_PROMPT,
   PLAN_PROMPT,
   PIGMENTATION_CLINICAL_POLICY_V2,
+  PIGMENTATION_PROMPT_VERSION,
+  PIGMENTATION_POLICY_VERSION,
   REASSESS_PROMPT,
   REASSESS_QUESTIONS_PROMPT,
 } from 'src/services/pigmentationPromptsV2_1'
-import { PIGMENTATION_CONFIG } from 'src/services/pigmentationConfigV2'
-import { buildRelevantPlanConfig } from 'src/services/pigmentationPlanOptimizer'
+import {
+  PIGMENTATION_CONFIG,
+  assertPigmentationPolicyCompatibility,
+  buildPigmentationMorphologyConfig,
+  buildPigmentationMeasurementConfig,
+  buildPigmentationComponentSelectionConfig,
+  buildPigmentationExecutionConfig,
+  resolvePigmentationProtocolMapEntry,
+  getPigmentationProtocolRecord,
+} from 'src/services/pigmentationConfigV2'
 import { validatePigmentationPlan } from 'src/services/pigmentation/Validators/pigmentationPlanValidator'
+import {
+  PigmentationImageValidationError,
+  PigmentationPhenotypeDiscrepancyError,
+  PigmentationDiagnosisValidationError,
+  validatePigmentationMorphologyCensus,
+  validateAndScorePigmentationImageAnalysis,
+  extractImmutablePigmentationMetrics,
+  validatePigmentationDiagnosis,
+  assertDiagnosisReadyForTreatmentPlanning,
+} from 'src/services/pigmentation/Validators/pigmentationImageValidation'
+
+const PIPELINE_VERSION = 'pigmentation_store_pipeline_v2_3_2026_07_23'
+const REQUIRED_IMAGE_MODES = PIGMENTATION_CONFIG.image_acquisition.canonical_mode_order
+const IMAGE_DETAIL = PIGMENTATION_CONFIG.image_acquisition.api_image_detail || 'high'
+
+// max_output_tokens includes both hidden reasoning tokens and visible JSON output.
+// These budgets are intentionally generous because the morphology and phenotype stages
+// return large structured records and use high reasoning effort. Tune only after reviewing
+// response.usage.output_tokens_details.reasoning_tokens in staging logs.
+const OPENAI_STAGE_OPTIONS = Object.freeze({
+  morphology_census: Object.freeze({
+    max_output_tokens: 32000,
+    reasoning_effort: 'high',
+    verbosity: 'low',
+  }),
+  phenotype_measurement: Object.freeze({
+    max_output_tokens: 48000,
+    reasoning_effort: 'high',
+    verbosity: 'low',
+  }),
+  dynamic_history: Object.freeze({
+    max_output_tokens: 8000,
+    reasoning_effort: 'medium',
+    verbosity: 'low',
+  }),
+  diagnosis: Object.freeze({
+    max_output_tokens: 32000,
+    reasoning_effort: 'high',
+    verbosity: 'medium',
+  }),
+  treatment_plan: Object.freeze({
+    max_output_tokens: 48000,
+    reasoning_effort: 'high',
+    verbosity: 'medium',
+  }),
+  formal_reassessment: Object.freeze({
+    max_output_tokens: 32000,
+    reasoning_effort: 'high',
+    verbosity: 'medium',
+  }),
+  reassessment_questions: Object.freeze({
+    max_output_tokens: 8000,
+    reasoning_effort: 'medium',
+    verbosity: 'low',
+  }),
+})
+
+const PHENOTYPE_METRICS = [
+  {
+    id: 'global_background_melanin_load_index',
+    label: 'Background Melanin Load Index',
+    legacyKey: 'melanin_load_index',
+  },
+  {
+    id: 'global_background_erythema_load_index',
+    label: 'Background Erythema Load Index',
+    legacyKey: 'erythema_load_index',
+  },
+  {
+    id: 'active_inflammatory_lesion_burden_index',
+    label: 'Active Inflammatory Lesion Burden',
+    legacyKey: 'active_inflammatory_lesion_burden_index',
+  },
+  {
+    id: 'flat_focal_pigmented_lesion_burden_index',
+    label: 'Flat Focal Pigment Burden',
+    legacyKey: 'flat_focal_pigmented_lesion_burden_index',
+  },
+  {
+    id: 'raised_pigmented_lesion_burden_index',
+    label: 'Raised Pigmented Lesion Burden',
+    legacyKey: 'raised_pigmented_lesion_burden_index',
+  },
+  {
+    id: 'structural_periocular_shadow_burden_index',
+    label: 'Structural Periocular Shadow Burden',
+    legacyKey: 'structural_periocular_shadow_burden_index',
+  },
+]
+
+const RISK_INDEX_MAP = {
+  low: 25,
+  low_to_moderate: 38,
+  moderate: 50,
+  moderate_indian_skin_default: 55,
+  high_indian_skin_default: 75,
+  high: 75,
+  not_present: 1,
+}
+
+function deepClone(value) {
+  if (value === undefined) return undefined
+  return JSON.parse(JSON.stringify(value))
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : []
+}
+
+function nonEmpty(value) {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function titleCase(value) {
+  return String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function validationIssues(error) {
+  const issues = Array.isArray(error?.issues)
+    ? error.issues
+    : Array.isArray(error?.errors)
+      ? error.errors
+      : []
+  return issues.length ? issues : [error?.message || 'Unknown validation error']
+}
+
+function riskToIndex(value, fallback = 50) {
+  return RISK_INDEX_MAP[String(value || '').toLowerCase()] ?? fallback
+}
+
+function complianceRiskToIndex(value) {
+  const risk = String(value || '').toLowerCase()
+  if (risk === 'low') return 75
+  if (risk === 'moderate') return 50
+  if (risk === 'high') return 25
+  return 50
+}
+
+function metricInterpretation(score) {
+  const n = Number(score)
+  if (!Number.isFinite(n)) return 'not available'
+  if (n <= 15) return 'minimal'
+  if (n <= 35) return 'mild'
+  if (n <= 55) return 'moderate'
+  if (n <= 75) return 'severe'
+  return 'very severe'
+}
+
+function groupMapFromPhenotype(phenotype) {
+  return new Map(asArray(phenotype?.morphology_groups).map((group) => [group.group_id, group]))
+}
+
+function getPlanSessions(plan) {
+  if (Array.isArray(plan?.current_treatment_block?.sessions)) {
+    return plan.current_treatment_block.sessions
+  }
+  return asArray(plan?.sessions)
+}
+
+function protocolIdsFromMapEntry(entry) {
+  const ids = new Set()
+  if (!entry || typeof entry !== 'object') return ids
+
+  Object.entries(entry).forEach(([key, value]) => {
+    if (
+      (key === 'eligible_protocol_ids' ||
+        key === 'conditional_candidate_protocol_ids' ||
+        key.endsWith('_protocol_ids')) &&
+      Array.isArray(value)
+    ) {
+      value.forEach((protocolId) => {
+        if (nonEmpty(protocolId)) ids.add(protocolId)
+      })
+    }
+  })
+
+  return ids
+}
+
+function resolveComponentProtocolOptions(component) {
+  const family = component?.family || ''
+  let subtype = component?.subtype || 'any'
+
+  if (
+    family === 'post_inflammatory_hyperpigmentation' &&
+    component?.inflammation_first_required === true
+  ) {
+    subtype = 'active_inflammation_present'
+  }
+
+  const mapEntry = resolvePigmentationProtocolMapEntry(family, subtype)
+  return {
+    diagnostic_component_id: component?.diagnostic_component_id,
+    family,
+    subtype,
+    clinical_location_text: component?.clinical_location_text,
+    linked_group_ids: asArray(component?.linked_group_ids),
+    direct_cosmetic_treatment_status: component?.direct_cosmetic_treatment_status,
+    inflammation_first_required: component?.inflammation_first_required === true,
+    barrier_repair_first_required: component?.barrier_repair_first_required === true,
+    protocol_map_entry: mapEntry,
+  }
+}
+
+function buildPlanningConfigBundle(diagnosis) {
+  const componentOptions = asArray(diagnosis?.diagnostic_components).map(
+    resolveComponentProtocolOptions,
+  )
+  const protocolIds = new Set()
+
+  componentOptions.forEach((option) => {
+    protocolIdsFromMapEntry(option.protocol_map_entry).forEach((id) => protocolIds.add(id))
+  })
+
+  const executableProtocolIds = []
+  const unavailableProtocols = []
+  for (const protocolId of protocolIds) {
+    const record = getPigmentationProtocolRecord(protocolId)
+    if (!record) {
+      unavailableProtocols.push({
+        protocol_id: protocolId,
+        reason: 'Protocol ID is not present in the active clinic config.',
+      })
+    } else if (record.protocol?.configured_for_execution === false) {
+      unavailableProtocols.push({
+        protocol_id: protocolId,
+        reason: record.protocol.block_reason || 'Protocol is not configured for execution.',
+      })
+    } else {
+      executableProtocolIds.push(protocolId)
+    }
+  }
+
+  return {
+    component_selection_config: buildPigmentationComponentSelectionConfig(),
+    component_protocol_options: componentOptions,
+    execution_config: buildPigmentationExecutionConfig(executableProtocolIds),
+    unavailable_protocols: unavailableProtocols,
+  }
+}
+
+function buildLegacyFixedProtocol(session, plan) {
+  const fixed = {
+    homecare: {
+      morning: asArray(plan?.homecare_plan?.morning),
+      night: asArray(plan?.homecare_plan?.evening),
+      avoid: asArray(plan?.homecare_plan?.sun_and_heat_control),
+    },
+  }
+
+  asArray(session?.treatment_operations).forEach((operation) => {
+    const parameters = operation?.parameters || {}
+    switch (operation?.modality_id) {
+      case 'q_switch_laser':
+      case 'focal_laser':
+        fixed.q_switch = {
+          use: true,
+          protocol_id: operation.protocol_id,
+          wavelength_nm: parameters.wavelength_nm ?? parameters.wavelength,
+          energy_mj: parameters.energy_mj,
+          energy_range_mj: parameters.energy_range_mj,
+          fluence_j_cm2: parameters.fluence_j_cm2,
+          spot_area_cm2: parameters.spot_area_cm2,
+          frequency_hz: parameters.frequency_hz,
+          passes: parameters.passes,
+          endpoint: operation.endpoint,
+          target_location_text: operation.target_location_text,
+          exclude_group_ids: operation.exclude_group_ids,
+          exclusion_instruction: operation.exclusion_instruction,
+        }
+        break
+      case 'chemical_peel':
+        fixed.peel = {
+          use: true,
+          protocol_id: operation.protocol_id,
+          peel_name: parameters.peel_name || parameters.product_name || operation.protocol_id,
+          strength: parameters.strength || parameters.concentration,
+          contact_time_minutes: parameters.contact_time_minutes ?? parameters.contact_time_min,
+          neutralization_required:
+            parameters.neutralization_required ?? parameters.neutralisation_required,
+          endpoint: operation.endpoint,
+          target_location_text: operation.target_location_text,
+          exclude_group_ids: operation.exclude_group_ids,
+          exclusion_instruction: operation.exclusion_instruction,
+        }
+        break
+      case 'microneedling_with_active':
+        fixed.microneedling = {
+          use: true,
+          protocol_id: operation.protocol_id,
+          device: parameters.device,
+          depths_mm: parameters.depths_mm || parameters.regional_depths_mm,
+          actives: parameters.actives || parameters.active_formula,
+          route: parameters.route,
+          injectable: false,
+          endpoint: operation.endpoint,
+          target_location_text: operation.target_location_text,
+          exclude_group_ids: operation.exclude_group_ids,
+          exclusion_instruction: operation.exclusion_instruction,
+        }
+        break
+      case 'electrocautery_or_rf':
+        fixed.lesion_directed_procedure = {
+          use: true,
+          procedure: 'electrocautery_or_rf',
+          protocol_id: operation.protocol_id,
+          endpoint: operation.endpoint,
+          target_location_text: operation.target_location_text,
+          linked_group_ids: operation.linked_group_ids,
+          exclude_group_ids: operation.exclude_group_ids,
+          exclusion_instruction: operation.exclusion_instruction,
+        }
+        break
+      case 'led':
+        fixed.led = {
+          use: true,
+          protocol_id: operation.protocol_id,
+          mode: parameters.mode || parameters.colour || operation.protocol_id,
+          role: operation.role,
+        }
+        break
+      default:
+        break
+    }
+  })
+
+  return fixed
+}
+
+function normalisePlanForUi(plan) {
+  if (!plan || typeof plan !== 'object') return plan
+  const normalized = deepClone(plan)
+  const sessions = getPlanSessions(normalized).map((session) => ({
+    ...session,
+    id: session.id || session.session_number,
+    status: session.status || 'pending',
+    goal: session.goal || session.session_goal || '',
+    selected_modalities:
+      asArray(session.selected_modalities).length > 0
+        ? session.selected_modalities
+        : asArray(session.selected_modality_ids),
+    fixed_protocol: session.fixed_protocol || buildLegacyFixedProtocol(session, normalized),
+    provider_protocol: session.provider_protocol || {
+      treatment_operations: asArray(session.treatment_operations),
+      session_execution_sequence: asArray(session.session_execution_sequence),
+      provider_checkpoint: session.provider_checkpoint || '',
+    },
+  }))
+
+  normalized.sessions = sessions
+  if (normalized.current_treatment_block) {
+    normalized.current_treatment_block.sessions = sessions
+  }
+  return normalized
+}
+
+function deriveGoalsFromPlan(plan) {
+  const goals = []
+  const baseline = plan?.baseline_summary || {}
+  const reassessAfter = plan?.master_treatment_roadmap?.next_formal_reassessment_after_session
+  const timeframe = reassessAfter
+    ? `After session ${reassessAfter}`
+    : plan?.duration || 'At formal reassessment'
+
+  asArray(plan?.expected_outcomes?.component_specific).forEach((outcome) => {
+    const metric = outcome.measurement_to_repeat
+    const baselineValue = baseline?.[metric]
+    goals.push({
+      metric: `${titleCase(metric)} (${outcome.diagnostic_component_id || ''})`,
+      metric_id: metric,
+      diagnostic_component_id: outcome.diagnostic_component_id,
+      linked_group_ids: asArray(outcome.linked_group_ids),
+      clinical_location_text: outcome.clinical_location_text || '',
+      baseline: baselineValue === undefined ? '—' : String(baselineValue),
+      target: outcome.expected_change || 'Clinically meaningful improvement',
+      timeframe,
+      how_measured: 'Same five-mode analyser protocol and same phenotype group/location',
+    })
+  })
+
+  if (goals.length === 0) {
+    PHENOTYPE_METRICS.forEach((metric) => {
+      if (baseline[metric.id] === undefined) return
+      goals.push({
+        metric: metric.label,
+        metric_id: metric.id,
+        baseline: String(baseline[metric.id]),
+        target:
+          metric.id === 'structural_periocular_shadow_burden_index'
+            ? 'Track separately; do not use as pigment-treatment success metric'
+            : 'Reduction without unsafe inflammation or PIH',
+        timeframe,
+        how_measured: 'Same five-mode analyser protocol',
+      })
+    })
+  }
+
+  return goals
+}
+
+function mapDiagnosisForLegacyUi(validatedDiagnosis, phenotype, formData) {
+  const mapped = deepClone(validatedDiagnosis)
+  const components = asArray(mapped.diagnostic_components)
+  const dominantId = mapped.working_impression?.dominant_treatable_component_id
+  const primaryComponent =
+    components.find((component) => component.diagnostic_component_id === dominantId) ||
+    components[0] ||
+    null
+
+  const primaryDx =
+    primaryComponent?.subtype ||
+    primaryComponent?.family ||
+    mapped.working_impression?.overall_summary ||
+    ''
+  const primaryConfidence = Number(primaryComponent?.confidence_100) || 0
+  const alternatives = asArray(mapped.ranked_differential).map((item) => ({
+    dx: item.subtype || item.family || '',
+    likelihood: Number.isFinite(Number(item.confidence_100))
+      ? `${item.confidence_100}%`
+      : 'possible',
+    reconsider_when: asArray(item.what_would_change_ranking).join('; '),
+  }))
+
+  const metrics = mapped.immutable_image_metrics || {}
+  const composition = phenotype?.global_background_indices?.composition || {}
+  const risk = mapped.risk_profile || {}
+  const scores = {}
+  const scoreList = []
+
+  PHENOTYPE_METRICS.forEach((metric) => {
+    const value = metrics[metric.id]
+    if (value === undefined) return
+    scores[metric.legacyKey] = value
+    scoreList.push({
+      name: metric.label,
+      value: String(value),
+      scale: '1–100',
+      interpretation: metricInterpretation(value),
+    })
+  })
+
+  scores.composition_melanin_percent = composition.melanin_percent ?? null
+  scores.composition_vascular_percent = composition.vascular_percent ?? null
+  scores.recurrence_risk_index = riskToIndex(risk.recurrence_risk)
+  scores.procedure_risk_index = riskToIndex(risk.procedure_risk)
+  scores.sunscreen_compliance_index = complianceRiskToIndex(risk.sunscreen_compliance_risk)
+  scores.diagnosis_confidence_index = primaryConfidence
+
+  scoreList.push(
+    {
+      name: 'Recurrence Risk Score',
+      value: String(scores.recurrence_risk_index),
+      scale: '1–100 derived category index',
+      interpretation: risk.recurrence_risk || 'moderate',
+    },
+    {
+      name: 'Procedure Risk Score',
+      value: String(scores.procedure_risk_index),
+      scale: '1–100 derived category index',
+      interpretation: risk.procedure_risk || 'moderate',
+    },
+    {
+      name: 'Diagnosis Confidence Score',
+      value: String(primaryConfidence),
+      scale: '1–100',
+      interpretation: primaryComponent?.diagnostic_status || 'pending doctor confirmation',
+    },
+  )
+
+  const medicallyAtypical =
+    risk.medically_atypical_lesion_risk &&
+    !['not_present', 'low'].includes(risk.medically_atypical_lesion_risk)
+  const atypicalComponent = components.some(
+    (component) => component.family === 'medically_atypical_focal_lesion',
+  )
+  const needsCloseup = components.some((component) =>
+    ['hold_until_closeup', 'hold_until_doctor_assessment'].includes(
+      component.direct_cosmetic_treatment_status,
+    ),
+  )
+  const redFlagPresent = Boolean(medicallyAtypical || atypicalComponent)
+  const redFlagItems = components
+    .filter((component) => component.family === 'medically_atypical_focal_lesion')
+    .map(
+      (component) =>
+        `${component.patient_title || component.family}: ${component.clinical_location_text}`,
+    )
+
+  mapped.needs_summary = false
+  mapped.needs_dermoscopy = Boolean(needsCloseup || redFlagPresent)
+  mapped.dermoscopy_request = mapped.needs_dermoscopy
+    ? {
+        reason: redFlagPresent
+          ? 'A focal morphology requires direct doctor assessment before treatment.'
+          : 'A closer examination is required to confirm treatment eligibility.',
+        look_for: [
+          'surface morphology',
+          'border architecture',
+          'colour heterogeneity',
+          'evolution',
+        ],
+      }
+    : null
+  mapped.differential = {
+    primary: {
+      dx: primaryDx,
+      confidence: primaryConfidence,
+      reasoning:
+        mapped.summaries?.clinical_summary_for_doctor ||
+        mapped.working_impression?.overall_summary ||
+        '',
+    },
+    alternatives,
+  }
+  mapped.depth_assessment = {
+    verdict:
+      primaryComponent?.depth ||
+      phenotype?.global_background_indices?.depth_call?.type ||
+      formData?.depth ||
+      'uncertain',
+    basis: asArray(primaryComponent?.evidence_for).join('; '),
+    prognosis: 'Component-specific response must be reassessed using the same phenotype group.',
+  }
+  mapped.composition_assessment = {
+    dominant: composition.type || formData?.comp || 'uncertain',
+    note: 'Copied from the validated image phenotype record.',
+  }
+  mapped.scores = scores
+  mapped.scores_list = scoreList
+  mapped.severity_interpretation = `Dominant component confidence: ${primaryConfidence}%. Each morphology group remains separately reportable and treatable.`
+  mapped.red_flags = {
+    present: redFlagPresent,
+    items: redFlagItems,
+    action: redFlagPresent ? 'Doctor assessment before direct cosmetic treatment.' : '',
+  }
+  mapped.uncertainties = components.flatMap((component) =>
+    asArray(component.missing_discriminators),
+  )
+
+  return mapped
+}
+
+function buildTreatmentPlansPersistence(plan) {
+  if (!plan) return null
+  const sessions = getPlanSessions(plan)
+  const treatments = sessions.map((session) => {
+    const weekMatch = String(session.timing || '').match(/\d+/)
+    const week = weekMatch ? Number(weekMatch[0]) : Number(session.session_number) || 1
+    const operations = asArray(session.treatment_operations)
+    const execution = asArray(session.session_execution_sequence)
+
+    const checklist = [
+      'Verify patient identity, consent, current contraindications and doctor approval.',
+      ...operations.map(
+        (operation) =>
+          `${titleCase(operation.modality_id)} — ${operation.protocol_id || 'non-protocol pathway'} — ${operation.target_location_text || ''}`,
+      ),
+    ]
+
+    const steps = execution.map((step, index) => ({
+      step_number: step.step_number || index + 1,
+      duration: step.duration || 'As specified by protocol',
+      ingredients_equipments: [step.protocol_id].filter(Boolean),
+      how_to_do: [
+        step.instruction,
+        step.target_location_text ? `Target: ${step.target_location_text}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    }))
+
+    if (steps.length === 0) {
+      operations.forEach((operation, index) => {
+        steps.push({
+          step_number: index + 1,
+          duration: 'As specified by protocol',
+          ingredients_equipments: [operation.protocol_id].filter(Boolean),
+          how_to_do: `${titleCase(operation.modality_id)} at ${operation.target_location_text}. ${operation.exclusion_instruction || ''}`,
+        })
+      })
+    }
+
+    return {
+      session_number: session.session_number,
+      title:
+        asArray(session.selected_modality_ids).map(titleCase).join(' + ') ||
+        session.session_goal ||
+        'Pigmentation Session',
+      treatment_time: session.treatment_time || '45–75 mins',
+      week,
+      preparations_checklist_for_therapist: checklist,
+      concerns_addressed: [session.session_goal || 'Component-specific pigmentation treatment'],
+      steps,
+      daily_home_care_routine: [
+        `Morning: ${asArray(plan.homecare_plan?.morning).join(', ')}`,
+        `Evening: ${asArray(plan.homecare_plan?.evening).join(', ')}`,
+        `Sun & heat control: ${asArray(plan.homecare_plan?.sun_and_heat_control).join(', ')}`,
+      ].filter((line) => !line.endsWith(': ')),
+      provider_protocol: {
+        treatment_operations: operations,
+        session_execution_sequence: execution,
+        provider_checkpoint: session.provider_checkpoint || '',
+      },
+      script: '',
+    }
+  })
+
+  return {
+    treatment_plans: {
+      total_time: plan.duration || 'Course duration pending doctor validation',
+    },
+    treatment_plan: { treatments },
+    recommended_full_plan: {
+      ...plan,
+      sessions: getPlanSessions(plan),
+    },
+  }
+}
+
+function validateDynamicQuestionSet(questions, phenotype) {
+  if (!Array.isArray(questions)) throw new Error('Dynamic questions must be an array.')
+  if (questions.length > 8) throw new Error('Dynamic question response exceeded the maximum of 8.')
+
+  const groups = groupMapFromPhenotype(phenotype)
+  const seen = new Set()
+  questions.forEach((question, index) => {
+    if (!nonEmpty(question?.question_id) || seen.has(question.question_id)) {
+      throw new Error(`Invalid or duplicate dynamic question_id at index ${index}.`)
+    }
+    seen.add(question.question_id)
+    if (!nonEmpty(question?.question)) {
+      throw new Error(`Dynamic question ${question.question_id} has no question text.`)
+    }
+    const linked = asArray(question.linked_group_ids)
+    if (linked.length === 0) {
+      throw new Error(`Dynamic question ${question.question_id} must link to a morphology group.`)
+    }
+    linked.forEach((groupId) => {
+      if (!groups.has(groupId)) {
+        throw new Error(`Dynamic question ${question.question_id} references unknown ${groupId}.`)
+      }
+    })
+    if (linked.length === 1) {
+      const expectedLocation = groups.get(linked[0])?.clinical_location_text
+      if (question.clinical_location_text !== expectedLocation) {
+        throw new Error(
+          `Dynamic question ${question.question_id} changed the image-stage location for ${linked[0]}.`,
+        )
+      }
+    } else if (!nonEmpty(question.clinical_location_text)) {
+      throw new Error(`Dynamic question ${question.question_id} requires a location description.`)
+    }
+  })
+  return questions
+}
+
+function validateReassessmentQuestionSet(questions, diagnosis, phenotype) {
+  if (!Array.isArray(questions)) throw new Error('Reassessment questions must be an array.')
+  if (questions.length > 8)
+    throw new Error('Reassessment question response exceeded the maximum of 8.')
+
+  const components = new Map(
+    asArray(diagnosis?.diagnostic_components).map((component) => [
+      component.diagnostic_component_id,
+      component,
+    ]),
+  )
+  const groups = groupMapFromPhenotype(phenotype)
+  const seen = new Set()
+
+  questions.forEach((question, index) => {
+    if (!nonEmpty(question?.question_id) || seen.has(question.question_id)) {
+      throw new Error(`Invalid or duplicate reassessment question_id at index ${index}.`)
+    }
+    seen.add(question.question_id)
+    if (!nonEmpty(question.question)) {
+      throw new Error(`Reassessment question ${question.question_id} has no text.`)
+    }
+    asArray(question.linked_component_ids).forEach((componentId) => {
+      if (!components.has(componentId)) {
+        throw new Error(
+          `Reassessment question ${question.question_id} references unknown ${componentId}.`,
+        )
+      }
+    })
+    const linkedGroups = asArray(question.linked_group_ids)
+    linkedGroups.forEach((groupId) => {
+      if (!groups.has(groupId)) {
+        throw new Error(
+          `Reassessment question ${question.question_id} references unknown ${groupId}.`,
+        )
+      }
+    })
+    if (linkedGroups.length === 1) {
+      const expectedLocation = groups.get(linkedGroups[0])?.clinical_location_text
+      if (question.clinical_location_text !== expectedLocation) {
+        throw new Error(
+          `Reassessment question ${question.question_id} changed baseline location for ${linkedGroups[0]}.`,
+        )
+      }
+    }
+  })
+  return questions
+}
+
+function validateReassessmentRecord(record, baselinePhenotype, followupPhenotype) {
+  const errors = []
+  const allowedStatuses = new Set([
+    'complete_pending_doctor_review',
+    'blocked_for_diagnostic_review',
+    'insufficient_image_comparability',
+  ])
+  if (!record || typeof record !== 'object') errors.push('Reassessment must be an object.')
+  if (!allowedStatuses.has(record?.reassessment_status)) {
+    errors.push(`Invalid reassessment_status '${record?.reassessment_status}'.`)
+  }
+  if (record?.policy_version !== PIGMENTATION_POLICY_VERSION) {
+    errors.push('Reassessment policy_version does not match the active V2.3 policy.')
+  }
+
+  const baselineMetrics = extractImmutablePigmentationMetrics(baselinePhenotype)
+  const followupMetrics = extractImmutablePigmentationMetrics(followupPhenotype)
+  PHENOTYPE_METRICS.forEach((metric) => {
+    const change = record?.global_metric_change?.[metric.id]
+    if (!change) {
+      errors.push(`global_metric_change.${metric.id} is missing.`)
+      return
+    }
+    const expectedBaseline = baselineMetrics[metric.id]
+    const expectedCurrent = followupMetrics[metric.id]
+    if (change.baseline !== expectedBaseline) {
+      errors.push(`${metric.id}.baseline does not match the validated baseline phenotype.`)
+    }
+    if (change.current !== expectedCurrent) {
+      errors.push(`${metric.id}.current does not match the validated follow-up phenotype.`)
+    }
+    if (change.delta !== expectedCurrent - expectedBaseline) {
+      errors.push(`${metric.id}.delta is arithmetically incorrect.`)
+    }
+  })
+
+  const baselineGroups = groupMapFromPhenotype(baselinePhenotype)
+  asArray(record?.group_and_component_response).forEach((response, index) => {
+    const group = baselineGroups.get(response?.baseline_group_id)
+    if (!group) {
+      errors.push(`group_and_component_response[${index}] references unknown baseline group.`)
+      return
+    }
+    if (response.clinical_location_text !== group.clinical_location_text) {
+      errors.push(`group_and_component_response[${index}] changed baseline location text.`)
+    }
+  })
+
+  if (errors.length) {
+    const error = new Error(`Pigmentation reassessment failed validation: ${errors.join(' | ')}`)
+    error.issues = errors
+    throw error
+  }
+
+  return {
+    ...deepClone(record),
+    reassessment_record_type: 'validated_pigmentation_reassessment',
+    validation_metadata: {
+      status: 'application_validated',
+      pipeline_version: PIPELINE_VERSION,
+      policy_version: PIGMENTATION_POLICY_VERSION,
+      validated_at_iso: new Date().toISOString(),
+    },
+  }
+}
 
 export const usePigmentationStore = defineStore('pigmentation', {
   state: () => ({
-    model: 'gpt-5.2',
+    model: 'gpt-5.5-2026-04-23',
     isConnected: false,
     conversationId: '',
     id: null,
     clinic_id: null,
     therapist_id: null,
     user_id: null,
-
     currentStage: 0,
 
-    // File arrays
     attachedImages: [],
     reassessImages: [],
 
-    dynamicAnswers: {},
     fixedHistory: {
       duration: '',
       stability_last_4_6_weeks: '',
@@ -51,8 +843,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
       procedure_safety: [],
       red_flag_lesion_change: '',
     },
+    dynamicQuestions: [],
+    dynamicAnswers: {},
 
-    // Safety switches and Red flags
     safety: {
       pregnancy: false,
       clot: false,
@@ -60,7 +853,6 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
     redFlags: [],
 
-    // Clinical readings (Stage 2 Readings Form)
     formData: {
       fitz: '',
       comp: '',
@@ -68,34 +860,35 @@ export const usePigmentationStore = defineStore('pigmentation', {
       ery: '',
       woods: '',
       depth: '',
-
-      // Patient Demographics (Stage 2)
       initials: '',
       full_name: '',
       mrn: '',
       age: '',
       sex: '',
-
-      // Presentation (Stage 2)
       dist: '',
       dur: '',
       onset: '',
       prog: '',
-
-      // Triggers (Stage 2)
       triggers: [],
       hqHistory: false,
       priorTx: '',
       meds: '',
-
-      // Diagnosis Stage (Stage 3 Additional Notes)
       notes: '',
     },
 
-    // Diagnosis analysis outputs (Stage 3)
-    diagnosis: null, // { data: JSON, confirmedDx: "" }
+    morphologyCensus: null,
+    aiAnalysis: null,
+    immutableImageMetrics: null,
+    phenotypePipeline: {
+      version: PIPELINE_VERSION,
+      status: 'idle',
+      attempts: 0,
+      corrected_from_discrepancy: false,
+      requires_history_refresh: false,
+      last_error: null,
+    },
 
-    // Plan stage outputs (Stage 4)
+    diagnosis: null,
     lastPlan: null,
     reviewState: {
       decision: null,
@@ -105,29 +898,30 @@ export const usePigmentationStore = defineStore('pigmentation', {
       ts: null,
     },
 
-    // Reassessment outputs (Stage 5)
     goals: [],
     reassessment: null,
     reassessQuestions: [],
     reassessAnswers: {},
+    reassessmentMorphologyCensus: null,
+    reassessmentAiAnalysis: null,
+    reassessmentImmutableImageMetrics: null,
     pre_session_validation: null,
 
-    // Loading indicators
-    aiAnalysis: null,
-    dynamicQuestions: [],
     loadingMessage: '',
     isLoading: false,
   }),
 
   getters: {
     stageLabel: (state) => {
-      const names = ['Capture', 'Assess', 'Diagnosis', 'Plan']
-      const pad = (x) => (x < 10 ? '0' : '') + x
-      return `${pad(state.currentStage + 1)} / 04 — ${names[state.currentStage] || ''}`
+      const names = ['Capture', 'Assess', 'Diagnosis', 'Plan', 'Reassess']
+      const pad = (value) => (value < 10 ? '0' : '') + value
+      return `${pad(state.currentStage + 1)} / 05 — ${names[state.currentStage] || ''}`
     },
-    progressPercent: (state) => {
-      return ((state.currentStage + 1) / 4) * 100
-    },
+    progressPercent: (state) => ((state.currentStage + 1) / 5) * 100,
+    validatedPhenotype: (state) => state.aiAnalysis?.data || null,
+    validatedDiagnosis: (state) => state.diagnosis?.data || null,
+    treatmentPlanningEligible: (state) =>
+      state.diagnosis?.data?.treatment_planning_eligible === true,
   },
 
   actions: {
@@ -138,425 +932,157 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
 
     async getPatientData(uid) {
-      Loading.show({
-        message: 'Getting patient data...',
-      })
+      Loading.show({ message: 'Getting patient data...' })
       try {
         const response = await api.get(`/users/${uid}`)
         LocalStorage.set('user', JSON.stringify(response.data.results))
         this.setPatientData(response.data.results)
-      } catch (e) {
-        console.error(e)
+      } catch (error) {
+        console.error(error)
+        throw error
       } finally {
         Loading.hide()
       }
     },
 
     async getSingleAssessment(assessmentId) {
-      Loading.show({
-        message: 'Loading assessment from database...',
-      })
+      Loading.show({ message: 'Loading assessment from database...' })
       try {
         const response = await api.get(`/assessments/${assessmentId}`)
         const data = response.data.results
-
         this.id = data.id
         this.conversationId = data.conversation_id || ''
         this.clinic_id = data.clinic_id || null
         this.therapist_id = data.therapist_id || null
         this.user_id = data.user_id || null
 
-        // Fetch patient demographics
-        if (data.user_id) {
-          await this.getPatientData(data.user_id)
-        }
+        if (data.user_id) await this.getPatientData(data.user_id)
 
-        // Restore our store state from pigmentation_inputs
-        if (data.pigmentation_inputs) {
-          const pi = data.pigmentation_inputs
-          if (pi.formData) this.formData = { ...this.formData, ...pi.formData }
-          if (pi.fixedHistory) this.fixedHistory = { ...this.fixedHistory, ...pi.fixedHistory }
-          if (pi.dynamicAnswers)
-            this.dynamicAnswers = { ...this.dynamicAnswers, ...pi.dynamicAnswers }
-          if (pi.safety) this.safety = { ...this.safety, ...pi.safety }
-          if (pi.redFlags) this.redFlags = pi.redFlags || []
-          if (pi.goals) this.goals = pi.goals || []
-          if (pi.reassessQuestions) this.reassessQuestions = pi.reassessQuestions || []
-          if (pi.reassessAnswers) this.reassessAnswers = pi.reassessAnswers || {}
-          if (pi.reviewState) {
-            this.reviewState = {
-              ...this.reviewState,
-              ...pi.reviewState,
-              ts: pi.reviewState.ts ? new Date(pi.reviewState.ts) : null,
-            }
-          }
-          console.log(pi)
-          if (pi.lastPlan && !this.lastPlan) {
-            this.lastPlan = pi.lastPlan
-          }
-          if (pi.diagnosis && !this.diagnosis) {
-            this.diagnosis = {
-              data: pi.diagnosis,
-              confirmedDx: pi.confirmedDx || pi.diagnosis.differential?.primary?.dx || '',
-            }
-          }
-          if (pi.aiAnalysis) this.aiAnalysis = pi.aiAnalysis
-          if (pi.dynamicQuestions) this.dynamicQuestions = pi.dynamicQuestions || []
-          if (pi.pre_session_validation) this.pre_session_validation = pi.pre_session_validation
-        }
-
-        if (data.post_diagnosis && data.post_diagnosis.reassessment) {
-          this.reassessment = data.post_diagnosis.reassessment
-        } else if (data.pigmentation_inputs && data.pigmentation_inputs.reassessment) {
-          this.reassessment = data.pigmentation_inputs.reassessment
-        }
-
-        if (data.diagnosis && !this.diagnosis) {
-          this.diagnosis = {
-            data: data.diagnosis,
-            confirmedDx: data.diagnosis.differential?.primary?.dx || '',
+        const pi = data.pigmentation_inputs || {}
+        if (pi.formData) this.formData = { ...this.formData, ...pi.formData }
+        if (pi.fixedHistory) this.fixedHistory = { ...this.fixedHistory, ...pi.fixedHistory }
+        if (pi.dynamicQuestions) this.dynamicQuestions = pi.dynamicQuestions
+        if (pi.dynamicAnswers) this.dynamicAnswers = pi.dynamicAnswers
+        if (pi.safety) this.safety = { ...this.safety, ...pi.safety }
+        if (pi.redFlags) this.redFlags = pi.redFlags
+        if (pi.goals) this.goals = pi.goals
+        if (pi.reviewState) {
+          this.reviewState = {
+            ...this.reviewState,
+            ...pi.reviewState,
+            ts: pi.reviewState.ts ? new Date(pi.reviewState.ts) : null,
           }
         }
 
-        // Auto-repair diagnosis scores if empty/array
-        if (this.diagnosis && this.diagnosis.data) {
-          const diagObj = this.diagnosis.data
-          if (!diagObj.scores || Array.isArray(diagObj.scores)) {
-            const list = Array.isArray(diagObj.scores) ? diagObj.scores : diagObj.scores_list || []
-            diagObj.scores_list = list
-            const obj = {}
-            list.forEach((s) => {
-              const nameLower = String(s.name || '').toLowerCase()
-              let key = ''
-              if (nameLower.includes('melanin')) key = 'melanin_load_index'
-              else if (nameLower.includes('erythema')) key = 'erythema_load_index'
-              else if (nameLower.includes('recurrence')) key = 'recurrence_risk_index'
-              else if (nameLower.includes('procedure')) key = 'procedure_risk_index'
-              else if (nameLower.includes('sunscreen')) key = 'sunscreen_compliance_index'
-              else if (nameLower.includes('confidence')) key = 'diagnosis_confidence_index'
-              else key = nameLower.replace(/ /g, '_').replace(/_score$/, '_index')
+        this.morphologyCensus = pi.morphologyCensus || null
+        this.aiAnalysis = pi.aiAnalysis || null
+        this.immutableImageMetrics = pi.immutableImageMetrics || null
+        this.phenotypePipeline = { ...this.phenotypePipeline, ...(pi.phenotypePipeline || {}) }
+        this.reassessmentMorphologyCensus = pi.reassessmentMorphologyCensus || null
+        this.reassessmentAiAnalysis = pi.reassessmentAiAnalysis || null
+        this.reassessmentImmutableImageMetrics = pi.reassessmentImmutableImageMetrics || null
+        this.reassessQuestions = pi.reassessQuestions || []
+        this.reassessAnswers = pi.reassessAnswers || {}
+        this.pre_session_validation = pi.pre_session_validation || null
 
-              if (key) {
-                obj[key] = parseInt(s.value) || 0
-              }
-            })
-            // If the object is empty (because list was empty), try to rebuild from other keys/defaults
-            if (Object.keys(obj).length === 0) {
-              obj.melanin_load_index = parseInt(this.formData.mel) || 50
-              obj.erythema_load_index = parseInt(this.formData.ery) || 20
-              obj.composition_melanin_percent =
-                this.formData.comp === 'melanin' ? 70 : this.formData.comp === 'vascular' ? 30 : 50
-              obj.composition_vascular_percent = 100 - obj.composition_melanin_percent
-              obj.recurrence_risk_index = 50
-              obj.procedure_risk_index = 30
-              obj.sunscreen_compliance_index = 50
-              obj.diagnosis_confidence_index =
-                diagObj.working_impression?.primary_confidence_100 || 80
-            }
-            // Always set composition percentages
-            if (obj.composition_melanin_percent === undefined) {
-              obj.composition_melanin_percent =
-                this.formData.comp === 'melanin' ? 70 : this.formData.comp === 'vascular' ? 30 : 50
-              obj.composition_vascular_percent = 100 - obj.composition_melanin_percent
-            }
-            diagObj.scores = obj
-          }
-        }
-
-        if (data.recommended_full_plan) {
-          this.lastPlan = data.recommended_full_plan
-          if (data.treatment_sessions && Array.isArray(data.treatment_sessions.treatments)) {
-            if (!this.lastPlan.sessions) {
-              this.lastPlan.sessions = []
-            }
-
-            data.treatment_sessions.treatments.forEach((dbS) => {
-              const extS = this.lastPlan.sessions.find(
-                (s) => Number(s.session_number) === Number(dbS.session_number),
-              )
-              if (extS) {
-                extS.id = dbS.id
-                extS.status = dbS.status || extS.status || 'pending'
-              } else {
-                const modalities = Array.isArray(dbS.title)
-                  ? dbS.title
-                  : typeof dbS.title === 'string'
-                    ? dbS.title.split(' + ')
-                    : []
-
-                this.lastPlan.sessions.push({
-                  id: dbS.id,
-                  session_number: dbS.session_number,
-                  timing: `week_${dbS.week || dbS.session_number}`,
-                  goal: dbS.concerns_addressed?.[0] || dbS.title || 'Pigmentation Session',
-                  selected_modalities: modalities,
-                  status: dbS.status || 'pending',
-                  fixed_protocol: {
-                    procedure: dbS.title,
-                    peel: { use: modalities.includes('peel') },
-                    q_switch: {
-                      use: modalities.some((m) => m.includes('q_switch') || m.includes('laser')),
-                    },
-                    microneedling: { use: modalities.includes('microneedling') },
-                    led: { use: modalities.includes('led') },
-                    steps: dbS.steps || [],
-                  },
-                  provider_protocol: dbS.provider_protocol || {
-                    pre_treatment_checklist: dbS.preparations_checklist_for_therapist || [],
-                  },
-                })
-              }
-            })
-
-            this.lastPlan.sessions.sort(
-              (a, b) => Number(a.session_number) - Number(b.session_number),
-            )
-          }
-        }
-
-        // Fallback: reconstruct lastPlan from treatment_sessions if not retrieved yet
         if (
-          !this.lastPlan &&
-          data.treatment_sessions &&
-          Array.isArray(data.treatment_sessions.treatments) &&
-          data.treatment_sessions.treatments.length > 0
+          this.aiAnalysis?.data?.analysis_record_type === 'validated_pigmentation_image_analysis'
         ) {
-          const sessions = data.treatment_sessions.treatments.map((t) => {
-            const selected_modalities = []
-            const titleLower = String(t.title || '').toLowerCase()
-            if (
-              titleLower.includes('q_switch') ||
-              titleLower.includes('laser') ||
-              titleLower.includes('toning')
-            )
-              selected_modalities.push('q_switch')
-            if (titleLower.includes('peel')) selected_modalities.push('peel')
-            if (titleLower.includes('microneedling')) selected_modalities.push('microneedling')
-            if (titleLower.includes('led')) selected_modalities.push('led')
+          this.immutableImageMetrics = extractImmutablePigmentationMetrics(this.aiAnalysis.data)
+        }
+        if (
+          this.reassessmentAiAnalysis?.data?.analysis_record_type ===
+          'validated_pigmentation_image_analysis'
+        ) {
+          this.reassessmentImmutableImageMetrics = extractImmutablePigmentationMetrics(
+            this.reassessmentAiAnalysis.data,
+          )
+        }
 
-            const morning = []
-            const night = []
-            const avoid = []
-            if (Array.isArray(t.daily_home_care_routine)) {
-              t.daily_home_care_routine.forEach((line) => {
-                const cleanLine = String(line || '')
-                if (cleanLine.startsWith('Morning:')) {
-                  morning.push(
-                    ...cleanLine
-                      .replace('Morning:', '')
-                      .split(',')
-                      .map((s) => s.trim()),
-                  )
-                } else if (cleanLine.startsWith('Night:')) {
-                  night.push(
-                    ...cleanLine
-                      .replace('Night:', '')
-                      .split(',')
-                      .map((s) => s.trim()),
-                  )
-                } else if (cleanLine.startsWith('Avoid:')) {
-                  avoid.push(
-                    ...cleanLine
-                      .replace('Avoid:', '')
-                      .split(',')
-                      .map((s) => s.trim()),
-                  )
-                }
-              })
-            }
+        const savedDiagnosis = pi.diagnosis || data.diagnosis || null
+        if (savedDiagnosis) {
+          const mappedDiagnosis =
+            savedDiagnosis.diagnosis_record_type === 'validated_pigmentation_diagnosis' &&
+            !savedDiagnosis.differential
+              ? mapDiagnosisForLegacyUi(savedDiagnosis, this.aiAnalysis?.data, this.formData)
+              : savedDiagnosis
+          this.diagnosis = {
+            data: mappedDiagnosis,
+            confirmedDx: pi.confirmedDx || mappedDiagnosis.differential?.primary?.dx || '',
+          }
+        }
 
-            const fixed_protocol = {
-              homecare: { morning, night, avoid },
-            }
+        this.lastPlan = normalisePlanForUi(pi.lastPlan || data.recommended_full_plan || null)
 
-            const qsChecklist = t.preparations_checklist_for_therapist?.find((line) =>
-              line.includes('Laser:'),
-            )
-            if (qsChecklist) {
-              const wavelengthMatch = qsChecklist.match(/(\d+)nm/)
-              const energyMatch = qsChecklist.match(/(\d+)mJ/)
-              const fluenceMatch = qsChecklist.match(/(\d+(\.\d+)?) J\/cm²/)
-              const frequencyMatch = qsChecklist.match(/(\d+)Hz/)
-              fixed_protocol.q_switch = {
-                use: true,
-                wavelength_nm: wavelengthMatch ? parseInt(wavelengthMatch[1]) : 1064,
-                energy_mj: energyMatch ? parseInt(energyMatch[1]) : 0,
-                fluence_j_cm2: fluenceMatch ? parseFloat(fluenceMatch[1]) : 0,
-                frequency_hz: frequencyMatch ? parseInt(frequencyMatch[1]) : 0,
-                passes: 2,
-                endpoint:
-                  t.preparations_checklist_for_therapist
-                    ?.find((line) => line.includes('Laser Endpoint:'))
-                    ?.replace('Laser Endpoint:', '')
-                    .trim() || '',
-              }
-            }
-
-            const peelChecklist = t.preparations_checklist_for_therapist?.find((line) =>
-              line.includes('Peel:'),
-            )
-            if (peelChecklist) {
-              const nameMatch = peelChecklist.match(/Prepare (.+?) \(contact/)
-              const timeMatch = peelChecklist.match(/contact time: (\d+) mins/)
-              fixed_protocol.peel = {
-                use: true,
-                peel_name: nameMatch ? nameMatch[1].trim() : 'Chemical Peel',
-                contact_time_minutes: timeMatch ? parseInt(timeMatch[1]) : 5,
-                neutralization_required: peelChecklist.includes('neutralization: Yes'),
-              }
-            }
-
-            return {
-              id: t.id || t.session_number,
-              status: t.status || 'pending',
-              session_number: t.session_number,
-              timing: `week_${t.week || t.session_number}`,
-              goal: t.concerns_addressed?.[0] || 'Pigmentation treatment',
-              selected_modalities,
-              fixed_protocol,
-            }
-          })
-
-          this.lastPlan = {
-            plan_name: 'Treatment Plan',
-            plan_status: data.status === 'completed' ? 'approved' : 'pending_review',
-            duration:
-              data.treatment_sessions.total_time ||
-              `${data.treatment_sessions.treatments.length * 2} weeks`,
-            clinical_recommendation_mode: {
-              optimize_for: 'efficacy_balanced_with_safety',
-              doctor_constraints_used_as: 'hard_filters',
-              doctor_can_edit_before_finalization: true,
-            },
-            baseline_summary: {
-              fitzpatrick_type: this.formData.fitz,
-              melanin_load_index: parseInt(this.formData.mel) || 50,
-              erythema_load_index: parseInt(this.formData.ery) || 20,
-              depth_call: this.formData.depth,
-              composition: this.formData.comp,
-            },
+        if (!this.lastPlan && Array.isArray(data.treatment_sessions?.treatments)) {
+          const sessions = data.treatment_sessions.treatments.map((treatment) => ({
+            id: treatment.id || treatment.session_number,
+            status: treatment.status || 'pending',
+            session_number: treatment.session_number,
+            timing: `week_${treatment.week || treatment.session_number}`,
+            session_goal: treatment.concerns_addressed?.[0] || treatment.title || '',
+            selected_modality_ids: String(treatment.title || '')
+              .split(' + ')
+              .map((value) => value.trim())
+              .filter(Boolean),
+            treatment_operations: [],
+            session_execution_sequence: asArray(treatment.steps).map((step) => ({
+              step_number: step.step_number,
+              step_type: 'other',
+              operation_id: null,
+              protocol_id: null,
+              instruction: step.how_to_do,
+              target_location_text: null,
+              completion_required: true,
+            })),
+          }))
+          this.lastPlan = normalisePlanForUi({
+            plan_name: 'Legacy Treatment Plan',
+            plan_status: data.status === 'completed' ? 'doctor_approved' : 'doctor_modified',
+            duration: data.treatment_sessions.total_time || '',
             sessions,
-          }
+          })
         }
 
-        // Populate attachedImages from database images
-        if (data.images && data.images.length > 0) {
-          this.attachedImages = data.images.map((img) => ({
-            id: img.id,
-            name: img.name,
-            dataUrl: img.url,
-            url: img.url,
-            openai_file_id: img.custom_properties?.openai_file_id || '',
-            mode: img.custom_properties?.mode || 'white',
+        if (data.images?.length) {
+          this.attachedImages = data.images.map((image) => ({
+            id: image.id,
+            name: image.name,
+            dataUrl: image.url,
+            url: image.url,
+            openai_file_id: image.custom_properties?.openai_file_id || '',
+            mode: image.custom_properties?.mode || 'white',
+          }))
+        }
+        if (data.post_images?.length) {
+          this.reassessImages = data.post_images.map((image) => ({
+            id: image.id,
+            name: image.name,
+            dataUrl: image.url,
+            url: image.url,
+            openai_file_id: image.custom_properties?.openai_file_id || '',
+            mode: image.custom_properties?.mode || 'white',
           }))
         }
 
-        if (data.post_images && data.post_images.length > 0) {
-          this.reassessImages = data.post_images.map((img) => ({
-            id: img.id,
-            name: img.name,
-            dataUrl: img.url,
-            url: img.url,
-            openai_file_id: img.custom_properties?.openai_file_id || '',
-            mode: img.custom_properties?.mode || 'white',
-          }))
-        }
-
-        // Auto-reconstruct goals if empty
+        this.reassessment =
+          data.post_diagnosis?.reassessment || pi.reassessment || this.reassessment
         if ((!this.goals || this.goals.length === 0) && this.lastPlan) {
-          const goals = []
-          const planObj = this.lastPlan
-          const base = planObj.baseline_summary || {}
-
-          const cleanLabel = (str) => {
-            if (!str) return ''
-            return String(str).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-          }
-
-          const nextReassessment = planObj.treatment_goals?.next_reassessment || planObj.next_reassessment
-          if (nextReassessment) {
-            const timeframe = planObj.duration ? cleanLabel(planObj.duration) : 'Next Reassessment'
-
-            if (Array.isArray(nextReassessment.component_targets)) {
-              nextReassessment.component_targets.forEach((ct) => {
-                goals.push({
-                  metric: `${cleanLabel(ct.metric || 'Target')} (${ct.diagnostic_component_id || ''})`,
-                  baseline: String(ct.baseline !== undefined && ct.baseline !== null ? ct.baseline : '—'),
-                  target: String(ct.target !== undefined && ct.target !== null ? ct.target : '—'),
-                  timeframe: timeframe,
-                  how_measured: 'Clinical assessment / Analyser re-read',
-                })
-              })
-            }
-
-            if (goals.length === 0 && nextReassessment.clinical_goal) {
-              goals.push({
-                metric: 'Clinical Goal',
-                baseline: '—',
-                target: nextReassessment.clinical_goal,
-                timeframe: timeframe,
-                how_measured: 'Clinical observation',
-              })
-            }
-          }
-
-          if (goals.length === 0) {
-            const mLoad = base.global_background_melanin_load_index !== undefined ? base.global_background_melanin_load_index : base.melanin_load_index
-            const eLoad = base.global_background_erythema_load_index !== undefined ? base.global_background_erythema_load_index : base.erythema_load_index
-
-            if (mLoad !== undefined) {
-              let target = 'Reduction'
-              let timeframe = 'Week 4-6'
-
-              const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
-              if (reassessSession) {
-                timeframe = reassessSession.timing.replace(/_/g, ' ')
-                if (reassessSession.continue_if.melanin_load_index_reduction_min) {
-                  target = `≤${mLoad - reassessSession.continue_if.melanin_load_index_reduction_min} (reduction of ≥${reassessSession.continue_if.melanin_load_index_reduction_min})`
-                }
-              }
-              goals.push({
-                metric: 'Melanin Load Index',
-                baseline: String(mLoad),
-                target: target,
-                timeframe: timeframe,
-                how_measured: 'Analyser re-read under identical lighting',
-              })
-            }
-
-            if (eLoad !== undefined) {
-              let target = 'Control'
-              let timeframe = 'Week 4-6'
-              const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
-              if (reassessSession) {
-                timeframe = reassessSession.timing.replace(/_/g, ' ')
-                if (
-                  reassessSession.continue_if.erythema_load_not_increased_by_more_than !== undefined
-                ) {
-                  target = `≤${eLoad + reassessSession.continue_if.erythema_load_not_increased_by_more_than} (increase ≤${reassessSession.continue_if.erythema_load_not_increased_by_more_than})`
-                }
-              }
-              goals.push({
-                metric: 'Erythema Load Index',
-                baseline: String(eLoad),
-                target: target,
-                timeframe: timeframe,
-                how_measured: 'Analyser re-read under identical lighting',
-              })
-            }
-          }
-
-          this.goals = goals
+          this.goals = deriveGoalsFromPlan(this.lastPlan)
         }
 
-        // If plan is already finalized and signed-off, start at Step 5 (Reassess Stage)
-        if (this.reviewState.finalized) {
-          this.currentStage = 4
-        } else {
-          this.currentStage = 0
-        }
-      } catch (e) {
-        console.error('Error loading assessment from database:', e)
+        this.currentStage = this.reviewState.finalized
+          ? 4
+          : this.lastPlan
+            ? 3
+            : this.diagnosis
+              ? 2
+              : this.aiAnalysis
+                ? 1
+                : 0
+      } catch (error) {
+        console.error('Error loading assessment from database:', error)
+        throw error
       } finally {
         Loading.hide()
       }
@@ -565,223 +1091,33 @@ export const usePigmentationStore = defineStore('pigmentation', {
     async updateAssessment() {
       if (!this.id) return
 
-      const pigmentation_inputs = {
+      const pigmentationInputs = {
+        pipelineVersion: PIPELINE_VERSION,
         formData: this.formData,
         fixedHistory: this.fixedHistory,
+        dynamicQuestions: this.dynamicQuestions,
         dynamicAnswers: this.dynamicAnswers,
         safety: this.safety,
         redFlags: this.redFlags,
+        morphologyCensus: this.morphologyCensus,
+        aiAnalysis: this.aiAnalysis,
+        immutableImageMetrics: this.immutableImageMetrics,
+        phenotypePipeline: this.phenotypePipeline,
+        diagnosis: this.diagnosis?.data || null,
+        confirmedDx: this.diagnosis?.confirmedDx || '',
+        lastPlan: this.lastPlan,
         goals: this.goals,
         reviewState: this.reviewState,
-        lastPlan: this.lastPlan,
-        diagnosis: this.diagnosis ? this.diagnosis.data : null,
-        confirmedDx: this.diagnosis ? this.diagnosis.confirmedDx : '',
-        aiAnalysis: this.aiAnalysis,
-        dynamicQuestions: this.dynamicQuestions,
         reassessment: this.reassessment,
         reassessQuestions: this.reassessQuestions,
         reassessAnswers: this.reassessAnswers,
+        reassessmentMorphologyCensus: this.reassessmentMorphologyCensus,
+        reassessmentAiAnalysis: this.reassessmentAiAnalysis,
+        reassessmentImmutableImageMetrics: this.reassessmentImmutableImageMetrics,
         pre_session_validation: this.pre_session_validation,
       }
 
-      const diagnosis = this.diagnosis ? this.diagnosis.data : null
-
-      // Construct treatment_plans object from lastPlan to save in the database treatment_sessions
-      let treatment_plans = null
-      if (this.lastPlan) {
-        const treatments = (this.lastPlan.sessions || []).map((session) => {
-          const weekMatch = String(session.timing || '').match(/\d+/)
-          const weekNum = weekMatch ? parseInt(weekMatch[0]) : session.session_number
-
-          // Build checklist — prefer AI-generated pre_treatment_checklist from provider_protocol
-          const aiChecklist = session.provider_protocol?.pre_treatment_checklist
-          let checklist
-          if (Array.isArray(aiChecklist) && aiChecklist.length > 0) {
-            checklist = aiChecklist
-          } else {
-            checklist = ['Check patient identification and consent']
-            if (session.fixed_protocol?.q_switch?.use) {
-              const qs = session.fixed_protocol.q_switch
-              checklist.push(
-                `Laser: Set Q-Switch to ${qs.wavelength_nm}nm, ${qs.energy_mj}mJ, ${qs.fluence_j_cm2} J/cm², ${qs.frequency_hz}Hz`,
-              )
-              if (qs.endpoint) checklist.push(`Laser Endpoint: ${qs.endpoint}`)
-            }
-            if (session.fixed_protocol?.peel?.use) {
-              const p = session.fixed_protocol.peel
-              checklist.push(
-                `Peel: Prepare ${p.peel_name} (contact time: ${p.contact_time_minutes} mins, neutralization: ${p.neutralization_required ? 'Yes' : 'No'})`,
-              )
-            }
-            if (session.fixed_protocol?.microneedling?.use) {
-              const mn = session.fixed_protocol.microneedling
-              checklist.push(
-                `Microneedling: Prepare device (${mn.device}) with actives: ${mn.actives?.join(', ')}`,
-              )
-            }
-            if (session.fixed_protocol?.led?.use) {
-              checklist.push(
-                `LED: Prepare ${session.fixed_protocol.led.mode} (${session.fixed_protocol.led.role})`,
-              )
-            }
-          }
-
-          // Build steps
-          const steps = []
-          let stepCounter = 1
-
-          const formatLabel = (str) => {
-            if (!str) return ''
-            return str
-              .split('_')
-              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(' ')
-          }
-
-          // Use string includes to handle combined modality names like "q_switch_1064_toning"
-          const hasLaserModality = session.selected_modalities?.some(
-            (m) =>
-              m.includes('q_switch') ||
-              m.includes('laser') ||
-              m.includes('toning') ||
-              m.includes('ndyag'),
-          )
-
-          let hasZoneSequence = false
-          // Use zone_sequence if available in provider_protocol, even if modality naming varies
-          const zoneSeqSource = session.provider_protocol?.zone_sequence
-          if (
-            Array.isArray(zoneSeqSource) &&
-            zoneSeqSource.length > 0 &&
-            (hasLaserModality || session.fixed_protocol?.q_switch?.use)
-          ) {
-            const activeZones = zoneSeqSource.filter(
-              (z) =>
-                z.zone_strategy_type !== 'exclude_from_treatment' &&
-                z.zone_strategy_type !== 'defer_zone',
-            )
-            if (activeZones.length > 0) {
-              hasZoneSequence = true
-              activeZones.forEach((z) => {
-                let settingsStr = ''
-                let equipments = []
-                if (
-                  z.base_zone_setting &&
-                  (z.base_zone_setting.wavelength_nm || z.base_zone_setting.energy_mj)
-                ) {
-                  const b = z.base_zone_setting
-                  settingsStr = `${b.wavelength_nm}nm • ${b.energy_mj}mJ • ${b.fluence_j_cm2} J/cm² • ${b.passes} passes (${b.frequency_hz}Hz)`
-                  equipments.push(`Laser (${b.wavelength_nm}nm)`)
-                } else if (
-                  z.regional_override_setting &&
-                  (z.regional_override_setting.wavelength_nm ||
-                    z.regional_override_setting.energy_mj)
-                ) {
-                  const r = z.regional_override_setting
-                  settingsStr = `${r.wavelength_nm}nm • ${r.energy_mj}mJ • ${r.fluence_j_cm2} J/cm² • ${r.passes} passes`
-                  equipments.push(`Laser (${r.wavelength_nm}nm)`)
-                } else {
-                  settingsStr = 'Standard protocol settings'
-                  equipments.push('Laser')
-                }
-
-                steps.push({
-                  step_number: stepCounter++,
-                  duration: '5 mins',
-                  ingredients_equipments: equipments,
-                  how_to_do: `Treat Zone: ${z.zone.toUpperCase()}\nStrategy: ${formatLabel(z.zone_strategy_type || '')}\nSettings: ${settingsStr}\nCoverage Instruction: ${z.coverage_instruction || z.base_zone_setting?.coverage_instruction || 'Standard full-zone passes.'}\nEndpoint Target: ${z.endpoint || z.base_zone_setting?.endpoint || 'Mild erythema.'}`,
-                })
-              })
-            }
-          }
-
-          if (!hasZoneSequence) {
-            if (session.fixed_protocol?.peel?.use) {
-              const p = session.fixed_protocol.peel
-              steps.push({
-                step_number: stepCounter++,
-                duration: `${p.contact_time_minutes || 5} mins`,
-                ingredients_equipments: [p.peel_name],
-                how_to_do: `Apply ${p.peel_name} for ${p.contact_time_minutes} minutes. Neutralize if required.`,
-              })
-            }
-            if (session.fixed_protocol?.q_switch?.use) {
-              const qs = session.fixed_protocol.q_switch
-              steps.push({
-                step_number: stepCounter++,
-                duration: '10 mins',
-                ingredients_equipments: [`Q-Switch Laser (${qs.wavelength_nm}nm)`],
-                how_to_do: `Perform Q-Switch Laser toning using settings: Wavelength ${qs.wavelength_nm}nm, Fluence ${qs.fluence_j_cm2} J/cm², ${qs.passes} passes. Target endpoint: ${qs.endpoint}.`,
-              })
-            }
-            if (session.fixed_protocol?.microneedling?.use) {
-              const mn = session.fixed_protocol.microneedling
-              steps.push({
-                step_number: stepCounter++,
-                duration: '15 mins',
-                ingredients_equipments: [mn.device || 'Microneedling'].concat(mn.actives || []),
-                how_to_do: `Perform microneedling using ${mn.device} and apply actives: ${mn.actives?.join(', ')}. Route: ${mn.route || ''}, Injectable: ${mn.injectable || ''}.`,
-              })
-            }
-            if (session.fixed_protocol?.led?.use) {
-              const led = session.fixed_protocol.led
-              steps.push({
-                step_number: stepCounter++,
-                duration: '10 mins',
-                ingredients_equipments: [`LED Therapy (${led.mode})`],
-                how_to_do: `Apply LED therapy (${led.mode}) for skin calming and support. Role: ${led.role || ''}.`,
-              })
-            }
-          }
-
-          if (steps.length === 0) {
-            steps.push({
-              step_number: 1,
-              duration: '45 mins',
-              ingredients_equipments: [],
-              how_to_do: 'Perform clinical protocol as per doctor instructions.',
-            })
-          }
-
-          // Build daily home care routine
-          const homecareMorning = session.fixed_protocol?.homecare?.morning || []
-          const homecareNight = session.fixed_protocol?.homecare?.night || []
-          const homecareAvoid = session.fixed_protocol?.homecare?.avoid || []
-          const daily_home_care_routine = [
-            `Morning: ${homecareMorning.join(', ')}`,
-            `Night: ${homecareNight.join(', ')}`,
-            homecareAvoid.length ? `Avoid: ${homecareAvoid.join(', ')}` : null,
-          ].filter(Boolean)
-
-          return {
-            session_number: session.session_number,
-            title:
-              session.selected_modalities?.join(' + ') || session.goal || 'Pigmentation Session',
-            treatment_time: '45 mins',
-            week: weekNum,
-            preparations_checklist_for_therapist: checklist,
-            concerns_addressed: [session.goal || 'Pigmentation treatment'],
-            steps: steps,
-            daily_home_care_routine: daily_home_care_routine,
-            provider_protocol: session.provider_protocol || null,
-            script: '',
-          }
-        })
-
-        treatment_plans = {
-          treatment_plans: {
-            total_time: this.lastPlan.duration || '6 weeks',
-          },
-          treatment_plan: {
-            treatments: treatments,
-          },
-          recommended_full_plan: {
-            ...this.lastPlan,
-            sessions: this.lastPlan.sessions,
-          },
-        }
-      }
-
+      const treatmentPlans = buildTreatmentPlansPersistence(this.lastPlan)
       const payload = {
         _method: 'PUT',
         assessment_type: 'pigmentation',
@@ -791,58 +1127,45 @@ export const usePigmentationStore = defineStore('pigmentation', {
         age: this.formData.age || null,
         is_pregnant: this.safety.pregnancy ? 1 : 0,
         breastfeeding: this.safety.pregnancy ? 'yes' : 'no',
-        pigmentation_inputs: pigmentation_inputs,
-        diagnosis: diagnosis,
+        pigmentation_inputs: pigmentationInputs,
+        diagnosis: this.diagnosis?.data || null,
         post_diagnosis: this.reassessment ? { reassessment: this.reassessment } : null,
         status: this.reviewState.finalized ? 'completed' : 'in_progress',
         selected_plan_type: 'multiple',
         conversation_id: this.conversationId || null,
-        ...(treatment_plans && { treatment_plans }),
+        ...(treatmentPlans && { treatment_plans: treatmentPlans }),
       }
 
+      Loading.show({ message: 'Saving assessment details to database...' })
       try {
-        Loading.show({
-          message: 'Saving assessment details to database...',
-        })
         const response = await api.post(`/assessments/${this.id}`, payload)
-        console.log('Assessment updated in database:', response.data)
         const updated = response.data.results
-        if (updated && updated.recommended_full_plan) {
-          this.lastPlan = updated.recommended_full_plan
+        if (updated?.recommended_full_plan) {
+          this.lastPlan = normalisePlanForUi(updated.recommended_full_plan)
         }
-      } catch (e) {
-        console.error('Error updating assessment in database:', e)
-        throw e
+      } catch (error) {
+        console.error('Error updating assessment in database:', error)
+        throw error
       } finally {
         Loading.hide()
       }
     },
 
     setPatientData(data) {
-      // const firstInitial = data.first_name ? data.first_name.charAt(0).toUpperCase() : ''
-      // const lastInitial = data.last_name ? data.last_name.charAt(0).toUpperCase() : ''
       this.formData.initials = [data.first_name, data.last_name].filter(Boolean).join(' ')
       this.formData.full_name = [data.first_name, data.last_name].filter(Boolean).join(' ')
       this.formData.mrn = String(data.id || '')
-      if (data.date_of_birth) {
+      if (data.date_of_birth)
         this.formData.age = useCommonStore().getAgeFromDate(data.date_of_birth)
-      }
       if (data.gender) {
-        const genderLower = data.gender.toLowerCase()
-        if (genderLower === 'female') {
-          this.formData.sex = 'Female'
-        } else if (genderLower === 'male') {
-          this.formData.sex = 'Male'
-        } else {
-          this.formData.sex = 'Other'
-        }
+        const value = data.gender.toLowerCase()
+        this.formData.sex = value === 'female' ? 'Female' : value === 'male' ? 'Male' : 'Other'
       }
     },
 
     resetState() {
       this.attachedImages = []
       this.reassessImages = []
-      this.aiAnalysis = null
       this.dynamicQuestions = []
       this.dynamicAnswers = {}
       this.fixedHistory = {
@@ -885,6 +1208,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
         meds: '',
         notes: '',
       }
+      this.morphologyCensus = null
+      this.aiAnalysis = null
+      this.immutableImageMetrics = null
+      this.phenotypePipeline = {
+        version: PIPELINE_VERSION,
+        status: 'idle',
+        attempts: 0,
+        corrected_from_discrepancy: false,
+        requires_history_refresh: false,
+        last_error: null,
+      }
       this.diagnosis = null
       this.lastPlan = null
       this.reviewState = {
@@ -898,565 +1232,617 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.reassessment = null
       this.reassessQuestions = []
       this.reassessAnswers = {}
+      this.reassessmentMorphologyCensus = null
+      this.reassessmentAiAnalysis = null
+      this.reassessmentImmutableImageMetrics = null
       this.pre_session_validation = null
       this.conversationId = ''
       this.id = null
+      this.clinic_id = null
+      this.therapist_id = null
+      this.user_id = null
+      this.currentStage = 0
     },
 
     async uploadStoreImages(images, assessmentId, type = 'pigmentation-pre') {
       if (!Array.isArray(images)) return
-      for (const img of images) {
-        if (img.file && !img.openai_file_id) {
-          const formData = new FormData()
-          formData.append('image', img.file)
-          formData.append('assessment_type', type)
-          if (img.mode) {
-            formData.append('mode', img.mode)
-          }
+      for (const image of images) {
+        if (!image.file || image.openai_file_id) continue
+        const formData = new FormData()
+        formData.append('image', image.file)
+        formData.append('assessment_type', type)
+        if (image.mode) formData.append('mode', image.mode)
 
-          try {
-            const response = await api.post(`assessments/${assessmentId}/images`, formData, {
-              headers: { 'Content-Type': 'multipart/form-data' },
-            })
-            if (response.data && response.data.results && response.data.results.file_id) {
-              img.openai_file_id = response.data.results.file_id
-            }
-          } catch (e) {
-            console.error('Error uploading image to backend:', e)
-          }
-        }
+        const response = await api.post(`assessments/${assessmentId}/images`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        const fileId = response.data?.results?.file_id
+        if (!fileId)
+          throw new Error(`Image upload did not return a file_id for ${image.name || image.mode}.`)
+        image.openai_file_id = fileId
       }
     },
 
-    async callOpenAI({ system, content }) {
+    async callOpenAI({
+      system,
+      content,
+      max_tokens = null,
+      max_output_tokens = null,
+      temperature = null,
+      reasoning_effort = null,
+      verbosity = null,
+      timeout_ms = null,
+      request_metadata = null,
+    }) {
       const { getOrCreateConversation, runResponse } = useOpenAI()
       const assessmentStore = useAssessmentStore()
       const ivAssessmentStore = useIVAssessmentStore()
-
-      // Resolve a valid assessment ID and patient ID
       const assessmentId =
-        this.id || assessmentStore.assessmentData?.id || ivAssessmentStore.formData?.id || '1' // fallback
-
+        this.id || assessmentStore.assessmentData?.id || ivAssessmentStore.formData?.id || '1'
       const patientId =
         this.formData.mrn ||
         assessmentStore.assessmentData?.user_id ||
         ivAssessmentStore.formData?.user_id ||
         '1'
-
       const patientName =
         this.formData.initials ||
         assessmentStore.assessmentData?.name ||
         ivAssessmentStore.formData?.name ||
         'Pigmentation Patient'
 
-      const convId = await getOrCreateConversation(
+      const conversationId = await getOrCreateConversation(
         patientId,
         this.conversationId,
         patientName,
         assessmentId,
       )
-      this.conversationId = convId
+      this.conversationId = conversationId
 
-      // Upload local images first if not uploaded yet
       await this.uploadStoreImages(this.attachedImages, assessmentId, 'pigmentation-pre')
       await this.uploadStoreImages(this.reassessImages, assessmentId, 'pigmentation-post')
 
-      // Convert content to the backend format
-      let formattedContent = []
-      if (typeof content === 'string') {
-        formattedContent.push({ type: 'input_text', text: content })
-      } else if (Array.isArray(content)) {
-        for (const item of content) {
-          if (item.type === 'text') {
-            formattedContent.push({ type: 'input_text', text: item.text })
-          } else if (item.type === 'image_id') {
-            formattedContent.push({ type: 'input_image', file_id: item.file_id })
-          } else if (item.type === 'image') {
-            const base64Data = item.source?.data
-            const img =
-              this.attachedImages.find((i) => i.base64 === base64Data) ||
-              this.reassessImages.find((i) => i.base64 === base64Data)
-
-            if (img && img.openai_file_id) {
-              formattedContent.push({ type: 'input_image', file_id: img.openai_file_id })
-            } else {
-              formattedContent.push({
-                type: 'input_text',
-                text: `[Image: ${img?.name || 'capture'}]`,
-              })
-            }
-          }
+      const formattedContent = []
+      const sourceItems = typeof content === 'string' ? [{ type: 'text', text: content }] : content
+      for (const item of asArray(sourceItems)) {
+        if (item.type === 'text' || item.type === 'input_text') {
+          formattedContent.push({ type: 'input_text', text: item.text })
+          continue
         }
+        if (item.type === 'image_id' || item.type === 'input_image') {
+          if (!item.file_id) throw new Error('An input image is missing file_id.')
+          formattedContent.push({
+            type: 'input_image',
+            file_id: item.file_id,
+            detail: item.detail || IMAGE_DETAIL,
+          })
+          continue
+        }
+        if (item.type === 'image') {
+          const base64Data = item.source?.data
+          const image =
+            this.attachedImages.find((candidate) => candidate.base64 === base64Data) ||
+            this.reassessImages.find((candidate) => candidate.base64 === base64Data)
+          if (!image?.openai_file_id) {
+            throw new Error(
+              `Image ${image?.name || 'capture'} has no OpenAI file ID; analysis cannot continue safely.`,
+            )
+          }
+          formattedContent.push({
+            type: 'input_image',
+            file_id: image.openai_file_id,
+            detail: item.detail || IMAGE_DETAIL,
+          })
+          continue
+        }
+        throw new Error(`Unsupported OpenAI content item type: ${item.type}`)
       }
 
       const input = [
-        {
-          role: 'system',
-          content: system,
-        },
-        {
-          role: 'user',
-          content: formattedContent,
-        },
+        { role: 'system', content: system },
+        { role: 'user', content: formattedContent },
       ]
-
-      const result = await runResponse(convId, input)
-      if (result && result.error) {
-        throw new Error(result.error.message || 'Error generating AI response')
+      const options = {
+        max_output_tokens: max_output_tokens ?? max_tokens ?? undefined,
+        temperature: temperature ?? undefined,
+        reasoning_effort: reasoning_effort ?? undefined,
+        verbosity: verbosity ?? undefined,
+        timeout_ms: timeout_ms ?? undefined,
+        metadata: {
+          pipeline_version: PIPELINE_VERSION,
+          ...(request_metadata || {}),
+        },
       }
 
-      // Convert object back to string so the existing parseJSON in the store runs correctly
-      return typeof result === 'object' ? JSON.stringify(result) : result
+      const result = await runResponse(conversationId, input, this.model, options)
+      if (result?.error) {
+        const error = new Error(result.error.message || 'Error generating AI response')
+        error.code = result.error.code || null
+        error.type = result.error.type || null
+        error.incomplete_reason = result.error.incomplete_reason || null
+        error.response_id = result.error.response_id || null
+        error.requested_max_output_tokens = result.error.requested_max_output_tokens || null
+        error.usage = result.error.usage || null
+        throw error
+      }
+      return result
     },
 
-    parseJSON(text) {
-      let t = (text || '').trim()
-      t = t
+    parseJSON(payload) {
+      if (payload && typeof payload === 'object') return deepClone(payload)
+      let text = String(payload || '').trim()
+      text = text
         .replace(/^```(?:json)?/i, '')
         .replace(/```$/, '')
         .trim()
-      const i = t.indexOf('{')
-      const j = t.lastIndexOf('}')
-      if (i >= 0 && j > i) t = t.slice(i, j + 1)
-      return JSON.parse(t)
+      const start = text.indexOf('{')
+      const end = text.lastIndexOf('}')
+      if (start >= 0 && end > start) text = text.slice(start, end + 1)
+      return JSON.parse(text)
     },
 
-    buildImageContext() {
-      const age = this.formData.age
-      const sex = this.formData.sex
-      const lines = [
-        `Patient context: ${age ? 'age ' + age : 'age unknown'}${sex ? ', ' + sex : ''}.`,
-        '',
-        'Captures provided, in order below:',
-      ]
-      this.attachedImages.forEach((img, i) => {
-        const modeLabel =
-          {
-            white: 'White light',
-            woods_uv: "Wood's UV",
-            surface_polarized: 'Surface polarised',
-            subsurface_polarized: 'Sub-surface polarised',
-            red: 'Red light',
-          }[img.mode] || 'unlabelled — infer the mode from the image'
-
-        lines.push(`  Image ${i + 1}: ${modeLabel}`)
+    getOrderedCaptureSet(images, label = 'Pigmentation analysis') {
+      const byMode = new Map()
+      asArray(images).forEach((image) => {
+        if (!REQUIRED_IMAGE_MODES.includes(image.mode)) {
+          throw new Error(`${label}: unknown image mode '${image.mode || 'missing'}'.`)
+        }
+        if (byMode.has(image.mode)) {
+          throw new Error(`${label}: duplicate image mode '${image.mode}'.`)
+        }
+        byMode.set(image.mode, image)
       })
-      lines.push(
-        '',
-        'Produce the objective read, provisional impression, and tailored history questions as the specified JSON.',
-      )
-      return lines.join('\n')
+      const missing = REQUIRED_IMAGE_MODES.filter((mode) => !byMode.has(mode))
+      if (images.length !== REQUIRED_IMAGE_MODES.length || missing.length) {
+        throw new Error(
+          `${label} requires exactly one image for each mode. Missing: ${missing.join(', ') || 'none'}.`,
+        )
+      }
+      return REQUIRED_IMAGE_MODES.map((mode) => byMode.get(mode))
     },
 
-    async analyseCaptures() {
-      if (!this.attachedImages.length) return
-
-      this.isLoading = true
-      this.loadingMessage = 'Reading the captures…'
-
-      const content = [{ type: 'text', text: this.buildImageContext() }]
-      this.attachedImages.forEach((img) => {
-        if (img.openai_file_id) {
+    buildLabeledImageContent(images, payload) {
+      const content = [{ type: 'text', text: JSON.stringify(payload, null, 2) }]
+      images.forEach((image, index) => {
+        content.push({
+          type: 'text',
+          text: `IMAGE ${index + 1} — MODE: ${image.mode}. Patient anatomical right appears on image display left in a frontal capture unless the capture metadata states otherwise.`,
+        })
+        if (image.openai_file_id) {
           content.push({
             type: 'image_id',
-            file_id: img.openai_file_id,
+            file_id: image.openai_file_id,
+            detail: IMAGE_DETAIL,
           })
         } else {
           content.push({
             type: 'image',
-            source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
+            source: { type: 'base64', media_type: image.mediaType, data: image.base64 },
+            detail: IMAGE_DETAIL,
           })
         }
       })
+      return content
+    },
+
+    buildImageContext(images = this.attachedImages) {
+      return JSON.stringify(
+        {
+          session_id: String(this.id || 'AIJ-PIG-000001'),
+          mode_manifest: images.map((image, index) => ({ index: index + 1, mode: image.mode })),
+          instruction:
+            'Perform the dedicated V2.3 morphology census first. Do not use history or calculate burden scores.',
+        },
+        null,
+        2,
+      )
+    },
+
+    async runPhenotypePipeline(
+      images,
+      { kind = 'baseline', correctionContext = null, attempt = 0 } = {},
+    ) {
+      assertPigmentationPolicyCompatibility(PIGMENTATION_POLICY_VERSION)
+      const orderedImages = this.getOrderedCaptureSet(
+        images,
+        kind === 'baseline' ? 'Baseline pigmentation analysis' : 'Follow-up pigmentation analysis',
+      )
+      const sessionId = String(
+        this.id ||
+          this.conversationId ||
+          (kind === 'baseline' ? 'AIJ-PIG-000001' : 'AIJ-PIG-FU-000001'),
+      )
+      const metadata = {
+        modelVersion: this.model,
+        promptVersion: PIGMENTATION_PROMPT_VERSION,
+        configVersion: PIGMENTATION_CONFIG.version,
+        policyVersion: PIGMENTATION_POLICY_VERSION,
+        preprocessingVersion: 'pigmentation_image_preprocessing_v2_3',
+      }
 
       try {
-        const raw = await this.callOpenAI({
-          system: IMAGE_SYSTEM_PROMPT,
-          content: content,
-          max_tokens: 2600,
-          temperature: 0.2,
-        })
-
-        const a = this.parseJSON(raw)
-        this.aiAnalysis = { data: a, confirmed: false }
-        if (!this.dynamicQuestions || this.dynamicQuestions.length === 0) {
-          this.dynamicQuestions = Array.isArray(a.history_questions) ? a.history_questions : []
+        const censusPayload = {
+          session_id: sessionId,
+          policy_version: PIGMENTATION_POLICY_VERSION,
+          prompt_version: PIGMENTATION_PROMPT_VERSION,
+          mode_manifest: orderedImages.map((image, index) => ({
+            image_number: index + 1,
+            mode: image.mode,
+          })),
+          morphology_config: buildPigmentationMorphologyConfig(),
+          correction_context: correctionContext,
         }
+        const rawCensusResponse = await this.callOpenAI({
+          system: MORPHOLOGY_CENSUS_PROMPT,
+          content: this.buildLabeledImageContent(orderedImages, censusPayload),
+          ...OPENAI_STAGE_OPTIONS.morphology_census,
+          request_metadata: { stage: `${kind}_morphology_census`, attempt },
+        })
+        const rawCensus = this.parseJSON(rawCensusResponse)
+        const validatedCensus = validatePigmentationMorphologyCensus(rawCensus, metadata)
 
-        // Populate readings fields in form
-        const gi = a.global_background_indices || a.global_indices
-        if (gi) {
-          // Map Fitzpatrick skin type
-          let fitzVal = ''
-          if (gi.estimated_fitzpatrick?.type) {
-            const t = gi.estimated_fitzpatrick.type.toLowerCase()
-            if (t.includes('iii_to_iv') || t.includes('iii-iv')) fitzVal = 'IV'
-            else if (t.includes('iv_to_v') || t.includes('iv-v')) fitzVal = 'V'
-            else if (t.includes('v_to_vi') || t.includes('v-vi')) fitzVal = 'VI'
-            else if (t.includes('iii')) fitzVal = 'III'
-            else if (t.includes('iv')) fitzVal = 'IV'
-            else if (t.includes('v')) fitzVal = 'V'
-            else if (t.includes('vi')) fitzVal = 'VI'
-            else if (t.includes('ii')) fitzVal = 'II'
-            else if (t.includes('i')) fitzVal = 'I'
-          }
-          this.formData.fitz = fitzVal
+        const measurementPayload = {
+          session_id: sessionId,
+          policy_version: PIGMENTATION_POLICY_VERSION,
+          prompt_version: PIGMENTATION_PROMPT_VERSION,
+          mode_manifest: orderedImages.map((image, index) => ({
+            image_number: index + 1,
+            mode: image.mode,
+          })),
+          locked_morphology_census: validatedCensus,
+          measurement_config: buildPigmentationMeasurementConfig(),
+          correction_context: correctionContext,
+        }
+        const rawMeasurementResponse = await this.callOpenAI({
+          system: PHENOTYPE_MEASUREMENT_PROMPT,
+          content: this.buildLabeledImageContent(orderedImages, measurementPayload),
+          ...OPENAI_STAGE_OPTIONS.phenotype_measurement,
+          request_metadata: { stage: `${kind}_phenotype_measurement`, attempt },
+        })
+        const rawMeasurement = this.parseJSON(rawMeasurementResponse)
+        const validatedPhenotype = validateAndScorePigmentationImageAnalysis(
+          rawMeasurement,
+          metadata,
+          { lockedMorphologyCensus: validatedCensus },
+        )
 
-          this.formData.mel = gi.melanin_load_index?.score_100 || ''
-          this.formData.ery = gi.erythema_load_index?.score_100 || ''
+        return {
+          census: validatedCensus,
+          phenotype: validatedPhenotype,
+          metrics: extractImmutablePigmentationMetrics(validatedPhenotype),
+          attempts: attempt + 1,
+          corrected: Boolean(correctionContext),
+        }
+      } catch (error) {
+        const canRetry =
+          attempt < 1 &&
+          (error instanceof PigmentationPhenotypeDiscrepancyError ||
+            error instanceof PigmentationImageValidationError)
+        if (canRetry) {
+          return this.runPhenotypePipeline(images, {
+            kind,
+            attempt: attempt + 1,
+            correctionContext: {
+              source: error.name,
+              issues: validationIssues(error),
+              previous_context: correctionContext,
+              instruction:
+                'Repeat the complete region-by-region census. Resolve the listed omission, merged morphology, elevation or location problem without weakening any other group.',
+            },
+          })
+        }
+        throw error
+      }
+    },
 
-          // Map Composition
-          let compVal = ''
-          if (gi.composition?.type) {
-            const c = gi.composition.type.toLowerCase()
-            if (c.includes('melanin')) compVal = 'melanin'
-            else if (c.includes('vascular')) compVal = 'vascular'
-            else if (c.includes('mixed')) compVal = 'mixed'
-            else compVal = 'uncertain'
-          }
-          this.formData.comp = compVal
+    applyPhenotypeToForm(phenotype) {
+      const global = phenotype?.global_background_indices || {}
+      const fitz = String(global.estimated_fitzpatrick?.type || '').toUpperCase()
+      if (fitz.includes('III_TO_IV')) this.formData.fitz = 'IV'
+      else if (fitz.includes('IV_TO_V')) this.formData.fitz = 'V'
+      else if (['I', 'II', 'III', 'IV', 'V', 'VI'].includes(fitz)) this.formData.fitz = fitz
+      else this.formData.fitz = ''
 
-          // Map Depth
-          let depthVal = ''
-          if (gi.depth_call?.type) {
-            const d = gi.depth_call.type.toLowerCase()
-            if (d.includes('mixed')) depthVal = 'mixed'
-            else if (d.includes('epidermal')) depthVal = 'epidermal'
-            else if (d.includes('dermal')) depthVal = 'dermal'
-            else depthVal = 'uncertain'
-          }
-          this.formData.depth = depthVal
-        } else {
-          this.formData.fitz = a.skin_type?.fitzpatrick_estimate || ''
-          this.formData.mel = a.skin_type?.melanin_index || ''
-          this.formData.ery = a.erythema_index || ''
-          this.formData.comp = a.composition?.dominant || ''
-          this.formData.depth = a.depth?.verdict || ''
+      this.formData.mel = global.melanin_load_index?.score_100 || ''
+      this.formData.ery = global.erythema_load_index?.score_100 || ''
+
+      const composition = String(global.composition?.type || '').toLowerCase()
+      this.formData.comp = composition.includes('melanin')
+        ? 'melanin'
+        : composition.includes('vascular')
+          ? 'vascular'
+          : composition.includes('mixed')
+            ? 'mixed'
+            : 'uncertain'
+
+      const depth = String(global.depth_call?.type || '').toLowerCase()
+      this.formData.depth = depth.includes('mixed')
+        ? 'mixed'
+        : depth.includes('epidermal')
+          ? 'epidermal'
+          : depth.includes('dermal')
+            ? 'dermal'
+            : 'uncertain'
+    },
+
+    async analyseCaptures() {
+      if (!this.attachedImages.length) return
+      this.isLoading = true
+      this.loadingMessage = 'Completing morphology census and phenotype measurements…'
+      this.phenotypePipeline = {
+        ...this.phenotypePipeline,
+        status: 'running',
+        last_error: null,
+      }
+
+      try {
+        const result = await this.runPhenotypePipeline(this.attachedImages, { kind: 'baseline' })
+        this.morphologyCensus = { data: result.census, confirmed: false }
+        this.aiAnalysis = { data: result.phenotype, confirmed: false }
+        this.immutableImageMetrics = result.metrics
+        this.phenotypePipeline = {
+          version: PIPELINE_VERSION,
+          status: 'validated',
+          attempts: result.attempts,
+          corrected_from_discrepancy: result.corrected,
+          requires_history_refresh: false,
+          last_error: null,
+        }
+        this.applyPhenotypeToForm(result.phenotype)
+
+        this.dynamicQuestions = []
+        this.dynamicAnswers = {}
+        this.diagnosis = null
+        this.lastPlan = null
+        this.goals = []
+        this.reviewState = {
+          decision: null,
+          notes: '',
+          reviewer: 'Dr. A. Mehra',
+          finalized: false,
+          ts: null,
         }
         await this.updateAssessment()
-      } catch (err) {
-        console.error(err)
-        throw err
+      } catch (error) {
+        this.phenotypePipeline = {
+          ...this.phenotypePipeline,
+          status: 'failed',
+          last_error: validationIssues(error).join(' | '),
+        }
+        console.error(error)
+        throw error
       } finally {
         this.isLoading = false
       }
     },
 
     confirmReadings() {
-      if (this.aiAnalysis) {
-        this.aiAnalysis.confirmed = true
-      }
+      if (this.morphologyCensus) this.morphologyCensus.confirmed = true
+      if (this.aiAnalysis) this.aiAnalysis.confirmed = true
     },
 
-    async generateDynamicQuestions() {
-      if (this.dynamicQuestions && this.dynamicQuestions.length > 0) {
-        return
-      }
-      this.isLoading = true
-      this.loadingMessage = 'Generating dynamic follow-up questions…'
+    async generateDynamicQuestions({ force = false } = {}) {
+      if (!force && this.dynamicQuestions.length > 0) return
+      if (!this.aiAnalysis?.data) throw new Error('Validated phenotype analysis is required first.')
 
-      const content = [
-        {
-          type: 'text',
-          text: JSON.stringify(
+      this.isLoading = true
+      this.loadingMessage = 'Generating group-linked diagnostic questions…'
+      try {
+        const rawResponse = await this.callOpenAI({
+          system: DYNAMIC_QUESTIONS_PROMPT,
+          content: JSON.stringify(
             {
-              session_id: this.id || '1',
-              image_analysis: this.aiAnalysis?.data || {},
+              session_id: String(this.id || 'AIJ-PIG-000001'),
+              validated_phenotype: this.aiAnalysis.data,
               fixed_history: this.fixedHistory,
-              max_dynamic_questions: 5,
+              clinical_policy: PIGMENTATION_CLINICAL_POLICY_V2,
             },
             null,
             2,
           ),
-        },
-      ]
-
-      try {
-        const raw = await this.callOpenAI({
-          system: DYNAMIC_QUESTIONS_PROMPT,
-          content: content,
-          max_tokens: 2000,
-          temperature: 0.3,
+          ...OPENAI_STAGE_OPTIONS.dynamic_history,
+          request_metadata: { stage: 'dynamic_history' },
         })
-
-        const res = this.parseJSON(raw)
-        this.dynamicQuestions = Array.isArray(res.dynamic_questions) ? res.dynamic_questions : []
-
-        const answers = {}
-        this.dynamicQuestions.forEach((q) => {
-          answers[q.question_id] = q.answer_type === 'multi_choice' ? [] : ''
-        })
-        this.dynamicAnswers = answers
-      } catch (err) {
-        console.error(err)
-        throw err
+        const parsed = this.parseJSON(rawResponse)
+        const questions = validateDynamicQuestionSet(
+          parsed.questions || parsed.dynamic_questions || [],
+          this.aiAnalysis.data,
+        )
+        const previousAnswers = this.dynamicAnswers || {}
+        this.dynamicQuestions = questions
+        this.dynamicAnswers = Object.fromEntries(
+          questions.map((question) => [
+            question.question_id,
+            previousAnswers[question.question_id] ??
+              (question.answer_type === 'multi_choice' ? [] : ''),
+          ]),
+        )
+        await this.updateAssessment()
+      } catch (error) {
+        console.error(error)
+        throw error
       } finally {
         this.isLoading = false
       }
     },
 
     buildBaseBlock() {
-      const line = (k, v) => (v && String(v).length ? `${k}: ${v}` : null)
-      const qa = []
-      this.dynamicQuestions.forEach((q, i) => {
-        const ans = this.dynamicAnswers[i] || ''
-        if (ans) {
-          qa.push(`  - ${q.question} → ${ans}`)
-        }
-      })
+      return JSON.stringify(
+        {
+          patient: {
+            initials: this.formData.initials,
+            age: this.formData.age,
+            sex: this.formData.sex,
+          },
+          fixed_history: this.fixedHistory,
+          dynamic_history: this.buildDynamicHistoryPayload(),
+          safety: this.safety,
+          red_flags: this.redFlags,
+        },
+        null,
+        2,
+      )
+    },
 
-      const rows = [
-        'PATIENT (de-identified):',
-        line('Initials', this.formData.initials),
-        line('Age', this.formData.age),
-        line('Sex', this.formData.sex),
-        line(
-          'Fitzpatrick (AI-estimated from white-light capture, clinician-confirmed)',
-          this.formData.fitz,
-        ),
-        '',
-        'PRESENTATION:',
-        line('Distribution', this.formData.dist),
-        line('Duration', this.formData.dur),
-        line('Onset/timing', this.formData.onset),
-        line('Progression', this.formData.prog),
-        line('Triggers/modifiers', this.formData.triggers.join('; ')),
-        line('Prior fairness-cream / unsupervised HQ use', this.formData.hqHistory ? 'YES' : 'no'),
-        line('Prior treatments', this.formData.priorTx),
-        line('Current medications', this.formData.meds),
-        '',
-        qa.length ? 'CONDITION-SPECIFIC HISTORY (clinician answers):' : null,
+    buildDynamicHistoryPayload() {
+      return this.dynamicQuestions.map((question) => ({
+        question_id: question.question_id,
+        linked_group_ids: question.linked_group_ids,
+        clinical_location_text: question.clinical_location_text,
+        question: question.question,
+        answer: this.dynamicAnswers[question.question_id] ?? null,
+      }))
+    },
+
+    assertHistoryReadyForDiagnosis() {
+      const requiredFields = [
+        'duration',
+        'stability_last_4_6_weeks',
+        'sunscreen_use',
+        'active_new_acne_frequency',
+        'red_flag_lesion_change',
       ]
-        .concat(qa.length ? qa : [])
-        .concat([
-          '',
-          'ANALYSER / EXAM FINDINGS (indices AI-estimated from uncalibrated images, clinician-confirmed — approximate):',
-          line('Melanin index (0-100)', this.formData.mel),
-          line('Erythema index (0-100)', this.formData.ery),
-          line('Composition (clinician-confirmed)', this.formData.comp),
-          line("Wood's lamp contrast", this.formData.woods),
-          line('Depth call (clinician-confirmed)', this.formData.depth),
-          line('Dermoscopy', this.formData.notes), // extra details
-          line('Red flags ticked', this.redFlags.length ? this.redFlags.join('; ') : 'none'),
-          line('Additional notes', this.formData.notes),
-          line(
-            'Analyser captures attached',
-            this.attachedImages.length ? `${this.attachedImages.length} image(s) below` : 'none',
-          ),
-          '',
-          'SAFETY SCREEN:',
-          line('Pregnant/lactating', this.safety.pregnancy ? 'YES' : 'no'),
-          line('Thromboembolic risk', this.safety.clot ? 'YES' : 'no'),
-          line('Ochronosis suspected', this.safety.ochronosis ? 'YES' : 'no'),
-        ])
-        .filter(Boolean)
-
-      return rows.join('\n')
-    },
-
-    buildDiagnosisInput() {
-      const requestPayload = {
-        session_id: this.id || 'AIJ-PIG-000001',
-        image_analysis: this.aiAnalysis?.data || {},
-        fixed_history: this.fixedHistory,
-        dynamic_history: this.dynamicAnswers,
+      const missing = requiredFields.filter((field) => !nonEmpty(this.fixedHistory[field]))
+      if (
+        !Array.isArray(this.fixedHistory.procedure_safety) ||
+        this.fixedHistory.procedure_safety.length === 0
+      ) {
+        missing.push('procedure_safety')
       }
-      return JSON.stringify(requestPayload, null, 2)
+      if (missing.length) {
+        throw new Error(
+          `Complete the fixed diagnostic history before diagnosis. Missing: ${missing.join(', ')}.`,
+        )
+      }
+
+      const unanswered = this.dynamicQuestions
+        .filter((question) => {
+          const answer = this.dynamicAnswers[question.question_id]
+          return Array.isArray(answer) ? answer.length === 0 : !nonEmpty(String(answer ?? ''))
+        })
+        .map((question) => question.question_id)
+      if (unanswered.length) {
+        throw new Error(
+          `Answer all generated diagnostic questions before diagnosis: ${unanswered.join(', ')}.`,
+        )
+      }
+      return true
     },
 
-    async generateDx() {
-      this.isLoading = true
-      this.loadingMessage = 'Integrating the image read…'
+    buildDiagnosisInput(correctionContext = null) {
+      return JSON.stringify(
+        {
+          session_id: String(this.id || 'AIJ-PIG-000001'),
+          validated_phenotype: this.aiAnalysis?.data || {},
+          immutable_image_metrics: this.immutableImageMetrics || {},
+          fixed_history: this.fixedHistory,
+          dynamic_history: this.buildDynamicHistoryPayload(),
+          clinic_policy: PIGMENTATION_CLINICAL_POLICY_V2,
+          visual_audit_config: buildPigmentationMorphologyConfig(),
+          correction_context: correctionContext,
+        },
+        null,
+        2,
+      )
+    },
 
-      const content = [{ type: 'text', text: this.buildDiagnosisInput() }]
-      this.attachedImages.forEach((img) => {
-        content.push({
-          type: 'image',
-          source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
-        })
-      })
+    async generateDx({ allowPhenotypeRepair = true } = {}) {
+      if (!this.aiAnalysis?.data) throw new Error('Validated phenotype analysis is required first.')
+      this.assertHistoryReadyForDiagnosis()
+      this.isLoading = true
+      this.loadingMessage = 'Resolving every phenotype group into diagnosis…'
 
       try {
-        const raw = await this.callOpenAI({
-          system: DIAGNOSIS_PROMPT,
-          content: content,
-          max_tokens: 2600,
-          temperature: 0.3,
-        })
+        const orderedImages = this.getOrderedCaptureSet(
+          this.attachedImages,
+          'Diagnosis visual audit',
+        )
+        let correctionContext = null
+        let validatedDiagnosis = null
 
-        const dx = this.parseJSON(raw)
-
-        // Map the new response schema to the UI schema so that print report, diagnosis page etc. do not break!
-        // We will store both the raw AI response in store.diagnosis.data AND the mapped fields.
-
-        // Map working_impression to differential
-        // Map working_impression to differential
-        const primaryComp = dx.diagnostic_components?.find(
-          (c) => c.diagnostic_component_id === dx.working_impression?.dominant_treatable_component_id
-        ) || dx.diagnostic_components?.[0]
-        const primaryDx = primaryComp?.family || primaryComp?.subtype || dx.working_impression?.primary_category || ''
-        const primaryConfidence = primaryComp?.confidence_100 || dx.scores?.ai_planning_confidence_score_100 || 80
-        const primaryReasoning = dx.summaries?.clinical_summary_for_doctor || dx.working_impression?.overall_summary || dx.clinical_summary_for_doctor || ''
-
-        let alternatives = []
-        if (dx.ranked_differential?.length) {
-          alternatives = dx.ranked_differential.map((diff) => {
-            return {
-              dx: diff.family || diff.subtype || '',
-              likelihood: diff.confidence_100 ? `${diff.confidence_100}%` : 'possible',
-              reconsider_when: diff.why_it_remains?.join('; ') || '',
-            }
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const content = this.buildLabeledImageContent(orderedImages, {
+            diagnosis_request: JSON.parse(this.buildDiagnosisInput(correctionContext)),
           })
-        } else {
-          alternatives = (dx.working_impression?.secondary_categories || []).map((cat) => {
-            const catName = typeof cat === 'object' && cat ? cat.category || '' : String(cat || '')
-            const conf =
-              typeof cat === 'object' && cat && cat.confidence_100 !== undefined
-                ? `${cat.confidence_100}%`
-                : 'moderate'
-            const basisText =
-              typeof cat === 'object' && cat && cat.basis?.length
-                ? `Basis: ${cat.basis.join('; ')}`
-                : 'if clinically indicated'
-            return {
-              dx: catName,
-              likelihood: conf,
-              reconsider_when: basisText,
-            }
+          const rawResponse = await this.callOpenAI({
+            system: DIAGNOSIS_PROMPT,
+            content,
+            ...OPENAI_STAGE_OPTIONS.diagnosis,
+            request_metadata: { stage: 'diagnosis', attempt },
           })
-        }
+          const rawDiagnosis = this.parseJSON(rawResponse)
 
-        // Map scores object to scores array
-        const scoresArray = []
-        const metrics = dx.immutable_image_metrics || {}
-        const dxScores = dx.scores || {}
-        const scoresObj = {
-          melanin_load_index: metrics.global_background_melanin_load_index !== undefined ? metrics.global_background_melanin_load_index : (dxScores.melanin_load_index !== undefined ? dxScores.melanin_load_index : parseInt(this.formData.mel) || 50),
-          erythema_load_index: metrics.global_background_erythema_load_index !== undefined ? metrics.global_background_erythema_load_index : (dxScores.erythema_load_index !== undefined ? dxScores.erythema_load_index : parseInt(this.formData.ery) || 20),
-          composition_melanin_percent: dxScores.composition_melanin_percent !== undefined ? dxScores.composition_melanin_percent : 70,
-          composition_vascular_percent: dxScores.composition_vascular_percent !== undefined ? dxScores.composition_vascular_percent : 30,
-          recurrence_risk_index: dxScores.recurrence_risk_index !== undefined ? dxScores.recurrence_risk_index : 50,
-          procedure_risk_index: dxScores.procedure_risk_index !== undefined ? dxScores.procedure_risk_index : 30,
-          sunscreen_compliance_index: dxScores.sunscreen_compliance_index !== undefined ? dxScores.sunscreen_compliance_index : 50,
-          diagnosis_confidence_index: primaryConfidence
-        }
-
-        const mapScore = (key, name, scale) => {
-          if (scoresObj[key] !== undefined) {
-            scoresArray.push({
-              name: name,
-              value: String(scoresObj[key]),
-              scale: scale,
-              interpretation: scoresObj[key] > 50 ? 'elevated' : 'mild/moderate',
+          try {
+            validatedDiagnosis = validatePigmentationDiagnosis(rawDiagnosis, this.aiAnalysis.data, {
+              modelVersion: this.model,
+              promptVersion: PIGMENTATION_PROMPT_VERSION,
             })
-          }
-        }
-        mapScore('melanin_load_index', 'Melanin Load Index', '0–100')
-        mapScore('erythema_load_index', 'Erythema Load Index', '0–100')
-        mapScore('composition_melanin_percent', 'Composition Melanin %', '0–100')
-        mapScore('composition_vascular_percent', 'Composition Vascular %', '0–100')
-        mapScore('recurrence_risk_index', 'Recurrence Risk Score', '0–100')
-        mapScore('procedure_risk_index', 'Procedure Risk Score', '0–100')
-        mapScore('sunscreen_compliance_index', 'Sunscreen Compliance Score', '0–100')
-        mapScore('diagnosis_confidence_index', 'Diagnosis Confidence Score', '0–100')
-
-        // Map key_drivers
-        const drivers = []
-        if (Array.isArray(dx.key_drivers)) {
-          dx.key_drivers.forEach((drv) => {
-            drivers.push(`${drv.driver}: ${drv.likelihood || 'possible'} (${drv.confidence_100 || 50}% conf)`)
-          })
-        }
-
-        const activity = dx.clinical_activity || {}
-        const mappedActivity = {
-          stability_status: activity.global_stability_status || activity.stability_status || 'stable',
-          active_acne_driver: activity.active_acne_present !== undefined ? activity.active_acne_present : (activity.active_acne_driver || false),
-          inflammation_first_required: activity.inflammation_first_required_any_component !== undefined ? activity.inflammation_first_required_any_component : (activity.inflammation_first_required || false),
-          barrier_repair_first_required: activity.barrier_repair_first_required_any_component !== undefined ? activity.barrier_repair_first_required_any_component : (activity.barrier_repair_first_required || false),
-        }
-
-        if (mappedActivity.stability_status)
-          drivers.push(`Stability: ${mappedActivity.stability_status}`)
-        if (mappedActivity.inflammation_first_required)
-          drivers.push(`Inflammation Control Required First`)
-        if (mappedActivity.active_acne_driver) drivers.push(`Active Acne Driver Present`)
-        if (mappedActivity.barrier_repair_first_required)
-          drivers.push(`Barrier Repair Required First`)
-
-        if (dx.risk_profile) {
-          drivers.push(`Recurrence Risk: ${dx.risk_profile.recurrence_risk}`)
-          drivers.push(`Procedure Risk: ${dx.risk_profile.procedure_risk}`)
-          drivers.push(`Sunscreen Risk: ${dx.risk_profile.sunscreen_compliance_risk}`)
-          drivers.push(`PIH Risk: ${dx.risk_profile.pih_risk}`)
-        }
-
-        // Map red_flags
-        const redFlagsPresent = dx.working_impression?.doctor_review_required || (dx.risk_profile?.red_flag_lesion_risk && dx.risk_profile.red_flag_lesion_risk !== 'not_reported') || false
-        const redFlagsAction = dx.working_impression?.doctor_review_reason || ''
-        const redFlagsItems = redFlagsPresent ? [redFlagsAction || dx.risk_profile?.red_flag_lesion_risk || 'Doctor Review Required'] : []
-
-        // Map depth & composition (default back to form or construct from primary category)
-        let depthVal = this.formData.depth || primaryComp?.depth || 'mixed'
-        let compVal = this.formData.comp || primaryComp?.subtype || 'melanin'
-        if (primaryDx) {
-          const primaryLower = primaryDx.toLowerCase()
-          if (primaryLower.includes('melasma')) {
-            depthVal = 'mixed'
-            compVal = 'melanin'
-          } else if (primaryLower.includes('pih')) {
-            depthVal = 'epidermal'
-            compVal = 'mixed'
-          } else if (primaryLower.includes('tanning')) {
-            depthVal = 'epidermal'
-            compVal = 'melanin'
+            break
+          } catch (error) {
+            if (!(error instanceof PigmentationDiagnosisValidationError) || attempt === 1)
+              throw error
+            correctionContext = {
+              source: 'deterministic_diagnosis_validation',
+              issues: validationIssues(error),
+              instruction:
+                'Correct the diagnosis JSON without changing any image-derived metric, morphology group or clinical_location_text.',
+            }
           }
         }
 
-        const mappedData = JSON.parse(JSON.stringify(dx))
-        mappedData.needs_summary = false
-        mappedData.needs_dermoscopy = !!redFlagsPresent
-        mappedData.dermoscopy_request = {
-          reason: redFlagsAction || 'Suspicion of atypical lesion.',
-          look_for: ['atypical pigment network', 'asymmetry', 'heterogeneity'],
-        }
-        mappedData.differential = {
-          primary: {
-            dx: primaryDx,
-            confidence: primaryConfidence,
-            reasoning: primaryReasoning,
-          },
-          alternatives: alternatives,
-        }
-        mappedData.depth_assessment = {
-          verdict: depthVal,
-          basis: 'Derived from diagnostic category & clinical activity',
-          prognosis: 'Requires regular assessment',
-        }
-        mappedData.composition_assessment = {
-          dominant: compVal,
-          note: 'Derived from primary category composition',
-        }
-        mappedData.scores = scoresObj
-        mappedData.scores_list = scoresArray
-        mappedData.clinical_activity = mappedActivity
-        mappedData.severity_interpretation = `Confidence: ${primaryConfidence}%. Recurrence: ${dx.risk_profile?.recurrence_risk || 'moderate'}.`
-        mappedData.red_flags = {
-          present: redFlagsPresent,
-          items: redFlagsItems,
-          action: redFlagsAction,
-        }
-        mappedData.uncertainties = [
-          redFlagsAction || 'Clinical verification required',
-        ]
+        if (!validatedDiagnosis) throw new Error('Diagnosis could not be validated.')
 
-        console.log('mappedData', mappedData)
+        if (!validatedDiagnosis.treatment_planning_eligible) {
+          this.diagnosis = {
+            data: mapDiagnosisForLegacyUi(validatedDiagnosis, this.aiAnalysis.data, this.formData),
+            confirmedDx: '',
+          }
 
-        this.diagnosis = { data: mappedData, confirmedDx: '' }
+          if (
+            allowPhenotypeRepair &&
+            validatedDiagnosis.phenotype_discrepancy?.detected === true &&
+            validatedDiagnosis.phenotype_discrepancy?.severity === 'material'
+          ) {
+            this.loadingMessage = 'Correcting the phenotype record identified by diagnosis audit…'
+            const repaired = await this.runPhenotypePipeline(this.attachedImages, {
+              kind: 'baseline',
+              correctionContext: validatedDiagnosis.phenotype_discrepancy,
+            })
+            this.morphologyCensus = { data: repaired.census, confirmed: false }
+            this.aiAnalysis = { data: repaired.phenotype, confirmed: false }
+            this.immutableImageMetrics = repaired.metrics
+            this.applyPhenotypeToForm(repaired.phenotype)
+            this.dynamicQuestions = []
+            this.dynamicAnswers = {}
+            this.diagnosis = null
+            this.lastPlan = null
+            this.goals = []
+            this.phenotypePipeline = {
+              version: PIPELINE_VERSION,
+              status: 'validated_after_diagnosis_audit_repair',
+              attempts: repaired.attempts,
+              corrected_from_discrepancy: true,
+              requires_history_refresh: true,
+              last_error: null,
+            }
+            await this.updateAssessment()
+            throw new Error(
+              'The diagnosis audit found a material missed or merged phenotype. The image phenotype has been rebuilt. Regenerate and answer the group-linked history questions before running diagnosis again.',
+            )
+          }
+
+          await this.updateAssessment()
+          throw new Error('Diagnosis is blocked pending phenotype reanalysis or doctor review.')
+        }
+
+        this.diagnosis = {
+          data: mapDiagnosisForLegacyUi(validatedDiagnosis, this.aiAnalysis.data, this.formData),
+          confirmedDx: '',
+        }
+        this.phenotypePipeline.requires_history_refresh = false
         await this.updateAssessment()
-      } catch (err) {
-        console.error(err)
-        throw err
+      } catch (error) {
+        console.error(error)
+        throw error
       } finally {
         this.isLoading = false
       }
@@ -1467,81 +1853,76 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.diagnosis.confirmedDx = selectedDx
     },
 
-    buildPlanInput() {
-      const { compactConfig, compactDiagnosis, compactImageAnalysis, compactPolicy } =
-        buildRelevantPlanConfig({
-          diagnosis: this.diagnosis?.data || {},
-          imageAnalysis: this.aiAnalysis?.data || {},
-          policy: PIGMENTATION_CLINICAL_POLICY_V2,
-          fullConfig: PIGMENTATION_CONFIG,
-        })
-
-      const request = {
-        session_id: this.conversationId || 'AIJ-PIG-000001',
-        diagnosis: compactDiagnosis,
-        image_analysis: compactImageAnalysis,
-        fixed_history: this.fixedHistory,
-        dynamic_history: this.dynamicAnswers,
-        clinicPolicy: compactPolicy,
-        clinic_config: compactConfig,
-        doctor_overrides: {
-          allowed: true,
-          notes: null,
+    buildPlanInput(correctionContext = null) {
+      const diagnosis = this.diagnosis?.data || {}
+      const planningConfig = buildPlanningConfigBundle(diagnosis)
+      return JSON.stringify(
+        {
+          session_id: String(this.conversationId || this.id || 'AIJ-PIG-000001'),
+          generation_event: 'initial_assessment',
+          validated_diagnosis: diagnosis,
+          validated_phenotype: this.aiAnalysis?.data || {},
+          fixed_history: this.fixedHistory,
+          dynamic_history: this.buildDynamicHistoryPayload(),
+          clinic_policy: PIGMENTATION_CLINICAL_POLICY_V2,
+          clinic_config: planningConfig,
+          doctor_overrides: {
+            allowed: true,
+            notes: null,
+          },
+          correction_context: correctionContext,
         },
-      }
-      return JSON.stringify(request, null, 2)
+        null,
+        2,
+      )
     },
 
     async generatePlan(force = false) {
-      if (this.lastPlan && !force) {
-        return
-      }
+      if (this.lastPlan && !force) return
+      assertDiagnosisReadyForTreatmentPlanning(this.diagnosis?.data)
+
       this.isLoading = true
-      this.loadingMessage = 'Drafting the tiered plan…'
-
-      const planInputText = this.buildPlanInput()
-      console.log(
-        `[PigmentationStore] Plan payload size: ${planInputText.length} chars (raw images excluded)`,
-      )
-
-      // Raw images are NOT included in treatment planning call!
-      const content = [{ type: 'text', text: planInputText }]
-
+      this.loadingMessage = 'Selecting and validating component-specific treatment…'
       try {
-        const raw = await this.callOpenAI({
-          system: PLAN_PROMPT,
-          content: content,
-          max_tokens: 4096,
-          temperature: 0.3,
-        })
+        let correctionContext = null
+        let validatedPlan = null
 
-        const res = this.parseJSON(raw)
-        const planObj = res.linear_treatment_plan || res
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const rawResponse = await this.callOpenAI({
+            system: PLAN_PROMPT,
+            content: this.buildPlanInput(correctionContext),
+            ...OPENAI_STAGE_OPTIONS.treatment_plan,
+            request_metadata: { stage: 'treatment_plan', attempt },
+          })
+          const parsed = this.parseJSON(rawResponse)
+          const plan = parsed.linear_treatment_plan || parsed
+          const validation = validatePigmentationPlan(plan, PIGMENTATION_CONFIG, {
+            throwOnError: false,
+            diagnosis: this.diagnosis.data,
+            phenotype: this.aiAnalysis.data,
+          })
 
-        // Deterministic backend validation
-        const validation = validatePigmentationPlan(planObj, PIGMENTATION_CONFIG)
-        if (!validation.valid) {
-          console.warn(
-            '[PigmentationStore] Treatment plan validation errors:',
-            validation.errors,
-          )
+          if (validation.valid) {
+            validatedPlan = validation.normalized_plan
+            break
+          }
+          if (attempt === 1) {
+            validatePigmentationPlan(plan, PIGMENTATION_CONFIG, {
+              throwOnError: true,
+              diagnosis: this.diagnosis.data,
+              phenotype: this.aiAnalysis.data,
+            })
+          }
+          correctionContext = {
+            source: 'deterministic_plan_validation',
+            issues: validation.errors,
+            instruction:
+              'Regenerate the full plan. Correct every listed issue using only supplied protocols and preserve exact component/group/location targeting.',
+          }
         }
 
-        if (planObj.current_treatment_block && planObj.current_treatment_block.sessions) {
-          planObj.sessions = planObj.current_treatment_block.sessions.map((s) => ({
-            id: s.id || s.session_number,
-            status: s.status || 'pending',
-            ...s,
-          }))
-        } else if (planObj.sessions) {
-          planObj.sessions = planObj.sessions.map((s) => ({
-            id: s.id || s.session_number,
-            status: s.status || 'pending',
-            ...s,
-          }))
-        }
-
-        this.lastPlan = planObj
+        if (!validatedPlan) throw new Error('Treatment plan could not be validated.')
+        this.lastPlan = normalisePlanForUi(validatedPlan)
         this.reviewState = {
           decision: null,
           notes: '',
@@ -1549,94 +1930,11 @@ export const usePigmentationStore = defineStore('pigmentation', {
           finalized: false,
           ts: null,
         }
-
-        // Map baseline & continue criteria to goals for reassessment backward-compatibility
-        const goals = []
-        const base = planObj.baseline_summary || {}
-
-        const cleanLabel = (str) => {
-          if (!str) return ''
-          return String(str).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-        }
-
-        const nextReassessment = planObj.treatment_goals?.next_reassessment || planObj.next_reassessment
-        if (nextReassessment) {
-          const timeframe = planObj.duration ? cleanLabel(planObj.duration) : 'Next Reassessment'
-
-          if (Array.isArray(nextReassessment.component_targets)) {
-            nextReassessment.component_targets.forEach((ct) => {
-              goals.push({
-                metric: `${cleanLabel(ct.metric || 'Target')} (${ct.diagnostic_component_id || ''})`,
-                baseline: String(ct.baseline !== undefined && ct.baseline !== null ? ct.baseline : '—'),
-                target: String(ct.target !== undefined && ct.target !== null ? ct.target : '—'),
-                timeframe: timeframe,
-                how_measured: 'Clinical assessment / Analyser re-read',
-              })
-            })
-          }
-
-          if (goals.length === 0 && nextReassessment.clinical_goal) {
-            goals.push({
-              metric: 'Clinical Goal',
-              baseline: '—',
-              target: nextReassessment.clinical_goal,
-              timeframe: timeframe,
-              how_measured: 'Clinical observation',
-            })
-          }
-        }
-
-        if (goals.length === 0) {
-          const mLoad = base.global_background_melanin_load_index !== undefined ? base.global_background_melanin_load_index : base.melanin_load_index
-          const eLoad = base.global_background_erythema_load_index !== undefined ? base.global_background_erythema_load_index : base.erythema_load_index
-
-          if (mLoad !== undefined) {
-            let target = 'Reduction'
-            let timeframe = 'Week 4-6'
-
-            const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
-            if (reassessSession) {
-              timeframe = reassessSession.timing.replace(/_/g, ' ')
-              if (reassessSession.continue_if.melanin_load_index_reduction_min) {
-                target = `≤${mLoad - reassessSession.continue_if.melanin_load_index_reduction_min} (reduction of ≥${reassessSession.continue_if.melanin_load_index_reduction_min})`
-              }
-            }
-            goals.push({
-              metric: 'Melanin Load Index',
-              baseline: String(mLoad),
-              target: target,
-              timeframe: timeframe,
-              how_measured: 'Analyser re-read under identical lighting',
-            })
-          }
-
-          if (eLoad !== undefined) {
-            let target = 'Control'
-            let timeframe = 'Week 4-6'
-            const reassessSession = (planObj.sessions || []).find((s) => s.continue_if)
-            if (reassessSession) {
-              timeframe = reassessSession.timing.replace(/_/g, ' ')
-              if (
-                reassessSession.continue_if.erythema_load_not_increased_by_more_than !== undefined
-              ) {
-                target = `≤${eLoad + reassessSession.continue_if.erythema_load_not_increased_by_more_than} (increase ≤${reassessSession.continue_if.erythema_load_not_increased_by_more_than})`
-              }
-            }
-            goals.push({
-              metric: 'Erythema Load Index',
-              baseline: String(eLoad),
-              target: target,
-              timeframe: timeframe,
-              how_measured: 'Analyser re-read under identical lighting',
-            })
-          }
-        }
-
-        this.goals = goals
+        this.goals = deriveGoalsFromPlan(this.lastPlan)
         await this.updateAssessment()
-      } catch (err) {
-        console.error(err)
-        throw err
+      } catch (error) {
+        console.error(error)
+        throw error
       } finally {
         this.isLoading = false
       }
@@ -1648,178 +1946,140 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.reviewState.reviewer = reviewer || 'Clinician'
       this.reviewState.finalized = true
       this.reviewState.ts = new Date()
+      if (this.lastPlan) {
+        const normalizedDecision = String(decision || '').toLowerCase()
+        this.lastPlan.plan_status = normalizedDecision.includes('approv')
+          ? 'doctor_approved'
+          : 'doctor_modified'
+      }
     },
 
-    buildReassessInput() {
-      const lines = [
-        `CONFIRMED DIAGNOSIS (from assessment): ${this.diagnosis?.confirmedDx || ''}.`,
-        `Patient: ${this.formData.age ? 'age ' + this.formData.age : ''}${this.formData.sex ? ', ' + this.formData.sex : ''}.`,
-        '',
-        'GOALS SET AT ASSESSMENT and current status:',
-      ]
-
-      this.goals.forEach((g, i) => {
-        lines.push(
-          `${i + 1}. Metric: ${g.metric} | Baseline: ${g.baseline || '—'} | Target: ${g.target || '—'} | Timeframe: ${g.timeframe || '—'} | Current: ${g.current || '(not entered)'}`,
-        )
-      })
-
-      lines.push('')
-      lines.push('PATIENT REASSESSMENT HISTORY & ANSWERS:')
-      if (this.reassessQuestions && this.reassessQuestions.length > 0) {
-        this.reassessQuestions.forEach((q) => {
-          const ans = this.reassessAnswers[q.question_id]
-          lines.push(`Question: ${q.question}`)
-          lines.push(`Answer: ${Array.isArray(ans) ? ans.join(', ') : ans || 'no answer'}`)
-        })
-      } else {
-        lines.push('None provided.')
-      }
-
-      lines.push('')
-      if (this.reassessImages.length) {
-        lines.push(
-          `Follow-up captures (${this.reassessImages.length}) are attached below — re-read them to inform current status where a value was not entered.`,
-        )
-      } else {
-        lines.push('No follow-up captures provided — judge from the entered current values.')
-      }
-
-      lines.push('', 'Produce the reassessment as the specified JSON.')
-      return lines.join('\n')
-    },
-
-    async generateReassessment() {
+    async analyseReassessmentCaptures() {
+      if (!this.reassessImages.length) throw new Error('Five follow-up captures are required.')
       this.isLoading = true
-      this.loadingMessage = 'Rating trajectory & checking goals…'
-
-      const content = [{ type: 'text', text: this.buildReassessInput() }]
-      this.reassessImages.forEach((img) => {
-        content.push({
-          type: 'image',
-          source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
-        })
-      })
-
+      this.loadingMessage = 'Measuring the follow-up phenotype using the same scoring profiles…'
       try {
-        const raw = await this.callOpenAI({
-          system: REASSESS_PROMPT,
-          content: content,
-          max_tokens: 2200,
-          temperature: 0.3,
-        })
-
-        const r = this.parseJSON(raw)
-        this.reassessment = r
-
-        if (r.current_treatment_block) {
-          const sessionsMapped = r.current_treatment_block.sessions.map((s) => ({
-            id: s.id || s.session_number,
-            status: s.status || 'pending',
-            ...s,
-          }))
-          if (this.lastPlan) {
-            const existingSessions = this.lastPlan.sessions || []
-            const mergedSessions = [...existingSessions]
-            sessionsMapped.forEach((newS) => {
-              const idx = mergedSessions.findIndex(
-                (extS) => Number(extS.session_number) === Number(newS.session_number),
-              )
-              if (idx !== -1) {
-                mergedSessions[idx] = { ...mergedSessions[idx], ...newS }
-              } else {
-                mergedSessions.push(newS)
-              }
-            })
-            mergedSessions.sort((a, b) => Number(a.session_number) - Number(b.session_number))
-
-            this.lastPlan = {
-              ...this.lastPlan,
-              current_treatment_block: r.current_treatment_block,
-              future_treatment_roadmap:
-                r.future_treatment_roadmap || this.lastPlan.future_treatment_roadmap,
-              master_treatment_roadmap:
-                r.updated_master_treatment_roadmap || this.lastPlan.master_treatment_roadmap,
-              sessions: mergedSessions,
-            }
-          } else {
-            this.lastPlan = {
-              plan_name: 'Post-Reassessment Treatment Plan',
-              duration: r.current_treatment_block.expected_duration || '6 weeks',
-              plan_status: 'ai_generated_pending_doctor_review',
-              current_treatment_block: r.current_treatment_block,
-              future_treatment_roadmap: r.future_treatment_roadmap,
-              master_treatment_roadmap: r.updated_master_treatment_roadmap,
-              sessions: sessionsMapped,
-            }
-          }
-        }
+        const result = await this.runPhenotypePipeline(this.reassessImages, { kind: 'followup' })
+        this.reassessmentMorphologyCensus = { data: result.census, confirmed: false }
+        this.reassessmentAiAnalysis = { data: result.phenotype, confirmed: false }
+        this.reassessmentImmutableImageMetrics = result.metrics
+        this.reassessQuestions = []
+        this.reassessAnswers = {}
+        this.reassessment = null
         await this.updateAssessment()
-      } catch (err) {
-        console.error(err)
-        throw err
+      } catch (error) {
+        console.error(error)
+        throw error
       } finally {
         this.isLoading = false
       }
     },
 
-    async generateReassessQuestions() {
-      if (this.reassessQuestions && this.reassessQuestions.length > 0) {
-        return
-      }
-      this.isLoading = true
-      this.loadingMessage = 'Formulating reassessment questions…'
-
-      const content = [
+    buildReassessInput() {
+      return JSON.stringify(
         {
-          type: 'text',
-          text: JSON.stringify(
+          baseline_validated_phenotype: this.aiAnalysis?.data || {},
+          baseline_validated_diagnosis: this.diagnosis?.data || {},
+          baseline_validated_plan: this.lastPlan || {},
+          treatments_actually_performed: getPlanSessions(this.lastPlan).map((session) => ({
+            session_number: session.session_number,
+            timing: session.timing,
+            status: session.status,
+            performed_at: session.performed_at || session.completed_at || null,
+            treatment_operations: session.treatment_operations,
+          })),
+          followup_validated_phenotype: this.reassessmentAiAnalysis?.data || {},
+          reassessment_questions_and_answers: this.reassessQuestions.map((question) => ({
+            ...question,
+            answer: this.reassessAnswers[question.question_id] ?? null,
+          })),
+          clinic_policy: PIGMENTATION_CLINICAL_POLICY_V2,
+          relevant_config: buildPlanningConfigBundle(this.diagnosis?.data || {}),
+        },
+        null,
+        2,
+      )
+    },
+
+    async generateReassessment() {
+      if (!this.aiAnalysis?.data || !this.diagnosis?.data || !this.lastPlan) {
+        throw new Error('Baseline phenotype, diagnosis and treatment plan are required.')
+      }
+      if (!this.reassessmentAiAnalysis?.data) await this.analyseReassessmentCaptures()
+
+      this.isLoading = true
+      this.loadingMessage = 'Comparing the same components and locations over time…'
+      try {
+        const rawResponse = await this.callOpenAI({
+          system: REASSESS_PROMPT,
+          content: this.buildReassessInput(),
+          ...OPENAI_STAGE_OPTIONS.formal_reassessment,
+          request_metadata: { stage: 'formal_reassessment' },
+        })
+        const parsed = this.parseJSON(rawResponse)
+        this.reassessment = validateReassessmentRecord(
+          parsed,
+          this.aiAnalysis.data,
+          this.reassessmentAiAnalysis.data,
+        )
+        this.lastPlan.formal_reassessment = this.reassessment
+        await this.updateAssessment()
+      } catch (error) {
+        console.error(error)
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async generateReassessQuestions({ force = false } = {}) {
+      if (!force && this.reassessQuestions.length > 0) return
+      if (!this.reassessmentAiAnalysis?.data) await this.analyseReassessmentCaptures()
+
+      this.isLoading = true
+      this.loadingMessage = 'Generating follow-up questions linked to the same components…'
+      try {
+        const rawResponse = await this.callOpenAI({
+          system: REASSESS_QUESTIONS_PROMPT,
+          content: JSON.stringify(
             {
-              session_id: this.id || '1',
-              diagnosis: this.diagnosis?.data || {},
-              plan: this.lastPlan || {},
-              goals: this.goals || [],
-              max_questions: 4,
+              baseline_validated_phenotype: this.aiAnalysis?.data || {},
+              baseline_validated_diagnosis: this.diagnosis?.data || {},
+              baseline_plan: this.lastPlan || {},
+              treatments_actually_performed: getPlanSessions(this.lastPlan).map((session) => ({
+                session_number: session.session_number,
+                timing: session.timing,
+                status: session.status,
+                performed_at: session.performed_at || session.completed_at || null,
+                treatment_operations: session.treatment_operations,
+              })),
+              followup_validated_phenotype: this.reassessmentAiAnalysis.data,
+              existing_followup_history: this.reassessAnswers,
             },
             null,
             2,
           ),
-        },
-      ]
-      this.reassessImages.forEach((img) => {
-        if (img.openai_file_id) {
-          content.push({
-            type: 'image_id',
-            file_id: img.openai_file_id,
-          })
-        } else {
-          content.push({
-            type: 'image',
-            source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
-          })
-        }
-      })
-
-      try {
-        const raw = await this.callOpenAI({
-          system: REASSESS_QUESTIONS_PROMPT,
-          content: content,
-          max_tokens: 2000,
-          temperature: 0.3,
+          ...OPENAI_STAGE_OPTIONS.reassessment_questions,
+          request_metadata: { stage: 'reassessment_questions' },
         })
-
-        const res = this.parseJSON(raw)
-        this.reassessQuestions = Array.isArray(res.dynamic_questions) ? res.dynamic_questions : []
-
-        const answers = {}
-        this.reassessQuestions.forEach((q) => {
-          answers[q.question_id] = q.answer_type === 'multi_choice' ? [] : ''
-        })
-        this.reassessAnswers = answers
+        const parsed = this.parseJSON(rawResponse)
+        const questions = validateReassessmentQuestionSet(
+          parsed.questions || parsed.dynamic_questions || [],
+          this.diagnosis?.data,
+          this.aiAnalysis?.data,
+        )
+        const previous = this.reassessAnswers || {}
+        this.reassessQuestions = questions
+        this.reassessAnswers = Object.fromEntries(
+          questions.map((question) => [
+            question.question_id,
+            previous[question.question_id] ?? (question.answer_type === 'multi_choice' ? [] : ''),
+          ]),
+        )
         await this.updateAssessment()
-      } catch (err) {
-        console.error(err)
-        throw err
+      } catch (error) {
+        console.error(error)
+        throw error
       } finally {
         this.isLoading = false
       }
