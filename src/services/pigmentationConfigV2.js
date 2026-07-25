@@ -1,29 +1,28 @@
 /**
- * Pigmentation Decode V2.3 clinic inventory, phenotype, scoring and execution configuration.
+ * Pigmentation Decode V2.4 clinic inventory, phenotype, scoring and execution configuration.
  *
  * TARGET ARCHITECTURE
- * 1. Region-by-region morphology census with precise patient-side location text.
- * 2. Phenotype measurement against locked morphology groups.
- * 3. Deterministic application scoring and cross-field validation.
- * 4. Diagnosis must resolve every clinically relevant group.
- * 5. Treatment operations must target named groups/locations and state exclusions.
- * 6. Doctor validates, edits and authorizes; the engine performs the analytical heavy lifting.
+ * 1. One five-image phenotype call with precise patient-side location text.
+ * 2. Deterministic application scoring and critical structural validation.
+ * 3. Compact text-only diagnosis with complete morphology-group resolution.
+ * 4. Compact treatment planning using only case-eligible exact protocols.
+ * 5. No silent full-stage reruns; doctor validates, edits and authorizes.
  *
  * IMPORTANT
  * - Clinical priority remains in PIGMENTATION_CLINICAL_POLICY_V2.
  * - This file owns data contracts, scoring profiles, inventory, protocol identity, settings,
  *   routes, compatibility and hard validation requirements.
- * - Do not deploy this V2.3 config alone with the older V2.2 prompt/store contracts.
+ * - Deploy this V2.4 config only with the matching lean prompts, validators and store.
  */
 
 export const PIGMENTATION_CONFIG = {
   "module": "pigmentation_decode",
-  "version": "2.3.0",
-  "schema_version": "pigmentation_config_schema_v2_3",
-  "ontology_version": "pigmentation_ontology_v2_2",
+  "version": "2.4.0",
+  "schema_version": "pigmentation_config_schema_v2_4",
+  "ontology_version": "pigmentation_ontology_v2_3",
   "clinic_profile": "ai_aesthetics_jaipur_v2",
   "compatible_policy_versions": [
-    "pigmentation_clinical_policy_v2_3_2026_07_23"
+    "pigmentation_clinical_policy_v2_4_2026_07_24"
   ],
   "architecture_contract": {
     "policy_and_config_are_separate_sources": true,
@@ -63,6 +62,23 @@ export const PIGMENTATION_CONFIG = {
     "reject_request_on_policy_config_conflict": true,
     "doctor_is_validator_editor_and_authorizer": true,
     "application_code_is_authoritative_for_scores_and_validation": true
+  },
+  "lean_runtime_contract": {
+    "architecture_version": "pigmentation_pipeline_v2_4_lean",
+    "baseline_image_calls": 1,
+    "diagnosis_receives_images": false,
+    "treatment_receives_images": false,
+    "image_stage_returns_positive_and_clinically_relevant_uncertain_findings_only": true,
+    "local_application_scoring_is_authoritative": true,
+    "model_self_validation_fields_are_not_required": true,
+    "no_silent_full_stage_reruns": true,
+    "validation_policy": "reject_only_structural_or_clinically_material_contradictions",
+    "optional_repair_call_must_be_explicit_and_compact": true,
+    "critical_reasoning_stages": [
+      "diagnosis",
+      "treatment_plan",
+      "formal_reassessment"
+    ]
   },
   "image_acquisition": {
     "required_modes": [
@@ -889,7 +905,7 @@ export const PIGMENTATION_CONFIG = {
     }
   },
   "protocol_map": {
-    "map_version": "pigmentation_protocol_map_v2_3",
+    "map_version": "pigmentation_protocol_map_v2_4",
     "selection_rule": "Clinical policy chooses the preferred modality after phenotype-first comparison. This map resolves eligible protocol IDs and blocks ineligible execution; it must not collapse co-located morphology groups.",
     "entries": {
       "melasma:epidermal": {
@@ -2797,7 +2813,7 @@ export const PIGMENTATION_CONFIG = {
     "application_not_model_is_authoritative_validator": true,
     "backend_not_model_is_authoritative_validator": true,
     "backend_field_is_legacy_alias_only": true,
-    "reject_or_regenerate_on_failure": true,
+    "reject_or_regenerate_on_failure": false,
     "image_rules": {
       "exactly_one_image_per_required_mode": true,
       "every_clinically_relevant_visible_population_requires_group": true,
@@ -2842,7 +2858,7 @@ export const PIGMENTATION_CONFIG = {
     }
   },
   "runtime_config_projection": {
-    "use_two_stage_image_analysis": true,
+    "use_two_stage_image_analysis": false,
     "stage_1_morphology_census": {
       "include": [
         "image_acquisition",
@@ -2865,7 +2881,7 @@ export const PIGMENTATION_CONFIG = {
       ],
       "groups_are_locked_except_explicit_discrepancy": true
     },
-    "use_two_stage_planning_when_possible": true,
+    "use_two_stage_planning_when_possible": false,
     "stage_1_component_selection": {
       "include": [
         "config_version",
@@ -2906,7 +2922,7 @@ export const PIGMENTATION_CONFIG = {
       "wonderm": "WONDERM",
       "melasma_meso_solution": "MESO_TXA5_HA2"
     },
-    "migration_note": "Stored V2.2 records may be displayed, but new analyses must use V2.3 morphology-location linkage and burden-specific scoring. Do not silently convert old scores into new profile scores.",
+    "migration_note": "Stored V2.2 records may be displayed, but new analyses must use V2.4 morphology-location linkage and burden-specific scoring. Do not silently convert old scores into new profile scores.",
     "previous_config_versions": [
       "2.2.0"
     ],
