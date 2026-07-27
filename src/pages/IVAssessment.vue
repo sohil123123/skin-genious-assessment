@@ -619,6 +619,9 @@ async function goNext() {
       iv_session_data: ivSessionData,
     }
     await submit(['treatment_sessions'])
+    if (route.params.appointment_id) {
+      await store.updateTreatmentSessionId(route.params.appointment_id)
+    }
   }
 
   if (!isLastStep.value) {
@@ -676,6 +679,10 @@ async function startSpecificSession(index) {
     option_type: selected.option_type,
   }
   await submit(['treatment_sessions'])
+
+  if (route.params.appointment_id) {
+    await store.updateTreatmentSessionId(route.params.appointment_id)
+  }
 
   navigateToStep('step-5')
 }
