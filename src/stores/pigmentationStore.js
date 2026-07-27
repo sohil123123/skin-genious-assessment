@@ -1606,7 +1606,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         const zonePanelBundle = await this.buildZonePanelImages(
           orderedImages,
           assessmentId,
-          'pigmentation-ai-zone-panel-pre',
+          'pigmentation-pre',
         )
         const zonePanels = zonePanelBundle.panels
         this.zonePanelGeneration = zonePanelBundle.manifest
