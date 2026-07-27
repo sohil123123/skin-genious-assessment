@@ -914,19 +914,82 @@ async function callApiForIVScoring(data, images) {
   await uploadImageFileToOpenAI(images, 'pre')
 
   const getFileId = (nameVal) => {
-    const found = data.images.find(
-      (img) =>
-        img.name?.toLowerCase().includes(nameVal) ||
-        img.file_name?.toLowerCase().includes(nameVal) ||
-        img.url?.toLowerCase().includes(nameVal),
-    )
-    return found?.custom_properties?.openai_file_id ?? null
+    const machineMode = data.face_scan_machine?.charAt(0) || '6'
+    let aliases = [nameVal]
+    if (machineMode === '5') {
+      if (nameVal === 'uv') aliases = ['woods_uv', 'woods', 'uv']
+      else if (nameVal === 'positive') aliases = ['red', 'positive']
+      else if (nameVal === 'blue') aliases = ['surface_polarized', 'subsurface_polarized', 'blue']
+      else if (nameVal === 'white') aliases = ['white']
+    } else {
+      if (nameVal === 'uv') aliases = ['uv', 'woods']
+      else if (nameVal === 'positive') aliases = ['positive', 'red']
+      else if (nameVal === 'blue') aliases = ['blue']
+      else if (nameVal === 'white') aliases = ['white']
+    }
+
+    const found = data.images.find((img) => {
+      const targetName = (img.name || img.file_name || img.url || '').toLowerCase()
+      return aliases.some(alias => targetName.includes(alias))
+    })
+    return found?.custom_properties?.openai_file_id ?? found?.openai_file_id ?? null
   }
 
   const uvId = getFileId('uv')
   const positiveId = getFileId('positive')
   const whiteId = getFileId('white')
   const blueId = getFileId('blue')
+
+  const content = [
+    {
+      type: 'input_text',
+      text: 'Image 1 = UV MODE',
+    },
+  ]
+  if (uvId) {
+    content.push({
+      type: 'input_image',
+      file_id: uvId,
+    })
+  }
+
+  content.push({
+    type: 'input_text',
+    text: 'Image 2 = POSITIVE MODE',
+  })
+  if (positiveId) {
+    content.push({
+      type: 'input_image',
+      file_id: positiveId,
+    })
+  }
+
+  content.push({
+    type: 'input_text',
+    text: 'Image 3 = WHITE MODE',
+  })
+  if (whiteId) {
+    content.push({
+      type: 'input_image',
+      file_id: whiteId,
+    })
+  }
+
+  content.push({
+    type: 'input_text',
+    text: 'Image 4 = BLUE MODE',
+  })
+  if (blueId) {
+    content.push({
+      type: 'input_image',
+      file_id: blueId,
+    })
+  }
+
+  content.push({
+    type: 'input_text',
+    text: IV_SCORING_USER_PROMPT_STAGE_1,
+  })
 
   const input = [
     {
@@ -935,44 +998,7 @@ async function callApiForIVScoring(data, images) {
     },
     {
       role: 'user',
-      content: [
-        {
-          type: 'input_text',
-          text: 'Image 1 = UV MODE',
-        },
-        {
-          type: 'input_image',
-          file_id: uvId,
-        },
-        {
-          type: 'input_text',
-          text: 'Image 2 = POSITIVE MODE',
-        },
-        {
-          type: 'input_image',
-          file_id: positiveId,
-        },
-        {
-          type: 'input_text',
-          text: 'Image 3 = WHITE MODE',
-        },
-        {
-          type: 'input_image',
-          file_id: whiteId,
-        },
-        {
-          type: 'input_text',
-          text: 'Image 4 = BLUE MODE',
-        },
-        {
-          type: 'input_image',
-          file_id: blueId,
-        },
-        {
-          type: 'input_text',
-          text: IV_SCORING_USER_PROMPT_STAGE_1,
-        },
-      ],
+      content,
     },
   ]
   processingMessage.value = 'Processing scanned images...'
