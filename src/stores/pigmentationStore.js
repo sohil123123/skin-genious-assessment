@@ -9,12 +9,16 @@ import {
   DYNAMIC_QUESTIONS_PROMPT,
   DIAGNOSIS_PROMPT,
   PLAN_PROMPT,
+  PLAN_EXECUTION_REPAIR_PROMPT,
   PIGMENTATION_CLINICAL_POLICY_V2,
   REASSESS_PROMPT,
   REASSESS_QUESTIONS_PROMPT,
 } from 'src/services/pigmentationPromptsV2_1'
-import { PIGMENTATION_CONFIG } from 'src/services/pigmentationConfigV2'
-import { buildRelevantPlanConfig } from 'src/services/pigmentationPlanOptimizer'
+import { PIGMENTATION_CONFIG, getPigmentationProtocolById } from 'src/services/pigmentationConfigV2'
+import {
+  buildRelevantPlanConfig,
+  assertTreatmentProtocolPreflight,
+} from 'src/services/pigmentationPlanOptimizer'
 import {
   validatePigmentationPlan,
   validatePigmentationTreatmentBlock,
@@ -26,20 +30,334 @@ import {
   validatePigmentationDiagnosis,
   assertDiagnosisReadyForTreatmentPlanning,
   buildCompactPhenotypeForDiagnosis,
+  initializeDoctorClassificationState,
+  applyDoctorClassificationsToDiagnosis,
+  assertNoPendingDoctorClassifications,
 } from 'src/services/pigmentation/Validators/pigmentationImageValidation'
 
+const PIGMENTATION_MODE_ROLE_LABELS = Object.freeze({
+  white:
+    'WHITE — primary for gross contour/elevation, highlight-shadow changes, lesion count, colour, distribution, anatomical location and structural shadow.',
+  surface_polarized:
+    'SURFACE_POLARIZED — primary for surface texture, scale, keratotic/verrucous character and edge definition; secondary corroboration of elevation.',
+  subsurface_polarized:
+    'SUBSURFACE_POLARIZED — primary for subsurface pigment persistence/deeper contribution and secondary vascular corroboration; not a negative test for elevation.',
+  red: 'RED — relative vascular/erythematous distribution only; discount global cast; not a negative test for pigment or elevation.',
+  woods_uv:
+    'WOODS_UV — epidermal pigment accentuation and supportive dryness/fluorescence evidence; not a negative test for elevation and not histology.',
+})
+
+function buildModeLabelledImageContent(images, initialText, finalAuditText = '', zonePanels = []) {
+  const content = [{ type: 'text', text: initialText }]
+  images.forEach((image, index) => {
+    content.push({
+      type: 'text',
+      text: `IMAGE ${index + 1} — ${PIGMENTATION_MODE_ROLE_LABELS[image.mode] || image.mode}`,
+    })
+    content.push({ type: 'image_id', file_id: image.openai_file_id, detail: 'high' })
+  })
+
+  if (zonePanels.length) {
+    content.push({
+      type: 'text',
+      text: 'STANDARD WHOLE-FACE ZONE PANELS follow. Each panel shows WHITE on the left and SURFACE_POLARIZED on the right for the same facial zone. They are magnified supporting views of the same standardized captures. Use full images for orientation and panels for fine morphology.',
+    })
+    zonePanels.forEach((panel, index) => {
+      content.push({
+        type: 'text',
+        text: `ZONE PANEL ${index + 1} — ${panel.patient_region} — role ${panel.role}. WHITE is left; SURFACE_POLARIZED is right.`,
+      })
+      content.push({ type: 'image_id', file_id: panel.openai_file_id, detail: 'high' })
+    })
+  }
+
+  if (finalAuditText) content.push({ type: 'text', text: finalAuditText })
+  return content
+}
+
+async function sourceBlobForPanel(imageRecord) {
+  if (imageRecord?.file instanceof Blob) return imageRecord.file
+  if (imageRecord?.base64 && typeof fetch === 'function') {
+    const response = await fetch(imageRecord.base64)
+    if (!response.ok)
+      throw new Error(`Unable to read ${imageRecord.name || 'capture'} for zone panel.`)
+    return response.blob()
+  }
+  return null
+}
+
+async function createZonePanelFile(whiteRecord, surfaceRecord, panelSpec) {
+  if (typeof createImageBitmap !== 'function' || typeof document === 'undefined' || !panelSpec) {
+    return null
+  }
+
+  const [whiteBlob, surfaceBlob] = await Promise.all([
+    sourceBlobForPanel(whiteRecord),
+    sourceBlobForPanel(surfaceRecord),
+  ])
+  if (!whiteBlob || !surfaceBlob) return null
+
+  const [whiteBitmap, surfaceBitmap] = await Promise.all([
+    createImageBitmap(whiteBlob),
+    createImageBitmap(surfaceBlob),
+  ])
+
+  try {
+    const crop = (bitmap) => {
+      const sx = Math.max(0, Math.round(bitmap.width * panelSpec.x))
+      const sy = Math.max(0, Math.round(bitmap.height * panelSpec.y))
+      const sw = Math.max(
+        1,
+        Math.min(bitmap.width - sx, Math.round(bitmap.width * panelSpec.width)),
+      )
+      const sh = Math.max(
+        1,
+        Math.min(bitmap.height - sy, Math.round(bitmap.height * panelSpec.height)),
+      )
+      return { sx, sy, sw, sh }
+    }
+
+    const whiteCrop = crop(whiteBitmap)
+    const surfaceCrop = crop(surfaceBitmap)
+    const targetSideWidth = Math.min(900, whiteCrop.sw, surfaceCrop.sw)
+    const aspect = Math.min(whiteCrop.sh / whiteCrop.sw, surfaceCrop.sh / surfaceCrop.sw)
+    const targetHeight = Math.max(1, Math.round(targetSideWidth * aspect))
+    const headerHeight = 54
+
+    const canvas = document.createElement('canvas')
+    canvas.width = targetSideWidth * 2
+    canvas.height = targetHeight + headerHeight
+    const context = canvas.getContext('2d', { alpha: false })
+    if (!context) return null
+
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.fillStyle = '#111111'
+    context.font = 'bold 22px sans-serif'
+    context.textAlign = 'center'
+    context.textBaseline = 'middle'
+    context.fillText('WHITE', targetSideWidth / 2, headerHeight / 2)
+    context.fillText('SURFACE POLARIZED', targetSideWidth + targetSideWidth / 2, headerHeight / 2)
+
+    context.drawImage(
+      whiteBitmap,
+      whiteCrop.sx,
+      whiteCrop.sy,
+      whiteCrop.sw,
+      whiteCrop.sh,
+      0,
+      headerHeight,
+      targetSideWidth,
+      targetHeight,
+    )
+    context.drawImage(
+      surfaceBitmap,
+      surfaceCrop.sx,
+      surfaceCrop.sy,
+      surfaceCrop.sw,
+      surfaceCrop.sh,
+      targetSideWidth,
+      headerHeight,
+      targetSideWidth,
+      targetHeight,
+    )
+
+    const quality = Number(
+      PIGMENTATION_CONFIG.image_acquisition?.zone_panel_contract?.jpeg_quality || 0.92,
+    )
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', Math.min(1, Math.max(0.7, quality))),
+    )
+    if (!blob) return null
+
+    const filename = `${panelSpec.panel_id}.jpg`
+    return typeof File === 'function' ? new File([blob], filename, { type: 'image/jpeg' }) : blob
+  } finally {
+    whiteBitmap.close?.()
+    surfaceBitmap.close?.()
+  }
+}
+
 const AI_STAGE_TEXT_LIMITS = Object.freeze({
-  phenotype_image_analysis: 30000,
+  pigmentation_observation_image_analysis: 50000,
   dynamic_questions: 35000,
-  diagnosis: 50000,
-  treatment_plan: 70000,
-  formal_reassessment: 80000,
+  diagnosis: 55000,
+  treatment_plan: 75000,
+  formal_reassessment: 85000,
   reassessment_questions: 35000,
 })
 
+function toFiniteNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function normalizeExecutableOperationParameters(
+  plan,
+  protocolLookup = getPigmentationProtocolById,
+) {
+  const normalizeOperation = (operation) => {
+    if (!operation || !operation.protocol_id) return
+    const protocol = protocolLookup(operation.protocol_id)
+    if (!protocol) return
+    const params =
+      operation.parameters && typeof operation.parameters === 'object'
+        ? { ...operation.parameters }
+        : {}
+
+    if (['q_switch_laser', 'focal_laser'].includes(operation.modality_id)) {
+      if (
+        params.wavelength_nm === undefined &&
+        Array.isArray(params.allowed_wavelengths_nm) &&
+        params.allowed_wavelengths_nm.length === 1
+      ) {
+        params.wavelength_nm = Number(params.allowed_wavelengths_nm[0])
+      }
+      for (const key of ['wavelength_nm', 'energy_mj', 'frequency_hz', 'passes']) {
+        const value = toFiniteNumber(params[key])
+        if (value !== null) params[key] = value
+      }
+      const energy = toFiniteNumber(params.energy_mj)
+      const spotArea = toFiniteNumber(protocol.spot_area_cm2 || protocol.spot_area || 1)
+      if (energy !== null && spotArea && spotArea > 0) {
+        params.fluence_j_cm2 = Number((energy / 1000 / spotArea).toFixed(4))
+      }
+    }
+
+    if (operation.modality_id === 'led') {
+      const duration = toFiniteNumber(params.duration_minutes)
+      if (duration !== null) params.duration_minutes = duration
+    }
+
+    operation.parameters = params
+  }
+
+  const currentSessions = plan?.current_treatment_block?.sessions || plan?.current_sessions || []
+  for (const session of currentSessions) {
+    for (const operation of session.treatment_operations || session.operations || []) {
+      normalizeOperation(operation)
+    }
+  }
+  return plan
+}
+
+function isExecutionContractRepairable(errors = []) {
+  if (!errors.length) return false
+  const repairable =
+    /copied protocol configuration|requires an allowed scalar wavelength|energy_mj must be a scalar|frequency_hz must be a scalar|passes must be a scalar|cannot derive fluence|microneedling requires parameters\.active_id|requires depth_by_region_mm|copied microneedling configuration|copied the LED duration range|LED duration_minutes|Roadmap block/i
+  return errors.every((error) => repairable.test(String(error)))
+}
+
+function mergeExecutionRepair(plan, repair) {
+  if (repair?.current_treatment_block) plan.current_treatment_block = repair.current_treatment_block
+  if (repair?.master_treatment_roadmap)
+    plan.master_treatment_roadmap = repair.master_treatment_roadmap
+  return plan
+}
+
+function normalizeTreatmentPlanCourse(plan) {
+  if (!plan || typeof plan !== 'object') return plan
+  const normalized = { ...plan }
+
+  if (Array.isArray(normalized.current_sessions) && !normalized.current_treatment_block) {
+    normalized.current_treatment_block = {
+      block_number: 1,
+      session_numbers: normalized.current_sessions.map((session) => session.session_number),
+      sessions: normalized.current_sessions,
+      reassessment_gate: normalized.reassessment_gate || null,
+    }
+  }
+
+  const detailedSessions = Array.isArray(normalized.current_treatment_block?.sessions)
+    ? normalized.current_treatment_block.sessions
+    : Array.isArray(normalized.sessions)
+      ? normalized.sessions
+      : []
+  normalized.current_sessions = detailedSessions
+  normalized.sessions = detailedSessions.map((session) => ({
+    id: session.id || session.session_number,
+    status: session.status || 'pending',
+    ...session,
+  }))
+
+  if (normalized.full_course_summary && !normalized.initial_full_course_summary) {
+    normalized.initial_full_course_summary = JSON.parse(
+      JSON.stringify(normalized.full_course_summary),
+    )
+  }
+
+  const allocations = [
+    ...(normalized.full_course_summary?.planned_modality_allocation || []),
+    ...(normalized.full_course_summary?.separately_planned_focal_procedures || []),
+  ]
+  normalized.protocol_count_summary = allocations.map((allocation) => ({
+    modality_id: allocation.modality_id,
+    protocol_id: allocation.protocol_id,
+    planned_uses: Number(allocation.planned_uses || 0),
+    linked_component_ids: allocation.linked_component_ids || [],
+    session_numbers: allocation.session_numbers || [],
+  }))
+
+  // The clinic prices packages manually by treatment visits (for example Q-switch x3
+  // and microneedling x3), not by the number of regional protocols executed within
+  // the same visit. Derive this view deterministically from reconciled protocol uses.
+  const modalityMap = new Map()
+  for (const allocation of allocations) {
+    if (!allocation?.modality_id) continue
+    const current = modalityMap.get(allocation.modality_id) || {
+      modality_id: allocation.modality_id,
+      session_numbers: new Set(),
+      protocol_ids: new Set(),
+      linked_component_ids: new Set(),
+    }
+    for (const number of allocation.session_numbers || []) {
+      const parsed = Number(number)
+      if (Number.isInteger(parsed) && parsed > 0) current.session_numbers.add(parsed)
+    }
+    if (allocation.protocol_id) current.protocol_ids.add(allocation.protocol_id)
+    for (const componentId of allocation.linked_component_ids || []) {
+      if (componentId) current.linked_component_ids.add(componentId)
+    }
+    modalityMap.set(allocation.modality_id, current)
+  }
+
+  normalized.package_modality_summary = [...modalityMap.values()]
+    .map((entry) => {
+      const sessionNumbers = [...entry.session_numbers].sort((a, b) => a - b)
+      return {
+        modality_id: entry.modality_id,
+        planned_visits: sessionNumbers.length,
+        session_numbers: sessionNumbers,
+        protocol_ids: [...entry.protocol_ids],
+        linked_component_ids: [...entry.linked_component_ids],
+      }
+    })
+    .filter((entry) => entry.planned_visits > 0)
+
+  const packageModalityLabels = {
+    q_switch_laser: 'Q-switch',
+    focal_laser: 'Focal laser',
+    microneedling_with_active: 'Microneedling with active',
+    chemical_peel: 'Chemical peel',
+    electrocautery_or_rf: 'Electrocautery / RF',
+  }
+  normalized.derived_package_summary_text = normalized.package_modality_summary
+    .map(
+      (entry) =>
+        `${packageModalityLabels[entry.modality_id] || entry.modality_id.replace(/_/g, ' ')} ×${entry.planned_visits}`,
+    )
+    .join(' + ')
+
+  return normalized
+}
+
 export const usePigmentationStore = defineStore('pigmentation', {
   state: () => ({
-    model: 'gpt-5.2',
+    model: import.meta.env.VITE_PIGMENTATION_MODEL || 'gpt-5.2',
     isConnected: false,
     conversationId: '',
     id: null,
@@ -113,6 +431,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
     // Diagnosis analysis outputs (Stage 3)
     diagnosis: null, // { data: JSON, confirmedDx: "" }
+    doctorClassifications: {},
 
     // Plan stage outputs (Stage 4)
     lastPlan: null,
@@ -134,6 +453,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
     // Loading indicators
     aiAnalysis: null,
     immutableImageMetrics: null,
+    zonePanelGeneration: null,
     dynamicQuestions: [],
     loadingMessage: '',
     isLoading: false,
@@ -149,6 +469,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
     progressPercent: (state) => {
       return ((state.currentStage + 1) / 4) * 100
     },
+    classificationRequiredItems: (state) =>
+      state.diagnosis?.data?.classification_required_items || [],
+    pendingDoctorClassificationItems: (state) =>
+      (state.diagnosis?.data?.classification_required_items || []).filter(
+        (item) => state.doctorClassifications?.[item.classification_id]?.status !== 'resolved',
+      ),
+    treatmentPlanningReady: (state) =>
+      Boolean(state.diagnosis?.data) &&
+      !(state.diagnosis?.data?.classification_required_items || []).some(
+        (item) => state.doctorClassifications?.[item.classification_id]?.status !== 'resolved',
+      ),
   },
 
   actions: {
@@ -199,6 +530,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
           if (pi.fixedHistory) this.fixedHistory = { ...this.fixedHistory, ...pi.fixedHistory }
           if (pi.dynamicAnswers)
             this.dynamicAnswers = { ...this.dynamicAnswers, ...pi.dynamicAnswers }
+          if (pi.doctorClassifications)
+            this.doctorClassifications = { ...(pi.doctorClassifications || {}) }
           if (pi.safety) this.safety = { ...this.safety, ...pi.safety }
           if (pi.redFlags) this.redFlags = pi.redFlags || []
           if (pi.goals) this.goals = pi.goals || []
@@ -221,13 +554,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
               confirmedDx: pi.confirmedDx || pi.diagnosis.differential?.primary?.dx || '',
             }
           }
+          if (pi.zonePanelGeneration) this.zonePanelGeneration = pi.zonePanelGeneration
           if (pi.aiAnalysis) {
             this.aiAnalysis = pi.aiAnalysis
 
             const validatedAnalysis = pi.aiAnalysis.data || pi.aiAnalysis
 
             if (
-              validatedAnalysis?.analysis_record_type === 'validated_pigmentation_image_analysis'
+              [
+                'validated_pigmentation_observation_v2_6',
+                'validated_pigmentation_image_analysis',
+              ].includes(validatedAnalysis?.analysis_record_type)
             ) {
               this.immutableImageMetrics = extractImmutablePigmentationMetrics(validatedAnalysis)
             }
@@ -247,6 +584,13 @@ export const usePigmentationStore = defineStore('pigmentation', {
             data: data.diagnosis,
             confirmedDx: data.diagnosis.differential?.primary?.dx || '',
           }
+        }
+
+        if (this.diagnosis?.data) {
+          this.doctorClassifications = initializeDoctorClassificationState(
+            this.diagnosis.data,
+            this.doctorClassifications,
+          )
         }
 
         // Auto-repair diagnosis scores if empty/array
@@ -611,6 +955,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         formData: this.formData,
         fixedHistory: this.fixedHistory,
         dynamicAnswers: this.dynamicAnswers,
+        doctorClassifications: this.doctorClassifications,
         safety: this.safety,
         redFlags: this.redFlags,
         goals: this.goals,
@@ -620,6 +965,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         confirmedDx: this.diagnosis ? this.diagnosis.confirmedDx : '',
         aiAnalysis: this.aiAnalysis,
         immutableImageMetrics: this.immutableImageMetrics,
+        zonePanelGeneration: this.zonePanelGeneration,
         dynamicQuestions: this.dynamicQuestions,
         reassessment: this.reassessment,
         reassessQuestions: this.reassessQuestions,
@@ -929,6 +1275,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         notes: '',
       }
       this.diagnosis = null
+      this.doctorClassifications = {}
       this.lastPlan = null
       this.reviewState = {
         decision: null,
@@ -1050,7 +1397,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           verbosity,
           timeout_ms,
           metadata: {
-            pipeline_version: 'pigmentation_pipeline_v2_4_lean',
+            pipeline_version: 'pigmentation_pipeline_v2_6_1_observation_first',
             stage: stage || 'unknown',
             assessment_id: String(this.id || 'unknown'),
             attempt: '1',
@@ -1078,11 +1425,28 @@ export const usePigmentationStore = defineStore('pigmentation', {
       return JSON.parse(t)
     },
 
-    buildImageContext(images = this.attachedImages) {
+    buildImageContext(images = this.attachedImages, zonePanelBundle = null) {
+      const panels = Array.isArray(zonePanelBundle)
+        ? zonePanelBundle
+        : zonePanelBundle?.panels || []
+      const manifest = Array.isArray(zonePanelBundle)
+        ? {
+            status: panels.length ? 'complete' : 'failed',
+            expected_panel_ids: panels.map((panel) => panel.panel_id),
+            generated_panel_ids: panels.map((panel) => panel.panel_id),
+            failed_panel_ids: [],
+          }
+        : zonePanelBundle?.manifest || {
+            status: 'not_generated',
+            expected_panel_ids: [],
+            generated_panel_ids: [],
+            failed_panel_ids: [],
+          }
+
       return JSON.stringify({
         session_id: String(this.id || '1'),
         policy_version: PIGMENTATION_CLINICAL_POLICY_V2.version,
-        prompt_version: 'pigmentation_prompts_v2_4_2026_07_24',
+        prompt_version: 'pigmentation_prompts_v2_6_1_2026_07_24',
         patient_context: {
           age: this.formData.age || null,
           sex: this.formData.sex || null,
@@ -1091,7 +1455,117 @@ export const usePigmentationStore = defineStore('pigmentation', {
           image_number: index + 1,
           mode: image.mode,
         })),
+        zone_panel_generation: manifest,
+        zone_panel_manifest: panels.map((panel, index) => ({
+          panel_number: index + 1,
+          panel_id: panel.panel_id,
+          patient_region: panel.patient_region,
+          role: panel.role,
+          source_modes: panel.source_modes || ['white', 'surface_polarized'],
+        })),
+        observation_scope: {
+          include: [
+            'pigmentation phenotypes',
+            'contributors to apparent darkness',
+            'pigmentation-relevant treatment modifiers',
+            'pigmentation safety findings',
+            'image limitations and artefacts',
+          ],
+          exclude_unless_pigmentation_relevant: [
+            'incidental pores',
+            'isolated comedones',
+            'unrelated texture findings',
+            'non-pigmentation dermatology census',
+          ],
+        },
       })
+    },
+
+    async buildZonePanelImages(images, assessmentId, type = 'pigmentation-ai-zone-panel') {
+      const contract = PIGMENTATION_CONFIG.image_acquisition?.zone_panel_contract
+      const specs = Array.isArray(contract?.panels)
+        ? contract.panels.slice(0, Number(contract.maximum_panel_count || contract.panels.length))
+        : []
+      const expectedIds = specs.map((panel) => panel.panel_id)
+
+      if (!contract?.enabled || !specs.length) {
+        return {
+          panels: [],
+          manifest: {
+            status: 'disabled',
+            expected_panel_ids: expectedIds,
+            generated_panel_ids: [],
+            failed_panel_ids: expectedIds,
+          },
+        }
+      }
+
+      const byMode = new Map((images || []).map((image) => [image.mode, image]))
+      const white = byMode.get('white')
+      const surface = byMode.get('surface_polarized')
+      if (!white || !surface) {
+        throw new Error('Mandatory zone panels require both WHITE and SURFACE_POLARIZED captures.')
+      }
+
+      const panelRecords = []
+      const failedIds = []
+      for (const panelSpec of specs) {
+        try {
+          const file = await createZonePanelFile(white, surface, panelSpec)
+          if (!file) {
+            failedIds.push(panelSpec.panel_id)
+            continue
+          }
+          panelRecords.push({
+            file,
+            name: `${panelSpec.panel_id}.jpg`,
+            mode: null,
+            panel_id: panelSpec.panel_id,
+            patient_region: panelSpec.patient_region,
+            role: panelSpec.role,
+            source_modes: ['white', 'surface_polarized'],
+            openai_file_id: null,
+          })
+        } catch (error) {
+          failedIds.push(panelSpec.panel_id)
+          console.warn(`[PigmentationStore] Zone panel ${panelSpec.panel_id} failed:`, error)
+        }
+      }
+
+      if (panelRecords.length) {
+        await this.uploadStoreImages(panelRecords, assessmentId, type)
+      }
+      const uploadedPanels = panelRecords.filter((panel) => panel.openai_file_id)
+      for (const panel of panelRecords) {
+        if (!panel.openai_file_id && !failedIds.includes(panel.panel_id)) {
+          failedIds.push(panel.panel_id)
+        }
+      }
+      for (const id of expectedIds) {
+        if (!uploadedPanels.some((panel) => panel.panel_id === id) && !failedIds.includes(id)) {
+          failedIds.push(id)
+        }
+      }
+
+      const minimum = Number(contract.minimum_successful_panel_count || expectedIds.length)
+      const complete = uploadedPanels.length >= minimum && failedIds.length === 0
+      const manifest = {
+        status: complete ? 'complete' : uploadedPanels.length ? 'partial' : 'failed',
+        expected_panel_ids: expectedIds,
+        generated_panel_ids: uploadedPanels.map((panel) => panel.panel_id),
+        failed_panel_ids: [...new Set(failedIds)],
+      }
+
+      if (
+        !complete &&
+        contract.generation_policy === 'block_analysis_when_mandatory_panel_missing'
+      ) {
+        throw new Error(
+          `Pigmentation zone-panel generation incomplete. Missing/failed: ${manifest.failed_panel_ids.join(', ') || 'unknown'}. Analysis was blocked to avoid reduced visual accuracy.`,
+        )
+      }
+
+      return { panels: uploadedPanels, manifest }
     },
 
     async analyseCaptures() {
@@ -1121,41 +1595,50 @@ export const usePigmentationStore = defineStore('pigmentation', {
       const assessmentId = this.id || useAssessmentStore().assessmentData?.id || '1'
 
       this.isLoading = true
-      this.loadingMessage = 'Analysing pigmentation phenotype…'
+      this.loadingMessage = 'Reading pigmentation targets and contributors…'
 
       try {
         await this.uploadStoreImages(orderedImages, assessmentId, 'pigmentation-pre')
-        const missingUploads = orderedImages.filter((image) => !image.openai_file_id)
-        if (missingUploads.length) {
+        if (orderedImages.some((image) => !image.openai_file_id)) {
           throw new Error('One or more pigmentation images could not be uploaded for analysis.')
         }
 
-        const content = [{ type: 'text', text: this.buildImageContext(orderedImages) }]
-        orderedImages.forEach((image) => {
-          content.push({ type: 'image_id', file_id: image.openai_file_id, detail: 'high' })
-        })
+        const zonePanelBundle = await this.buildZonePanelImages(
+          orderedImages,
+          assessmentId,
+          'pigmentation-ai-zone-panel-pre',
+        )
+        const zonePanels = zonePanelBundle.panels
+        this.zonePanelGeneration = zonePanelBundle.manifest
+
+        const content = buildModeLabelledImageContent(
+          orderedImages,
+          this.buildImageContext(orderedImages, zonePanelBundle),
+          'Complete the pigmentation-scoped whole-face review before producing JSON. Preserve every clinically material pigmentation phenotype, contributor, modifier or safety finding. Keep visibly distinct flat and raised populations separate. WHITE is the primary evidence for gross elevation; WOODS_UV and RED must not veto elevation. Use WOODS_UV together with SUBSURFACE_POLARIZED only for a probabilistic epidermal/deeper/mixed pigment call. Do not create diagnostic disease labels in this observation stage.',
+          zonePanels,
+        )
 
         const raw = await this.callOpenAI({
           system: IMAGE_SYSTEM_PROMPT,
           content,
-          stage: 'phenotype_image_analysis',
-          max_output_tokens: 9000,
-          reasoning_effort: 'medium',
+          stage: 'pigmentation_observation_image_analysis',
+          max_output_tokens: 12000,
+          reasoning_effort: 'high',
           verbosity: 'low',
         })
 
-        const rawImageAnalysis = this.parseJSON(raw)
-        const validatedImageAnalysis = validateAndScorePigmentationImageAnalysis(rawImageAnalysis, {
+        const rawObservation = this.parseJSON(raw)
+        const validatedObservation = validateAndScorePigmentationImageAnalysis(rawObservation, {
           modelVersion: this.model || 'gpt-5.2',
-          promptVersion: 'pigmentation_prompts_v2_4_2026_07_24',
+          promptVersion: 'pigmentation_prompts_v2_6_1_2026_07_24',
           configVersion: PIGMENTATION_CONFIG.version,
           policyVersion: PIGMENTATION_CLINICAL_POLICY_V2.version,
         })
 
-        this.aiAnalysis = { data: validatedImageAnalysis, confirmed: false }
-        this.immutableImageMetrics = extractImmutablePigmentationMetrics(validatedImageAnalysis)
+        this.aiAnalysis = { data: validatedObservation, confirmed: false }
+        this.immutableImageMetrics = extractImmutablePigmentationMetrics(validatedObservation)
 
-        const gi = validatedImageAnalysis.global_background_indices
+        const gi = validatedObservation.global_background_indices || {}
         let fitzVal = ''
         const fitzType = String(gi?.estimated_fitzpatrick?.type || '').toLowerCase()
         if (fitzType.includes('iii_to_iv') || fitzType.includes('iii-iv')) fitzVal = 'IV'
@@ -1177,6 +1660,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         this.dynamicQuestions = []
         this.dynamicAnswers = {}
         this.diagnosis = null
+        this.doctorClassifications = {}
         this.lastPlan = null
         await this.updateAssessment()
       } catch (error) {
@@ -1234,8 +1718,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
     buildBaseBlock() {
       const line = (k, v) => (v && String(v).length ? `${k}: ${v}` : null)
       const qa = []
-      this.dynamicQuestions.forEach((q, i) => {
-        const ans = this.dynamicAnswers[i] || ''
+      this.dynamicQuestions.forEach((q) => {
+        const ans = this.dynamicAnswers[q.question_id] || ''
         if (ans) {
           qa.push(`  - ${q.question} → ${ans}`)
         }
@@ -1272,7 +1756,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           line('Composition (clinician-confirmed)', this.formData.comp),
           line("Wood's lamp contrast", this.formData.woods),
           line('Depth call (clinician-confirmed)', this.formData.depth),
-          line('Dermoscopy', this.formData.notes), // extra details
+          line('Clinician visual/palpation notes', this.formData.notes),
           line('Red flags ticked', this.redFlags.length ? this.redFlags.join('; ') : 'none'),
           line('Additional notes', this.formData.notes),
           line(
@@ -1302,6 +1786,16 @@ export const usePigmentationStore = defineStore('pigmentation', {
           sex: this.formData.sex || null,
         },
         clinical_policy_version: PIGMENTATION_CLINICAL_POLICY_V2.version,
+        diagnosis_ontology: {
+          ontology_version: PIGMENTATION_CONFIG.ontology_version,
+          families: PIGMENTATION_CONFIG.v2_ontology?.families || {},
+          treatment_pattern_codes: PIGMENTATION_CONFIG.v2_ontology?.treatment_pattern_codes || [],
+          direct_cosmetic_treatment_status_values:
+            PIGMENTATION_CONFIG.v2_ontology?.direct_cosmetic_treatment_status_values || [],
+          diagnostic_status_values: PIGMENTATION_CONFIG.v2_ontology?.diagnostic_status_values || [],
+          code_rule:
+            'Choose exact enum values. Never output unspecified/unknown free-text subtype codes; use the canonical family fallback.',
+        },
       })
     },
 
@@ -1316,7 +1810,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           system: DIAGNOSIS_PROMPT,
           content,
           stage: 'diagnosis',
-          max_output_tokens: 10000,
+          max_output_tokens: 9000,
           reasoning_effort: 'high',
           verbosity: 'medium',
         })
@@ -1324,6 +1818,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
         const dx = this.parseJSON(raw)
         assertDiagnosisCopiedImmutableMetrics(dx, this.aiAnalysis.data)
         validatePigmentationDiagnosis(dx, this.aiAnalysis.data)
+
+        // Preserve canonical codes while providing legacy aliases for older UI/report code.
+        ;(dx.diagnostic_components || []).forEach((component) => {
+          component.family = component.family_code || component.family
+          component.subtype = component.subtype_code || component.subtype
+        })
 
         // Map the new response schema to the UI schema so that print report, diagnosis page etc. do not break!
         // We will store both the raw AI response in store.diagnosis.data AND the mapped fields.
@@ -1336,7 +1836,11 @@ export const usePigmentationStore = defineStore('pigmentation', {
               c.diagnostic_component_id === dx.working_impression?.dominant_treatable_component_id,
           ) || dx.diagnostic_components?.[0]
         const primaryDx =
+          primaryComp?.diagnosis_label ||
+          primaryComp?.subtype_label ||
+          primaryComp?.family_code ||
           primaryComp?.family ||
+          primaryComp?.subtype_code ||
           primaryComp?.subtype ||
           dx.working_impression?.primary_category ||
           ''
@@ -1352,7 +1856,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         if (dx.ranked_differential?.length) {
           alternatives = dx.ranked_differential.map((diff) => {
             return {
-              dx: diff.family || diff.subtype || '',
+              dx: diff.family_code || diff.family || diff.subtype_code || diff.subtype || '',
               likelihood: diff.confidence_100 ? `${diff.confidence_100}%` : 'possible',
               reconsider_when: diff.why_it_remains?.join('; ') || '',
             }
@@ -1449,14 +1953,16 @@ export const usePigmentationStore = defineStore('pigmentation', {
             activity.active_acne_present !== undefined
               ? activity.active_acne_present
               : activity.active_acne_driver || false,
-          inflammation_first_required:
-            activity.inflammation_first_required_any_component !== undefined
-              ? activity.inflammation_first_required_any_component
-              : activity.inflammation_first_required || false,
-          barrier_repair_first_required:
-            activity.barrier_repair_first_required_any_component !== undefined
-              ? activity.barrier_repair_first_required_any_component
-              : activity.barrier_repair_first_required || false,
+          inflammation_first_required: Array.isArray(activity.components_with_inflammation_hold)
+            ? activity.components_with_inflammation_hold.length > 0
+            : activity.inflammation_first_required_any_component ||
+              activity.inflammation_first_required ||
+              false,
+          barrier_repair_first_required: Array.isArray(activity.components_with_barrier_hold)
+            ? activity.components_with_barrier_hold.length > 0
+            : activity.barrier_repair_first_required_any_component ||
+              activity.barrier_repair_first_required ||
+              false,
         }
 
         if (mappedActivity.stability_status)
@@ -1477,17 +1983,28 @@ export const usePigmentationStore = defineStore('pigmentation', {
         // Map red_flags
         const redFlagsPresent =
           dx.working_impression?.doctor_review_required ||
-          (dx.risk_profile?.red_flag_lesion_risk &&
-            dx.risk_profile.red_flag_lesion_risk !== 'not_reported') ||
+          (dx.risk_profile?.medically_atypical_lesion_risk &&
+            !['low', 'not_reported', 'none'].includes(
+              String(dx.risk_profile.medically_atypical_lesion_risk).toLowerCase(),
+            )) ||
           false
         const redFlagsAction = dx.working_impression?.doctor_review_reason || ''
         const redFlagsItems = redFlagsPresent
-          ? [redFlagsAction || dx.risk_profile?.red_flag_lesion_risk || 'Doctor Review Required']
+          ? [
+              redFlagsAction ||
+                dx.risk_profile?.medically_atypical_lesion_risk ||
+                'Doctor Review Required',
+            ]
           : []
 
         // Map depth & composition (default back to form or construct from primary category)
         let depthVal = this.formData.depth || primaryComp?.depth || 'mixed'
-        let compVal = this.formData.comp || primaryComp?.subtype || 'melanin'
+        let compVal =
+          this.formData.comp ||
+          primaryComp?.subtype_label ||
+          primaryComp?.subtype_code ||
+          primaryComp?.subtype ||
+          'melanin'
         if (primaryDx) {
           const primaryLower = primaryDx.toLowerCase()
           if (primaryLower.includes('melasma')) {
@@ -1504,11 +2021,10 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         const mappedData = JSON.parse(JSON.stringify(dx))
         mappedData.needs_summary = false
-        mappedData.needs_dermoscopy = !!redFlagsPresent
-        mappedData.dermoscopy_request = {
-          reason: redFlagsAction || 'Suspicion of atypical lesion.',
-          look_for: ['atypical pigment network', 'asymmetry', 'heterogeneity'],
-        }
+        mappedData.needs_dermoscopy = false
+        mappedData.needs_targeted_doctor_classification =
+          (dx.classification_required_items || []).length > 0
+        mappedData.targeted_doctor_classification_items = dx.classification_required_items || []
         mappedData.differential = {
           primary: {
             dx: primaryDx,
@@ -1535,10 +2051,21 @@ export const usePigmentationStore = defineStore('pigmentation', {
           items: redFlagsItems,
           action: redFlagsAction,
         }
-        mappedData.uncertainties = [redFlagsAction || 'Clinical verification required']
+        mappedData.uncertainties = (dx.classification_required_items || []).length
+          ? dx.classification_required_items.map(
+              (item) => item.unresolved_question || item.why_classification_is_required,
+            )
+          : redFlagsPresent
+            ? [redFlagsAction || 'Direct clinician assessment required']
+            : []
 
         console.log('mappedData', mappedData)
 
+        this.doctorClassifications = initializeDoctorClassificationState(
+          mappedData,
+          this.doctorClassifications,
+        )
+        this.lastPlan = null
         this.diagnosis = { data: mappedData, confirmedDx: '' }
         await this.updateAssessment()
       } catch (err) {
@@ -1549,33 +2076,105 @@ export const usePigmentationStore = defineStore('pigmentation', {
       }
     },
 
+    async setDoctorClassification(classificationId, resolution = {}) {
+      const item = (this.diagnosis?.data?.classification_required_items || []).find(
+        (entry) => entry.classification_id === classificationId,
+      )
+      if (!item) throw new Error(`Unknown doctor-classification item: ${classificationId}`)
+
+      const resolutionType = resolution.resolution_type
+      const allowed = new Set([
+        'candidate_selected',
+        'not_pigmentation_relevant',
+        'exclude_from_cosmetic_treatment',
+        'separate_medical_evaluation',
+      ])
+      if (!allowed.has(resolutionType)) {
+        throw new Error(`Invalid doctor-classification resolution: ${resolutionType || 'missing'}`)
+      }
+      if (
+        resolutionType === 'candidate_selected' &&
+        !(item.candidate_options || []).some(
+          (option) => option.option_code === resolution.option_code,
+        )
+      ) {
+        throw new Error('Select one of the AI candidate options for this finding.')
+      }
+
+      this.doctorClassifications = {
+        ...this.doctorClassifications,
+        [classificationId]: {
+          status: 'resolved',
+          resolution_type: resolutionType,
+          option_code: resolutionType === 'candidate_selected' ? resolution.option_code : null,
+          doctor_note: String(resolution.doctor_note || ''),
+          resolved_at_iso: new Date().toISOString(),
+        },
+      }
+      this.lastPlan = null
+      await this.updateAssessment()
+    },
+
+    async clearDoctorClassification(classificationId) {
+      if (!this.doctorClassifications?.[classificationId]) return
+      this.doctorClassifications = {
+        ...this.doctorClassifications,
+        [classificationId]: {
+          status: 'pending',
+          resolution_type: null,
+          option_code: null,
+          doctor_note: '',
+          resolved_at_iso: null,
+        },
+      }
+      this.lastPlan = null
+      await this.updateAssessment()
+    },
+
+    getResolvedDiagnosisForTreatmentPlanning() {
+      if (!this.diagnosis?.data) throw new Error('Diagnosis is required.')
+      assertNoPendingDoctorClassifications(this.diagnosis.data, this.doctorClassifications)
+      return applyDoctorClassificationsToDiagnosis(this.diagnosis.data, this.doctorClassifications)
+    },
+
     confirmDx(selectedDx) {
       if (!this.diagnosis) this.diagnosis = { data: null, confirmedDx: '' }
       this.diagnosis.confirmedDx = selectedDx
     },
 
     buildPlanInput() {
-      assertDiagnosisReadyForTreatmentPlanning(
-        this.diagnosis?.data || {},
-        this.aiAnalysis?.data || {},
-      )
-      const { compactConfig, compactDiagnosis, compactPolicy } = buildRelevantPlanConfig({
-        diagnosis: this.diagnosis?.data || {},
-        imageAnalysis: this.aiAnalysis?.data || {},
-        policy: PIGMENTATION_CLINICAL_POLICY_V2,
-        fullConfig: PIGMENTATION_CONFIG,
-      })
+      const resolvedDiagnosis = this.getResolvedDiagnosisForTreatmentPlanning()
+      assertDiagnosisReadyForTreatmentPlanning(resolvedDiagnosis, this.aiAnalysis?.data || {})
 
-      return JSON.stringify({
-        session_id: String(this.id || '1'),
-        generation_event: 'initial_assessment',
-        diagnosis: compactDiagnosis,
-        fixed_history: this.fixedHistory,
-        dynamic_history: this.dynamicAnswers,
-        clinical_policy: compactPolicy,
-        clinic_config: compactConfig,
-        doctor_overrides: { allowed: true, notes: null },
-      })
+      const { compactConfig, compactDiagnosis, compactPolicy, preflight } = buildRelevantPlanConfig(
+        {
+          diagnosis: resolvedDiagnosis,
+          imageAnalysis: this.aiAnalysis?.data || {},
+          policy: PIGMENTATION_CLINICAL_POLICY_V2,
+          fullConfig: PIGMENTATION_CONFIG,
+        },
+      )
+
+      assertTreatmentProtocolPreflight(preflight)
+
+      return {
+        text: JSON.stringify({
+          session_id: String(this.id || '1'),
+          generation_event: 'initial_assessment',
+          diagnosis: compactDiagnosis,
+          fixed_history: this.fixedHistory,
+          dynamic_history: this.dynamicAnswers,
+          clinical_policy: compactPolicy,
+          clinic_config: compactConfig,
+          doctor_classification_resolutions:
+            resolvedDiagnosis.doctor_classification_resolutions || {},
+          doctor_overrides: { allowed: true, notes: null },
+        }),
+        resolvedDiagnosis,
+        preflight,
+        componentEligibility: compactConfig.component_eligibility || [],
+        compactConfig,
+      }
     },
 
     async generatePlan(force = false) {
@@ -1585,12 +2184,13 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.isLoading = true
       this.loadingMessage = 'Drafting the tiered plan…'
 
-      const planInputText = this.buildPlanInput()
+      const planInput = this.buildPlanInput()
+      const planInputText = planInput.text
       console.log(
         `[PigmentationStore] Plan payload size: ${planInputText.length} chars (raw images excluded)`,
       )
 
-      // Raw images are NOT included in treatment planning call!
+      // Raw images are not included; protocol eligibility has already passed deterministic preflight.
       const content = [{ type: 'text', text: planInputText }]
 
       try {
@@ -1598,43 +2198,77 @@ export const usePigmentationStore = defineStore('pigmentation', {
           system: PLAN_PROMPT,
           content,
           stage: 'treatment_plan',
-          max_output_tokens: 14000,
+          max_output_tokens: 25000,
           reasoning_effort: 'high',
           verbosity: 'medium',
         })
 
         const res = this.parseJSON(raw)
-        const generatedPlan = res.linear_treatment_plan || res
-        const validation = validatePigmentationPlan(generatedPlan, PIGMENTATION_CONFIG, {
-          diagnosis: this.diagnosis?.data || {},
+        let generatedPlan = normalizeExecutableOperationParameters(res.linear_treatment_plan || res)
+        const validationOptions = {
+          diagnosis: planInput.resolvedDiagnosis,
           phenotype: this.aiAnalysis?.data || {},
-          throwOnError: true,
-        })
-        const planObj = validation.plan
+          preflight: planInput.preflight,
+          componentEligibility: planInput.componentEligibility,
+          compactConfig: planInput.compactConfig,
+          throwOnError: false,
+        }
+        let validation = validatePigmentationPlan(
+          generatedPlan,
+          PIGMENTATION_CONFIG,
+          validationOptions,
+        )
+
+        if (!validation.valid && isExecutionContractRepairable(validation.errors)) {
+          console.warn(
+            '[PigmentationStore] Running compact treatment execution repair:',
+            validation.errors,
+          )
+          const protocolIds = new Set()
+          for (const session of generatedPlan?.current_treatment_block?.sessions || []) {
+            for (const operation of session.treatment_operations || []) {
+              if (operation.protocol_id) protocolIds.add(operation.protocol_id)
+            }
+          }
+          const exactProtocols = [...protocolIds]
+            .map((protocolId) => getPigmentationProtocolById(protocolId))
+            .filter(Boolean)
+          const repairRaw = await this.callOpenAI({
+            system: PLAN_EXECUTION_REPAIR_PROMPT,
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  validator_errors: validation.errors,
+                  exact_eligible_protocols: exactProtocols,
+                  current_treatment_block: generatedPlan.current_treatment_block,
+                  master_treatment_roadmap: generatedPlan.master_treatment_roadmap,
+                }),
+              },
+            ],
+            stage: 'treatment_plan_execution_repair',
+            max_output_tokens: 3500,
+            reasoning_effort: 'medium',
+            verbosity: 'low',
+          })
+          const repair = this.parseJSON(repairRaw)
+          generatedPlan = normalizeExecutableOperationParameters(
+            mergeExecutionRepair(generatedPlan, repair),
+          )
+          validation = validatePigmentationPlan(generatedPlan, PIGMENTATION_CONFIG, {
+            ...validationOptions,
+            throwOnError: true,
+          })
+        } else if (!validation.valid) {
+          validatePigmentationPlan(generatedPlan, PIGMENTATION_CONFIG, {
+            ...validationOptions,
+            throwOnError: true,
+          })
+        }
+
+        const planObj = normalizeTreatmentPlanCourse(validation.plan)
         if (validation.warnings.length) {
           console.warn('[PigmentationStore] Treatment plan warnings:', validation.warnings)
-        }
-
-        if (Array.isArray(planObj.current_sessions) && !planObj.current_treatment_block) {
-          planObj.current_treatment_block = {
-            block_number: 1,
-            sessions: planObj.current_sessions,
-            reassessment_gate: planObj.reassessment_gate || null,
-          }
-        }
-
-        if (planObj.current_treatment_block && planObj.current_treatment_block.sessions) {
-          planObj.sessions = planObj.current_treatment_block.sessions.map((s) => ({
-            id: s.id || s.session_number,
-            status: s.status || 'pending',
-            ...s,
-          }))
-        } else if (planObj.sessions) {
-          planObj.sessions = planObj.sessions.map((s) => ({
-            id: s.id || s.session_number,
-            status: s.status || 'pending',
-            ...s,
-          }))
         }
 
         this.lastPlan = planObj
@@ -1758,17 +2392,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
     },
 
     buildReassessInput() {
-      assertDiagnosisReadyForTreatmentPlanning(
-        this.diagnosis?.data || {},
-        this.aiAnalysis?.data || {},
-      )
+      const resolvedDiagnosis = this.getResolvedDiagnosisForTreatmentPlanning()
+      assertDiagnosisReadyForTreatmentPlanning(resolvedDiagnosis, this.aiAnalysis?.data || {})
 
-      const { compactConfig, compactDiagnosis, compactPolicy } = buildRelevantPlanConfig({
-        diagnosis: this.diagnosis?.data || {},
-        imageAnalysis: this.aiAnalysis?.data || {},
-        policy: PIGMENTATION_CLINICAL_POLICY_V2,
-        fullConfig: PIGMENTATION_CONFIG,
-      })
+      const { compactConfig, compactDiagnosis, compactPolicy, preflight } = buildRelevantPlanConfig(
+        {
+          diagnosis: resolvedDiagnosis,
+          imageAnalysis: this.aiAnalysis?.data || {},
+          policy: PIGMENTATION_CLINICAL_POLICY_V2,
+          fullConfig: PIGMENTATION_CONFIG,
+        },
+      )
 
       const completedSessions = (this.lastPlan?.sessions || this.lastPlan?.current_sessions || [])
         .filter((session) =>
@@ -1787,21 +2421,32 @@ export const usePigmentationStore = defineStore('pigmentation', {
           ),
         }))
 
-      return JSON.stringify({
-        session_id: String(this.id || '1'),
-        baseline: {
-          phenotype: buildCompactPhenotypeForDiagnosis(this.aiAnalysis?.data || {}),
-          diagnosis: compactDiagnosis,
-          component_treatment_map: this.lastPlan?.component_treatment_map || [],
-          completed_sessions: completedSessions,
-          master_treatment_roadmap:
-            this.lastPlan?.master_treatment_roadmap || this.lastPlan?.course || {},
-        },
-        response_history: this.reassessAnswers || {},
-        goals: this.goals || [],
-        clinical_policy: compactPolicy,
-        eligible_clinic_config: compactConfig,
-      })
+      return {
+        text: JSON.stringify({
+          session_id: String(this.id || '1'),
+          baseline: {
+            phenotype: buildCompactPhenotypeForDiagnosis(this.aiAnalysis?.data || {}),
+            diagnosis: compactDiagnosis,
+            component_treatment_map: this.lastPlan?.component_treatment_map || [],
+            completed_sessions: completedSessions,
+            master_treatment_roadmap:
+              this.lastPlan?.master_treatment_roadmap || this.lastPlan?.course || {},
+            initial_full_course_summary:
+              this.lastPlan?.initial_full_course_summary ||
+              this.lastPlan?.full_course_summary ||
+              null,
+            current_full_course_summary: this.lastPlan?.full_course_summary || null,
+          },
+          response_history: this.reassessAnswers || {},
+          goals: this.goals || [],
+          clinical_policy: compactPolicy,
+          eligible_clinic_config: compactConfig,
+          protocol_preflight: preflight,
+        }),
+        resolvedDiagnosis,
+        compactConfig,
+        preflight,
+      }
     },
 
     async generateReassessment() {
@@ -1815,7 +2460,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
       }
 
       this.isLoading = true
-      this.loadingMessage = 'Comparing component-specific response…'
+      this.loadingMessage = 'Comparing pigmentation components like with like…'
 
       try {
         const assessmentId = this.id || useAssessmentStore().assessmentData?.id || '1'
@@ -1825,16 +2470,23 @@ export const usePigmentationStore = defineStore('pigmentation', {
           throw new Error('One or more reassessment images could not be uploaded.')
         }
 
-        const content = [{ type: 'text', text: this.buildReassessInput() }]
-        ordered.forEach((image) => {
-          content.push({ type: 'image_id', file_id: image.openai_file_id, detail: 'high' })
-        })
-
-        const reassessmentInputText = this.buildReassessInput()
+        const reassessmentInput = this.buildReassessInput()
         console.log(
-          `[PigmentationStore] Reassessment payload size: ${reassessmentInputText.length} chars plus five images`,
+          `[PigmentationStore] Reassessment payload size: ${reassessmentInput.text.length} chars plus five images`,
         )
-        content[0] = { type: 'text', text: reassessmentInputText }
+        const zonePanelBundle = await this.buildZonePanelImages(
+          ordered,
+          assessmentId,
+          'pigmentation-ai-zone-panel-post',
+        )
+        const zonePanels = zonePanelBundle.panels
+        this.zonePanelGeneration = zonePanelBundle.manifest
+        const content = buildModeLabelledImageContent(
+          ordered,
+          reassessmentInput.text,
+          'Compare like with like by feature and by baseline group. WHITE controls contour/elevation, count, colour and location; SURFACE_POLARIZED controls surface/texture; WOODS_UV controls epidermal accentuation; SUBSURFACE_POLARIZED controls deeper persistence; RED controls relative vascularity. Do not let a non-diagnostic mode negate baseline morphology. Identify new classification-required findings only when genuinely indeterminate and treatment- or safety-changing.',
+          zonePanels,
+        )
 
         const raw = await this.callOpenAI({
           system: REASSESS_PROMPT,
@@ -1854,9 +2506,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
           result.current_phenotype,
           {
             modelVersion: this.model,
-            promptVersion: 'pigmentation_prompts_v2_4_2026_07_24',
+            promptVersion: 'pigmentation_prompts_v2_6_1_2026_07_24',
             configVersion: PIGMENTATION_CONFIG.version,
-            policyVersion: PIGMENTATION_CONFIG.policy_version,
+            policyVersion: PIGMENTATION_CLINICAL_POLICY_V2.version,
           },
         )
         const currentMetrics = extractImmutablePigmentationMetrics(currentPhenotype)
@@ -1867,16 +2519,36 @@ export const usePigmentationStore = defineStore('pigmentation', {
             ? result.updated_component_treatment_map
             : this.lastPlan?.component_treatment_map || []
 
+        const reassessmentClassificationItems = Array.isArray(result.classification_required_items)
+          ? result.classification_required_items
+          : []
+        if (
+          reassessmentClassificationItems.length &&
+          result.current_treatment_block?.sessions?.length
+        ) {
+          throw new Error(
+            'Reassessment returned a treatment block while a new treatment-changing finding still requires doctor classification.',
+          )
+        }
+
         let validatedBlock = result.current_treatment_block || null
         if (validatedBlock?.sessions?.length) {
+          const { compactConfig, preflight } = buildRelevantPlanConfig({
+            diagnosis: reassessmentInput.resolvedDiagnosis,
+            imageAnalysis: currentPhenotype,
+            policy: PIGMENTATION_CLINICAL_POLICY_V2,
+            fullConfig: PIGMENTATION_CONFIG,
+          })
           const blockValidation = validatePigmentationTreatmentBlock(
             validatedBlock,
             PIGMENTATION_CONFIG,
             {
-              diagnosis: this.diagnosis?.data || {},
+              diagnosis: reassessmentInput.resolvedDiagnosis,
               phenotype: currentPhenotype,
               baselineMetrics: currentMetrics,
               componentTreatmentMap: nextComponentMap,
+              componentEligibility: compactConfig.component_eligibility,
+              preflight,
               throwOnError: true,
             },
           )
@@ -1893,6 +2565,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           ...result,
           current_phenotype: currentPhenotype,
           current_metrics: currentMetrics,
+          classification_required_items: reassessmentClassificationItems,
           current_treatment_block: validatedBlock,
         }
 
@@ -1913,8 +2586,18 @@ export const usePigmentationStore = defineStore('pigmentation', {
               result.updated_master_treatment_roadmap ||
               this.lastPlan.master_treatment_roadmap ||
               {},
+            initial_full_course_summary:
+              this.lastPlan.initial_full_course_summary ||
+              this.lastPlan.full_course_summary ||
+              null,
+            full_course_summary:
+              result.updated_full_course_summary || this.lastPlan.full_course_summary || null,
+            remaining_course_summary:
+              result.updated_full_course_summary || this.lastPlan.remaining_course_summary || null,
+            allocation_changes: result.allocation_changes || [],
             latest_reassessment_metrics: currentMetrics,
           }
+          this.lastPlan = normalizeTreatmentPlanCourse(this.lastPlan)
         }
 
         await this.updateAssessment()

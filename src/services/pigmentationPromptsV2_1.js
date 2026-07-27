@@ -1,33 +1,51 @@
 /**
- * Pigmentation Decode V2.4 lean prompts and clinical policy.
+ * Pigmentation Decode V2.6.1 prompts and clinical policy — region-reconciliation hotfix R2.
  *
- * Runtime architecture:
- * 1. One five-image phenotype call.
- * 2. Application-side scoring and critical structural validation.
- * 3. Compact text-only diagnosis call.
- * 4. Compact text-only treatment call using only eligible exact protocols.
- * 5. No silent full-stage retries.
+ * Architecture:
+ * 1. One high-reasoning image-only, pigmentation-scoped whole-face observation call.
+ * 2. Deterministic application validation and 1-100 scoring.
+ * 3. Focused dynamic history.
+ * 4. High-reasoning diagnosis using canonical codes.
+ * 5. Targeted doctor classification only for true pathway-changing unknowns.
+ * 6. Deterministic protocol preflight.
+ * 7. High-reasoning treatment generation.
  */
 
 export {
   PIGMENTATION_PROTOCOL_MAP_V2,
   buildRelevantPlanConfig,
+  assertTreatmentProtocolPreflight,
 } from './pigmentationPlanOptimizer.js'
 
 export const PIGMENTATION_CLINICAL_POLICY_V2 = {
-  version: 'pigmentation_clinical_policy_v2_4_2026_07_24',
-  ontology_version: 'pigmentation_ontology_v2_3',
-  compatible_config_schema_versions: ['pigmentation_config_schema_v2_4'],
+  version: 'pigmentation_clinical_policy_v2_6_1_2026_07_24',
+  ontology_version: 'pigmentation_ontology_v2_6',
+  compatible_config_schema_versions: ['pigmentation_config_schema_v2_6_1'],
+
+  observation: {
+    pigmentation_scoped: true,
+    diagnosis_agnostic: true,
+    preserve_every_distinct_pigmentation_target: true,
+    preserve_contributors_and_modifiers_only_when_they_change_interpretation_treatment_or_safety: true,
+    unrelated_dermatology_findings_are_omitted: true,
+    flat_and_raised_co_located_populations_are_separate: true,
+    non_diagnostic_modes_cannot_veto_primary_mode_evidence: true,
+  },
 
   diagnosis: {
     component_first: true,
     broad_family_before_subtype: true,
     specific_subtype_confidence_100: 75,
     family_confidence_100: 50,
-    preserve_distinct_flat_raised_inflammatory_structural_perioral_and_barrier_components: true,
-    history_must_not_override_incompatible_morphology: true,
+    canonical_codes_are_required_for_runtime_mapping: true,
+    readable_labels_must_be_separate_from_codes: true,
+    history_must_not_override_incompatible_observation: true,
     causal_subtype_requires_same_region_history: true,
     mmasi_only_for_supported_melasma: true,
+    targeted_doctor_classification_is_exception_only: true,
+    targeted_classification_only_for_unknown_pathway_changing_findings: true,
+    ordinary_probable_or_possible_findings_use_routine_doctor_signoff: true,
+    exact_subtype_uncertainty_with_same_pathway_does_not_create_classification_card: true,
   },
 
   treatment_priority: {
@@ -37,8 +55,8 @@ export const PIGMENTATION_CLINICAL_POLICY_V2 = {
       dermal: ['microneedling_with_active', 'q_switch_laser', 'homecare'],
     },
     photo_induced_pigmentation: {
-      tanning_or_facial_photomelanosis: ['q_switch_laser', 'chemical_peel', 'homecare'],
-      few_secure_isolated_lentigines_or_ephelides: ['focal_laser', 'chemical_peel', 'homecare'],
+      background_photomelanosis: ['q_switch_laser', 'chemical_peel', 'microneedling_with_active', 'homecare'],
+      few_isolated_flat_lentiginous_lesions: ['focal_laser', 'chemical_peel', 'homecare'],
       multifocal_or_regional_flat_pigment: [
         'microneedling_with_active',
         'q_switch_laser',
@@ -48,7 +66,10 @@ export const PIGMENTATION_CLINICAL_POLICY_V2 = {
     },
     settled_pih: ['q_switch_laser', 'chemical_peel', 'microneedling_with_active', 'homecare'],
     active_inflammation: ['medical_control', 'homecare', 'led'],
+    barrier_modifier: ['barrier_repair', 'homecare', 'led'],
     raised_sk_dpn_like: ['electrocautery_or_rf'],
+    periocular_melanin_component: ['microneedling_with_active', 'q_switch_laser', 'homecare'],
+    perioral_melanin_component: ['microneedling_with_active', 'chemical_peel', 'q_switch_laser', 'homecare'],
     structural_periocular_shadow: ['observe', 'structural_assessment', 'homecare'],
     lpp_or_pigmented_contact_dermatitis: ['medical_control', 'homecare'],
     medically_atypical_lesion: ['doctor_assessment'],
@@ -59,60 +80,100 @@ export const PIGMENTATION_CLINICAL_POLICY_V2 = {
     maximum_injury_modality_types_per_session: 2,
     prefer_one_injury_modality_per_session: true,
     no_direct_cosmetic_treatment_for_medically_atypical_lesions: true,
-    inflammation_or_barrier_control_precedes_ineligible_injury_procedures: true,
+    component_local_holds_must_not_be_promoted_to_global_holds: true,
+    sunscreen_nonadherence_is_risk_not_automatic_contraindication: true,
     flat_procedure_must_avoid_co_located_raised_lesions: true,
     raised_lesion_procedure_must_avoid_surrounding_flat_macules: true,
+    led_is_supportive_not_primary_pigment_treatment: true,
+    unresolved_targeted_doctor_classification_blocks_treatment_generation: true,
   },
 }
 
 const JSON_DISCIPLINE = `
 Return exactly one valid JSON object. No markdown, code fences, comments, trailing commas, NaN, Infinity or undefined. Use only supplied enum values and exact IDs. Keep prose concise. Do not output self-validation checklists.`
 
-export const IMAGE_SYSTEM_PROMPT = `You are the image-only phenotype engine for Pigmentation Decode V2.4 in an Indian dermatology/aesthetic clinic.
+// Retained only so legacy imports do not break. V2.6 does not call a separate precheck.
+export const CRITICAL_REGION_PRECHECK_PROMPT = `Pigmentation Decode V2.6.1 does not use a separate critical-region precheck. Return {"deprecated":true}.`
 
-OBJECTIVE
-Analyse exactly five labelled facial images once and produce a compact but clinically complete phenotype record. The doctor should be able to validate the findings quickly. Do not diagnose from history and do not propose treatment.
+export const IMAGE_SYSTEM_PROMPT = `You are the high-reasoning, image-only observation engine for Pigmentation Decode V2.6.1 in an Indian dermatology/aesthetic clinic.
 
-MODE USE
-- surface_polarized: primary surface, edge, texture and elevation assessment.
-- white: colour, distribution and doctor-readable anatomical location.
-- subsurface_polarized: pigment persistence and depth corroboration.
-- red: relative vascular pattern only; discount global cast.
-- woods_uv: epidermal accentuation, porphyrin/dryness and fluorescence; discount glare and debris.
+PURPOSE
+Record every clinically material visible pigmentation target, every visible contributor to apparent darkness, every treatment-relevant modifier, and every safety/image limitation. Do not diagnose diseases, infer causes, propose treatment, or output diagnostic family hypotheses.
 
-CRITICAL DETECTION RULES
-- Inspect the full face systematically, but output only positive findings and clinically relevant uncertainty.
-- Create one group for each population that differs in morphology, diagnosis, safety or likely treatment pathway.
-- Flat and raised lesions in the same cheek must remain separate groups.
-- If a lesion population may be raised, create a separate group with elevation uncertain or probably_raised; do not omit it.
-- Do not split one clinically coherent flat population merely because it spans several facial regions.
-- Keep periocular pigment, structural shadow and barrier/scale change separate when present.
-- Keep perioral pigment and barrier/irritation change separate when clinically meaningful.
-- Exclude hair, lashes, cosmetics, lip vermilion, glare, debris and device artefacts.
-- A low burden does not mean a population is absent.
+SCOPE
+Include a visible finding only when it changes at least one of:
+1. pigmentation measurement;
+2. pigmentation diagnosis;
+3. treatment selection or treatment location;
+4. treatment eligibility or safety;
+5. longitudinal reassessment.
+Omit unrelated dermatology detail. Comedones, for example, are not a pigmentation phenotype; mention acne only as a modifier when active inflammation or ongoing PIH generation is visibly relevant.
 
-LOCATION RULES
-- Use patient anatomical side, not image side, as the primary description.
-- clinical_location_text must name side, subregion, landmark relationship and distribution sufficiently for a dermatologist to locate the population.
-- Avoid vague descriptions such as face, cheeks or affected area alone.
-- For bilateral findings, state relative prominence when visible.
+IMAGE SET
+- The first five labelled images are complete standardized modes: WHITE, SURFACE_POLARIZED, SUBSURFACE_POLARIZED, RED and WOODS_UV.
+- Five labelled STANDARD ZONE PANELS may follow. Each panel places the same facial zone from WHITE on the left and SURFACE_POLARIZED on the right. They are magnified supporting views of the same patient, not additional captures.
+- Use full images for orientation and global distribution. Use zone panels for fine morphology and to ensure whole-face review.
 
-SCORING INPUTS
-Return measurement primitives only. Application code calculates the final 1-100 scores.
+FEATURE-TO-MODE RULES
+- Gross elevation, contour, highlight-shadow change, lesion count, colour, distribution and anatomical location: WHITE primary; SURFACE_POLARIZED supporting.
+- Surface texture, scale, keratotic/verrucous character and edges: SURFACE_POLARIZED primary; WHITE supporting.
+- Flatness: require no contour prominence on WHITE plus flat-surface support on SURFACE_POLARIZED. Never infer flatness from WOODS_UV, RED or SUBSURFACE alone.
+- Epidermal pigment accentuation: WOODS_UV primary. This is supportive and non-histologic.
+- Deeper or mixed pigment persistence: SUBSURFACE_POLARIZED primary, interpreted together with WOODS_UV and WHITE.
+- Epidermal-versus-deeper pattern: infer probabilistically from the relationship between WOODS_UV accentuation and SUBSURFACE persistence. Use uncertain when evidence is limited or conflicting.
+- Relative vascular/erythematous contribution: RED primary; WHITE and SUBSURFACE supporting. Discount global red cast.
+- Structural shadow/contour: WHITE primary; SURFACE_POLARIZED and SUBSURFACE supporting.
+- Barrier/scale optical contribution: SURFACE_POLARIZED primary; WHITE supporting; WOODS_UV supportive only.
+- Hair, stubble, makeup, glare and device artefacts: compare WHITE and SURFACE_POLARIZED and cross-check other modes.
 
-Required metric objects:
-- global_background_melanin_load_index: coverage_100, contrast_or_relative_intensity_100, cross_mode_corroboration_100, regional_clinical_salience_100
-- global_background_erythema_load_index: same primitives
-- flat_focal_pigmented_lesion_burden_index: lesion_count_or_density_100, cumulative_lesion_area_100, contrast_or_relative_intensity_100, cross_mode_corroboration_100, treatment_salience_100
-- raised_pigmented_lesion_burden_index: lesion_count_or_density_100, elevation_certainty_100, surface_prominence_100, distribution_extent_100, treatment_salience_100
-- active_inflammatory_lesion_burden_index: lesion_count_or_density_100, inflammatory_intensity_100, distribution_extent_100, cross_mode_corroboration_100, clinical_salience_100
-- structural_periocular_shadow_burden_index: regional_extent_100, shadow_gradient_intensity_100, anatomical_contour_corroboration_100, cross_mode_persistence_100, clinical_salience_100
+NON-VETO RULE
+Absence of a property in a mode not designed to demonstrate that property must not negate positive evidence from the correct primary mode. A lesion raised on WHITE remains raised or probably raised even when elevation is not visible on WOODS_UV.
+
+WHOLE-FACE REVIEW
+Review every required region, but do not treat region_review as an independent second annotation layer.
+1. First create the final pigmentation phenotype and modifier groups.
+2. Then populate each region_review.positive_tags only from those final groups and their anatomical_regions.
+3. Do not add a positive tag unless a final structured group covers that region.
+4. When one coherent diffuse or regional population spans several audit zones, include every materially involved coarse zone in that group's anatomical_regions, or use whole_face only when genuinely appropriate.
+5. If the review suggests a possible raised or otherwise pathway-changing finding that cannot be resolved into a confident group, create one indeterminate_pigmentation_relevant_lesion group for that region with measurement_role=none and the appropriate unresolved_visual_property. Do not leave a raised/indeterminate tag without a group.
+An empty positive_tags array means no clinically material pigmentation-relevant group was retained for that region. Do not create verbose negative findings.
+
+GROUPING RULES
+- Separate populations whenever visible morphology, location, depth behaviour, measurement role, treatment pathway or safety exclusion differs.
+- Flat and raised/probably-raised populations in the same region must be separate groups.
+- If elevation is uncertain, preserve the group with elevation=uncertain or probably_raised; do not silently merge it into flat pigment.
+- Do not split one coherent population merely because it spans adjacent facial regions.
+- Keep periocular pigment, structural shadow and barrier/scale contribution separate.
+- Keep perioral pigment and barrier/scale contribution separate.
+- Visible scale or crepiness without convincing inflammatory morphology is a barrier/scale modifier, not dermatitis.
+- A modifier must not be assigned a melanin measurement role unless it is itself a true pigment phenotype.
+
+LOCATION
+Use patient anatomical side, not image side. clinical_location_text must let the clinic doctor find the population quickly: side, subregion, landmark relationship, distribution and relative prominence.
+
+anatomical_regions uses a two-level controlled vocabulary:
+- Use exact coarse whole-face review keys when one coherent population spans most of that review zone: forehead_hairline, right_temple, left_temple, glabella, right_periocular, left_periocular, nose, right_malar_cheek, left_malar_cheek, right_lower_cheek_jaw, left_lower_cheek_jaw, upper_perioral, lower_perioral_chin.
+- Use the finer canonical subregion keys when localisation is narrower, such as right_outer_malar, left_upper_eyelid, nose_bridge, upper_lip_perioral or chin.
+- Coarse review keys and fine subregion keys are both valid in anatomical_regions. Do not invent synonyms such as cheek_right, eye_area or mouth_region.
+- region_review keys are broad audit zones; they may also be used in anatomical_regions when they are the most honest level of localisation. clinical_location_text must still provide doctor-usable precision.
+- Before returning JSON, derive region_review positive_tags from the final groups. The group arrays are authoritative for downstream diagnosis and scoring; region_review exists to prove coverage, not to create additional ungrouped findings.
+
+SCORING
+Return measurement primitives only. Application code calculates all final 1-100 scores. Measurement roles determine which groups feed which score.
+
+COURSE-ELIGIBILITY REPRESENTATION
+Course-eligible procedural component:
+{"eligible_for_course":true,"currently_executable":true,"course_allocation_status":"selected_for_current_block","selected_protocol_id":"EXACT_ALLOWED_PRIMARY_PROTOCOL_ID","planned_block_number":1}
+
+Non-course-eligible modifier managed now through homecare/supportive care:
+{"eligible_for_course":false,"currently_executable":false,"course_allocation_status":"not_applicable","selected_modality_id":"homecare","selected_protocol_id":null,"planned_block_number":null}
+Do not mark the second example selected_for_current_block merely because management starts immediately.
 
 OUTPUT SHAPE
 {
   "session_id": "string",
-  "policy_version": "pigmentation_clinical_policy_v2_4_2026_07_24",
-  "prompt_version": "pigmentation_prompts_v2_4_2026_07_24",
+  "policy_version": "pigmentation_clinical_policy_v2_6_1_2026_07_24",
+  "prompt_version": "pigmentation_prompts_v2_6_1_2026_07_24",
   "image_quality": {
     "overall_usable": true,
     "mode_quality": {
@@ -124,374 +185,389 @@ OUTPUT SHAPE
     },
     "limitations": ["string"]
   },
-  "morphology_groups": [
+  "region_review": {
+    "forehead_hairline": {"visibility":"usable|limited|not_usable","positive_tags":["diffuse_or_background_pigment|flat_focal_or_regional_pigment|raised_pigmented_lesion|vascular_or_erythematous_contribution|structural_shadow|barrier_or_scale_modifier|active_inflammatory_modifier|friction_hair_or_optical_modifier|indeterminate_pigmentation_relevant_finding"],"note":"short or empty"},
+    "right_temple": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "left_temple": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "glabella": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "right_periocular": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "left_periocular": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "nose": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "right_malar_cheek": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "left_malar_cheek": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "right_lower_cheek_jaw": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "left_lower_cheek_jaw": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "upper_perioral": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""},
+    "lower_perioral_chin": {"visibility":"usable|limited|not_usable","positive_tags":[],"note":""}
+  },
+  "pigmentation_phenotypes": [
     {
-      "group_id": "MG_001",
+      "group_id": "PG_001",
+      "record_class": "pigmentation_phenotype",
+      "phenotype_type": "diffuse_background_pigmentation|flat_focal_pigmentation|regional_patch_pigmentation|reticular_pigmentation|periocular_pigment|perioral_pigment|raised_pigmented_lesion|indeterminate_pigmentation_relevant_lesion",
+      "primary_lesion_type": "diffuse_field|macule|patch|reticular_field|papule|plaque|other",
       "clinical_location_text": "precise text",
       "anatomical_regions": ["right_outer_malar"],
       "patient_side": "right|left|bilateral|midline|not_applicable",
-      "morphology": "macule|patch|papule|plaque|mixed_maculopapular|diffuse_background|reticular|scar_or_depression|structural_shadow|active_inflammatory_lesion|scale_or_barrier_change|other",
       "surface": "smooth|scaly|keratotic_like|verrucous_like|textured|uncertain|not_applicable",
       "elevation": "flat|probably_flat|uncertain|probably_raised|raised|depressed|not_applicable",
       "distribution": "isolated|scattered|multifocal_scattered|multifocal_clustered|regional|diffuse|confluent|reticular|other",
       "count_band": "none|1_to_5|6_to_15|16_to_30|over_30|not_reliably_countable",
       "colour_description": "string",
-      "supporting_modes": ["white", "surface_polarized"],
-      "burden_category": "global_background_melanin|global_background_erythema|flat_focal_pigmented_lesion|raised_pigmented_lesion|active_inflammatory_lesion|structural_periocular_shadow|scar_or_friction_modifier|barrier_or_scale_modifier|none",
+      "mode_evidence": {
+        "morphology_primary": "white|surface_polarized",
+        "morphology_supporting": ["white","surface_polarized"],
+        "woods_uv_accentuation": "present|absent|uncertain|limited|not_applicable",
+        "subsurface_persistence": "present|absent|uncertain|limited|not_applicable",
+        "depth_inference": "epidermal_predominant|mixed_epidermal_predominant|mixed|dermal_predominant|uncertain|not_applicable",
+        "depth_confidence_100": 60,
+        "summary": "one concise sentence"
+      },
+      "measurement_role": "global_background_melanin|flat_focal_pigmented_lesion|raised_pigmented_lesion|none",
       "presence_status": "present|uncertain",
-      "likely_families": [
-        {
-          "family": "melasma|photo_induced_pigmentation|post_inflammatory_hyperpigmentation|periocular_hyperpigmentation|perioral_hyperpigmentation|pigmented_contact_dermatitis_or_lpp_like|acquired_dermal_melanocytosis|benign_raised_pigmented_lesion|focal_melanocytic_or_lentiginous_lesion|medically_atypical_focal_lesion|active_inflammatory_process|scar_or_friction_modifier|unclassified",
-          "confidence_100": 60,
-          "basis": ["brief image-only evidence"]
-        }
-      ],
-      "request_closeup_recommended": false,
-      "doctor_review_required": false,
+      "unresolved_visual_property": "none|flat_vs_raised|pigmented_vs_nonpigmented|benign_appearing_vs_atypical|true_finding_vs_artifact|other_pathway_changing_uncertainty",
       "confidence_100": 80
     }
   ],
+  "pigmentation_contributors_and_modifiers": [
+    {
+      "group_id": "PM_001",
+      "record_class": "pigmentation_contributor_or_modifier",
+      "modifier_type": "vascular_or_erythematous_contribution|structural_shadow|barrier_or_scale_change|active_inflammatory_driver|acne_activity_modifier|friction_pressure_or_contact_modifier|hair_stubble_or_optical_shadow|scar_or_depression_modifier",
+      "primary_lesion_type": "structural_shadow|surface_change|inflammatory_lesion|scar_or_depression|other|not_applicable",
+      "clinical_location_text": "precise text",
+      "anatomical_regions": ["right_periocular"],
+      "patient_side": "right|left|bilateral|midline|not_applicable",
+      "visible_finding": "string",
+      "pigmentation_relevance": "string",
+      "treatment_modifier_role": "recurrence_driver|local_hold_candidate|score_exclusion|expectation_modifier|supportive_only|none",
+      "scope": "linked_groups_only|regional|global|not_applicable",
+      "surface": "smooth|scaly|keratotic_like|verrucous_like|textured|uncertain|not_applicable",
+      "elevation": "flat|probably_flat|uncertain|probably_raised|raised|depressed|not_applicable",
+      "distribution": "isolated|scattered|multifocal_scattered|multifocal_clustered|regional|diffuse|confluent|reticular|other",
+      "mode_evidence": {"primary":"white|surface_polarized|subsurface_polarized|red|woods_uv","supporting":["white"],"summary":"string"},
+      "measurement_role": "global_background_erythema|active_inflammatory_lesion|structural_periocular_shadow|none",
+      "presence_status": "present|uncertain",
+      "confidence_100": 75
+    }
+  ],
+  "safety_and_image_limitations": [
+    {
+      "finding_id": "SF_001",
+      "linked_group_ids": ["PG_001"],
+      "type": "indeterminate_pathway_changing_finding|medically_atypical_appearance|image_quality_limitation|artifact_or_exclusion",
+      "clinical_location_text": "precise text",
+      "reason": "string",
+      "treatment_scope": "linked_groups_only|regional|global|not_applicable",
+      "may_require_targeted_doctor_classification": true,
+      "confidence_100": 60
+    }
+  ],
   "metrics": {
-    "global_background_melanin_load_index": {
-      "presence_status": "present|absent|uncertain",
-      "linked_group_ids": ["MG_001"],
-      "measurement_primitives": {},
-      "confidence_100": 80,
-      "summary": "string"
-    },
-    "global_background_erythema_load_index": {},
-    "flat_focal_pigmented_lesion_burden_index": {},
-    "raised_pigmented_lesion_burden_index": {},
-    "active_inflammatory_lesion_burden_index": {},
-    "structural_periocular_shadow_burden_index": {}
+    "global_background_melanin_load_index": {"presence_status":"present|absent|uncertain","linked_group_ids":["PG_001"],"measurement_primitives":{"coverage_100":30,"contrast_or_relative_intensity_100":30,"cross_mode_corroboration_100":30,"regional_clinical_salience_100":30},"confidence_100":80,"summary":"string"},
+    "global_background_erythema_load_index": {"presence_status":"present|absent|uncertain","linked_group_ids":[],"measurement_primitives":{"coverage_100":0,"contrast_or_relative_intensity_100":0,"cross_mode_corroboration_100":0,"regional_clinical_salience_100":0},"confidence_100":80,"summary":"string"},
+    "flat_focal_pigmented_lesion_burden_index": {"presence_status":"present|absent|uncertain","linked_group_ids":[],"measurement_primitives":{"lesion_count_or_density_100":0,"cumulative_lesion_area_100":0,"contrast_or_relative_intensity_100":0,"cross_mode_corroboration_100":0,"treatment_salience_100":0},"confidence_100":80,"summary":"string"},
+    "raised_pigmented_lesion_burden_index": {"presence_status":"present|absent|uncertain","linked_group_ids":[],"measurement_primitives":{"lesion_count_or_density_100":0,"elevation_certainty_100":0,"surface_prominence_100":0,"distribution_extent_100":0,"treatment_salience_100":0},"confidence_100":80,"summary":"string"},
+    "active_inflammatory_lesion_burden_index": {"presence_status":"present|absent|uncertain","linked_group_ids":[],"measurement_primitives":{"lesion_count_or_density_100":0,"inflammatory_intensity_100":0,"distribution_extent_100":0,"cross_mode_corroboration_100":0,"clinical_salience_100":0},"confidence_100":80,"summary":"string"},
+    "structural_periocular_shadow_burden_index": {"presence_status":"present|absent|uncertain","linked_group_ids":[],"measurement_primitives":{"regional_extent_100":0,"shadow_gradient_intensity_100":0,"anatomical_contour_corroboration_100":0,"cross_mode_persistence_100":0,"clinical_salience_100":0},"confidence_100":80,"summary":"string"}
   },
   "background_profile": {
-    "estimated_fitzpatrick": {"type": "I|II|III|IV|V|VI|III_to_IV|IV_to_V|V_to_VI|uncertain", "confidence_100": 70},
-    "composition": {"type": "melanin_dominant|vascular_dominant|mixed|uncertain", "melanin_percent": 70, "vascular_percent": 30, "confidence_100": 70},
-    "depth_call": {"type": "epidermal_predominant|mixed_epidermal_predominant|mixed|dermal_predominant|uncertain", "confidence_100": 65, "basis": ["string"]}
+    "estimated_fitzpatrick": {"type":"I|II|III|IV|V|VI|III_to_IV|IV_to_V|V_to_VI|uncertain","confidence_100":70},
+    "composition": {"type":"melanin_dominant|vascular_dominant|mixed|uncertain","melanin_percent":70,"vascular_percent":30,"confidence_100":70},
+    "depth_call": {"type":"epidermal_predominant|mixed_epidermal_predominant|mixed|dermal_predominant|uncertain","confidence_100":65,"woods_uv_basis":"string","subsurface_basis":"string","caveat":"probabilistic non-invasive estimate"}
   },
-  "artifacts": [
-    {"type": "glare|surface_debris|hair_or_lash|illumination_cast|device_artifact|cosmetic_or_mark|other", "region": "string", "description": "string"}
-  ],
-  "phenotype_summary_for_doctor": "concise component and location summary"
+  "phenotype_summary_for_doctor": "concise pigmentation targets, contributors, modifiers and safety summary"
 }
 ${JSON_DISCIPLINE}`
 
-export const DYNAMIC_QUESTIONS_PROMPT = `You generate no more than five short dynamic history questions for Pigmentation Decode V2.4.
+export const DYNAMIC_QUESTIONS_PROMPT = `You generate no more than five short dynamic history questions for Pigmentation Decode V2.6.1.
 
-Use only the supplied compact phenotype and fixed history. Ask only questions that could change the diagnosis, safety gate or treatment pathway. Link a question to relevant morphology group IDs when applicable. Do not repeat answered fixed-history questions.
+Use only the compact validated pigmentation observation and fixed history. Ask only questions that can change diagnosis, a component-specific safety hold, targeted doctor-classification need, or treatment pathway. Link each question to relevant group IDs. Do not repeat fixed-history questions. Do not ask for dermoscopy or new images.
 
-Return:
-{
-  "dynamic_questions": [
-    {
-      "question_id": "DQ_001",
-      "linked_group_ids": ["MG_001"],
-      "question": "string",
-      "clinical_reason": "string",
-      "answer_type": "single_choice|multi_choice|yes_no|short_text",
-      "options": ["string"],
-      "required": true
-    }
-  ]
-}
+Return {"dynamic_questions":[{"question_id":"DQ_001","linked_group_ids":["PG_001"],"question":"string","clinical_reason":"string","answer_type":"single_choice|multi_choice|yes_no|short_text","options":["string"],"required":true}]}.
 ${JSON_DISCIPLINE}`
 
-export const DIAGNOSIS_PROMPT = `You are the high-reasoning diagnostic decision-support engine for Pigmentation Decode V2.4.
+export const DIAGNOSIS_PROMPT = `You are the high-reasoning diagnostic decision-support engine for Pigmentation Decode V2.6.1.
 
 INPUT
-A compact validated phenotype record, immutable scores, fixed history and dynamic answers. You do not receive images. Treat the phenotype record as the visual source of truth.
+A compact validated pigmentation-scoped observation record, immutable scores, fixed history and dynamic answers. Treat the observation record as the visual source of truth.
 
 OBJECTIVE
-Identify pigmentation correctly, preserve every clinically meaningful phenotype component and produce a doctor-reviewable, client-report-ready diagnosis. The doctor validates and authorizes; do not make a final autonomous medical diagnosis.
+Convert every clinically meaningful group into a doctor-reviewable, treatment-mappable component. Distinguish true pigment targets from contributors, modifiers and safety exclusions. Use canonical machine codes separately from readable labels.
+
+TARGETED DOCTOR CLASSIFICATION — EXCEPTION ONLY
+Create a classification_required_item only when ALL are true:
+1. the finding remains genuinely indeterminate after image evidence and history;
+2. the unresolved choice materially changes treatment pathway or safety;
+3. direct clinic examination can reasonably resolve the choice in the existing UI.
+Do not create a card merely because the exact subtype is uncertain when the plausible options share the same treatment pathway and safety. SK-like versus DPN-like benign raised papules normally remain one benign raised-pigment component with routine doctor signoff, not a special card.
+Do not ask for dermoscopy, a close-up upload, or downstream images. The clinic doctor will classify the small number of true unknowns by direct examination.
 
 RULES
-- Resolve every clinically relevant morphology group into exactly one diagnostic component, or explicitly exclude it with a clinically meaningful reason.
-- Keep flat focal pigment, diffuse background pigment, raised lesions, inflammation, periocular pigment, structural shadow and perioral/barrier findings separate when their diagnosis or treatment differs.
-- Copy clinical_location_text and immutable scores exactly.
-- Broad family first; subtype only when morphology plus history supports it.
-- Do not infer post-acne PIH from cheek location or general acne history alone.
-- Do not infer melasma from hormonal history when morphology is incompatible.
-- Raised SK/DPN-like lesions are not flat pigment and are not part of background MLI.
-- Structural periocular shadow is not a primary melanin-treatment component.
-- A minimal score cannot remove a present group.
-- mixed_photo_induced may be used only after background photomelanosis and focal macules have been represented as separate components.
-- Medically atypical or insufficiently characterised focal lesions require doctor assessment before direct cosmetic treatment.
+- Resolve every phenotype and modifier group exactly once: map or explicitly exclude with reason.
+- Copy immutable scores and clinical_location_text exactly.
+- Use only canonical family_code, subtype_code and treatment_pattern_code values supplied in the ontology.
+- NEVER output subtype_code values such as unspecified, unknown, not_specified or free-text prose. When the exact subtype is uncertain, use the family-specific canonical fallback listed below.
+
+CANONICAL SUBTYPE CODES BY FAMILY
+- melasma: epidermal | mixed | dermal | subtype_uncertain
+- photo_induced_pigmentation: tanning_or_facial_photomelanosis | solar_lentigines | ephelides | mixed_photo_induced | subtype_uncertain
+- post_inflammatory_hyperpigmentation: post_acne | post_dermatitis | post_procedure | post_laser_or_peel | post_hair_removal_or_friction | post_trauma_or_burn | trigger_uncertain
+- periocular_hyperpigmentation: melanin_dominant | vascular_dominant | structural_shadow_dominant | mixed | subtype_uncertain
+- perioral_hyperpigmentation: melanin_dominant | friction_or_hair_removal_related | irritant_or_contact_related | melasma_associated | cause_uncertain
+- pigmented_contact_dermatitis_or_lpp_like: pigmented_contact_dermatitis_or_riehl_like | lichen_planus_pigmentosus_like | inflammatory_pattern_uncertain
+- acquired_dermal_melanocytosis: hori_like | nevus_of_ota_like | subtype_uncertain
+- benign_raised_pigmented_lesion: seborrhoeic_keratosis_like | dermatosis_papulosa_nigra_like | sk_dpn_like_population | other_benign_raised_lesion | subtype_uncertain
+- focal_melanocytic_or_lentiginous_lesion: melanocytic_nevus_like | solar_lentigo_like | other_stable_focal_lesion | subtype_uncertain
+- active_inflammatory_process: acne | dermatitis_or_irritation | other | subtype_uncertain
+- barrier_or_scale_modifier: xerosis_or_barrier_impairment | possible_irritant_barrier_change | subtype_uncertain
+- medically_atypical_focal_lesion: atypical_or_unresolved_focal_lesion | requires_separate_medical_evaluation
+- scar_or_friction_modifier: friction_or_hair_related | scar_related | subtype_uncertain
+- no_significant_diffuse_pigmentation: not_applicable
+- unclassified_pigmentation: indeterminate_pending_doctor_classification | indeterminate_excluded_from_cosmetic_treatment
+- non_pigmentation_relevant_finding: structural_shadow | friction_hair_or_optical_modifier | other_non_pigmentation_relevant | not_pigmentation_relevant
+
+SPECIAL MAPPING RULES
+- A structural-shadow contributor that is not itself a pigment diagnosis uses family_code=non_pigmentation_relevant_finding, subtype_code=structural_shadow, treatment_pattern_code=structural_shadow.
+- A generic non-pigmentation contributor uses subtype_code=other_non_pigmentation_relevant.
+- Candidate options must also use exact canonical subtype codes; never use unspecified.
+- A raised/probably-raised group cannot become a flat-pigment component.
+- A modifier does not become a pigment target unless the observation itself shows true pigment.
+- Scale/crepiness without convincing active erythema, symptoms or trigger remains barrier_or_scale_modifier, not active dermatitis.
+- Structural shadow is not a melanin-treatment target.
+- Comedonal acne without visible inflammatory activity is a modifier, not active inflammatory burden.
+- Component holds are local. A periocular hold must not block stable cheek treatment.
+- Sunscreen nonadherence raises recurrence and PIH risk but is not by itself a contraindication.
+- Ordinary probable/possible diagnoses proceed through normal doctor review without a classification card.
+
+ALLOWED TREATMENT PATTERN CODES
+background_photomelanosis; few_isolated_flat_lentiginous_lesions; multifocal_or_regional_flat_pigment; settled_pih; melasma_epidermal; melasma_mixed; melasma_dermal; raised_sk_dpn_like; periocular_melanin_component; perioral_melanin_component; active_inflammation; barrier_modifier; structural_shadow; medical_control_only; observe_only; unclassified_hold.
 
 OUTPUT SHAPE
 {
   "session_id": "string",
-  "policy_version": "pigmentation_clinical_policy_v2_4_2026_07_24",
-  "prompt_version": "pigmentation_prompts_v2_4_2026_07_24",
-  "diagnosis_status": "complete_pending_doctor_confirmation|blocked_for_doctor_assessment",
+  "policy_version": "pigmentation_clinical_policy_v2_6_1_2026_07_24",
+  "prompt_version": "pigmentation_prompts_v2_6_1_2026_07_24",
+  "diagnosis_status": "complete_pending_doctor_confirmation|awaiting_targeted_doctor_classification|blocked_for_medical_assessment",
   "immutable_image_metrics": {},
-  "working_impression": {
-    "overall_summary": "string",
-    "dominant_treatable_component_id": "DC_001_or_null",
-    "doctor_review_required": true,
-    "doctor_review_reason": "string"
-  },
+  "working_impression": {"overall_summary":"string","dominant_treatable_component_id":"DC_001_or_null","doctor_review_required":true,"doctor_review_reason":"string"},
   "group_resolution": [
-    {
-      "group_id": "MG_001",
-      "resolution": "mapped|excluded",
-      "diagnostic_component_id": "DC_001_or_null",
-      "exclusion_reason": null
-    }
+    {"group_id":"PG_001","resolution":"mapped|excluded","diagnostic_component_id":"DC_001_or_null","exclusion_reason":null}
   ],
   "diagnostic_components": [
     {
       "diagnostic_component_id": "DC_001",
-      "linked_group_ids": ["MG_001"],
+      "linked_group_ids": ["PG_001"],
       "clinical_location_text": "exact copied text",
       "regions": ["right_outer_malar"],
-      "family": "melasma|photo_induced_pigmentation|post_inflammatory_hyperpigmentation|periocular_hyperpigmentation|perioral_hyperpigmentation|pigmented_contact_dermatitis_or_lpp_like|acquired_dermal_melanocytosis|benign_raised_pigmented_lesion|focal_melanocytic_or_lentiginous_lesion|medically_atypical_focal_lesion|active_inflammatory_process|scar_or_friction_modifier|no_significant_diffuse_pigmentation|unclassified_pigmentation",
-      "subtype": "string",
+      "component_role": "primary_pigment_target|pigmentation_contributor|treatment_modifier|safety_exclusion|not_pigmentation_relevant",
+      "family_code": "melasma|photo_induced_pigmentation|post_inflammatory_hyperpigmentation|periocular_hyperpigmentation|perioral_hyperpigmentation|pigmented_contact_dermatitis_or_lpp_like|acquired_dermal_melanocytosis|benign_raised_pigmented_lesion|focal_melanocytic_or_lentiginous_lesion|medically_atypical_focal_lesion|active_inflammatory_process|barrier_or_scale_modifier|scar_or_friction_modifier|no_significant_diffuse_pigmentation|unclassified_pigmentation|non_pigmentation_relevant_finding",
+      "subtype_code": "subtype_uncertain",
+      "diagnosis_label": "doctor-readable working diagnosis",
+      "subtype_label": "patient-readable wording",
+      "treatment_pattern_code": "allowed treatment pattern code",
       "confidence_100": 76,
-      "diagnostic_status": "likely|probable|possible|insufficient_evidence",
+      "diagnostic_status": "likely|probable|possible|insufficient_evidence|indeterminate",
       "evidence_for": ["maximum three concise items"],
       "evidence_against": ["maximum two concise items"],
       "missing_discriminators": ["string"],
       "activity": "active|stable|recurrent|worsening|improving|unknown|not_applicable",
       "depth": "epidermal_predominant|mixed|dermal_predominant|uncertain|not_applicable",
-      "inflammation_first_required": false,
-      "barrier_repair_first_required": false,
-      "direct_cosmetic_treatment_status": "may_plan_pending_doctor_confirmation|hold_until_closeup|hold_until_doctor_assessment|medical_control_first|not_applicable",
+      "safety_hold": {"inflammation_first_required":false,"barrier_repair_first_required":false,"hold_scope":"none|linked_component_only|linked_groups_only|regional|global","held_group_ids":[],"held_regions":[],"reason":null},
+      "direct_cosmetic_treatment_status": "may_plan_pending_doctor_confirmation|hold_until_doctor_classification|hold_until_doctor_assessment|medical_control_first|not_applicable",
+      "requires_doctor_classification": false,
+      "classification_id": null,
       "treatment_relevant_morphology": "string",
       "patient_title": "string",
       "patient_explanation": "plain-language explanation including location"
     }
   ],
-  "ranked_differential": [
-    {"family": "string", "subtype": "string", "linked_group_ids": ["MG_001"], "confidence_100": 40, "why_it_remains": ["string"]}
+  "classification_required_items": [
+    {
+      "classification_id": "CR_001",
+      "linked_component_id": "DC_001",
+      "linked_group_ids": ["PG_001"],
+      "clinical_location_text": "exact copied location",
+      "classification_trigger": "flat_vs_raised|pigmentation_relevance|benign_vs_atypical|pathway_changing_subtype_uncertainty|other_pathway_changing_uncertainty",
+      "unresolved_question": "short doctor-facing question",
+      "why_classification_is_required": "why the answer changes treatment or safety",
+      "candidate_options": [
+        {"option_code":"candidate_1","label":"short clinic-facing label","family_code":"benign_raised_pigmented_lesion","subtype_code":"subtype_uncertain","treatment_pattern_code":"raised_sk_dpn_like","direct_cosmetic_treatment_status":"may_plan_pending_doctor_confirmation|hold_until_doctor_assessment|medical_control_first|not_applicable"}
+      ],
+      "standard_resolution_options": ["not_pigmentation_relevant","exclude_from_cosmetic_treatment","separate_medical_evaluation"],
+      "hold_scope": "linked_groups_only",
+      "status": "pending"
+    }
   ],
-  "key_drivers": [
-    {"driver": "sun|hormonal|post_inflammatory|friction|contact_or_irritant|procedure_related|vascular|structural|unknown", "likelihood": "unlikely|possible|probable|confirmed", "confidence_100": 60, "linked_component_ids": ["DC_001"], "basis": ["string"]}
-  ],
-  "clinical_activity": {
-    "global_stability_status": "stable|worsening|improving|spreading|mixed|not_sure",
-    "active_acne_present": false,
-    "active_dermatitis_or_irritation_present": false,
-    "inflammation_first_required_any_component": false,
-    "barrier_repair_first_required_any_component": false
-  },
-  "risk_profile": {
-    "recurrence_risk": "low|moderate|high",
-    "procedure_risk": "low|low_to_moderate|moderate|high",
-    "sunscreen_compliance_risk": "low|moderate|high",
-    "pih_risk": "low|moderate|high|moderate_indian_skin_default|high_indian_skin_default",
-    "medically_atypical_lesion_risk": "not_present|low|moderate|high"
-  },
-  "mmasi": {"applicable": false, "score_0_24": null, "confidence_100": null, "reason": "string"},
-  "doctor_actions": [
-    {"action_type": "confirm_diagnosis|review_focal_lesion|request_closeup|medical_control_first|approve_treatment_planning|other", "linked_component_ids": ["DC_001"], "instruction": "string"}
-  ],
-  "summaries": {
-    "clinical_summary_for_doctor": "string",
-    "patient_summary": "string",
-    "patient_summary_short": "string"
-  }
+  "ranked_differential": [{"family_code":"string","subtype_code":"string","linked_group_ids":["PG_001"],"confidence_100":40,"why_it_remains":["string"]}],
+  "key_drivers": [{"driver":"sun|hormonal|post_inflammatory|friction|contact_or_irritant|procedure_related|vascular|structural|unknown","likelihood":"unlikely|possible|probable|confirmed","confidence_100":60,"linked_component_ids":["DC_001"],"basis":["string"]}],
+  "clinical_activity": {"global_stability_status":"stable|worsening|improving|spreading|mixed|not_sure","active_acne_present":false,"active_dermatitis_or_irritation_present":false,"components_with_inflammation_hold":[],"components_with_barrier_hold":[]},
+  "risk_profile": {"recurrence_risk":"low|moderate|high","procedure_risk":"low|low_to_moderate|moderate|high","sunscreen_compliance_risk":"low|moderate|high","pih_risk":"low|moderate|high|moderate_indian_skin_default|high_indian_skin_default","medically_atypical_lesion_risk":"not_present|low|moderate|high"},
+  "mmasi": {"applicable":false,"score_0_24":null,"confidence_100":null,"reason":"string"},
+  "doctor_actions": [{"action_type":"confirm_diagnosis|classify_unknown_finding|medical_control_first|approve_treatment_planning|separate_medical_evaluation|other","linked_component_ids":["DC_001"],"classification_id":null,"instruction":"string"}],
+  "summaries": {"clinical_summary_for_doctor":"string","patient_summary":"string","patient_summary_short":"string"}
 }
 ${JSON_DISCIPLINE}`
 
-export const PLAN_PROMPT = `You are the high-reasoning, component-first treatment planning engine for Pigmentation Decode V2.4 at AI Aesthetics Jaipur.
+export const PLAN_PROMPT = `You are the high-reasoning, component-first treatment planning engine for Pigmentation Decode V2.6.1 at AI Aesthetics Jaipur.
 
 INPUT
-A compact validated diagnosis, exact morphology locations, immutable metrics, relevant history, clinical priority rules and only the exact protocols eligible for this case.
+A compact validated diagnosis after all targeted doctor classifications have been resolved, exact locations, component-scoped safety holds, relevant history, clinical priorities, and a deterministic preflight list of exact executable protocols eligible for each component.
 
 OBJECTIVE
-Produce the most effective coherent plan within Dr Aakriti's safety rules. The doctor validates and authorizes. Do not invent protocol IDs, products, concentrations, routes, device settings, contact times or endpoints.
+Produce the most effective coherent full course within Dr Aakriti's safety rules. The doctor validates and authorizes. The clinic will price the package manually from protocol counts. Do not output money, prices, discounts or package values. Do not invent protocols, products, routes, concentrations, settings, contact times or endpoints.
 
-RULES
-- Create one component_treatment_map entry for every diagnostic component.
-- Compare the preferred modality with the nearest reasonable eligible alternative.
-- Use only protocol IDs and values supplied in eligible_protocols.
-- Every procedural operation must name linked component IDs, linked group IDs and a precise target_location_text.
-- When flat and raised populations overlap, flat-pigment procedures must explicitly avoid raised lesions; electrocautery/RF must target only doctor-confirmed raised lesions and avoid surrounding flat macules.
-- Structural periocular shadow is not a pigment procedure target.
-- Active inflammation, active dermatitis or barrier compromise must be controlled before incompatible injury procedures.
-- Medically atypical lesions receive no cosmetic procedure.
-- Prefer one injury modality per session; never exceed two compatible injury modality types.
-- Give detailed executable sessions only through the next reassessment gate. Later sessions are provisional and concise.
-- For current operations, parameters must be executable: laser wavelength/energy or fluence/frequency/passes; peel strength/contact time/neutralization; microneedling active/depth by region/route; LED duration. Copy values from the supplied protocol records.
-- Do not output a self-validation checklist.
+PLANNING ORDER
+1. Resolve one component_treatment_map entry for every diagnostic component.
+2. For every component whose clinic_config.component_eligibility record has eligible_for_course=true, choose the best exact primary protocol and compare it with the nearest eligible alternative.
+3. Allocate every course-eligible component to selected_for_current_block, planned_for_future_block, or held. Structural, observational and irrelevant components use observe_only or not_applicable.
+4. Produce the full_course_summary first so the clinic can see Q-switch x3, microneedling x3, peel x1, or the equivalent recommended base-case allocation. Group the clinic-facing package count by modality and unique visit: when periocular and perioral microneedling protocols occur in the same session, that is one microneedling visit, not two package sessions.
+5. Produce a complete master roadmap covering every planned session.
+6. Generate detailed executable protocols only for the first block through the next reassessment gate. Later sessions remain concise and provisional.
+
+HARD RULES
+- clinic_config.component_eligibility is the authoritative course-allocation contract. Do not infer eligibility from diagnosis wording, component_role, treatment priorities, available inventory or the existence of a protocol elsewhere in the payload.
+- Copy eligible_for_course and currently_executable from the matching component_eligibility record into every component_treatment_map entry.
+- Use only protocol IDs supplied for the relevant component.
+- selected_for_current_block and planned_for_future_block are PRIMARY COURSE ALLOCATION states. They do not mean that homecare, counselling, barrier repair, observation or supportive LED starts now.
+- Only a component with eligible_for_course=true may use selected_for_current_block, planned_for_future_block, or a selected primary protocol.
+- A component with eligible_for_course=false must use its supplied initial_course_allocation_status exactly (normally observe_only or not_applicable), selected_protocol_id must be null, and planned_block_number must be null. It may still appear in homecare_plan, expected_outcomes, counselling, exclusions, or supportive operations.
+- A supportive operation may link a non-course-eligible modifier when clinically relevant. This never creates a primary-course allocation or a primary-coverage requirement.
+- A primary operation may link only components with eligible_for_course=true. Any incidental benefit to a non-course-eligible component belongs in prose, not in primary linked_component_ids.
+- Every eligible_for_course component must have an exact primary protocol or an explicit component-specific hold/exclusion reason.
+- Only components marked selected_for_current_block must be covered by a primary operation in the detailed current block.
+- Components marked planned_for_future_block must appear in the full-course allocation and future roadmap but need not be treated in Sessions 1-2.
+- LED is supportive only. It cannot be the selected primary treatment or satisfy a course allocation for a treatable pigment component.
+- A full course containing only supportive care is invalid when any pigment component has an executable primary protocol and no legitimate hold.
+- Holds apply only to listed components/groups/regions. Do not promote a local periocular hold to a whole-face or cheek hold.
+- Sunscreen nonadherence changes counselling, parameter conservatism and expected durability; it is not an automatic treatment contraindication.
+- Flat-pigment procedures must explicitly avoid co-located raised groups. Electrocautery/RF targets only clinically accepted benign raised groups and excludes surrounding flat pigment.
+- Structural shadow and non-pigmentation-relevant findings are not pigment procedure targets.
+- Medically atypical or separately referred findings receive no cosmetic procedure.
+- Prefer one injury modality per session and never exceed two compatible injury modality types.
+- For every current-block operation, select one executable scalar value from each supplied allowed list or numeric range. Never copy protocol configuration objects such as allowed_wavelengths_nm, energy_mj_range, fluence_j_cm2_range, frequency_hz_range, passes_range, duration_minutes ranges, allowed_active_ids or depth configuration maps into operation.parameters.
+- Q-switch/focal laser operation.parameters must use scalar keys: wavelength_nm, energy_mj, frequency_hz and passes. fluence_j_cm2 may be omitted because the application derives it from energy_mj and spot_area_cm2; when supplied, it must be a scalar.
+- Microneedling operation.parameters must include one exact allowed active_id, route, and a depth_by_region_mm object containing scalar depths copied from the selected protocol.
+- LED operation.parameters must include one scalar duration_minutes selected within the protocol range.
+- planned_uses counts protocol occurrences, not unique patients or monetary units. A compatible combined visit may contain more than one protocol use while counting as one session.
+- package_summary_text must aggregate by modality and unique session number. Example: periocular microneedling plus perioral microneedling in Sessions 2, 4 and 6 is written as microneedling with active x3, while the protocol allocations remain x3 each for reconciliation.
+- Supportive care delivered within a primary-treatment visit does not increase total_planned_sessions. Count a supportive visit as a session only when standalone_visit is true.
 
 OUTPUT SHAPE
 {
   "linear_treatment_plan": {
-    "policy_version": "pigmentation_clinical_policy_v2_4_2026_07_24",
-    "prompt_version": "pigmentation_prompts_v2_4_2026_07_24",
-    "config_version": "2.4.0",
+    "policy_version": "pigmentation_clinical_policy_v2_6_1_2026_07_24",
+    "prompt_version": "pigmentation_prompts_v2_6_1_2026_07_24",
+    "config_version": "2.6.1",
     "plan_name": "string",
     "duration": "string",
     "plan_status": "ai_generated_pending_doctor_review|blocked",
     "planning_block_reason": null,
-    "baseline_summary": {
-      "global_background_melanin_load_index": 1,
-      "global_background_erythema_load_index": 1,
-      "active_inflammatory_lesion_burden_index": 1,
-      "flat_focal_pigmented_lesion_burden_index": 1,
-      "raised_pigmented_lesion_burden_index": 1,
-      "structural_periocular_shadow_burden_index": 1,
-      "diagnostic_component_ids": ["DC_001"],
-      "morphology_group_ids": ["MG_001"]
+    "baseline_summary": {"global_background_melanin_load_index":1,"global_background_erythema_load_index":1,"active_inflammatory_lesion_burden_index":1,"flat_focal_pigmented_lesion_burden_index":1,"raised_pigmented_lesion_burden_index":1,"structural_periocular_shadow_burden_index":1,"diagnostic_component_ids":["DC_001"],"morphology_group_ids":["PG_001"]},
+    "full_course_summary": {
+      "course_duration": "string",
+      "total_planned_sessions": 6,
+      "first_reassessment_after_session": 2,
+      "planned_modality_allocation": [
+        {"modality_id":"q_switch_laser","protocol_id":"EXACT_PROTOCOL_ID","planned_uses":3,"linked_component_ids":["DC_001"],"linked_group_ids":["PG_001"],"session_numbers":[1,3,5],"counted_as_primary_sessions":true}
+      ],
+      "supportive_inclusions": [
+        {"modality_id":"led","protocol_id":"LED_RED_CALMING","planned_uses":3,"session_numbers":[1,3,5],"standalone_visit":false,"note":"supportive recovery only"}
+      ],
+      "separately_planned_focal_procedures": [
+        {"modality_id":"electrocautery_or_rf","protocol_id":"EXACT_PROTOCOL_ID","planned_uses":1,"linked_component_ids":["DC_004"],"session_numbers":[4],"included_in_total_planned_sessions":true}
+      ],
+      "base_case_assumptions": ["string"],
+      "package_summary_text": "Q-switch x3 + microneedling with active x3. Group by unique treatment visits; no monetary pricing."
     },
     "component_treatment_map": [
-      {
-        "diagnostic_component_id": "DC_001",
-        "linked_group_ids": ["MG_001"],
-        "clinical_location_text": "exact copied diagnosis location",
-        "working_diagnosis": "string",
-        "treatment_eligibility": "eligible|control_inflammation_first|medical_control_first|hold_for_closeup|hold_for_doctor_assessment|observe|not_applicable",
-        "selected_modality_id": "homecare|chemical_peel|microneedling_with_active|q_switch_laser|focal_laser|electrocautery_or_rf|led|medical_control|observe|other|null",
-        "selected_protocol_id": "exact_protocol_id_or_null",
-        "nearest_reasonable_alternative": {"modality_id": "string_or_null", "protocol_id": "string_or_null"},
-        "why_selected_over_alternative": ["maximum three concise reasons"],
-        "scope": "whole_face|regional|focal_lesion|non_procedural",
-        "target_location_text": "precise treatment direction",
-        "exclude_group_ids": ["MG_002"],
-        "exclusion_instruction": "string",
-        "expected_response": "string",
-        "doctor_validation_required": true
-      }
+      {"diagnostic_component_id":"DC_001","linked_group_ids":["PG_001"],"clinical_location_text":"exact copied diagnosis location","working_diagnosis":"string","eligible_for_course":true,"currently_executable":true,"treatment_eligibility":"eligible|control_inflammation_first|medical_control_first|hold_for_doctor_assessment|observe|not_applicable","course_allocation_status":"selected_for_current_block|planned_for_future_block|held|observe_only|not_applicable","planned_block_number":"number_or_null","selected_modality_id":"homecare|chemical_peel|microneedling_with_active|q_switch_laser|focal_laser|electrocautery_or_rf|medical_control|observe|other|null","selected_protocol_id":"exact primary protocol id or null","nearest_reasonable_alternative":{"modality_id":"string_or_null","protocol_id":"string_or_null"},"why_selected_over_alternative":["maximum three concise reasons"],"scope":"whole_face|regional|focal_lesion|non_procedural","target_location_text":"precise treatment direction","exclude_group_ids":["PG_002"],"exclusion_instruction":"string","course_exclusion_or_hold_reason":null,"expected_response":"string","doctor_validation_required":true}
     ],
-    "course": {
-      "expected_total_sessions": 6,
-      "next_formal_reassessment_after_session": 2,
-      "base_case_logic": "string"
-    },
-    "current_sessions": [
-      {
-        "session_number": 1,
-        "timing": "string",
-        "session_goal": "string",
-        "treatment_operations": [
-          {
-            "operation_id": "OP_S1_001",
-            "modality_id": "string",
-            "protocol_id": "EXACT_PROTOCOL_ID",
-            "role": "primary|secondary_regional|supportive|homecare|medical_control",
-            "injury_producing": true,
-            "linked_component_ids": ["DC_001"],
-            "linked_group_ids": ["MG_001"],
-            "target_location_text": "string",
-            "exclude_group_ids": ["MG_002"],
-            "exclusion_instruction": "string",
-            "parameters": {},
-            "endpoint": "string_or_null",
-            "stop_conditions": ["string"],
-            "aftercare": ["string"]
-          }
-        ],
-        "session_execution_sequence": [
-          {"step_number": 1, "step_type": "assessment|cleanse|photograph|numbing|remove_numbing|protect|procedure|neutralize|apply_active|cooling|led|moisturize|sunscreen|aftercare|other", "operation_id": "OP_S1_001_or_null", "instruction": "string"}
-        ],
-        "provider_checkpoint": "string"
-      }
-    ],
-    "future_provisional_sessions": [
-      {"session_number": 3, "timing": "string", "linked_component_ids": ["DC_001"], "linked_group_ids": ["MG_001"], "primary_modality_id": "string", "likely_protocol_id": "string_or_null", "retain_if": "string", "change_if": "string"}
-    ],
-    "homecare_plan": {
-      "morning": ["string"],
-      "evening": ["string"],
-      "sun_and_heat_control": ["string"],
-      "component_specific_instructions": [
-        {"linked_component_ids": ["DC_001"], "linked_group_ids": ["MG_001"], "clinical_location_text": "exact text", "instruction": "string"}
+    "course": {"expected_total_sessions":6,"next_formal_reassessment_after_session":2,"base_case_logic":"string"},
+    "master_treatment_roadmap": {
+      "total_planned_sessions": 6,
+      "blocks": [
+        {"block_number":1,"session_numbers":[1,2],"detail_status":"detailed_current_block","purpose":"string","primary_protocol_uses":[{"modality_id":"q_switch_laser","protocol_id":"EXACT_PROTOCOL_ID","planned_uses":1,"linked_component_ids":["DC_001"]}],"supportive_protocol_uses":[{"modality_id":"led","protocol_id":"LED_RED_CALMING","planned_uses":1,"linked_component_ids":["DC_001"]}]},
+        {"block_number":2,"session_numbers":[3,4],"detail_status":"provisional_after_reassessment","purpose":"string","primary_protocol_uses":[{"modality_id":"microneedling_with_active","protocol_id":"EXACT_PROTOCOL_ID","planned_uses":2,"linked_component_ids":["DC_002"]}],"supportive_protocol_uses":[]}
       ]
     },
-    "reassessment_gate": {
-      "after_session": 2,
-      "required_images": ["white", "surface_polarized", "subsurface_polarized", "red", "woods_uv"],
-      "metrics_and_groups_to_repeat": ["string"],
-      "decision_rules": ["string"]
-    },
-    "safety_and_doctor_approval": {
-      "doctor_confirmation_required": true,
-      "components_requiring_closeup_or_direct_exam": ["DC_001"],
-      "hard_holds": ["string"],
-      "pre_session_checks": ["string"]
-    },
-    "expected_outcomes": {
-      "component_specific": [
-        {"diagnostic_component_id": "DC_001", "linked_group_ids": ["MG_001"], "clinical_location_text": "exact text", "expected_change": "string", "measurement_to_repeat": "string"}
+    "current_treatment_block": {
+      "block_number":1,
+      "session_numbers":[1,2],
+      "block_goal":"string",
+      "sessions": [
+        {"session_number":1,"timing":"string","session_goal":"string","treatment_operations":[
+          {"operation_id":"OP_S1_001","modality_id":"q_switch_laser","protocol_id":"EXACT_QS_PROTOCOL_ID","role":"primary","injury_producing":true,"linked_component_ids":["DC_001"],"linked_group_ids":["PG_001"],"target_location_text":"string","exclude_group_ids":["PG_002"],"exclusion_instruction":"string","parameters":{"wavelength_nm":1064,"energy_mj":200,"frequency_hz":3,"passes":1},"endpoint":"exact configured endpoint","stop_conditions":["string"],"aftercare":["string"]},
+          {"operation_id":"OP_S1_002","modality_id":"microneedling_with_active","protocol_id":"EXACT_MN_PROTOCOL_ID","role":"primary","injury_producing":true,"linked_component_ids":["DC_002"],"linked_group_ids":["PG_002"],"target_location_text":"string","exclude_group_ids":[],"exclusion_instruction":"string","parameters":{"active_id":"EXACT_ALLOWED_ACTIVE_ID","route":"topical_transdermal","depth_by_region_mm":{"malar_cheek":1.0}},"endpoint":"exact configured endpoint","stop_conditions":["string"],"aftercare":["string"]},
+          {"operation_id":"OP_S1_003","modality_id":"led","protocol_id":"LED_RED_CALMING","role":"supportive","injury_producing":false,"linked_component_ids":["DC_001"],"linked_group_ids":["PG_001"],"target_location_text":"string","exclude_group_ids":[],"exclusion_instruction":"string","parameters":{"duration_minutes":15},"endpoint":null,"stop_conditions":["string"],"aftercare":["string"]}
+        ],"session_execution_sequence":[{"step_number":1,"step_type":"assessment|cleanse|photograph|numbing|remove_numbing|protect|procedure|neutralize|apply_active|cooling|led|moisturize|sunscreen|aftercare|other","operation_id":"OP_S1_001_or_null","instruction":"string"}],"provider_checkpoint":"string"}
       ],
-      "client_explanation": "string"
-    }
+      "reassessment_gate": {"after_session":2,"required_images":["white","surface_polarized","subsurface_polarized","red","woods_uv"],"metrics_and_groups_to_repeat":["string"],"decision_rules":["string"]}
+    },
+    "future_provisional_sessions": [
+      {"session_number":3,"timing":"string","planned_protocol_uses":[{"modality_id":"microneedling_with_active","protocol_id":"EXACT_PROTOCOL_ID","role":"primary|secondary_regional","linked_component_ids":["DC_002"],"linked_group_ids":["PG_002"]}],"supportive_protocol_uses":[],"retain_if":"string","change_if":"string"}
+    ],
+    "homecare_plan": {"morning":["string"],"evening":["string"],"sun_and_heat_control":["string"],"component_specific_instructions":[{"linked_component_ids":["DC_001"],"linked_group_ids":["PG_001"],"clinical_location_text":"exact text","instruction":"string"}]},
+    "reassessment_gate": {"after_session":2,"required_images":["white","surface_polarized","subsurface_polarized","red","woods_uv"],"metrics_and_groups_to_repeat":["string"],"decision_rules":["string"]},
+    "safety_and_doctor_approval": {"doctor_confirmation_required":true,"components_excluded_or_medically_referred":["DC_001"],"hard_holds":["string"],"pre_session_checks":["string"]},
+    "expected_outcomes": {"component_specific":[{"diagnostic_component_id":"DC_001","linked_group_ids":["PG_001"],"clinical_location_text":"exact text","expected_change":"string","measurement_to_repeat":"string"}],"client_explanation":"string"}
   }
 }
 ${JSON_DISCIPLINE}`
 
-export const REASSESS_QUESTIONS_PROMPT = `Generate no more than four short questions needed before formal Pigmentation Decode V2.4 reassessment. Ask only about response, adverse events, adherence, new triggers or new lesions that can change the next block. Return {"reassessment_questions":[{"question_id":"RQ_001","question":"string","answer_type":"single_choice|multi_choice|yes_no|short_text","options":["string"],"required":true}]}. ${JSON_DISCIPLINE}`
+export const REASSESS_QUESTIONS_PROMPT = `Generate no more than four short questions needed before formal Pigmentation Decode V2.6.1 reassessment. Ask only about response, adverse events, adherence, new triggers or new pigmentation-relevant findings that can change the next block. Do not ask for dermoscopy or new image uploads. Return {"reassessment_questions":[{"question_id":"RQ_001","question":"string","answer_type":"single_choice|multi_choice|yes_no|short_text","options":["string"],"required":true}]}. ${JSON_DISCIPLINE}`
 
-export const REASSESS_PROMPT = `You are the high-reasoning formal reassessment engine for Pigmentation Decode V2.4.
+export const REASSESS_PROMPT = `You are the high-reasoning formal reassessment engine for Pigmentation Decode V2.6.1.
 
-Compare the new five labelled images with the supplied compact baseline using the same morphology populations and anatomical locations. Preserve baseline group IDs for the same population; use NEW_MG_001 style IDs only for genuinely new populations. Distinguish true response from image-quality variation. Return new measurement primitives; application code calculates authoritative current scores.
+Compare the new five labelled images and standardized zone panels with the compact baseline using the same feature-to-mode matrix. Preserve baseline group IDs for the same population. Return new measurement primitives; application code calculates scores. Keep target, contributor, modifier and safety roles separate. A new truly indeterminate pathway-changing finding may create a targeted classification_required_item; do not request dermoscopy or downstream images. If a new targeted classification is pending, do not generate a new procedural treatment block for that linked group.
 
-Use only supplied eligible protocols for the next block. Keep the next block limited to detailed sessions through the next reassessment gate. Do not silently treat a new, changed or medically atypical focal lesion.
+Preserve the original package allocation as initial_full_course_summary. When response changes the remaining recommendation, return updated_full_course_summary and explain allocation_changes; do not silently erase completed or originally quoted protocol counts.
 
-Return:
-{
-  "session_id": "string",
-  "current_phenotype": {
-    "image_quality": {"overall_usable": true, "mode_quality": {}, "limitations": []},
-    "morphology_groups": [],
-    "metrics": {
-      "global_background_melanin_load_index": {"presence_status": "present|absent|uncertain", "linked_group_ids": [], "measurement_primitives": {}, "confidence_100": 80, "summary": "string"},
-      "global_background_erythema_load_index": {},
-      "flat_focal_pigmented_lesion_burden_index": {},
-      "raised_pigmented_lesion_burden_index": {},
-      "active_inflammatory_lesion_burden_index": {},
-      "structural_periocular_shadow_burden_index": {}
-    },
-    "background_profile": {},
-    "phenotype_summary_for_doctor": "string"
-  },
-  "group_outcomes": [
-    {"baseline_group_id": "MG_001", "current_group_id": "MG_001_or_null", "clinical_location_text": "exact baseline location", "response": "improved|stable|worsened|cleared|not_assessable", "change_summary": "string"}
-  ],
-  "overall_response": "good|partial|minimal|worsened|mixed|not_assessable",
-  "safety_findings": ["string"],
-  "updated_component_treatment_map": [],
-  "current_treatment_block": {
-    "block_number": 2,
-    "sessions": [
-      {
-        "session_number": 3,
-        "timing": "string",
-        "session_goal": "string",
-        "treatment_operations": [
-          {"operation_id": "OP_S3_001", "modality_id": "string", "protocol_id": "EXACT_PROTOCOL_ID", "role": "primary|secondary_regional|supportive|homecare|medical_control", "injury_producing": true, "linked_component_ids": ["DC_001"], "linked_group_ids": ["MG_001"], "target_location_text": "string", "exclude_group_ids": [], "exclusion_instruction": "string", "parameters": {}, "endpoint": "string_or_null", "stop_conditions": ["string"], "aftercare": ["string"]}
-        ],
-        "session_execution_sequence": [
-          {"step_number": 1, "step_type": "assessment|cleanse|photograph|numbing|remove_numbing|protect|procedure|neutralize|apply_active|cooling|led|moisturize|sunscreen|aftercare|other", "operation_id": "OP_S3_001_or_null", "instruction": "string"}
-        ],
-        "provider_checkpoint": "string"
-      }
-    ],
-    "reassessment_gate": {"after_session": 4, "metrics_and_groups_to_repeat": ["string"], "decision_rules": ["string"]}
-  },
-  "future_treatment_roadmap": [],
-  "updated_master_treatment_roadmap": {},
-  "client_summary": "string"
-}
-${JSON_DISCIPLINE}`
+Return a compact JSON object containing current_phenotype, group_outcomes, overall_response, safety_findings, classification_required_items, updated_component_treatment_map, current_treatment_block, future_treatment_roadmap, updated_master_treatment_roadmap, updated_full_course_summary, allocation_changes and client_summary. ${JSON_DISCIPLINE}`
 
-// Retained for compatibility. Deterministic validators, not the model, are authoritative.
 export const PIGMENTATION_V2_OUTPUT_VALIDATION_RULES = {
   image: [
-    'required metrics and primitives exist',
-    'group IDs are unique',
-    'linked group IDs exist',
-    'flat and raised groups are not merged',
+    'all required face regions reviewed',
+    'pigmentation targets separated from contributors and modifiers',
+    'feature-appropriate mode evidence used',
+    'co-located flat and raised groups remain separate',
+    'modifiers do not inflate melanin scores',
   ],
   diagnosis: [
     'immutable metrics match',
-    'every clinically relevant group is resolved',
+    'every group resolved',
+    'canonical codes present',
+    'classification cards exist only for pathway-changing unknowns',
+    'safety holds are component-scoped',
   ],
   plan: [
-    'protocol IDs exist and match modality',
-    'targets are location-specific',
-    'critical safety gates are respected',
+    'all targeted doctor classifications resolved',
+    'protocol preflight passed',
+    'primary eligible components receive primary protocols',
+    'LED is supportive only',
+    'targets are location-specific and safety gates are scoped',
   ],
 }
+
+
+export const PLAN_EXECUTION_REPAIR_PROMPT = `You repair only the execution contract of an already-generated Pigmentation Decode V2.6.1 treatment plan.
+
+INPUT
+- validator_errors
+- exact eligible protocol records
+- current_treatment_block
+- master_treatment_roadmap
+
+TASK
+Return corrected current_treatment_block and master_treatment_roadmap only. Preserve session numbers, component/group links, treatment choices, targets, exclusions, sequence, course allocation and prose unless a minimal parameter correction is required.
+
+RULES
+- Laser: choose scalar wavelength_nm, energy_mj, frequency_hz and passes within the exact selected protocol. Do not copy allowed_* arrays or *_range objects. Omit fluence_j_cm2; the application derives it.
+- Microneedling: choose one exact allowed active_id, a topical/transdermal route and scalar depth_by_region_mm values allowed by the protocol.
+- LED: choose one scalar duration_minutes within the protocol range.
+- Roadmap blocks: place primary procedures in primary_protocol_uses and supportive procedures in supportive_protocol_uses. Counts must match the listed sessions.
+- Do not change protocols, modalities, session order, diagnosis, package counts or future clinical logic.
+
+OUTPUT
+{"current_treatment_block":{},"master_treatment_roadmap":{}}
+Return one valid JSON object only.`

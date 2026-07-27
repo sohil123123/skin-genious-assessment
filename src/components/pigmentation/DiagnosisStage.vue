@@ -910,6 +910,12 @@
           </div>
         </div>
 
+        <!-- Doctor Classifications (if any required) -->
+        <div class="pblock" v-if="store.classificationRequiredItems?.length">
+          <h3><span class="bar" style="background: #f59e0b"></span>Required Doctor Classifications</h3>
+          <DoctorClassificationPanel />
+        </div>
+
         <!-- confirmed working dx selection -->
         <div class="pblock" id="confirmDxBlock">
           <h3><span class="bar"></span>Confirm working diagnosis</h3>
@@ -967,6 +973,7 @@ import { ref, computed, onMounted } from 'vue'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
 import { api } from 'src/boot/axios'
 import { Loading, Notify } from 'quasar'
+import DoctorClassificationPanel from './DoctorClassificationPanel.vue'
 
 const store = usePigmentationStore()
 
