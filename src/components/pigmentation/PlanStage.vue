@@ -143,23 +143,90 @@
       <div class="pblock" v-if="store.lastPlan.baseline_summary">
         <h3><span class="bar"></span>Baseline Skin Profile</h3>
         <div class="scoregrid">
-          <div class="scorecard mel">
+          <div
+            class="scorecard mel"
+            v-if="
+              store.lastPlan.baseline_summary.global_background_melanin_load_index !== undefined ||
+              store.lastPlan.baseline_summary.melanin_load_index !== undefined
+            "
+          >
             <span class="sl">Melanin Load</span>
             <div class="sv">
-              {{ store.lastPlan.baseline_summary.melanin_load_index }}<span class="su">/100</span>
+              {{
+                store.lastPlan.baseline_summary.global_background_melanin_load_index ??
+                store.lastPlan.baseline_summary.melanin_load_index
+              }}<span class="su">/100</span>
             </div>
           </div>
-          <div class="scorecard ery">
+          <div
+            class="scorecard ery"
+            v-if="
+              store.lastPlan.baseline_summary.global_background_erythema_load_index !== undefined ||
+              store.lastPlan.baseline_summary.erythema_load_index !== undefined
+            "
+          >
             <span class="sl">Erythema Load</span>
             <div class="sv">
-              {{ store.lastPlan.baseline_summary.erythema_load_index }}<span class="su">/100</span>
+              {{
+                store.lastPlan.baseline_summary.global_background_erythema_load_index ??
+                store.lastPlan.baseline_summary.erythema_load_index
+              }}<span class="su">/100</span>
             </div>
           </div>
-          <div class="scorecard depth">
+          <div
+            class="scorecard ery"
+            v-if="
+              store.lastPlan.baseline_summary.active_inflammatory_lesion_burden_index !== undefined
+            "
+          >
+            <span class="sl">Active Inflammatory Burden</span>
+            <div class="sv">
+              {{ store.lastPlan.baseline_summary.active_inflammatory_lesion_burden_index
+              }}<span class="su">/100</span>
+            </div>
+          </div>
+          <div
+            class="scorecard mel"
+            v-if="
+              store.lastPlan.baseline_summary.flat_focal_pigmented_lesion_burden_index !== undefined
+            "
+          >
+            <span class="sl">Flat Focal Pigment Burden</span>
+            <div class="sv">
+              {{ store.lastPlan.baseline_summary.flat_focal_pigmented_lesion_burden_index
+              }}<span class="su">/100</span>
+            </div>
+          </div>
+          <div
+            class="scorecard depth"
+            v-if="
+              store.lastPlan.baseline_summary.raised_pigmented_lesion_burden_index !== undefined
+            "
+          >
+            <span class="sl">Raised Pigment Burden</span>
+            <div class="sv">
+              {{ store.lastPlan.baseline_summary.raised_pigmented_lesion_burden_index
+              }}<span class="su">/100</span>
+            </div>
+          </div>
+          <div
+            class="scorecard depth"
+            v-if="
+              store.lastPlan.baseline_summary.structural_periocular_shadow_burden_index !==
+              undefined
+            "
+          >
+            <span class="sl">Periocular Shadow Burden</span>
+            <div class="sv">
+              {{ store.lastPlan.baseline_summary.structural_periocular_shadow_burden_index
+              }}<span class="su">/100</span>
+            </div>
+          </div>
+          <div class="scorecard depth" v-if="store.lastPlan.baseline_summary.depth_call">
             <span class="sl">Depth Verdict</span>
             <div class="sv-text">{{ formatLabel(store.lastPlan.baseline_summary.depth_call) }}</div>
           </div>
-          <div class="scorecard comp">
+          <div class="scorecard comp" v-if="store.lastPlan.baseline_summary.composition">
             <span class="sl">Composition</span>
             <div class="sv-text">
               {{ formatLabel(store.lastPlan.baseline_summary.composition) }}
@@ -212,6 +279,87 @@
         </div>
       </div>
 
+      <!-- COMPONENT TREATMENT MAP -->
+      <div class="pblock" v-if="store.lastPlan.component_treatment_map?.length">
+        <h3><span class="bar" style="background: var(--violet)"></span>Component Treatment Map</h3>
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div
+            class="card q-pa-md"
+            v-for="map in store.lastPlan.component_treatment_map"
+            :key="map.diagnostic_component_id"
+            style="border-left: 4px solid var(--violet); background: #ffffff"
+          >
+            <div class="flex justify-between items-start flex-wrap q-mb-sm">
+              <div>
+                <div class="text-weight-bold text-subtitle2 text-indigo-9" style="font-size: 14px">
+                  {{ formatLabel(map.working_diagnosis) }}
+                </div>
+                <div class="text-caption text-grey-6 q-mt-xs">
+                  Regions: <b>{{ map.regions?.map(formatLabel).join(', ') }}</b> | Scope:
+                  <b>{{ formatLabel(map.scope) }}</b>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span
+                  class="status-badge"
+                  :class="map.treatment_eligibility"
+                  :style="
+                    map.treatment_eligibility === 'eligible'
+                      ? 'background: #e8f5e9; color: #2e7d32;'
+                      : 'background: #ffebee; color: #c62828;'
+                  "
+                >
+                  {{ formatLabel(map.treatment_eligibility) }}
+                </span>
+              </div>
+            </div>
+
+            <q-separator class="q-my-sm" />
+
+            <div class="row q-col-gutter-sm text-caption">
+              <div class="col-xs-12 col-sm-6">
+                <div>
+                  <strong>Selected Modality:</strong> {{ formatLabel(map.selected_modality) }}
+                </div>
+                <div v-if="map.selected_product_or_protocol_id" class="text-grey-7">
+                  Protocol: <code>{{ map.selected_product_or_protocol_id }}</code>
+                </div>
+              </div>
+              <div class="col-xs-12 col-sm-6" v-if="map.nearest_alternative">
+                <div>
+                  <strong>Nearest Alternative:</strong> {{ formatLabel(map.nearest_alternative) }}
+                </div>
+              </div>
+            </div>
+
+            <div class="q-mt-sm" v-if="map.why_selected_over_alternative?.length">
+              <div
+                class="text-weight-medium text-grey-8"
+                style="font-size: 11.5px; text-transform: uppercase"
+              >
+                Modality Selection Rationale:
+              </div>
+              <ul class="clinic-list q-mt-xs q-mb-none" style="padding-left: 15px">
+                <li
+                  v-for="reason in map.why_selected_over_alternative"
+                  :key="reason"
+                  style="font-size: 12px; color: #334155"
+                >
+                  {{ reason }}
+                </li>
+              </ul>
+            </div>
+
+            <div
+              class="q-mt-md bg-grey-1 q-pa-sm rounded text-caption"
+              style="border-left: 2.5px solid var(--violet); color: #2d3748"
+            >
+              <strong>Likely component level changes:</strong> {{ map.expected_response }}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- MEASURABLE TREATMENT GOALS -->
       <div class="pblock" v-if="store.lastPlan.treatment_goals || store.lastPlan.measurable_goals">
         <h3><span class="bar"></span>Measurable Treatment Goals</h3>
@@ -235,27 +383,42 @@
                 class="g-metric-row"
                 v-if="
                   goals.melanin_load_target !== undefined ||
-                  goals.melanin_load_index_target_max !== undefined
+                  goals.melanin_load_index_target_max !== undefined ||
+                  goals.global_background_melanin_target !== undefined
                 "
               >
                 <span class="lbl">Melanin Target</span>
                 <span class="val"
-                  >{{ goals.melanin_load_target ?? goals.melanin_load_index_target_max }}/100</span
+                  >{{
+                    goals.melanin_load_target ??
+                    goals.melanin_load_index_target_max ??
+                    goals.global_background_melanin_target
+                  }}/100</span
                 >
               </div>
               <div
                 class="g-metric-row"
                 v-if="
                   goals.erythema_load_target !== undefined ||
-                  goals.erythema_load_index_target_max !== undefined
+                  goals.erythema_load_index_target_max !== undefined ||
+                  goals.global_background_erythema_target !== undefined
                 "
               >
                 <span class="lbl">Erythema Target</span>
                 <span class="val"
                   >{{
-                    goals.erythema_load_target ?? goals.erythema_load_index_target_max
+                    goals.erythema_load_target ??
+                    goals.erythema_load_index_target_max ??
+                    goals.global_background_erythema_target
                   }}/100</span
                 >
+              </div>
+              <div
+                class="g-metric-row"
+                v-if="goals.active_inflammatory_burden_target !== undefined"
+              >
+                <span class="lbl">Inflammatory Target</span>
+                <span class="val">{{ goals.active_inflammatory_burden_target }}/100</span>
               </div>
               <div
                 class="g-metric-row"
@@ -280,6 +443,21 @@
                 <span class="rg-name">{{ formatLabel(rg.region) }}</span>
                 <span class="rg-vals"
                   >{{ rg.baseline_melanin_load }} → <b>{{ rg.target_melanin_load }}</b></span
+                >
+              </div>
+            </div>
+
+            <!-- Component Targets -->
+            <div class="regional-goals-container q-mt-md" v-if="goals.component_targets?.length">
+              <div class="rg-title">📍 Component Targets</div>
+              <div
+                class="rg-row"
+                v-for="ct in goals.component_targets"
+                :key="ct.diagnostic_component_id"
+              >
+                <span class="rg-name">{{ formatLabel(ct.metric) }}</span>
+                <span class="rg-vals"
+                  >{{ ct.baseline }} → <b>{{ ct.target }}</b></span
                 >
               </div>
             </div>
@@ -371,6 +549,9 @@
                   <td>
                     <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px">
                       <div
+                        v-if="
+                          cand.efficacy_score_100 !== undefined && cand.efficacy_score_100 !== null
+                        "
                         style="
                           display: flex;
                           align-items: center;
@@ -384,6 +565,7 @@
                         >
                       </div>
                       <div
+                        v-if="cand.safety_score_100 !== undefined && cand.safety_score_100 !== null"
                         style="
                           display: flex;
                           align-items: center;
@@ -397,6 +579,42 @@
                         >
                       </div>
                       <div
+                        v-if="
+                          cand.downtime_score_100 !== undefined && cand.downtime_score_100 !== null
+                        "
+                        style="
+                          display: flex;
+                          align-items: center;
+                          justify-content: space-between;
+                          gap: 8px;
+                        "
+                      >
+                        <span>Downtime:</span>
+                        <span class="score-pill safe" style="font-size: 10px; padding: 1px 4px"
+                          >{{ cand.downtime_score_100 }}/100</span
+                        >
+                      </div>
+                      <div
+                        v-if="
+                          cand.recurrence_prevention_score_100 !== undefined &&
+                          cand.recurrence_prevention_score_100 !== null
+                        "
+                        style="
+                          display: flex;
+                          align-items: center;
+                          justify-content: space-between;
+                          gap: 8px;
+                        "
+                      >
+                        <span>Prevention:</span>
+                        <span class="score-pill overall" style="font-size: 10px; padding: 1px 4px"
+                          >{{ cand.recurrence_prevention_score_100 }}/100</span
+                        >
+                      </div>
+                      <div
+                        v-if="
+                          cand.overall_score_100 !== undefined && cand.overall_score_100 !== null
+                        "
                         style="
                           display: flex;
                           align-items: center;
@@ -409,6 +627,15 @@
                         <span class="score-pill overall" style="font-size: 10px; padding: 1px 4px"
                           >{{ cand.overall_score_100 }}/100</span
                         >
+                      </div>
+                      <div
+                        v-if="
+                          cand.efficacy_score_100 === undefined &&
+                          cand.safety_score_100 === undefined
+                        "
+                        style="color: #64748b; font-style: italic; font-size: 11px"
+                      >
+                        Standard settings
                       </div>
                     </div>
                   </td>
@@ -423,14 +650,20 @@
                           background: rgba(var(--slate-rgb), 0.1);
                           font-weight: bold;
                         "
-                        >{{ formatLabel(cand.treatment_scope) }}</span
+                        >{{ formatLabel(getCandidateScope(cand)) }}</span
                       >
                     </div>
                     <div
                       v-if="cand.eligible_regions?.length"
                       style="font-size: 11px; margin-bottom: 4px; color: #475569"
                     >
-                      <b>Eligible:</b> {{ cand.eligible_regions.map(formatLabel).join(', ') }}
+                      <b>Eligible:</b>
+                      {{
+                        cand.eligible_regions
+                          .map((r) => (typeof r === 'object' && r ? r.region || '' : r))
+                          .map(formatLabel)
+                          .join(', ')
+                      }}
                     </div>
                     <div
                       v-if="cand.best_use_regions?.length"
@@ -438,22 +671,33 @@
                     >
                       <b style="color: #2e7d32">Best Use:</b>
                       <div
-                        v-for="bu in cand.best_use_regions"
-                        :key="bu.region"
+                        v-for="(bu, bIdx) in cand.best_use_regions"
+                        :key="bIdx"
                         style="margin-left: 6px; color: #37474f; font-size: 10.5px"
                       >
-                        • {{ formatLabel(bu.region)
-                        }}{{ bu.subregion ? ' (' + bu.subregion + ')' : '' }}: {{ bu.reason }}
+                        •
+                        {{
+                          typeof bu === 'object' && bu
+                            ? formatLabel(bu.region) +
+                              (bu.subregion ? ' (' + bu.subregion + ')' : '') +
+                              (bu.reason ? ': ' + bu.reason : '')
+                            : formatLabel(bu)
+                        }}
                       </div>
                     </div>
                     <div v-if="cand.avoid_regions?.length" style="font-size: 11px">
                       <b style="color: #c62828">Avoid:</b>
                       <div
-                        v-for="ar in cand.avoid_regions"
-                        :key="ar.region"
+                        v-for="(ar, aIdx) in cand.avoid_regions"
+                        :key="aIdx"
                         style="margin-left: 6px; color: #37474f; font-size: 10.5px"
                       >
-                        • {{ formatLabel(ar.region) }}: {{ ar.reason }}
+                        •
+                        {{
+                          typeof ar === 'object' && ar
+                            ? formatLabel(ar.region) + (ar.reason ? ': ' + ar.reason : '')
+                            : formatLabel(ar)
+                        }}
                       </div>
                     </div>
                   </td>
@@ -467,12 +711,50 @@
                       color: #334155;
                     "
                   >
-                    {{ cand.rationale || cand.reason }}
+                    {{
+                      cand.rationale ||
+                      cand.reason ||
+                      cand.notes ||
+                      (cand.endpoint ? 'Target endpoint: ' + formatLabel(cand.endpoint) : '—')
+                    }}
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- CURRENT TREATMENT BLOCK OVERVIEW -->
+      <div
+        class="card q-pa-md q-mb-lg"
+        v-if="store.lastPlan.current_treatment_block"
+        style="border: 1px solid var(--line); background: #fbfbfb"
+      >
+        <div class="text-subtitle1 text-weight-bold text-teal-10 flex items-center justify-between">
+          <span
+            >🛡️ Active Treatment Block:
+            {{ formatLabel(store.lastPlan.current_treatment_block.block_id || 'Block 1') }}</span
+          >
+          <q-badge color="teal-9"
+            >Block {{ store.lastPlan.current_treatment_block.block_number }}</q-badge
+          >
+        </div>
+        <div class="q-mt-sm text-caption text-grey-8" style="line-height: 1.5">
+          <strong>Block Goal:</strong> {{ store.lastPlan.current_treatment_block.block_goal }}
+        </div>
+        <div class="q-mt-sm flex items-center gap-4 text-caption text-grey-6">
+          <span
+            >Expected Duration:
+            <b>{{ store.lastPlan.current_treatment_block.expected_duration }}</b></span
+          >
+          <span
+            >Session Range:
+            <b
+              >Sessions {{ store.lastPlan.current_treatment_block.session_range?.first_session }} to
+              {{ store.lastPlan.current_treatment_block.session_range?.last_session }}</b
+            ></span
+          >
         </div>
       </div>
 
@@ -513,7 +795,39 @@
                 <!-- Q-Switch details -->
                 <div class="proc-detail-box q-mb-md" v-if="session.fixed_protocol.q_switch?.use">
                   <div class="box-title">⚡ Q-Switch Laser Parameters</div>
-                  <div class="params-row">
+                  <div v-if="session.fixed_protocol.q_switch.settings_by_zone?.length">
+                    <div
+                      v-for="zs in session.fixed_protocol.q_switch.settings_by_zone"
+                      :key="zs.zone"
+                      class="q-mb-sm"
+                      style="border-bottom: 1px dashed rgba(0, 0, 0, 0.05); padding-bottom: 6px"
+                    >
+                      <div class="text-weight-bold text-caption text-primary">
+                        {{ formatLabel(zs.zone) }} Strategy:
+                      </div>
+                      <div class="params-row">
+                        <div>
+                          Wavelength: <b>{{ zs.wavelength_nm }} nm</b>
+                        </div>
+                        <div>
+                          Energy: <b>{{ zs.energy_mj }} mJ</b>
+                        </div>
+                        <div>
+                          Fluence: <b>{{ zs.fluence_j_cm2 }} J/cm²</b>
+                        </div>
+                        <div>
+                          Freq: <b>{{ formatLabel(zs.frequency_hz) }} Hz</b>
+                        </div>
+                        <div v-if="zs.passes">
+                          Passes: <b>{{ formatLabel(zs.passes) }}</b>
+                        </div>
+                        <div v-if="zs.endpoint">
+                          Endpoint: <b>{{ formatLabel(zs.endpoint) }}</b>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="params-row" v-else>
                     <div>
                       Wavelength: <b>{{ session.fixed_protocol.q_switch.wavelength_nm }} nm</b>
                     </div>
@@ -541,7 +855,13 @@
                   <div class="box-title">🧪 Peel Parameters</div>
                   <div class="params-row">
                     <div>
-                      Peel Name: <b>{{ formatLabel(session.fixed_protocol.peel.peel_name) }}</b>
+                      Peel Name:
+                      <b>{{
+                        formatLabel(
+                          session.fixed_protocol.peel.peel_name ||
+                            session.fixed_protocol.peel.peel_id,
+                        )
+                      }}</b>
                     </div>
                     <div>
                       Contact Time:
@@ -606,6 +926,30 @@
                       >
                         {{ formatLabel(act) }}
                       </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Lesion Directed Procedure details -->
+                <div
+                  class="proc-detail-box q-mb-md"
+                  v-if="session.fixed_protocol.lesion_directed_procedure?.use"
+                >
+                  <div class="box-title">🎯 Lesion Directed Procedure</div>
+                  <div class="params-row">
+                    <div>
+                      Procedure:
+                      <b>{{
+                        formatLabel(session.fixed_protocol.lesion_directed_procedure.procedure)
+                      }}</b>
+                    </div>
+                    <div
+                      v-if="session.fixed_protocol.lesion_directed_procedure.settings_or_endpoint"
+                    >
+                      Settings/Endpoint:
+                      <b>{{
+                        session.fixed_protocol.lesion_directed_procedure.settings_or_endpoint
+                      }}</b>
                     </div>
                   </div>
                 </div>
@@ -686,6 +1030,62 @@
                   </ul>
                 </div>
 
+                <!-- Session Execution Sequence -->
+                <div
+                  class="checklist-container q-mb-md"
+                  v-if="session.provider_protocol.session_execution_sequence?.length"
+                >
+                  <div class="lbl-small q-mb-sm">⚙️ Session Execution Steps</div>
+                  <div class="clinic-table-wrap">
+                    <table class="clinic-table compact">
+                      <thead>
+                        <tr>
+                          <th>Seq</th>
+                          <th>Step &amp; Modality</th>
+                          <th>Action &amp; Target Zones</th>
+                          <th>Completion Target</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="step in session.provider_protocol.session_execution_sequence"
+                          :key="step.order"
+                        >
+                          <td>
+                            <b>#{{ step.order }}</b>
+                          </td>
+                          <td>
+                            <div class="text-weight-bold" style="font-size: 12px; color: #1e293b">
+                              {{ formatLabel(step.step_type) }}
+                            </div>
+                            <div class="text-caption text-grey-6" style="font-size: 10px">
+                              {{ formatLabel(step.performed_by) }}
+                            </div>
+                          </td>
+                          <td style="font-size: 11.5px; line-height: 1.4">
+                            <div>{{ step.instructions }}</div>
+                            <div
+                              class="text-caption text-indigo-9 q-mt-xs"
+                              v-if="step.zones?.length"
+                            >
+                              Zones: <b>{{ step.zones.map(formatLabel).join(', ') }}</b>
+                            </div>
+                            <div
+                              class="text-caption text-grey-8"
+                              v-if="step.settings_or_product_id"
+                            >
+                              Settings/Product: <code>{{ step.settings_or_product_id }}</code>
+                            </div>
+                          </td>
+                          <td style="font-size: 11px; line-height: 1.4; color: #334155">
+                            {{ step.endpoint_or_completion_rule || '—' }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
                 <!-- Zone Sequence -->
                 <div
                   class="table-container-mini q-mb-md"
@@ -724,11 +1124,15 @@
                               "
                             >
                               <span
-                                v-if="z.zone_strategy_type"
+                                v-if="z.selected_treatment || z.zone_strategy_type"
                                 class="status-badge"
-                                :style="getStrategyBadgeStyle(z.zone_strategy_type)"
+                                :style="
+                                  getStrategyBadgeStyle(
+                                    z.selected_treatment || z.zone_strategy_type,
+                                  )
+                                "
                               >
-                                {{ formatLabel(z.zone_strategy_type) }}
+                                {{ formatLabel(z.selected_treatment || z.zone_strategy_type) }}
                               </span>
                               <div
                                 v-if="z.why_this_zone_strategy"
@@ -751,15 +1155,30 @@
                             </div>
                           </td>
                           <td style="font-size: 11.5px; line-height: 1.45">
+                            <!-- Selected Treatment (Flat V2) -->
+                            <div
+                              v-if="z.selected_treatment"
+                              style="font-weight: bold; color: #1565c0"
+                            >
+                              {{ formatLabel(z.selected_treatment) }}
+                            </div>
+
                             <!-- Old format fallback -->
-                            <div v-if="z.settings" class="z-settings" style="color: #334155">
+                            <div
+                              v-if="z.settings"
+                              class="z-settings"
+                              style="color: #334155; margin-top: 4px"
+                            >
                               {{ z.settings.wavelength_nm }}nm | {{ z.settings.energy_mj }}mJ |
                               {{ z.settings.fluence_j_cm2 }} J/cm² | {{ z.settings.frequency_hz }}Hz
                               | {{ z.settings.passes }} passes
                             </div>
 
                             <!-- New format strategies -->
-                            <div v-else style="display: flex; flex-direction: column; gap: 6px">
+                            <div
+                              v-if="!z.selected_treatment && !z.settings"
+                              style="display: flex; flex-direction: column; gap: 6px"
+                            >
                               <!-- Deferred Zone -->
                               <div
                                 v-if="z.zone_strategy_type === 'defer_zone'"
@@ -894,45 +1313,71 @@
                                   </div>
                                 </div>
                               </div>
+                            </div>
 
-                              <!-- Excluded Subregions / Margins -->
-                              <div
-                                v-if="z.excluded_subregions?.length"
+                            <!-- Excluded Subregions / Margins (Support flat string array or object array) -->
+                            <div
+                              v-if="z.excluded_subregions?.length"
+                              style="
+                                border-left: 2.5px solid #d32f2f;
+                                padding-left: 6px;
+                                background: #fff5f5;
+                                padding-top: 4px;
+                                padding-bottom: 4px;
+                                border-radius: 0 4px 4px 0;
+                                margin-top: 6px;
+                              "
+                            >
+                              <span
                                 style="
-                                  border-left: 2.5px solid #d32f2f;
-                                  padding-left: 6px;
-                                  background: #fff5f5;
-                                  padding-top: 4px;
-                                  padding-bottom: 4px;
-                                  border-radius: 0 4px 4px 0;
+                                  font-weight: bold;
+                                  color: #c62828;
+                                  font-size: 10px;
+                                  text-transform: uppercase;
+                                  letter-spacing: 0.02em;
                                 "
+                                >Exclusions &amp; Margins:</span
                               >
-                                <span
-                                  style="
-                                    font-weight: bold;
-                                    color: #c62828;
-                                    font-size: 10px;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.02em;
-                                  "
-                                  >Exclusions &amp; Margins:</span
-                                >
-                                <div
-                                  v-for="(ex, eidx) in z.excluded_subregions"
-                                  :key="eidx"
-                                  style="font-size: 10.5px; margin-top: 2px; color: #b71c1c"
-                                >
-                                  • <b>{{ ex.subregion }}</b
-                                  >: {{ ex.reason }}
-                                </div>
+                              <div
+                                v-if="typeof z.excluded_subregions[0] === 'string'"
+                                style="font-size: 10.5px; margin-top: 2px; color: #b71c1c"
+                              >
+                                {{ z.excluded_subregions.join(', ') }}
                               </div>
+                              <div
+                                v-else
+                                v-for="(ex, eidx) in z.excluded_subregions"
+                                :key="eidx"
+                                style="font-size: 10.5px; margin-top: 2px; color: #b71c1c"
+                              >
+                                • <b>{{ ex.subregion }}</b
+                                >: {{ ex.reason }}
+                              </div>
+                            </div>
+
+                            <!-- Avoid Zone Instruction (Flat V2) -->
+                            <div
+                              v-if="z.avoid_zone_instruction"
+                              style="
+                                border-left: 2.5px solid #ef6c00;
+                                padding-left: 6px;
+                                background: #fff8e1;
+                                padding-top: 4px;
+                                padding-bottom: 4px;
+                                border-radius: 0 4px 4px 0;
+                                margin-top: 6px;
+                                font-size: 10.5px;
+                                color: #e65100;
+                              "
+                            >
+                              <strong>Avoid Instruction:</strong> {{ z.avoid_zone_instruction }}
                             </div>
                           </td>
                           <td style="font-size: 11.5px; color: #334155; line-height: 1.45">
-                            <!-- Old format fallback -->
+                            <!-- Flat/Old format direct coverage instruction fallback -->
                             <div v-if="z.coverage_instruction">{{ z.coverage_instruction }}</div>
 
-                            <!-- New format -->
+                            <!-- Nested New format -->
                             <div v-else>
                               <div v-if="z.zone_strategy_type === 'defer_zone'">
                                 {{ z.avoid_zone_instruction || 'Deferred' }}
@@ -971,8 +1416,27 @@
                             </div>
                           </td>
                           <td style="font-size: 11.5px; color: #0f172a">
+                            <!-- Flat V2 endpoint rules -->
+                            <div v-if="z.endpoint_rules">
+                              <div
+                                v-if="Array.isArray(z.endpoint_rules)"
+                                style="font-size: 11.5px; font-weight: bold; line-height: 1.45"
+                              >
+                                <div
+                                  v-for="rule in z.endpoint_rules"
+                                  :key="rule"
+                                  style="margin-bottom: 2px"
+                                >
+                                  • {{ rule }}
+                                </div>
+                              </div>
+                              <div v-else style="font-size: 11.5px; font-weight: bold">
+                                {{ z.endpoint_rules }}
+                              </div>
+                            </div>
+
                             <!-- Old format fallback -->
-                            <div v-if="z.endpoint">
+                            <div v-else-if="z.endpoint">
                               <b>{{ formatLabel(z.endpoint) }}</b>
                             </div>
 
@@ -1208,7 +1672,7 @@
                 </div>
               </div>
 
-              <div
+              <!-- <div
                 class="flex justify-end q-mt-md"
                 v-if="store.reviewState.finalized && session.status !== 'completed'"
               >
@@ -1224,7 +1688,7 @@
               </div>
               <div class="flex justify-end q-mt-md" v-else-if="session.status === 'completed'">
                 <span class="status-badge approved">✓ Session Completed</span>
-              </div>
+              </div> -->
             </div>
           </div>
         </div>
@@ -1266,8 +1730,8 @@
             </div>
             <div class="row q-col-gutter-md">
               <div
-                v-for="pt in store.lastPlan.master_treatment_roadmap
-                  .ai_generated_reassessment_points"
+                v-for="pt in store.lastPlan.master_treatment_roadmap.formal_reassessment_points ||
+                store.lastPlan.master_treatment_roadmap.ai_generated_reassessment_points"
                 :key="pt.reassessment_id"
                 class="col-xs-12 col-sm-6"
               >
@@ -1321,65 +1785,404 @@
         </div>
       </div>
 
-      <!-- FUTURE TREATMENT ROADMAP (BRIEF) -->
+      <!-- FUTURE TREATMENT ROADMAP -->
       <div
         class="pblock q-mt-lg"
-        v-if="store.lastPlan.future_treatment_roadmap?.future_blocks?.length"
+        v-if="
+          store.lastPlan.future_treatment_roadmap?.future_blocks?.length ||
+          store.lastPlan.future_treatment_roadmap?.roadmap_status
+        "
       >
-        <h3>
-          <span class="bar" style="background: #475569"></span>Future Treatment Roadmap
-          (Provisional)
-        </h3>
+        <div class="flex items-center justify-between q-mb-sm flex-wrap gap-2">
+          <h3 class="q-my-none">
+            <span class="bar" style="background: #0d9488"></span>Future Treatment Roadmap
+            <span class="text-caption text-weight-medium text-teal-8">(Provisional)</span>
+          </h3>
+          <div
+            class="flex items-center gap-2"
+            v-if="store.lastPlan.future_treatment_roadmap?.roadmap_status"
+          >
+            <q-badge color="teal-9" outline class="q-px-sm q-py-xs text-weight-bold">
+              Status: {{ formatLabel(store.lastPlan.future_treatment_roadmap.roadmap_status) }}
+            </q-badge>
+            <q-badge
+              v-if="
+                store.lastPlan.future_treatment_roadmap.remaining_expected_sessions !== undefined
+              "
+              color="indigo-9"
+              unelevated
+              class="q-px-sm q-py-xs text-weight-bold"
+            >
+              Remaining Sessions:
+              {{ store.lastPlan.future_treatment_roadmap.remaining_expected_sessions }}
+            </q-badge>
+          </div>
+        </div>
+
         <p class="note q-mb-md">
-          These blocks are provisional. Detailed protocols are not generated yet and will be
-          customized following the respective reassessments.
+          These blocks and sessions are provisional. Detailed protocols are generated only after
+          formal reassessment.
         </p>
 
+        <!-- SESSION ACCOUNTING SUMMARY BAR -->
+        <div
+          v-if="store.lastPlan.future_treatment_roadmap.session_accounting"
+          class="bg-teal-50 border border-teal-2 rounded-lg q-pa-sm q-mb-md flex items-center justify-between flex-wrap gap-2"
+          style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px"
+        >
+          <div class="text-caption text-teal-10 flex items-center gap-3">
+            <span
+              ><strong>Total Course Sessions:</strong>
+              {{
+                store.lastPlan.future_treatment_roadmap.session_accounting
+                  .expected_total_sessions || '—'
+              }}</span
+            >
+            <span>•</span>
+            <span
+              ><strong>Current Block:</strong>
+              {{
+                store.lastPlan.future_treatment_roadmap.session_accounting
+                  .current_block_session_count || 0
+              }}
+              sessions</span
+            >
+            <span>•</span>
+            <span
+              ><strong>Future Provisional:</strong>
+              {{
+                store.lastPlan.future_treatment_roadmap.session_accounting
+                  .future_provisional_session_count || 0
+              }}
+              sessions</span
+            >
+          </div>
+          <q-badge
+            v-if="
+              store.lastPlan.future_treatment_roadmap.session_accounting
+                .all_expected_sessions_accounted_for
+            "
+            color="positive"
+            dense
+            class="q-px-xs"
+          >
+            ✓ All Sessions Accounted For
+          </q-badge>
+        </div>
+
+        <!-- FUTURE BLOCKS GRID -->
         <div class="row q-col-gutter-md">
           <div
             v-for="block in store.lastPlan.future_treatment_roadmap.future_blocks"
-            :key="block.provisional_block_id"
-            class="col-xs-12 col-sm-6"
+            :key="block.provisional_block_id || block.block_number"
+            class="col-xs-12"
           >
-            <q-card flat bordered class="rounded-lg bg-white" style="height: 100%">
-              <q-card-section class="bg-teal-1 text-teal-10 q-pa-md border-bottom">
-                <div class="text-subtitle2 text-weight-bold flex items-center justify-between">
-                  <span>{{ formatLabel(block.provisional_block_id) }} ({{ formatLabel(block.expected_session_range) }})</span>
-                  <q-badge color="teal-9" outline>Provisional Roadmap</q-badge>
+            <q-card
+              flat
+              bordered
+              class="rounded-lg bg-white"
+              style="border-radius: 10px; border: 1px solid #cbd5e1"
+            >
+              <!-- Block Header -->
+              <q-card-section
+                class="bg-slate-1 text-slate-10 q-pa-md border-bottom"
+                style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0"
+              >
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-subtitle1 text-weight-bold text-slate-9">
+                      {{
+                        formatLabel(
+                          block.provisional_block_id || 'Block ' + (block.block_number || ''),
+                        )
+                      }}
+                    </span>
+                    <q-badge color="teal-8" class="text-weight-bold">
+                      Starts after: {{ formatLabel(block.starts_after || 'Reassessment') }}
+                    </q-badge>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <q-badge
+                      v-if="block.expected_session_range"
+                      color="blue-9"
+                      outline
+                      class="text-weight-medium"
+                    >
+                      Sessions {{ block.expected_session_range.first_session }}–{{
+                        block.expected_session_range.last_session
+                      }}
+                      ({{ block.expected_session_range.total_sessions }} sessions)
+                    </q-badge>
+                    <q-badge color="grey-8" outline v-if="block.block_status">
+                      {{ formatLabel(block.block_status) }}
+                    </q-badge>
+                  </div>
+                </div>
+
+                <div
+                  v-if="block.block_goal || block.expected_duration"
+                  class="text-caption text-grey-8 q-mt-xs flex items-center gap-3"
+                >
+                  <span v-if="block.block_goal"><strong>Goal:</strong> {{ block.block_goal }}</span>
+                  <span v-if="block.expected_duration"
+                    ><strong>Duration:</strong> {{ block.expected_duration }}</span
+                  >
                 </div>
               </q-card-section>
-              <q-card-section class="q-pa-md" style="line-height: 1.6;">
-                <div class="text-caption text-grey-8 q-mb-xs">
-                  <strong>Expected Objectives:</strong>
-                </div>
-                <ul class="q-pl-lg q-my-none text-caption text-grey-9" style="padding-left: 24px;">
-                  <li v-for="obj in block.expected_objectives" :key="obj" class="q-mb-xs">{{ obj }}</li>
-                </ul>
 
-                <div class="text-caption text-grey-8 q-mt-md q-mb-xs">
-                  <strong>Likely Modality Categories:</strong>
-                </div>
-                <div class="flex items-center gap-2 flex-wrap q-mb-md">
-                  <q-badge
-                    v-for="mod in block.likely_modality_categories"
-                    :key="mod"
-                    outline
-                    color="primary"
-                    size="sm"
-                    class="q-px-sm q-py-xs text-weight-medium"
-                  >
-                    {{ formatLabel(mod) }}
-                  </q-badge>
+              <!-- Block Body -->
+              <q-card-section class="q-pa-md" style="line-height: 1.6">
+                <!-- Expected Objectives -->
+                <div v-if="block.expected_objectives?.length" class="q-mb-md">
+                  <div class="text-caption text-weight-bold text-slate-8 q-mb-xs">
+                    🎯 Expected Objectives:
+                  </div>
+                  <ul class="q-pl-md q-my-none text-caption text-grey-9" style="padding-left: 20px">
+                    <li
+                      v-for="(obj, oIdx) in block.expected_objectives"
+                      :key="oIdx"
+                      class="q-mb-xs"
+                    >
+                      {{ obj }}
+                    </li>
+                  </ul>
                 </div>
 
-                <div class="text-caption text-grey-8 q-mt-sm">
-                  <strong>Expected Response:</strong> {{ block.expected_response }}
+                <!-- Likely Component-Level Changes -->
+                <div v-if="block.likely_component_level_changes?.length" class="q-mb-md">
+                  <div class="text-caption text-weight-bold text-slate-8 q-mb-xs">
+                    🧬 Likely Component-Level Evolutions:
+                  </div>
+                  <ul class="q-pl-md q-my-none text-caption text-grey-8" style="padding-left: 20px">
+                    <li
+                      v-for="(compChange, cIdx) in block.likely_component_level_changes"
+                      :key="cIdx"
+                      class="q-mb-xs"
+                    >
+                      {{ compChange }}
+                    </li>
+                  </ul>
                 </div>
-                <div class="text-caption text-grey-6 q-mt-md italic" style="border-top: 1px dashed #eee; padding-top: 6px; font-size: 11px;">
-                  * {{ block.finalization_rule }}
+
+                <!-- Likely Modality Categories -->
+                <div v-if="block.likely_modality_categories?.length" class="q-mb-md">
+                  <div class="text-caption text-weight-bold text-slate-8 q-mb-xs">
+                    ⚡ Likely Modality Categories:
+                  </div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <q-badge
+                      v-for="mod in block.likely_modality_categories"
+                      :key="mod"
+                      outline
+                      color="teal"
+                      size="sm"
+                      class="q-px-sm q-py-xs text-weight-medium"
+                    >
+                      {{ formatLabel(mod) }}
+                    </q-badge>
+                  </div>
+                </div>
+
+                <!-- Provisional Sessions Breakdown -->
+                <div v-if="block.provisional_sessions?.length" class="q-mt-md">
+                  <div class="text-caption text-weight-bold text-slate-8 q-mb-sm">
+                    📅 Provisional Sessions Breakdown:
+                  </div>
+                  <div class="row q-col-gutter-sm">
+                    <div
+                      v-for="ps in block.provisional_sessions"
+                      :key="ps.session_number"
+                      class="col-xs-12 col-sm-6 col-md-3"
+                    >
+                      <div
+                        class="border rounded-md q-pa-sm bg-grey-1"
+                        style="
+                          border: 1px solid #e2e8f0;
+                          border-radius: 6px;
+                          background-color: #f8fafc;
+                          height: 100%;
+                        "
+                      >
+                        <div
+                          class="flex items-center justify-between text-caption text-weight-bold text-primary q-mb-xs"
+                        >
+                          <span>Session #{{ ps.session_number }}</span>
+                          <span
+                            class="text-grey-7 text-caption"
+                            style="font-size: 10px"
+                            v-if="ps.expected_timing"
+                            >{{ ps.expected_timing }}</span
+                          >
+                        </div>
+
+                        <div class="text-caption text-grey-9 q-mb-xs">
+                          <strong>Modality:</strong> {{ formatLabel(ps.primary_modality) }}
+                        </div>
+                        <div
+                          v-if="ps.likely_protocol_or_product_id"
+                          class="text-caption text-grey-8 q-mb-xs"
+                          style="font-size: 11px"
+                        >
+                          <strong>Protocol:</strong>
+                          {{ formatLabel(ps.likely_protocol_or_product_id) }}
+                        </div>
+                        <div
+                          v-if="ps.treated_component_ids?.length"
+                          class="text-caption text-grey-7 q-mb-xs"
+                          style="font-size: 11px"
+                        >
+                          <strong>Targets:</strong> {{ ps.treated_component_ids.join(', ') }}
+                        </div>
+                        <div
+                          v-if="ps.supportive_modalities?.length"
+                          class="flex items-center gap-1 q-mb-xs flex-wrap"
+                        >
+                          <q-badge
+                            v-for="sup in ps.supportive_modalities"
+                            :key="sup"
+                            color="grey-6"
+                            dense
+                            class="text-caption"
+                            style="font-size: 9px"
+                          >
+                            +{{ formatLabel(sup) }}
+                          </q-badge>
+                        </div>
+                        <div
+                          v-if="ps.clinical_reason"
+                          class="text-caption text-grey-7 italic"
+                          style="font-size: 10px; line-height: 1.3; margin-top: 4px"
+                        >
+                          "{{ ps.clinical_reason }}"
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Finalization Rule Footer -->
+                <div
+                  v-if="block.finalization_rule"
+                  class="text-caption text-grey-6 q-mt-md italic"
+                  style="border-top: 1px dashed #e2e8f0; padding-top: 8px; font-size: 11px"
+                >
+                  ℹ️ {{ block.finalization_rule }}
                 </div>
               </q-card-section>
             </q-card>
+          </div>
+        </div>
+
+        <!-- CONTINGENCY PATHWAYS -->
+        <div
+          v-if="store.lastPlan.future_treatment_roadmap.contingency_pathways?.length"
+          class="q-mt-lg"
+        >
+          <div class="text-subtitle2 text-weight-bold text-slate-8 q-mb-sm">
+            🔀 Contingency Pathways:
+          </div>
+          <div class="row q-col-gutter-sm">
+            <div
+              v-for="c in store.lastPlan.future_treatment_roadmap.contingency_pathways"
+              :key="c.contingency_id"
+              class="col-xs-12 col-sm-6"
+            >
+              <div
+                class="q-pa-sm border rounded-md bg-amber-1"
+                style="border: 1px solid #fde68a; border-radius: 6px; background-color: #fffbeb"
+              >
+                <div
+                  class="flex items-center justify-between text-caption text-weight-bold text-amber-10 q-mb-xs"
+                >
+                  <span>Trigger: {{ c.trigger || c.contingency_id }}</span>
+                  <q-badge color="amber-9" dense v-if="c.replace_session_numbers?.length">
+                    Replaces Sessions {{ c.replace_session_numbers.join(', ') }}
+                  </q-badge>
+                </div>
+                <div class="text-caption text-grey-9" style="font-size: 11px">
+                  Substitute <strong>{{ formatLabel(c.replace_base_modality) }}</strong> ➔
+                  <strong>{{ formatLabel(c.with_modality) }}</strong>
+                </div>
+                <div
+                  v-if="c.reason"
+                  class="text-caption text-grey-8 q-mt-xs"
+                  style="font-size: 11px"
+                >
+                  <em>Reason:</em> {{ c.reason }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PACKAGE ESTIMATION SUMMARY -->
+        <div
+          v-if="store.lastPlan.future_treatment_roadmap.package_estimation_summary"
+          class="q-mt-lg border rounded-lg q-pa-md bg-white"
+          style="border: 1px solid #cbd5e1; border-radius: 8px"
+        >
+          <div class="text-subtitle2 text-weight-bold text-slate-9 q-mb-xs">
+            📦 Package Estimation Summary:
+          </div>
+          <div
+            v-if="
+              store.lastPlan.future_treatment_roadmap.package_estimation_summary.commercial_note
+            "
+            class="text-caption text-grey-8 q-mb-sm italic"
+          >
+            {{ store.lastPlan.future_treatment_roadmap.package_estimation_summary.commercial_note }}
+          </div>
+
+          <div class="row q-col-gutter-md q-mt-xs">
+            <div
+              v-if="
+                store.lastPlan.future_treatment_roadmap.package_estimation_summary
+                  .base_case_billable_items?.length
+              "
+              class="col-xs-12 col-sm-6"
+            >
+              <div class="text-caption text-weight-bold text-teal-9 q-mb-xs">
+                Base Case Billable Items:
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <q-badge
+                  v-for="(item, iIdx) in store.lastPlan.future_treatment_roadmap
+                    .package_estimation_summary.base_case_billable_items"
+                  :key="iIdx"
+                  color="teal-1"
+                  text-color="teal-10"
+                  class="q-pa-xs border"
+                  style="border: 1px solid #99f6e4"
+                >
+                  {{ formatLabel(item.billable_category) }}: x{{ item.quantity }}
+                </q-badge>
+              </div>
+            </div>
+
+            <div
+              v-if="
+                store.lastPlan.future_treatment_roadmap.package_estimation_summary
+                  .excluded_contingency_items?.length
+              "
+              class="col-xs-12 col-sm-6"
+            >
+              <div class="text-caption text-weight-bold text-amber-9 q-mb-xs">
+                Excluded Contingency Items:
+              </div>
+              <ul class="q-pl-md q-my-none text-caption text-grey-8" style="padding-left: 20px">
+                <li
+                  v-for="(ex, eIdx) in store.lastPlan.future_treatment_roadmap
+                    .package_estimation_summary.excluded_contingency_items"
+                  :key="eIdx"
+                >
+                  <strong>{{ formatLabel(ex.billable_category) }}</strong>
+                  <span v-if="ex.quantity_range">
+                    (Qty: {{ ex.quantity_range.min }}–{{ ex.quantity_range.max }})</span
+                  >:
+                  {{ ex.reason_not_in_base_total }}
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -1587,14 +2390,14 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+// import { useRouter, useRoute } from 'vue-router'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
 import { api } from 'src/boot/axios'
 import { Loading, Notify } from 'quasar'
 
 const store = usePigmentationStore()
-const router = useRouter()
-const route = useRoute()
+// const router = useRouter()
+// const route = useRoute()
 
 const therapists = ref([])
 const hasFetchedTherapists = ref(false)
@@ -1652,18 +2455,18 @@ const updateTherapist = async (val) => {
   }
 }
 
-const startPigmentationSession = (session) => {
-  if (!session) return
-  router.push({
-    name: 'PigmentationTreatmentPrep',
-    params: {
-      user_id: route.params.user_id || store.user_id || '1',
-      assessment_id: store.id,
-      session_id: session.id || session.session_number,
-      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
-    },
-  })
-}
+// const startPigmentationSession = (session) => {
+//   if (!session) return
+//   router.push({
+//     name: 'PigmentationTreatmentPrep',
+//     params: {
+//       user_id: route.params.user_id || store.user_id || '1',
+//       assessment_id: store.id,
+//       session_id: session.id || session.session_number,
+//       ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+//     },
+//   })
+// }
 
 const downloadReport = async (reportType) => {
   Loading.show({ message: `Downloading ${reportType.replace('-', ' ')}...` })
@@ -1804,11 +2607,36 @@ const formatLabel = (str) => {
   return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+const getCandidateScope = (cand) => {
+  if (cand.scope || cand.treatment_scope) {
+    return cand.scope || cand.treatment_scope
+  }
+  const id = String(cand.candidate_id || cand.protocol_ref || cand.protocol_id || '').toLowerCase()
+  if (
+    id.includes('diffuse') ||
+    id.includes('toning') ||
+    id.includes('global') ||
+    id.includes('tanning')
+  ) {
+    return 'Regional Toning'
+  }
+  if (id.includes('perioral') || id.includes('focal') || id.includes('spot')) {
+    return 'Focal Spot'
+  }
+  return cand.candidate_id || 'Regional/Focal'
+}
+
 const getStrategyBadgeStyle = (type) => {
   const t = String(type || '').toLowerCase()
   if (t === 'defer_zone') {
     return 'font-size: 10px; padding: 2px 6px; background: #ffebee; color: #c62828; font-weight: bold; border-radius: 4px;'
-  } else if (t.includes('global') || t.includes('base')) {
+  } else if (
+    t.includes('global') ||
+    t.includes('base') ||
+    t.includes('toning') ||
+    t.includes('switch') ||
+    t.includes('laser')
+  ) {
     return 'font-size: 10px; padding: 2px 6px; background: #e3f2fd; color: #1565c0; font-weight: bold; border-radius: 4px;'
   } else if (t.includes('spot')) {
     return 'font-size: 10px; padding: 2px 6px; background: #e8f5e9; color: #2e7d32; font-weight: bold; border-radius: 4px;'
