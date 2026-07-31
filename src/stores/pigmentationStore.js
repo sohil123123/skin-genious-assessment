@@ -1202,15 +1202,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
           }))
         }
 
-        if (data.post_images && data.post_images.length > 0) {
-          this.reassessImages = data.post_images.map((img) => ({
-            id: img.id,
-            name: img.name,
-            dataUrl: img.url,
-            url: img.url,
-            openai_file_id: img.custom_properties?.openai_file_id || '',
-            mode: img.custom_properties?.mode || 'white',
-          }))
+        if (data.post_images) {
+          this.reassessImages = data.post_images
+            .filter((img) => !img.custom_properties?.is_panel)
+            .map((img) => ({
+              id: img.id,
+              name: img.name,
+              dataUrl: img.url,
+              url: img.url,
+              openai_file_id: img.custom_properties?.openai_file_id || '',
+              mode: img.custom_properties?.mode || 'white',
+            }))
         }
 
         // Auto-reconstruct goals if empty
@@ -1750,6 +1752,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
           formData.append('assessment_type', type)
           if (img.mode) {
             formData.append('mode', img.mode)
+          }
+          if (img.is_panel) {
+            formData.append('is_panel', 'true')
           }
 
           try {
@@ -3098,7 +3103,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           system: REASSESS_PROMPT,
           content,
           stage: 'formal_reassessment',
-          max_output_tokens: 15000,
+          max_output_tokens: 30000,
           reasoning_effort: 'high',
           verbosity: 'medium',
         })
@@ -3189,13 +3194,25 @@ export const usePigmentationStore = defineStore('pigmentation', {
             component_treatment_map: nextComponentMap,
             current_treatment_block: validatedBlock,
             current_sessions: validatedBlock.sessions || [],
-            sessions: (validatedBlock.sessions || []).map((session) => ({
-              id: session.id || session.session_number,
-              status: session.status || 'pending',
-              ...session,
-            })),
+            sessions: (() => {
+              const baseSessions = [...(this.lastPlan.sessions || [])];
+              (validatedBlock.sessions || []).forEach(newSess => {
+                const idx = baseSessions.findIndex(s => s.session_number === newSess.session_number);
+                const mappedSess = {
+                  id: newSess.id || newSess.session_number,
+                  status: newSess.status || 'pending',
+                  ...newSess
+                };
+                if (idx !== -1) {
+                  baseSessions[idx] = { ...baseSessions[idx], ...mappedSess, status: mappedSess.status || baseSessions[idx].status || 'pending' };
+                } else {
+                  baseSessions.push(mappedSess);
+                }
+              });
+              return baseSessions.sort((a, b) => a.session_number - b.session_number);
+            })(),
             future_provisional_sessions:
-              result.future_treatment_roadmap || this.lastPlan.future_provisional_sessions || [],
+              result.future_provisional_sessions || result.future_treatment_roadmap || this.lastPlan.future_provisional_sessions || [],
             master_treatment_roadmap:
               result.updated_master_treatment_roadmap ||
               this.lastPlan.master_treatment_roadmap ||

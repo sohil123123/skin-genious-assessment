@@ -721,9 +721,23 @@ Return exactly:
   "overall_response": {},
   "safety_findings": [],
   "classification_required_items": [],
-  "updated_component_treatment_map": [],
-  "current_treatment_block": null,
-  "future_treatment_roadmap": [],
+  "updated_component_treatment_map": [
+    {"diagnostic_component_id":"DC_001","linked_group_ids":["PG_001"],"clinical_location_text":"exact copied diagnosis location","working_diagnosis":"string","eligible_for_course":true,"currently_executable":true,"treatment_eligibility":"eligible|control_inflammation_first|medical_control_first|hold_for_doctor_assessment|observe|not_applicable","course_allocation_status":"selected_for_current_block|planned_for_future_block|held|observe_only|not_applicable","planned_block_number":"number_or_null","selected_modality_id":"homecare|chemical_peel|microneedling_with_active|q_switch_laser|focal_laser|electrocautery_or_rf|medical_control|observe|other|null","selected_protocol_id":"exact primary protocol id or null","nearest_reasonable_alternative":{"modality_id":"string_or_null","protocol_id":"string_or_null"},"why_selected_over_alternative":["maximum three concise reasons"],"scope":"whole_face|regional|focal_lesion|non_procedural","target_location_text":"precise treatment direction","exclude_group_ids":["PG_002"],"exclusion_instruction":"string","course_exclusion_or_hold_reason":null,"expected_response":"string","doctor_validation_required":true}
+  ],
+  "current_treatment_block": {
+    "block_number":2,
+    "session_numbers":[3,4],
+    "block_goal":"string",
+    "sessions": [
+      {"session_number":3,"timing":"string","session_goal":"string","treatment_operations":[
+        {"operation_id":"OP_S3_001","modality_id":"microneedling_with_active","protocol_id":"EXACT_MN_PROTOCOL_ID","role":"primary","injury_producing":true,"linked_component_ids":["DC_001"],"linked_group_ids":["PG_001"],"target_location_text":"Cheeks, nose and eligible periocular background field","target_regions":["right_malar_cheek","left_malar_cheek","nose"],"excluded_regions":["forehead_hairline"],"exclude_group_ids":["PG_002"],"exclusion_instruction":"string","parameters":{"active_id":"EXACT_ALLOWED_ACTIVE_ID","route":"topical_transdermal","depth_by_region_mm":{"forehead":1.0}},"endpoint":"exact configured endpoint","stop_conditions":["string"],"aftercare":["string"]}
+      ],"session_execution_sequence":[{"step_number":1,"step_type":"assessment|cleanse|photograph|numbing|remove_numbing|protect|procedure|neutralize|apply_active|cooling|led|moisturize|sunscreen|aftercare|other","operation_id":"OP_S3_001_or_null","instruction":"string"}],"provider_checkpoint":"string"}
+    ],
+    "reassessment_gate": {"after_session":4,"required_images":["white","surface_polarized","subsurface_polarized","red","woods_uv"],"metrics_and_groups_to_repeat":["string"],"decision_rules":["string"]}
+  },
+  "future_provisional_sessions": [
+    {"session_number":5,"timing":"string","planned_protocol_uses":[{"modality_id":"string","protocol_id":"string","role":"primary","linked_component_ids":["DC_001"]}],"supportive_protocol_uses":[]}
+  ],
   "updated_master_treatment_roadmap": {},
   "updated_full_course_summary": {},
   "allocation_changes": [],
