@@ -1,13 +1,9 @@
 /**
- * Pigmentation Decode V2.6.1 treatment-plan validator.
+ * Pigmentation Decode V2.7 treatment-plan validator — executable safety only.
  *
- * Critical guarantees:
- * - selected protocols must come from deterministic component eligibility;
- * - every course-eligible component is allocated across the full course or explicitly held;
- * - only components selected for the current block require a current primary operation;
- * - LED/supportive care cannot silently replace a pigment procedure;
- * - safety holds remain scoped to their own components/groups/regions;
- * - protocol parameters and location targeting remain executable.
+ * Hard failures are restricted to current-block executability and genuine safety. Course-summary,
+ * roadmap, allocation-label and redundant count disagreements are advisory. Protocol identity,
+ * current procedure settings, incompatibilities, contraindications and lesion exclusions remain strict.
  */
 
 import {
@@ -116,6 +112,150 @@ function getExecutionSequence(session) {
 function groupsOverlap(groupA, groupB) {
   const a = new Set(groupA?.anatomical_regions || [])
   return (groupB?.anatomical_regions || []).some((region) => a.has(region))
+}
+
+function normalizedRegionSet(values) {
+  return new Set(
+    unique(values)
+      .map((value) => normalizeText(value).replaceAll(' ', '_'))
+      .filter(Boolean),
+  )
+}
+
+function effectiveOperationRegions(operation) {
+  const targets = normalizedRegionSet(operation?.target_regions)
+  const excluded = normalizedRegionSet(operation?.excluded_regions)
+  for (const region of excluded) targets.delete(region)
+  return targets
+}
+
+function validateDisjointTreatmentFields(session, errors) {
+  const injuryOperations = getOperations(session).filter(
+    (operation) =>
+      operation?.injury_producing || INJURY_MODALITIES.has(operation?.modality_id),
+  )
+  const distinctModalities = unique(injuryOperations.map((operation) => operation.modality_id))
+  if (distinctModalities.length < 2) return
+
+  for (const operation of injuryOperations) {
+    if (!Array.isArray(operation.target_regions) || !operation.target_regions.length) {
+      errors.push(
+        `Session ${session.session_number} operation ${operation.operation_id} must provide target_regions when two injury modalities share one visit.`,
+      )
+      continue
+    }
+    if (!Array.isArray(operation.excluded_regions)) {
+      errors.push(
+        `Session ${session.session_number} operation ${operation.operation_id} must provide excluded_regions when two injury modalities share one visit.`,
+      )
+      continue
+    }
+    if (!effectiveOperationRegions(operation).size) {
+      errors.push(
+        `Session ${session.session_number} operation ${operation.operation_id} has an empty effective treatment field after excluded_regions.`,
+      )
+    }
+  }
+
+  for (let leftIndex = 0; leftIndex < injuryOperations.length; leftIndex += 1) {
+    const left = injuryOperations[leftIndex]
+    if (!Array.isArray(left.target_regions) || !Array.isArray(left.excluded_regions)) continue
+    const leftRegions = effectiveOperationRegions(left)
+    for (let rightIndex = leftIndex + 1; rightIndex < injuryOperations.length; rightIndex += 1) {
+      const right = injuryOperations[rightIndex]
+      if (left.modality_id === right.modality_id) continue
+      if (!Array.isArray(right.target_regions) || !Array.isArray(right.excluded_regions)) continue
+      const rightRegions = effectiveOperationRegions(right)
+      const overlap = [...leftRegions].filter((region) => rightRegions.has(region))
+      if (overlap.length) {
+        errors.push(
+          `Session ${session.session_number} has overlapping treatment field ${overlap.join(', ')} between ${left.operation_id} and ${right.operation_id}. Assign the shared zone to one operation and exclude it from the other.`,
+        )
+      }
+    }
+  }
+}
+
+function validateDetailedSessionsThroughReassessment(plan, sessions, errors) {
+  const gate = Number(
+    plan?.current_treatment_block?.reassessment_gate?.after_session ??
+      plan?.reassessment_gate?.after_session ??
+      plan?.full_course_summary?.first_reassessment_after_session ??
+      plan?.course?.next_formal_reassessment_after_session,
+  )
+  if (!Number.isInteger(gate) || gate < 1 || !sessions.length) return
+
+  const detailedNumbers = unique(
+    sessions.map((session) => Number(session?.session_number)).filter(Number.isInteger),
+  ).sort((a, b) => a - b)
+  if (!detailedNumbers.length) return
+  const firstDetailed = detailedNumbers[0]
+  if (gate < firstDetailed) return
+  const missing = []
+  for (let sessionNumber = firstDetailed; sessionNumber <= gate; sessionNumber += 1) {
+    if (!detailedNumbers.includes(sessionNumber)) missing.push(sessionNumber)
+  }
+  if (missing.length) {
+    errors.push(
+      `Current treatment block must include detailed sessions through the formal reassessment after Session ${gate}; missing Session ${missing.join(', ')}.`,
+    )
+  }
+}
+
+function priorityGroupIsExplicitlyHeld(groupId, plan, diagnosis) {
+  const componentIds = unique(
+    (diagnosis?.diagnostic_components || [])
+      .filter((component) => unique(component?.linked_group_ids).includes(groupId))
+      .map((component) => component?.diagnostic_component_id),
+  )
+  if (!componentIds.length) return false
+
+  const treatmentEntries = Array.isArray(plan?.component_treatment_map)
+    ? plan.component_treatment_map
+    : []
+  return componentIds.some((componentId) => {
+    const component = (diagnosis?.diagnostic_components || []).find(
+      (entry) => entry?.diagnostic_component_id === componentId,
+    )
+    const treatmentEntry = treatmentEntries.find(
+      (entry) => entry?.diagnostic_component_id === componentId,
+    )
+    const hold = component?.safety_hold || {}
+    return Boolean(
+      ['hold_until_doctor_classification', 'hold_until_doctor_assessment', 'medical_control_first'].includes(
+        component?.direct_cosmetic_treatment_status,
+      ) ||
+        (hold.hold_scope && hold.hold_scope !== 'none') ||
+        ['held', 'observe_only', 'not_applicable'].includes(
+          treatmentEntry?.course_allocation_status,
+        ) ||
+        ['control_inflammation_first', 'medical_control_first', 'hold_for_doctor_assessment'].includes(
+          treatmentEntry?.treatment_eligibility,
+        ),
+    )
+  })
+}
+
+function validateDoctorSelectedPriorityCoverage(plan, sessions, diagnosis, priorityGroupIds, errors) {
+  const priorities = unique(priorityGroupIds)
+  if (!priorities.length) return
+  const primaryOperations = sessions.flatMap((session) =>
+    getOperations(session).filter(
+      (operation) =>
+        ['primary', 'secondary_regional'].includes(operation?.role) &&
+        PRIMARY_PROCEDURAL_MODALITIES.has(operation?.modality_id),
+    ),
+  )
+  for (const groupId of priorities) {
+    const directlyCovered = primaryOperations.some((operation) =>
+      unique(operation?.linked_group_ids).includes(groupId),
+    )
+    if (!directlyCovered && !priorityGroupIsExplicitlyHeld(groupId, plan, diagnosis)) {
+      errors.push(
+        `Doctor-selected priority group ${groupId} is not addressed by a primary operation in the current block and has no explicit clinical hold.`,
+      )
+    }
+  }
 }
 
 function inRange(value, range) {
@@ -1003,6 +1143,59 @@ function validateFullCourseSummary(
   }
 }
 
+function isCriticalPlanIssue(issue) {
+  const text = String(issue || '')
+  return [
+    /Treatment plan cannot be validated while targeted doctor classifications remain unresolved/i,
+    /A non-blocked plan must contain at least one current detailed session/i,
+    /Current treatment block must include detailed sessions through the formal reassessment/i,
+    /Session .* has no operations/i,
+    /exceeds two injury modality types/i,
+    /session .* operation .* requires operation_id/i,
+    /session .* operation .* requires modality_id/i,
+    /session .* operation .* requires an exact protocol_id/i,
+    /session .* operation .* cannot use supportive protocol .* as primary/i,
+    /session .* operation .* uses unknown protocol/i,
+    /Protocol .* does not belong to modality|belongs to .* not /i,
+    /contains a non-executable placeholder/i,
+    /copied protocol configuration/i,
+    /requires an allowed scalar wavelength_nm/i,
+    /energy_mj must be a scalar within/i,
+    /frequency_hz must be a scalar within/i,
+    /passes must be a scalar within/i,
+    /derived fluence_j_cm2 .* outside/i,
+    /cannot derive fluence_j_cm2/i,
+    /strength_percent must be within/i,
+    /contact_time_minutes must be within/i,
+    /requires neutralization_method/i,
+    /copied microneedling configuration/i,
+    /requires depth_by_region_mm/i,
+    /depth for .* must equal configured value/i,
+    /microneedling route must be topical or transdermal/i,
+    /microneedling requires parameters\.active_id/i,
+    /active .* is not allowed by/i,
+    /must not invent numeric electrocautery\/RF settings/i,
+    /LED duration_minutes must be within/i,
+    /protocol .* is not eligible for linked component/i,
+    /session .* operation .* has no linked_component_ids/i,
+    /session .* operation .* has no linked_group_ids/i,
+    /session .* operation .* references unknown component/i,
+    /session .* operation .* references unknown group/i,
+    /session .* operation .* requires a precise target_location_text/i,
+    /must provide target_regions when two injury modalities/i,
+    /must provide excluded_regions when two injury modalities/i,
+    /empty effective treatment field/i,
+    /has overlapping treatment field/i,
+    /Doctor-selected priority group .* is not addressed/i,
+    /may target only raised groups/i,
+    /must exclude co-located raised group/i,
+    /is medically atypical and cannot receive a cosmetic procedure/i,
+    /is structural shadow and cannot be treated as primary pigment/i,
+    /is not pigmentation-relevant and cannot receive a pigment procedure/i,
+    /Current treatment block is supportive-only/i,
+  ].some((pattern) => pattern.test(text))
+}
+
 export function validatePigmentationPlan(planObj, config, options = {}) {
   const errors = []
   const warnings = []
@@ -1046,6 +1239,7 @@ export function validatePigmentationPlan(planObj, config, options = {}) {
   if (plan.plan_status !== 'blocked' && !sessions.length) {
     errors.push('A non-blocked plan must contain at least one current detailed session.')
   }
+  validateDetailedSessionsThroughReassessment(plan, sessions, errors)
 
   for (const session of sessions) {
     const operations = getOperations(session)
@@ -1063,6 +1257,7 @@ export function validatePigmentationPlan(planObj, config, options = {}) {
     if (injuryTypes.length > 2) {
       errors.push(`Session ${session.session_number} exceeds two injury modality types.`)
     }
+    validateDisjointTreatmentFields(session, errors)
 
     for (const operation of operations) {
       validateOperation(
@@ -1097,6 +1292,13 @@ export function validatePigmentationPlan(planObj, config, options = {}) {
   }
 
   validatePrimaryCoverage(sessions, componentMap, eligibilityMap, errors)
+  validateDoctorSelectedPriorityCoverage(
+    plan,
+    sessions,
+    diagnosis,
+    options.treatmentPriorityGroupIds || diagnosis?.treatment_priority_group_ids || [],
+    errors,
+  )
 
   if (!options.blockOnly && plan.plan_status !== 'blocked') {
     validateFullCourseSummary(
@@ -1111,15 +1313,26 @@ export function validatePigmentationPlan(planObj, config, options = {}) {
 
   if (!plan.current_sessions && sessions.length) plan.current_sessions = sessions
 
-  const valid = errors.length === 0
+  const criticalErrors = errors.filter(isCriticalPlanIssue)
+  const advisoryErrors = errors.filter((issue) => !isCriticalPlanIssue(issue))
+  const allWarnings = unique([...warnings, ...advisoryErrors])
+  const valid = criticalErrors.length === 0
+
+  plan.validation_metadata = {
+    ...(plan.validation_metadata || {}),
+    validation_policy_revision: 'presence_safety_priority_and_disjoint_fields_v2_7_1',
+    status: valid ? (allWarnings.length ? 'usable_with_warnings' : 'usable') : 'unusable',
+    warnings: allWarnings,
+  }
+
   if (!valid && options.throwOnError) {
     throw new PigmentationPlanValidationError(
-      `Pigmentation treatment plan failed critical validation. ${errors.map((e) => `- ${e}`).join(' ')}`,
-      errors,
-      warnings,
+      `Pigmentation treatment plan is not safely executable. ${criticalErrors.map((e) => `- ${e}`).join(' ')}`,
+      criticalErrors,
+      allWarnings,
     )
   }
-  return { valid, errors, warnings, plan }
+  return { valid, errors: criticalErrors, warnings: allWarnings, plan }
 }
 
 export function validatePigmentationTreatmentBlock(block, config, options = {}) {

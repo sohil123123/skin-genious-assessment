@@ -376,10 +376,12 @@ function endStep() {
 
 onMounted(async () => {
   await pigmentationStore.getSingleAssessment(route.params.assessment_id)
+  const plan = pigmentationStore.lastPlan
+  const sourceSessions = plan?.sessions || plan?.current_treatment_block?.sessions || []
 
-  if (pigmentationStore.lastPlan && pigmentationStore.lastPlan.sessions) {
+  if (plan && sourceSessions.length > 0) {
     store.treatmentPlan = {
-      treatments: pigmentationStore.lastPlan.sessions.map((s) => {
+      treatments: sourceSessions.map((s) => {
         let mappedSteps = []
         const formatLabelLocal = (str) => {
           if (!str) return ''
@@ -389,7 +391,8 @@ onMounted(async () => {
             .join(' ')
         }
 
-        const hasLaserModality = s.selected_modalities?.some(
+        const selectedModalities = s.selected_modalities || s.selected_modality_ids || []
+        const hasLaserModality = selectedModalities.some(
           (m) =>
             m.includes('q_switch') ||
             m.includes('laser') ||
@@ -399,15 +402,17 @@ onMounted(async () => {
 
         let hasZoneSequence = false
         let hasCustomSequence = false
-        const zoneSeqSrc = s.provider_protocol?.zone_sequence
-        const execSequence = s.provider_protocol?.session_execution_sequence
+        const zoneSeqSrc = s.zone_sequence || s.provider_protocol?.zone_sequence
+        const execSequence = s.session_execution_sequence || s.provider_protocol?.session_execution_sequence
 
         if (Array.isArray(execSequence) && execSequence.length > 0) {
           hasCustomSequence = true
           let globalStepIdx = 1
+          const operations = s.treatment_operations || s.provider_protocol?.treatment_operations || []
+
           execSequence.forEach((execStep) => {
             const stepTypeLower = String(execStep.step_type || '').toLowerCase()
-            const isToningOrLaser = stepTypeLower === 'q_switch' || stepTypeLower === 'peel' || stepTypeLower === 'laser'
+            const isToningOrLaser = stepTypeLower === 'q_switch' || stepTypeLower === 'peel' || stepTypeLower === 'laser' || stepTypeLower === 'procedure'
 
             if (isToningOrLaser && Array.isArray(zoneSeqSrc) && zoneSeqSrc.length > 0) {
               const activeZones = zoneSeqSrc.filter(
@@ -550,19 +555,102 @@ onMounted(async () => {
               }
             }
 
-            // Otherwise, map standard step
+            // Resolve matching operation if any
+            const op = execStep.operation_id 
+              ? operations.find(o => o.operation_id === execStep.operation_id)
+              : null
+
             let equipments = []
-            if (execStep.settings_or_product_id) {
+            if (op) {
+              if (op.protocol_id) {
+                equipments.push(formatLabelLocal(op.protocol_id))
+              } else if (op.modality_id) {
+                equipments.push(formatLabelLocal(op.modality_id))
+              }
+              if (op.parameters?.active_id) {
+                equipments.push(`Active: ${formatLabelLocal(op.parameters.active_id)}`)
+              }
+            } else if (execStep.settings_or_product_id) {
               equipments.push(formatLabelLocal(execStep.settings_or_product_id))
             }
-            const durationText = execStep.duration_minutes ? `${execStep.duration_minutes} mins` : '5 mins'
+            const durationText = execStep.duration_minutes 
+              ? `${execStep.duration_minutes} mins` 
+              : op?.parameters?.duration_minutes 
+                ? `${op.parameters.duration_minutes} mins` 
+                : '5 mins'
 
             let stepText = `Step: ${formatLabelLocal(execStep.step_type).toUpperCase()}\n`
             if (execStep.zones && execStep.zones.length > 0) {
               stepText += `Apply To: ${execStep.zones.map(formatLabelLocal).join(', ')}\n`
             }
-            stepText += `Instructions: ${execStep.instructions}\n`
-            if (execStep.endpoint_or_completion_rule) {
+            
+            if (execStep.instruction || execStep.instructions) {
+              stepText += `Instructions: ${execStep.instruction || execStep.instructions}\n`
+            }
+
+            if (op) {
+              stepText += `Modality: ${formatLabelLocal(op.modality_id)}\n`
+              if (op.parameters) {
+                if (op.modality_id === 'microneedling_with_active' && op.parameters.depth_by_region_mm) {
+                  const depthParts = Object.entries(op.parameters.depth_by_region_mm).map(
+                    ([region, depth]) => `${formatLabelLocal(region)}: ${depth}mm`
+                  )
+                  stepText += `Depth Map: ${depthParts.join(' • ')}\n`
+                } else {
+                  const formatSettingString = (settingObj) => {
+                    if (!settingObj || typeof settingObj !== 'object') return 'NA'
+                    const parts = []
+                    if (settingObj.wavelength_nm !== undefined && settingObj.wavelength_nm !== null) {
+                      parts.push(`${settingObj.wavelength_nm}nm`)
+                    }
+                    if (settingObj.energy_mj !== undefined && settingObj.energy_mj !== null) {
+                      parts.push(`${settingObj.energy_mj}mJ`)
+                    }
+                    if (settingObj.fluence_j_cm2 !== undefined && settingObj.fluence_j_cm2 !== null) {
+                      parts.push(`${settingObj.fluence_j_cm2} J/cm²`)
+                    }
+                    if (settingObj.passes !== undefined && settingObj.passes !== null) {
+                      parts.push(`${settingObj.passes} ${settingObj.passes > 1 ? 'passes' : 'pass'}`)
+                    }
+                    if (settingObj.frequency_hz !== undefined && settingObj.frequency_hz !== null) {
+                      parts.push(`(${settingObj.frequency_hz}Hz)`)
+                    }
+                    if (settingObj.duration_minutes !== undefined && settingObj.duration_minutes !== null) {
+                      parts.push(`${settingObj.duration_minutes} mins`)
+                    }
+                    return parts.length > 0 ? parts.join(' • ') : 'NA'
+                  }
+                  stepText += `Parameters: ${formatSettingString(op.parameters)}\n`
+                }
+              }
+              if (op.target_location_text) {
+                stepText += `Target Area: ${op.target_location_text}\n`
+              }
+              if (Array.isArray(op.target_regions) && op.target_regions.length > 0) {
+                stepText += `Target Zones: ${op.target_regions.map(formatLabelLocal).join(', ')}\n`
+              }
+              if (Array.isArray(op.excluded_regions) && op.excluded_regions.length > 0) {
+                stepText += `Exclusion Zones: ${op.excluded_regions.map(formatLabelLocal).join(', ')}\n`
+              }
+              if (op.exclusion_instruction) {
+                stepText += `Exclusion Instructions: ${op.exclusion_instruction}\n`
+              }
+              if (op.endpoint) {
+                const formatSentenceCase = (str) => {
+                  if (!str) return ''
+                  if (typeof str !== 'string') return String(str)
+                  const clean = str.replace(/_/g, ' ')
+                  return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase()
+                }
+                stepText += `Endpoint Target: ${formatSentenceCase(op.endpoint)}\n`
+              }
+              if (Array.isArray(op.stop_conditions) && op.stop_conditions.length > 0) {
+                stepText += `Stop Conditions:\n${op.stop_conditions.map(c => `  - ${c}`).join('\n')}\n`
+              }
+              if (Array.isArray(op.aftercare) && op.aftercare.length > 0) {
+                stepText += `Step Aftercare:\n${op.aftercare.map(a => `  - ${a}`).join('\n')}\n`
+              }
+            } else if (execStep.endpoint_or_completion_rule) {
               stepText += `Completion Rule: ${execStep.endpoint_or_completion_rule}`
             }
 
@@ -570,7 +658,7 @@ onMounted(async () => {
               step_number: globalStepIdx++,
               duration: durationText,
               ingredients_equipments: equipments,
-              how_to_do: stepText,
+              how_to_do: stepText.trim(),
             })
           })
         } else if (
@@ -751,7 +839,6 @@ onMounted(async () => {
                 })
               }
             }
-
             // 3. Microneedling
             if (s.fixed_protocol?.microneedling?.use) {
               const m = s.fixed_protocol.microneedling

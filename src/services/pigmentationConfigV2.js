@@ -1,5 +1,5 @@
 /**
- * Pigmentation Decode V2.6.1 configuration — region-reconciliation hotfix R2.
+ * Pigmentation Decode V2.7 reliability configuration — presence and executable-safety validation.
  *
  * Observation-first, pigmentation-scoped architecture:
  * - one high-reasoning five-mode visual call with five standardized whole-face zone panels;
@@ -16,6 +16,46 @@ export const PIGMENTATION_CONFIG = {
   "schema_version": "pigmentation_config_schema_v2_6_1_r3",
   "ontology_version": "pigmentation_ontology_v2_6",
   "clinic_profile": "ai_aesthetics_jaipur_v2",
+  "validation_runtime_policy": {
+    "revision": "presence_and_safety_v2_7",
+    "principle": "reject_only_unusable_or_unsafe_outputs",
+    "observation_hard_fail_conditions": [
+      "response_not_json_object",
+      "image_set_explicitly_unusable",
+      "white_and_surface_polarized_both_unusable",
+      "no_usable_observation_groups",
+      "required_measurement_primitives_missing_or_invalid"
+    ],
+    "diagnosis_hard_fail_conditions": [
+      "no_diagnostic_components",
+      "unusable_component_identity",
+      "required_pathway_changing_classification_unrepresentable",
+      "immutable_image_metrics_changed"
+    ],
+    "treatment_hard_fail_conditions": [
+      "unresolved_targeted_classification",
+      "no_current_executable_operation",
+      "unknown_or_ineligible_current_protocol",
+      "missing_or_out_of_range_current_setting",
+      "invalid_active_or_route",
+      "contraindication_or_lesion_exclusion_violation",
+      "incompatible_injury_modalities",
+      "supportive_only_when_primary_treatment_is_available"
+    ],
+    "advisory_only_fields": [
+      "fine_anatomical_wording",
+      "count_band",
+      "mode_evidence_order",
+      "region_review_group_reconciliation",
+      "diagnosis_subtype_precision",
+      "course_allocation_labels",
+      "roadmap_and_summary_count_reconciliation",
+      "supportive_protocol_repetition"
+    ],
+    "structured_observation_groups_are_authoritative": true,
+    "current_detailed_operations_are_authoritative_for_execution": true,
+    "application_derives_course_counts_from_session_numbers": true
+  },
   "compatible_policy_versions": [
     "pigmentation_clinical_policy_v2_6_1_2026_07_24"
   ],
@@ -104,6 +144,10 @@ export const PIGMENTATION_CONFIG = {
     "detailed_protocols_only_for_current_block": true,
     "future_sessions_are_summary_only": true,
     "current_block_component_selection_is_planner_owned": true,
+    "doctor_selects_one_or_two_priority_morphology_groups": true,
+    "doctor_selected_priority_groups_must_be_addressed_in_current_block_unless_held": true,
+    "operation_target_regions_and_excluded_regions_are_authoritative_for_same_visit_overlap": true,
+    "diagnosis_group_region_overlap_does_not_by_itself_prohibit_same_visit_treatment": true,
     "preflight_requires_primary_protocol_for_every_course_eligible_component": true,
     "current_block_requires_primary_coverage_only_for_selected_components": true,
     "supportive_protocols_never_satisfy_primary_allocation": true,
@@ -843,6 +887,8 @@ export const PIGMENTATION_CONFIG = {
       "linked_component_ids",
       "linked_group_ids",
       "target_location_text",
+      "target_regions",
+      "excluded_regions",
       "exclude_group_ids",
       "exclusion_instruction"
     ],
@@ -2811,6 +2857,42 @@ export const PIGMENTATION_CONFIG = {
   "peels": {
     "expose_full_peel_config_to_component_selector": false,
     "provide_only_eligible_peel_protocols_after_chemical_peel_selected": true,
+    "neutralizers": {
+      "GLYCOLIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER": {
+        "available": true,
+        "configured_for_execution": true,
+        "display_name": "Glycolic Neutralizer — Sodium Bicarbonate Water",
+        "neutralizer_type": "sodium_bicarbonate_water",
+        "ingredient": "sodium_bicarbonate",
+        "vehicle": "water",
+        "route": "topical_external_use",
+        "for_protocol_ids": [
+          "PEEL_GLYCOLIC"
+        ],
+        "application_instruction": "Apply the configured sodium bicarbonate water neutralizer to the treated area, then rinse thoroughly with water.",
+        "concentration_rule": "clinic_sop_defined_do_not_invent_or_modify",
+        "doctor_approval_required": true,
+        "neutralizer_id": "GLYCOLIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER",
+        "registry_role": "chemical_peel_neutralizer"
+      },
+      "LACTIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER": {
+        "available": true,
+        "configured_for_execution": true,
+        "display_name": "Lactic Neutralizer — Sodium Bicarbonate Water",
+        "neutralizer_type": "sodium_bicarbonate_water",
+        "ingredient": "sodium_bicarbonate",
+        "vehicle": "water",
+        "route": "topical_external_use",
+        "for_protocol_ids": [
+          "PEEL_LACTIC"
+        ],
+        "application_instruction": "Apply the configured sodium bicarbonate water neutralizer to the treated area, then rinse thoroughly with water.",
+        "concentration_rule": "clinic_sop_defined_do_not_invent_or_modify",
+        "doctor_approval_required": true,
+        "neutralizer_id": "LACTIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER",
+        "registry_role": "chemical_peel_neutralizer"
+      }
+    },
     "protocols": {
       "PEEL_BIOREPEELCL3": {
         "available": true,
@@ -2961,7 +3043,15 @@ export const PIGMENTATION_CONFIG = {
         },
         "preferred_initial_contact_time_minutes": 3,
         "neutralization_required": true,
-        "neutralization_method": "10_to_15_percent_sodium_bicarbonate_or_clinic_neutralizer_then_water_rinse",
+        "neutralizer_id": "GLYCOLIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER",
+        "allowed_neutralizer_ids": [
+          "GLYCOLIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER"
+        ],
+        "neutralization_method": "apply_configured_sodium_bicarbonate_water_then_rinse_thoroughly_with_water",
+        "required_operation_parameters": {
+          "neutralizer_id": "GLYCOLIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER",
+          "neutralization_method": "apply_configured_sodium_bicarbonate_water_then_rinse_thoroughly_with_water"
+        },
         "endpoint": "mild_uniform_erythema_without_epidermolysis",
         "repeat_interval_days": {
           "min": 14,
@@ -3051,7 +3141,15 @@ export const PIGMENTATION_CONFIG = {
         },
         "preferred_initial_contact_time_minutes": 3,
         "neutralization_required": true,
-        "neutralization_method": "clinic_neutralizer_or_product_specific_water_rinse",
+        "neutralizer_id": "LACTIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER",
+        "allowed_neutralizer_ids": [
+          "LACTIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER"
+        ],
+        "neutralization_method": "apply_configured_sodium_bicarbonate_water_then_rinse_thoroughly_with_water",
+        "required_operation_parameters": {
+          "neutralizer_id": "LACTIC_NEUTRALIZER_SODIUM_BICARBONATE_WATER",
+          "neutralization_method": "apply_configured_sodium_bicarbonate_water_then_rinse_thoroughly_with_water"
+        },
         "endpoint": "mild_erythema_or_tolerable_stinging_without_frosting",
         "repeat_interval_days": {
           "min": 14,
@@ -3108,9 +3206,9 @@ export const PIGMENTATION_CONFIG = {
     "same_day_compatibility": {
       "peel_plus_led": "compatible",
       "peel_plus_hydrafacial": "doctor_selected_gentle_non_exfoliative_only",
-      "peel_plus_q_switch": "conditional_protocol_specific",
-      "peel_plus_microneedling": "not_compatible_same_day",
-      "peel_plus_lesion_ablation": "prefer_separate_session",
+      "peel_plus_q_switch": "overlapping_field_conditional_protocol_specific; disjoint_fields_allowed",
+      "peel_plus_microneedling": "not_same_day_on_overlapping_field; disjoint_fields_allowed",
+      "peel_plus_lesion_ablation": "prefer_separate_on_overlapping_field; disjoint_fields_allowed",
       "deep_tca_plus_any_other_injury_modality": "not_compatible_same_day"
     },
     "deliberately_removed_or_not_selectable": {
@@ -3155,7 +3253,7 @@ export const PIGMENTATION_CONFIG = {
         "do_not_pick_or_manipulate"
       ],
       "never_include_in_background_toning": true,
-      "same_day_with_other_injury_modality": "prefer_separate_session",
+      "same_day_with_other_injury_modality": "prefer_separate_on_overlapping_field; disjoint_fields_allowed",
       "protocol_id": "LESION_SK_DPN_ELECTROCAUTERY_OR_RF",
       "modality_id": "electrocautery_or_rf"
     },
@@ -3236,8 +3334,13 @@ export const PIGMENTATION_CONFIG = {
   },
   "session_compatibility_matrix": {
     "maximum_injury_modality_types_per_session_from_policy": 2,
-    "default_preference": "one_primary_injury_modality",
-    "second_injury_modality_requires_material_regional_advantage": true,
+    "default_preference": "up_to_two_injury_modalities_when_actual_treatment_fields_are_disjoint",
+    "allow_multiple_injury_modalities_when_treatment_fields_are_disjoint": true,
+    "disjoint_fields_do_not_require_pair_whitelisting": true,
+    "diagnosis_group_region_overlap_is_not_operation_overlap": true,
+    "overlapping_treatment_fields_use_existing_pair_rules": true,
+    "same_visit_disallowed_combinations_for_disjoint_fields": [],
+    "second_injury_modality_requires_material_regional_advantage": false,
     "supportive_modalities_not_counted_as_injury": [
       "led",
       "cooling",
@@ -3245,12 +3348,12 @@ export const PIGMENTATION_CONFIG = {
       "routine_aftercare"
     ],
     "pairs": {
-      "q_switch_laser+chemical_peel": "conditional_protocol_specific",
-      "q_switch_laser+microneedling_with_active": "not_compatible_same_day",
-      "q_switch_laser+electrocautery_or_rf": "prefer_separate_session",
-      "chemical_peel+microneedling_with_active": "not_compatible_same_day",
-      "chemical_peel+electrocautery_or_rf": "prefer_separate_session",
-      "microneedling_with_active+electrocautery_or_rf": "prefer_separate_session",
+      "q_switch_laser+chemical_peel": "overlapping_field_conditional_protocol_specific; disjoint_fields_allowed",
+      "q_switch_laser+microneedling_with_active": "not_same_day_on_overlapping_field; disjoint_fields_allowed",
+      "q_switch_laser+electrocautery_or_rf": "prefer_separate_on_overlapping_field; disjoint_fields_allowed",
+      "chemical_peel+microneedling_with_active": "not_same_day_on_overlapping_field; disjoint_fields_allowed",
+      "chemical_peel+electrocautery_or_rf": "prefer_separate_on_overlapping_field; disjoint_fields_allowed",
+      "microneedling_with_active+electrocautery_or_rf": "prefer_separate_on_overlapping_field; disjoint_fields_allowed",
       "any_injury_modality+led": "compatible_when_skin_response_allows",
       "any_injury_modality+cooling": "compatible"
     }

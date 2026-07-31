@@ -1,8 +1,10 @@
 /**
- * Pigmentation Decode V2.6.1 observation, scoring, diagnosis and targeted doctor-classification validation — diagnosis-code hotfix R3.
+ * Pigmentation Decode V2.7 reliability validator — presence, scoreability and safety only.
  *
- * The validator is deliberately pigmentation-scoped. It protects clinically material structure
- * without forcing the model to produce verbose self-checks or a general dermatology census.
+ * The validator is deliberately permissive at observation and diagnosis stages. It blocks only when
+ * required data is absent, the record cannot be scored/linked, or a pathway-changing safety item
+ * cannot be resolved. Canonical wording, redundant cross-section agreement and evidence ordering
+ * are advisory rather than case-blocking.
  */
 
 import {
@@ -308,17 +310,22 @@ function isVagueLocation(value) {
   )
 }
 
-function containsAny(text, values) {
-  const normalized = normalizeText(text)
-  return values.some((value) => normalized.includes(normalizeText(value)))
-}
-
 function groupFromPhenotype(record) {
+  const unresolvedForScoring =
+    record.unresolved_visual_property === 'flat_vs_raised' ||
+    (record.phenotype_type === 'indeterminate_pigmentation_relevant_lesion' &&
+      record.elevation === 'uncertain')
+  const effectiveMeasurementRole = unresolvedForScoring ? 'none' : record.measurement_role || 'none'
+
   return {
     ...record,
     record_class: 'pigmentation_phenotype',
     morphology: record.primary_lesion_type,
-    burden_category: record.measurement_role,
+    measurement_role: effectiveMeasurementRole,
+    burden_category: effectiveMeasurementRole,
+    scoring_exclusion_reason: unresolvedForScoring
+      ? 'unresolved_flat_vs_raised_or_pathway_changing_morphology'
+      : null,
     primary_detection_mode: record.mode_evidence?.morphology_primary,
     supporting_modes: record.mode_evidence?.morphology_supporting || [],
     non_diagnostic_modes_for_primary_feature: [
@@ -458,62 +465,68 @@ export function finalizeBurdenIndex(rawIndex, path = 'metric', metricKey = path)
   }
 }
 
-function validateImageQuality(imageQuality, errors, warnings) {
+function validateImageQuality(imageQuality, criticalErrors, warnings) {
   if (!isObject(imageQuality)) {
-    errors.push('image_quality is required.')
+    criticalErrors.push('image_quality is required.')
     return
   }
   if (typeof imageQuality.overall_usable !== 'boolean') {
-    errors.push('image_quality.overall_usable must be boolean.')
+    warnings.push('image_quality.overall_usable should be boolean.')
   }
   const modeQuality = imageQuality.mode_quality
   if (!isObject(modeQuality)) {
-    errors.push('image_quality.mode_quality is required.')
-    return
-  }
-  for (const mode of ALLOWED_IMAGE_MODES) {
-    if (!['usable', 'limited', 'not_usable'].includes(modeQuality[mode])) {
-      errors.push(`image_quality.mode_quality.${mode} is invalid or missing.`)
+    warnings.push(
+      'image_quality.mode_quality is missing; continuing because the images were supplied to the model.',
+    )
+  } else {
+    for (const mode of ALLOWED_IMAGE_MODES) {
+      if (!['usable', 'limited', 'not_usable'].includes(modeQuality[mode])) {
+        warnings.push(`image_quality.mode_quality.${mode} is missing or noncanonical.`)
+      }
     }
   }
   if (imageQuality.overall_usable === false) {
-    errors.push('The five-mode image set is not usable for Pigmentation Decode analysis.')
+    criticalErrors.push(
+      'The image set was explicitly marked unusable for Pigmentation Decode analysis.',
+    )
   }
-  if (modeQuality.white === 'not_usable' && modeQuality.surface_polarized === 'not_usable') {
-    errors.push(
+  if (modeQuality?.white === 'not_usable' && modeQuality?.surface_polarized === 'not_usable') {
+    criticalErrors.push(
       'WHITE and SURFACE_POLARIZED are both unusable; morphology cannot be assessed safely.',
     )
   }
-  if (modeQuality.woods_uv === 'not_usable' || modeQuality.subsurface_polarized === 'not_usable') {
+  if (
+    modeQuality?.woods_uv === 'not_usable' ||
+    modeQuality?.subsurface_polarized === 'not_usable'
+  ) {
     warnings.push(
       'Pigment depth interpretation is limited because Woods UV or subsurface mode is unusable.',
     )
   }
 }
 
-function validatePhenotypeModeEvidence(record, path, errors, warnings) {
+function validatePhenotypeModeEvidence(record, path, warnings) {
   const evidence = record.mode_evidence
-  if (!isObject(evidence)) return
-  if (!['white', 'surface_polarized'].includes(evidence.morphology_primary)) {
-    errors.push(`${path}.mode_evidence.morphology_primary must be white or surface_polarized.`)
+  if (!isObject(evidence)) {
+    warnings.push(`${path}.mode_evidence is missing; descriptive observation remains usable.`)
+    return
   }
-  if (!Array.isArray(evidence.morphology_supporting)) {
-    errors.push(`${path}.mode_evidence.morphology_supporting must be an array.`)
-  } else if (
-    evidence.morphology_supporting.some((mode) => !['white', 'surface_polarized'].includes(mode))
-  ) {
-    errors.push(
-      `${path}.mode_evidence.morphology_supporting may contain only white or surface_polarized.`,
+  if (!['white', 'surface_polarized'].includes(evidence.morphology_primary)) {
+    warnings.push(
+      `${path}.mode_evidence.morphology_primary is nonpreferred; WHITE/SURFACE are preferred for morphology.`,
     )
   }
+  if (!Array.isArray(evidence.morphology_supporting)) {
+    warnings.push(`${path}.mode_evidence.morphology_supporting should be an array.`)
+  }
   if (!ALLOWED_DEPTH_EVIDENCE_VALUES.has(evidence.woods_uv_accentuation)) {
-    errors.push(`${path}.mode_evidence.woods_uv_accentuation is invalid.`)
+    warnings.push(`${path}.mode_evidence.woods_uv_accentuation is noncanonical.`)
   }
   if (!ALLOWED_DEPTH_EVIDENCE_VALUES.has(evidence.subsurface_persistence)) {
-    errors.push(`${path}.mode_evidence.subsurface_persistence is invalid.`)
+    warnings.push(`${path}.mode_evidence.subsurface_persistence is noncanonical.`)
   }
   if (!ALLOWED_DEPTH_INFERENCE_VALUES.has(evidence.depth_inference)) {
-    errors.push(`${path}.mode_evidence.depth_inference is invalid.`)
+    warnings.push(`${path}.mode_evidence.depth_inference is noncanonical.`)
   }
   if (
     ['mixed', 'dermal_predominant'].includes(evidence.depth_inference) &&
@@ -523,17 +536,18 @@ function validatePhenotypeModeEvidence(record, path, errors, warnings) {
   }
 }
 
-function validateModifierModeEvidence(record, path, errors) {
+function validateModifierModeEvidence(record, path, warnings) {
   const evidence = record.mode_evidence
   if (!isObject(evidence)) {
-    errors.push(`${path}.mode_evidence is required.`)
+    warnings.push(
+      `${path}.mode_evidence is missing; modifier remains usable as a descriptive finding.`,
+    )
     return
   }
   if (!ALLOWED_IMAGE_MODES.has(evidence.primary)) {
-    errors.push(`${path}.mode_evidence.primary is invalid.`)
-    return
+    warnings.push(`${path}.mode_evidence.primary is noncanonical.`)
   }
-  const requiredPrimary = {
+  const preferredPrimary = {
     vascular_or_erythematous_contribution: ['red'],
     structural_shadow: ['white'],
     barrier_or_scale_change: ['surface_polarized'],
@@ -543,132 +557,156 @@ function validateModifierModeEvidence(record, path, errors) {
     hair_stubble_or_optical_shadow: ['white', 'surface_polarized'],
     scar_or_depression_modifier: ['white', 'surface_polarized'],
   }[record.modifier_type]
-  if (requiredPrimary && !requiredPrimary.includes(evidence.primary)) {
-    errors.push(
-      `${path}.${record.modifier_type} must use ${requiredPrimary.join(' or ')} as primary mode evidence.`,
+  if (preferredPrimary && !preferredPrimary.includes(evidence.primary)) {
+    warnings.push(
+      `${path}.${record.modifier_type} preferably uses ${preferredPrimary.join(' or ')} as primary evidence; evidence order does not invalidate the finding.`,
     )
   }
   if (!Array.isArray(evidence.supporting)) {
-    errors.push(`${path}.mode_evidence.supporting must be an array.`)
+    warnings.push(`${path}.mode_evidence.supporting should be an array.`)
   } else if (evidence.supporting.some((mode) => !ALLOWED_IMAGE_MODES.has(mode))) {
-    errors.push(`${path}.mode_evidence.supporting contains an invalid mode.`)
+    warnings.push(`${path}.mode_evidence.supporting contains a noncanonical mode.`)
   }
 }
 
-function validateRegionReview(regionReview, errors, warnings) {
+function validateRegionReview(regionReview, warnings) {
   if (!isObject(regionReview)) {
-    errors.push('region_review is required.')
+    warnings.push(
+      'region_review is missing; structured phenotype/modifier groups remain authoritative.',
+    )
     return
   }
   for (const region of REQUIRED_REVIEW_REGIONS) {
     const record = regionReview[region]
     if (!isObject(record)) {
-      errors.push(`region_review.${region} is required.`)
+      warnings.push(
+        `region_review.${region} is missing; this does not invalidate structured findings.`,
+      )
       continue
     }
     if (!['usable', 'limited', 'not_usable'].includes(record.visibility)) {
-      errors.push(`region_review.${region}.visibility is invalid.`)
+      warnings.push(`region_review.${region}.visibility is noncanonical.`)
     }
     if (!Array.isArray(record.positive_tags)) {
-      errors.push(`region_review.${region}.positive_tags must be an array.`)
+      warnings.push(`region_review.${region}.positive_tags should be an array.`)
       continue
     }
     for (const tag of record.positive_tags) {
       if (!ALLOWED_REGION_TAGS.has(tag)) {
-        errors.push(`region_review.${region} has invalid positive tag ${tag}.`)
+        warnings.push(`region_review.${region} has noncanonical positive tag ${tag}.`)
       }
-    }
-    if (record.visibility === 'not_usable' && !record.note) {
-      warnings.push(`region_review.${region} is not usable but has no limitation note.`)
     }
   }
 }
 
-function validateBaseGroup(record, path, ids, errors) {
+function validateBaseGroup(record, path, ids, criticalErrors, warnings) {
   if (!isObject(record)) {
-    errors.push(`${path} must be an object.`)
+    criticalErrors.push(`${path} must be an object.`)
     return false
   }
-  if (!record.group_id) errors.push(`${path}.group_id is required.`)
-  else if (ids.has(record.group_id)) errors.push(`Duplicate group ID: ${record.group_id}.`)
+  if (!record.group_id) criticalErrors.push(`${path}.group_id is required.`)
+  else if (ids.has(record.group_id)) criticalErrors.push(`Duplicate group ID: ${record.group_id}.`)
   else ids.add(record.group_id)
 
-  if (isVagueLocation(record.clinical_location_text)) {
-    errors.push(`${path}.clinical_location_text must be doctor-usable.`)
+  const hasReadableLocation = !isVagueLocation(record.clinical_location_text)
+  const hasRegions =
+    Array.isArray(record.anatomical_regions) && record.anatomical_regions.length > 0
+  if (!hasReadableLocation && !hasRegions) {
+    criticalErrors.push(
+      `${path} requires either clinical_location_text or at least one anatomical region.`,
+    )
+  } else if (!hasReadableLocation) {
+    warnings.push(
+      `${path}.clinical_location_text is vague; anatomical_regions will carry localisation.`,
+    )
   }
-  if (!Array.isArray(record.anatomical_regions) || !record.anatomical_regions.length) {
-    errors.push(`${path}.anatomical_regions must contain at least one region.`)
+
+  if (!hasRegions) {
+    warnings.push(
+      `${path}.anatomical_regions is empty; clinical_location_text will carry localisation.`,
+    )
+    record.anatomical_regions = []
   } else {
     record.anatomical_regions = uniqueStrings(record.anatomical_regions)
     for (const region of record.anatomical_regions) {
       if (!ALLOWED_ANATOMICAL_REGIONS.has(region)) {
-        errors.push(
-          `${path}.anatomical_regions contains invalid region ${region}. Use an exact coarse region_review key or canonical fine subregion.`,
+        warnings.push(
+          `${path}.anatomical_regions contains noncanonical region ${region}; precise location text remains usable.`,
         )
       }
     }
   }
-  if (!ALLOWED_DISTRIBUTIONS.has(record.distribution)) {
-    errors.push(`${path}.distribution is invalid.`)
+  if (record.distribution && !ALLOWED_DISTRIBUTIONS.has(record.distribution)) {
+    warnings.push(`${path}.distribution is noncanonical.`)
   }
   if (record.count_band && !ALLOWED_COUNT_BANDS.has(record.count_band)) {
-    errors.push(`${path}.count_band is invalid.`)
+    warnings.push(`${path}.count_band is noncanonical and will not block the case.`)
   }
   if (record.primary_lesion_type && !ALLOWED_PRIMARY_LESION_TYPES.has(record.primary_lesion_type)) {
-    errors.push(`${path}.primary_lesion_type is invalid.`)
-  }
-  if (!['right', 'left', 'bilateral', 'midline', 'not_applicable'].includes(record.patient_side)) {
-    errors.push(`${path}.patient_side is invalid.`)
-  }
-  if (!ALLOWED_ELEVATIONS.has(record.elevation || 'not_applicable')) {
-    errors.push(`${path}.elevation is invalid.`)
-  }
-  if (!ALLOWED_SURFACES.has(record.surface || 'not_applicable')) {
-    errors.push(`${path}.surface is invalid.`)
-  }
-  if (!ALLOWED_MEASUREMENT_ROLES.has(record.measurement_role || 'none')) {
-    errors.push(`${path}.measurement_role is invalid.`)
-  }
-  if (!['present', 'uncertain'].includes(record.presence_status)) {
-    errors.push(`${path}.presence_status must be present or uncertain.`)
+    warnings.push(`${path}.primary_lesion_type is noncanonical.`)
   }
   if (
-    !Number.isFinite(record.confidence_100) ||
-    record.confidence_100 < 0 ||
-    record.confidence_100 > 100
+    record.patient_side &&
+    !['right', 'left', 'bilateral', 'midline', 'not_applicable'].includes(record.patient_side)
   ) {
-    errors.push(`${path}.confidence_100 must be 0-100.`)
+    warnings.push(`${path}.patient_side is noncanonical.`)
+  }
+  if (record.elevation && !ALLOWED_ELEVATIONS.has(record.elevation)) {
+    warnings.push(`${path}.elevation is noncanonical.`)
+  }
+  if (record.surface && !ALLOWED_SURFACES.has(record.surface)) {
+    warnings.push(`${path}.surface is noncanonical.`)
+  }
+  if (record.measurement_role && !ALLOWED_MEASUREMENT_ROLES.has(record.measurement_role)) {
+    warnings.push(
+      `${path}.measurement_role is noncanonical; score links rely on metric primitives.`,
+    )
+  }
+  if (record.presence_status && !['present', 'uncertain'].includes(record.presence_status)) {
+    warnings.push(`${path}.presence_status is noncanonical.`)
+  }
+  if (
+    record.confidence_100 !== undefined &&
+    (!Number.isFinite(record.confidence_100) ||
+      record.confidence_100 < 0 ||
+      record.confidence_100 > 100)
+  ) {
+    warnings.push(`${path}.confidence_100 is outside 0-100.`)
   }
   return true
 }
 
-function validatePhenotypes(phenotypes, ids, errors, warnings) {
+function validatePhenotypes(phenotypes, ids, criticalErrors, warnings) {
   const groups = []
   phenotypes.forEach((record, index) => {
     const path = `pigmentation_phenotypes[${index}]`
-    if (!validateBaseGroup(record, path, ids, errors)) return
+    if (!validateBaseGroup(record, path, ids, criticalErrors, warnings)) return
     if (!ALLOWED_PHENOTYPE_TYPES.has(record.phenotype_type)) {
-      errors.push(`${path}.phenotype_type is invalid.`)
+      warnings.push(`${path}.phenotype_type is noncanonical.`)
     }
-    if (!record.primary_lesion_type) errors.push(`${path}.primary_lesion_type is required.`)
-    if (!ALLOWED_UNRESOLVED_VISUAL_PROPERTIES.has(record.unresolved_visual_property)) {
-      errors.push(`${path}.unresolved_visual_property is invalid.`)
+    if (!record.primary_lesion_type) warnings.push(`${path}.primary_lesion_type is missing.`)
+    if (
+      record.unresolved_visual_property &&
+      !ALLOWED_UNRESOLVED_VISUAL_PROPERTIES.has(record.unresolved_visual_property)
+    ) {
+      warnings.push(`${path}.unresolved_visual_property is noncanonical.`)
     }
-    if (!isObject(record.mode_evidence)) errors.push(`${path}.mode_evidence is required.`)
-    validatePhenotypeModeEvidence(record, path, errors, warnings)
+    validatePhenotypeModeEvidence(record, path, warnings)
 
-    if (record.phenotype_type === 'raised_pigmented_lesion') {
-      if (!['probably_raised', 'raised', 'uncertain'].includes(record.elevation)) {
-        errors.push(`${path} is a raised-pigment phenotype but elevation is ${record.elevation}.`)
-      }
-      if (!['white', 'surface_polarized'].includes(record.mode_evidence?.morphology_primary)) {
-        errors.push(`${path} raised morphology must be grounded in WHITE or SURFACE_POLARIZED.`)
-      }
-      if (record.measurement_role !== 'raised_pigmented_lesion') {
-        errors.push(`${path} raised phenotype must use raised_pigmented_lesion measurement_role.`)
-      }
+    if (
+      record.unresolved_visual_property === 'flat_vs_raised' &&
+      record.measurement_role !== 'none'
+    ) {
+      warnings.push(
+        `${path} remains flat-versus-raised indeterminate; it is excluded from flat and raised scoring until doctor classification.`,
+      )
     }
-
+    if (
+      record.phenotype_type === 'raised_pigmented_lesion' &&
+      !['probably_raised', 'raised', 'uncertain'].includes(record.elevation)
+    ) {
+      warnings.push(`${path} has a raised phenotype label with non-raised elevation wording.`)
+    }
     if (
       [
         'flat_focal_pigmentation',
@@ -676,35 +714,11 @@ function validatePhenotypes(phenotypes, ids, errors, warnings) {
         'reticular_pigmentation',
         'periocular_pigment',
         'perioral_pigment',
-      ].includes(record.phenotype_type)
+      ].includes(record.phenotype_type) &&
+      ['probably_raised', 'raised'].includes(record.elevation)
     ) {
-      if (['probably_raised', 'raised'].includes(record.elevation)) {
-        errors.push(
-          `${path} is a flat/regional pigment phenotype but elevation is ${record.elevation}.`,
-        )
-      }
-      if (
-        !['flat_focal_pigmented_lesion', 'global_background_melanin', 'none'].includes(
-          record.measurement_role,
-        )
-      ) {
-        errors.push(`${path} has an incompatible measurement_role ${record.measurement_role}.`)
-      }
-    }
-
-    if (
-      record.phenotype_type === 'diffuse_background_pigmentation' &&
-      record.measurement_role !== 'global_background_melanin'
-    ) {
-      errors.push(`${path} diffuse background pigment must use global_background_melanin.`)
-    }
-
-    if (
-      record.unresolved_visual_property === 'flat_vs_raised' &&
-      record.measurement_role !== 'none'
-    ) {
-      errors.push(
-        `${path} remains flat-versus-raised indeterminate and must use measurement_role none until doctor classification.`,
+      warnings.push(
+        `${path} has a flat/regional phenotype label with raised elevation wording; preserve for doctor review.`,
       )
     }
 
@@ -713,16 +727,16 @@ function validatePhenotypes(phenotypes, ids, errors, warnings) {
   return groups
 }
 
-function validateModifiers(modifiers, ids, errors, warnings) {
+function validateModifiers(modifiers, ids, criticalErrors, warnings) {
   const groups = []
   modifiers.forEach((record, index) => {
     const path = `pigmentation_contributors_and_modifiers[${index}]`
-    if (!validateBaseGroup(record, path, ids, errors)) return
+    if (!validateBaseGroup(record, path, ids, criticalErrors, warnings)) return
     if (!ALLOWED_MODIFIER_TYPES.has(record.modifier_type)) {
-      errors.push(`${path}.modifier_type is invalid.`)
+      warnings.push(`${path}.modifier_type is noncanonical.`)
     }
-    validateModifierModeEvidence(record, path, errors)
-    if (!record.pigmentation_relevance) errors.push(`${path}.pigmentation_relevance is required.`)
+    validateModifierModeEvidence(record, path, warnings)
+    if (!record.pigmentation_relevance) warnings.push(`${path}.pigmentation_relevance is missing.`)
     if (
       [
         'global_background_melanin',
@@ -730,23 +744,16 @@ function validateModifiers(modifiers, ids, errors, warnings) {
         'raised_pigmented_lesion',
       ].includes(record.measurement_role)
     ) {
-      errors.push(`${path} is a modifier and cannot feed a melanin or pigmented-lesion score.`)
-    }
-    if (
-      record.modifier_type === 'acne_activity_modifier' &&
-      record.measurement_role === 'active_inflammatory_lesion' &&
-      !containsAny(record.visible_finding, ['inflammatory', 'papule', 'pustule', 'erythema'])
-    ) {
       warnings.push(
-        `${path} acne modifier feeds inflammatory burden without clear inflammatory wording.`,
+        `${path} is a modifier carrying a pigment measurement role; metric primitives remain authoritative.`,
       )
     }
     if (
       record.modifier_type === 'barrier_or_scale_change' &&
       record.measurement_role === 'active_inflammatory_lesion'
     ) {
-      errors.push(
-        `${path} barrier/scale change cannot automatically feed active inflammatory burden.`,
+      warnings.push(
+        `${path} barrier/scale change should not automatically feed active inflammatory burden.`,
       )
     }
     groups.push(groupFromModifier(record))
@@ -789,391 +796,52 @@ function validateSafetyFindings(findings, groupMap, errors, warnings) {
   })
 }
 
-const REVIEW_REGION_ANATOMICAL_TOKENS = Object.freeze({
-  forehead_hairline: [
-    'upper_forehead_hairline',
-    'central_forehead',
-    'right_forehead',
-    'left_forehead',
-  ],
-  right_temple: ['right_temple'],
-  left_temple: ['left_temple'],
-  glabella: ['glabella'],
-  right_periocular: ['right_upper_eyelid', 'right_infraorbital', 'right_tear_trough'],
-  left_periocular: ['left_upper_eyelid', 'left_infraorbital', 'left_tear_trough'],
-  nose: ['nose_bridge', 'nasal_tip', 'right_nasal_ala', 'left_nasal_ala'],
-  right_malar_cheek: [
-    'right_outer_malar',
-    'right_central_malar',
-    'right_medial_malar',
-    'right_lateral_cheek',
-  ],
-  left_malar_cheek: [
-    'left_outer_malar',
-    'left_central_malar',
-    'left_medial_malar',
-    'left_lateral_cheek',
-  ],
-  right_lower_cheek_jaw: ['right_lower_cheek', 'right_jawline', 'right_nasolabial'],
-  left_lower_cheek_jaw: ['left_lower_cheek', 'left_jawline', 'left_nasolabial'],
-  upper_perioral: ['upper_lip_perioral', 'right_oral_commissure', 'left_oral_commissure'],
-  lower_perioral_chin: ['lower_lip_perioral', 'chin'],
-})
-
-function groupMatchesReviewRegion(group, regionKey) {
-  const anatomicalRegions = uniqueStrings(group?.anatomical_regions)
-  if (anatomicalRegions.includes('whole_face')) return true
-  // A broad region_review key is itself a valid anatomical region when the population spans that zone.
-  if (anatomicalRegions.includes(regionKey)) return true
-  const tokens = REVIEW_REGION_ANATOMICAL_TOKENS[regionKey] || []
-  return anatomicalRegions.some((region) => tokens.includes(region))
-}
-
-function reviewTagMatchesGroup(tag, group) {
-  const role = group?.measurement_role || group?.burden_category || 'none'
-  const modifier = group?.modifier_type
-  const phenotypeType = group?.phenotype_type
-  switch (tag) {
-    case 'diffuse_or_background_pigment':
-      return (
-        role === 'global_background_melanin' || phenotypeType === 'diffuse_background_pigmentation'
-      )
-    case 'flat_focal_or_regional_pigment':
-      return (
-        role === 'flat_focal_pigmented_lesion' ||
-        [
-          'flat_focal_pigmentation',
-          'regional_patch_pigmentation',
-          'reticular_pigmentation',
-          'periocular_pigment',
-          'perioral_pigment',
-        ].includes(phenotypeType)
-      )
-    case 'raised_pigmented_lesion':
-      return role === 'raised_pigmented_lesion' || phenotypeType === 'raised_pigmented_lesion'
-    case 'vascular_or_erythematous_contribution':
-      return (
-        role === 'global_background_erythema' ||
-        modifier === 'vascular_or_erythematous_contribution'
-      )
-    case 'structural_shadow':
-      return role === 'structural_periocular_shadow' || modifier === 'structural_shadow'
-    case 'barrier_or_scale_modifier':
-      return modifier === 'barrier_or_scale_change'
-    case 'active_inflammatory_modifier':
-      return (
-        role === 'active_inflammatory_lesion' ||
-        ['active_inflammatory_driver', 'acne_activity_modifier'].includes(modifier)
-      )
-    case 'friction_hair_or_optical_modifier':
-      return [
-        'friction_pressure_or_contact_modifier',
-        'hair_stubble_or_optical_shadow',
-        'scar_or_depression_modifier',
-      ].includes(modifier)
-    case 'indeterminate_pigmentation_relevant_finding':
-      return (
-        phenotypeType === 'indeterminate_pigmentation_relevant_lesion' ||
-        (group?.unresolved_visual_property && group.unresolved_visual_property !== 'none')
-      )
-    default:
-      return false
-  }
-}
-
-function rawReviewTagCanBeExplainedByGroup(tag, group) {
-  if (reviewTagMatchesGroup(tag, group)) return true
-  if (group?.unresolved_visual_property === 'flat_vs_raised') {
-    if (tag === 'flat_focal_or_regional_pigment') {
-      return ['flat', 'probably_flat', 'uncertain', 'not_applicable'].includes(group?.elevation)
-    }
-    if (tag === 'raised_pigmented_lesion') {
-      return ['uncertain', 'probably_raised', 'raised'].includes(group?.elevation)
-    }
-  }
-  return false
-}
-
-function expectedReviewTagForGroup(group) {
-  if (
-    group?.phenotype_type === 'indeterminate_pigmentation_relevant_lesion' ||
-    (group?.unresolved_visual_property && group.unresolved_visual_property !== 'none')
-  ) {
-    return 'indeterminate_pigmentation_relevant_finding'
-  }
-  const role = group?.measurement_role || group?.burden_category || 'none'
-  if (role === 'global_background_melanin') return 'diffuse_or_background_pigment'
-  if (role === 'flat_focal_pigmented_lesion') return 'flat_focal_or_regional_pigment'
-  if (role === 'raised_pigmented_lesion') return 'raised_pigmented_lesion'
-  if (role === 'global_background_erythema') return 'vascular_or_erythematous_contribution'
-  if (role === 'active_inflammatory_lesion') return 'active_inflammatory_modifier'
-  if (role === 'structural_periocular_shadow') return 'structural_shadow'
-  const modifier = group?.modifier_type
-  if (modifier === 'vascular_or_erythematous_contribution') {
-    return 'vascular_or_erythematous_contribution'
-  }
-  if (modifier === 'structural_shadow') return 'structural_shadow'
-  if (modifier === 'barrier_or_scale_change') return 'barrier_or_scale_modifier'
-  if (['active_inflammatory_driver', 'acne_activity_modifier'].includes(modifier)) {
-    return 'active_inflammatory_modifier'
-  }
-  if (
-    [
-      'friction_pressure_or_contact_modifier',
-      'hair_stubble_or_optical_shadow',
-      'scar_or_depression_modifier',
-    ].includes(modifier)
-  ) {
-    return 'friction_hair_or_optical_modifier'
-  }
-  return null
-}
-
-function inferPatientSideFromReviewRegion(regionKey) {
-  if (regionKey.startsWith('right_')) return 'right'
-  if (regionKey.startsWith('left_')) return 'left'
-  if (
-    ['glabella', 'nose', 'upper_perioral', 'lower_perioral_chin', 'forehead_hairline'].includes(
-      regionKey,
-    )
-  ) {
-    return 'midline'
-  }
-  return 'not_applicable'
-}
-
-function humanizeReviewRegion(regionKey) {
-  return String(regionKey || '')
-    .replaceAll('_', ' ')
-    .replace(/^right /, 'patient-right ')
-    .replace(/^left /, 'patient-left ')
-}
-
-function makeSyntheticIndeterminatePhenotype(regionKey, tag, usedIds) {
-  let counter = 1
-  let groupId = `PG_RR_${String(regionKey).toUpperCase()}`
-  while (usedIds.has(groupId)) {
-    counter += 1
-    groupId = `PG_RR_${String(regionKey).toUpperCase()}_${counter}`
-  }
-  const isRaisedSignal = tag === 'raised_pigmented_lesion'
-  return {
-    group_id: groupId,
-    record_class: 'pigmentation_phenotype',
-    phenotype_type: 'indeterminate_pigmentation_relevant_lesion',
-    primary_lesion_type: 'other',
-    clinical_location_text: `Possible pathway-changing pigmentation-relevant finding within the ${humanizeReviewRegion(regionKey)} zone; the coarse whole-face review was positive, but the detailed observation groups did not resolve the morphology sufficiently.`,
-    anatomical_regions: [regionKey],
-    patient_side: inferPatientSideFromReviewRegion(regionKey),
-    surface: 'uncertain',
-    elevation: isRaisedSignal ? 'uncertain' : 'not_applicable',
-    distribution: 'other',
-    count_band: 'not_reliably_countable',
-    colour_description:
-      'Not reliably characterised from the internally inconsistent observation response.',
-    mode_evidence: {
-      morphology_primary: 'white',
-      morphology_supporting: ['surface_polarized'],
-      woods_uv_accentuation: 'uncertain',
-      subsurface_persistence: 'uncertain',
-      depth_inference: 'uncertain',
-      depth_confidence_100: 20,
-      summary:
-        'Coarse region review and structured grouping were internally inconsistent; direct doctor classification is required only for this unresolved zone-level finding.',
-    },
-    measurement_role: 'none',
-    presence_status: 'uncertain',
-    unresolved_visual_property: isRaisedSignal
-      ? 'flat_vs_raised'
-      : 'other_pathway_changing_uncertainty',
-    confidence_100: 25,
-    generated_by_region_reconciliation: true,
-  }
-}
-
-function shouldAutoExtendGroupForTag(group, tag) {
-  if (!reviewTagMatchesGroup(tag, group)) return false
-  if (tag === 'diffuse_or_background_pigment') return true
-  if (tag === 'flat_focal_or_regional_pigment') {
-    return [
-      'regional',
-      'diffuse',
-      'confluent',
-      'reticular',
-      'multifocal_scattered',
-      'multifocal_clustered',
-    ].includes(group?.distribution)
-  }
-  if (tag === 'vascular_or_erythematous_contribution') return group?.distribution !== 'isolated'
-  if (tag === 'barrier_or_scale_modifier') return group?.distribution !== 'isolated'
-  if (tag === 'friction_hair_or_optical_modifier') return group?.distribution !== 'isolated'
-  return false
-}
-
-function reconcileRegionReviewWithGroups(regionReview, arrays, groups, ids, errors, warnings) {
-  const normalized = clone(regionReview || {})
-  const reconciliation = {
-    revision: 'v2_6_1_r2',
-    groups_auto_extended_to_regions: [],
-    synthetic_indeterminate_groups: [],
-    unmatched_reported_tags_removed: [],
-    tags_added_from_structured_groups: [],
-  }
-
-  const phenotypeById = new Map(
-    (arrays.phenotypes || []).map((record) => [record.group_id, record]),
-  )
-  const modifierById = new Map((arrays.modifiers || []).map((record) => [record.group_id, record]))
-
-  for (const regionKey of REQUIRED_REVIEW_REGIONS) {
-    const review = normalized[regionKey] || {
-      visibility: 'not_usable',
-      positive_tags: [],
-      note: '',
-    }
-    normalized[regionKey] = review
-    const reportedTags = uniqueStrings(review.positive_tags)
-    review.reported_positive_tags = reportedTags
-
-    for (const tag of reportedTags) {
-      const explainedInRegion = groups.some(
-        (group) =>
-          groupMatchesReviewRegion(group, regionKey) &&
-          rawReviewTagCanBeExplainedByGroup(tag, group),
-      )
-      if (explainedInRegion) continue
-
-      const candidates = groups.filter((group) => shouldAutoExtendGroupForTag(group, tag))
-      if (candidates.length === 1) {
-        const candidate = candidates[0]
-        const record = phenotypeById.get(candidate.group_id) || modifierById.get(candidate.group_id)
-        if (record && !record.anatomical_regions.includes(regionKey)) {
-          record.anatomical_regions = uniqueStrings([...record.anatomical_regions, regionKey])
-          candidate.anatomical_regions = uniqueStrings([...candidate.anatomical_regions, regionKey])
-          reconciliation.groups_auto_extended_to_regions.push({
-            group_id: candidate.group_id,
-            region_key: regionKey,
-            source_tag: tag,
-          })
-          warnings.push(
-            `region_review.${regionKey} reported ${tag}; ${candidate.group_id} was the single compatible structured population and was extended to that coarse region.`,
-          )
-          continue
-        }
-      }
-
-      if (
-        ['raised_pigmented_lesion', 'indeterminate_pigmentation_relevant_finding'].includes(tag)
-      ) {
-        const synthetic = makeSyntheticIndeterminatePhenotype(regionKey, tag, ids)
-        const syntheticGroups = validatePhenotypes([synthetic], ids, errors, warnings)
-        arrays.phenotypes.push(synthetic)
-        groups.push(...syntheticGroups)
-        phenotypeById.set(synthetic.group_id, synthetic)
-        reconciliation.synthetic_indeterminate_groups.push({
-          group_id: synthetic.group_id,
-          region_key: regionKey,
-          source_tag: tag,
-        })
-        warnings.push(
-          `region_review.${regionKey} reported ${tag} without a resolved structured group. A low-confidence indeterminate group was created so the finding can be classified by the clinic doctor instead of failing the entire observation.`,
-        )
-      } else {
-        reconciliation.unmatched_reported_tags_removed.push({ region_key: regionKey, tag })
-        warnings.push(
-          `region_review.${regionKey} reported ${tag} without a compatible structured group. The coarse tag was retained for audit but removed from normalized positive_tags; structured groups remain authoritative for diagnosis and scoring.`,
-        )
-      }
-    }
-  }
-
-  for (const regionKey of REQUIRED_REVIEW_REGIONS) {
-    const review = normalized[regionKey]
-    const derivedTags = []
-    for (const group of groups) {
-      const expectedTag = expectedReviewTagForGroup(group)
-      if (expectedTag && groupMatchesReviewRegion(group, regionKey)) derivedTags.push(expectedTag)
-    }
-    const normalizedTags = uniqueStrings(derivedTags)
-    const reportedTags = uniqueStrings(review.reported_positive_tags)
-    for (const tag of normalizedTags) {
-      if (!reportedTags.includes(tag)) {
-        reconciliation.tags_added_from_structured_groups.push({ region_key: regionKey, tag })
-        warnings.push(
-          `region_review.${regionKey} omitted ${tag}; it was added from a matching structured observation group.`,
-        )
-      }
-    }
-    review.positive_tags = normalizedTags
-  }
-
-  return { regionReview: normalized, reconciliation }
-}
-
-function validateRegionTagGroupConsistency(regionReview, groups, errors) {
-  // After deterministic reconciliation, region_review is a compact coverage view derived from
-  // the structured groups. It is not an independent second annotation layer and therefore must
-  // not hard-fail the pipeline for redundant coarse-tag disagreements.
-  for (const group of groups) {
-    const expectedTag = expectedReviewTagForGroup(group)
-    if (!expectedTag) continue
-    const represented = Object.entries(regionReview || {}).some(
-      ([regionKey, review]) =>
-        REQUIRED_REVIEW_REGIONS.includes(regionKey) &&
-        groupMatchesReviewRegion(group, regionKey) &&
-        uniqueStrings(review?.positive_tags).includes(expectedTag),
-    )
-    if (!represented) {
-      errors.push(
-        `${group.group_id} cannot be mapped to any required whole-face review zone. Check anatomical_regions.`,
-      )
-    }
-  }
-}
-
-function normalizeMetric(rawMetric, metricKey, groupMap, errors) {
-  const metric = isObject(rawMetric) ? clone(rawMetric) : {}
+function normalizeMetric(rawMetric, metricKey, groupMap, criticalErrors, warnings) {
   const path = `metrics.${metricKey}`
+  if (!isObject(rawMetric)) {
+    criticalErrors.push(`${path} is required for deterministic scoring.`)
+    return {
+      presence_status: 'uncertain',
+      linked_group_ids: [],
+      measurement_primitives: {},
+      score_100: 1,
+      severity_label: configPigmentationSeverityLabel(1),
+      score_source: 'application_fixed_aggregation_v2_7_unavailable',
+    }
+  }
+
+  const metric = clone(rawMetric)
   if (!['present', 'absent', 'uncertain'].includes(metric.presence_status)) {
-    errors.push(`${path}.presence_status must be present, absent or uncertain.`)
+    warnings.push(`${path}.presence_status is noncanonical.`)
   }
 
   const linkedIds = uniqueStrings(metric.linked_group_ids)
   for (const id of linkedIds) {
-    if (!groupMap.has(id)) errors.push(`${path}.linked_group_ids contains unknown group ${id}.`)
+    if (!groupMap.has(id)) warnings.push(`${path}.linked_group_ids contains unknown group ${id}.`)
   }
 
   const expectedIds = [...groupMap.values()]
     .filter((group) => MEASUREMENT_ROLE_TO_METRIC[group.measurement_role] === metricKey)
     .map((group) => group.group_id)
-
-  if (metric.presence_status === 'absent' && linkedIds.length) {
-    errors.push(`${path} is absent but contains linked groups.`)
-  }
-  if (expectedIds.length && metric.presence_status === 'absent') {
-    errors.push(`${path} is absent although matching groups are present.`)
-  }
   for (const id of expectedIds) {
-    if (!linkedIds.includes(id)) errors.push(`${path} does not link matching group ${id}.`)
+    if (!linkedIds.includes(id)) warnings.push(`${path} does not link matching group ${id}.`)
   }
 
-  const localized = ![
-    'global_background_melanin_load_index',
-    'global_background_erythema_load_index',
-  ].includes(metricKey)
-  if (localized && metric.presence_status !== 'absent' && linkedIds.length === 0) {
-    errors.push(`${path} is ${metric.presence_status} but has no linked group.`)
-  }
-
+  const localCritical = []
   try {
     assertValidMeasurementPrimitives(metric.measurement_primitives, path, metricKey)
   } catch (error) {
-    errors.push(...(error.errors || [error.message]))
+    localCritical.push(...(error.errors || [error.message]))
   }
+  criticalErrors.push(...localCritical)
 
   let score = 1
-  if (!errors.some((entry) => entry.startsWith(path))) {
-    score = calculatePigmentationBurdenIndex(metric.measurement_primitives, metricKey)
+  if (!localCritical.length) {
+    try {
+      score = calculatePigmentationBurdenIndex(metric.measurement_primitives, metricKey)
+    } catch (error) {
+      criticalErrors.push(`${path} could not be deterministically scored: ${error.message}`)
+    }
   }
 
   return {
@@ -1181,7 +849,7 @@ function normalizeMetric(rawMetric, metricKey, groupMap, errors) {
     linked_group_ids: linkedIds,
     score_100: score,
     severity_label: configPigmentationSeverityLabel(score),
-    score_source: 'application_fixed_aggregation_v2_6_1',
+    score_source: 'application_fixed_aggregation_v2_7_presence_and_safety',
   }
 }
 
@@ -1213,7 +881,7 @@ function buildLegacyMetricViews(validated) {
 }
 
 export function validateAndScorePigmentationImageAnalysis(raw, metadata = {}) {
-  const errors = []
+  const criticalErrors = []
   const warnings = []
   if (!isObject(raw)) {
     throw new PigmentationValidationError('Pigmentation observation must be an object.', [
@@ -1222,80 +890,44 @@ export function validateAndScorePigmentationImageAnalysis(raw, metadata = {}) {
   }
 
   const validated = clone(raw)
-  validateImageQuality(validated.image_quality, errors, warnings)
-  validateRegionReview(validated.region_review, errors, warnings)
+  validateImageQuality(validated.image_quality, criticalErrors, warnings)
+  validateRegionReview(validated.region_review, warnings)
 
   const arrays = normalizeObservationArrays(validated)
-  const ids = new Set()
-  const groups = [
-    ...validatePhenotypes(arrays.phenotypes, ids, errors, warnings),
-    ...validateModifiers(arrays.modifiers, ids, errors, warnings),
-  ]
-
-  const regionReconciliation = reconcileRegionReviewWithGroups(
-    validated.region_review || {},
-    arrays,
-    groups,
-    ids,
-    errors,
-    warnings,
-  )
-  validated.region_review = regionReconciliation.regionReview
-  validated.region_review_reconciliation = regionReconciliation.reconciliation
-
-  const groupMap = new Map(groups.map((group) => [group.group_id, group]))
-
-  validateSafetyFindings(validated.safety_and_image_limitations || [], groupMap, errors, warnings)
-  validateRegionTagGroupConsistency(validated.region_review || {}, groups, errors, warnings)
-
-  // Region-level flat/raised consistency: when both are reported in one reviewed zone,
-  // the record must contain separate matching groups. A non-morphology mode cannot veto
-  // positive WHITE/SURFACE evidence for elevation.
-  for (const [regionKey, review] of Object.entries(validated.region_review || {})) {
-    const tags = uniqueStrings(review?.positive_tags)
-    if (
-      tags.includes('flat_focal_or_regional_pigment') &&
-      tags.includes('raised_pigmented_lesion')
-    ) {
-      const matchingFlat = groups.filter(
-        (group) =>
-          groupMatchesReviewRegion(group, regionKey) &&
-          group.measurement_role === 'flat_focal_pigmented_lesion',
-      )
-      const matchingRaised = groups.filter(
-        (group) =>
-          groupMatchesReviewRegion(group, regionKey) &&
-          group.measurement_role === 'raised_pigmented_lesion',
-      )
-      if (!matchingFlat.length || !matchingRaised.length) {
-        errors.push(
-          `region_review.${regionKey} reports both flat and raised pigment but separate matching groups are missing.`,
-        )
-      }
-      if (
-        matchingFlat.some((flat) =>
-          matchingRaised.some((raised) => flat.group_id === raised.group_id),
-        )
-      ) {
-        errors.push(
-          `region_review.${regionKey} flat and raised populations must have different group IDs.`,
-        )
-      }
-    }
+  if (!arrays.phenotypes.length && !arrays.modifiers.length) {
+    criticalErrors.push(
+      'Observation contains no usable pigmentation phenotype or contributor/modifier records.',
+    )
   }
 
-  for (const raised of groups.filter(
-    (group) => group.measurement_role === 'raised_pigmented_lesion',
-  )) {
-    const primary = raised.mode_evidence?.morphology_primary
-    if (!['white', 'surface_polarized'].includes(primary)) {
-      errors.push(
-        `${raised.group_id} raised morphology lacks valid WHITE/SURFACE primary evidence.`,
-      )
-    }
-    if (['flat', 'probably_flat'].includes(raised.elevation)) {
-      errors.push(
-        `${raised.group_id} is scored as raised pigment but elevation is ${raised.elevation}.`,
+  const ids = new Set()
+  const groups = [
+    ...validatePhenotypes(arrays.phenotypes, ids, criticalErrors, warnings),
+    ...validateModifiers(arrays.modifiers, ids, criticalErrors, warnings),
+  ]
+  const groupMap = new Map(groups.map((group) => [group.group_id, group]))
+
+  // region_review is a coverage aid only. Structured groups are authoritative;
+  // cross-section wording or tagging mismatches are never case-blocking.
+  validated.region_review_reconciliation = {
+    revision: 'presence_and_safety_v2_7',
+    authoritative_source: 'pigmentation_phenotypes_and_modifiers',
+    status: 'not_cross_validated',
+  }
+
+  const safetyIssues = []
+  validateSafetyFindings(
+    validated.safety_and_image_limitations || [],
+    groupMap,
+    safetyIssues,
+    warnings,
+  )
+  warnings.push(...safetyIssues)
+
+  for (const group of groups) {
+    if (group.scoring_exclusion_reason) {
+      warnings.push(
+        `${group.group_id} is preserved but excluded from burden scoring until morphology is resolved.`,
       )
     }
   }
@@ -1311,14 +943,15 @@ export function validateAndScorePigmentationImageAnalysis(raw, metadata = {}) {
       rawMetrics?.[metricKey],
       metricKey,
       groupMap,
-      errors,
+      criticalErrors,
+      warnings,
     )
   }
 
-  if (errors.length) {
+  if (criticalErrors.length) {
     throw new PigmentationValidationError(
-      `Pigmentation observation failed critical validation. ${errors.map((e) => `- ${e}`).join(' ')}`,
-      errors,
+      `Pigmentation observation is unusable. ${criticalErrors.map((e) => `- ${e}`).join(' ')}`,
+      criticalErrors,
       warnings,
     )
   }
@@ -1326,9 +959,10 @@ export function validateAndScorePigmentationImageAnalysis(raw, metadata = {}) {
   validated.pigmentation_phenotypes = arrays.phenotypes
   validated.pigmentation_contributors_and_modifiers = arrays.modifiers
   validated.morphology_groups = groups
-  validated.analysis_record_type = 'validated_pigmentation_observation_v2_6'
+  validated.analysis_record_type = 'validated_pigmentation_observation_v2_7'
   validated.validation_metadata = {
-    status: 'application_scored',
+    status: warnings.length ? 'usable_with_warnings' : 'usable',
+    validation_policy_revision: 'presence_and_safety_v2_7',
     model_version: metadata.modelVersion || null,
     prompt_version: metadata.promptVersion || null,
     config_version: metadata.configVersion || null,
@@ -1336,8 +970,7 @@ export function validateAndScorePigmentationImageAnalysis(raw, metadata = {}) {
     validated_at_iso: new Date().toISOString(),
     score_scale_version: 'pigmentation_scores_v2_6_not_directly_comparable_to_v2_5_or_earlier',
     source_record_was_legacy_v2_5: arrays.legacy,
-    region_contract_revision: 'v2_6_1_r2',
-    warnings,
+    warnings: uniqueStrings(warnings),
   }
   return buildLegacyMetricViews(validated)
 }
@@ -1551,6 +1184,21 @@ function validateClassificationItems(diagnosis, components, groupMap, errors, wa
   }
 }
 
+function isCriticalDiagnosisIssue(issue) {
+  const text = String(issue || '')
+  return [
+    /Diagnosis has no diagnostic_components/i,
+    /missing diagnostic_component_id/i,
+    /Duplicate diagnostic component ID/i,
+    /classification_required_item is missing classification_id/i,
+    /Duplicate classification_id/i,
+    /references unknown component/i,
+    /requires classification but has no classification_required_item/i,
+    /must contain 2-4 candidate options/i,
+    /missing or duplicate option_code/i,
+  ].some((pattern) => pattern.test(text))
+}
+
 export function validatePigmentationDiagnosis(diagnosis, phenotype) {
   const errors = []
   const warnings = []
@@ -1727,22 +1375,27 @@ export function validatePigmentationDiagnosis(diagnosis, phenotype) {
     )
   }
 
-  if (errors.length) {
+  const criticalErrors = errors.filter(isCriticalDiagnosisIssue)
+  const advisoryErrors = errors.filter((issue) => !isCriticalDiagnosisIssue(issue))
+  warnings.push(...advisoryErrors)
+
+  if (criticalErrors.length) {
     throw new PigmentationValidationError(
-      `Pigmentation diagnosis failed critical validation. ${errors.map((e) => `- ${e}`).join(' ')}`,
-      errors,
-      warnings,
+      `Pigmentation diagnosis is unusable. ${criticalErrors.map((e) => `- ${e}`).join(' ')}`,
+      criticalErrors,
+      uniqueStrings(warnings),
     )
   }
 
   diagnosis.validation_metadata = {
     ...(diagnosis.validation_metadata || {}),
     diagnosis_code_contract_revision: 'v2_6_1_r3',
+    validation_policy_revision: 'presence_and_safety_v2_7',
     diagnosis_code_normalizations: codeNormalizations,
-    status: 'application_validated_v2_6_1',
-    warnings,
+    status: warnings.length ? 'usable_with_warnings' : 'usable',
+    warnings: uniqueStrings(warnings),
   }
-  return { valid: true, errors: [], warnings, diagnosis }
+  return { valid: true, errors: [], warnings: uniqueStrings(warnings), diagnosis }
 }
 
 export function initializeDoctorClassificationState(diagnosis, existing = {}) {

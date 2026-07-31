@@ -129,11 +129,11 @@
                   </div>
                 </div>
                 <q-separator class="q-my-md" />
-                <div v-if="session?.daily_home_care_routine?.length" class="row q-col-gutter-sm">
+                <div v-if="homecareHandoverInstructions?.length" class="row q-col-gutter-sm">
                   <div class="col-12">
                     <q-list bordered separator class="rounded-borders bg-white">
                       <q-item
-                        v-for="(instruction, idx) in session.daily_home_care_routine"
+                        v-for="(instruction, idx) in homecareHandoverInstructions"
                         :key="idx"
                       >
                         <q-item-section avatar>
@@ -236,6 +236,40 @@ const dailyRoutine = computed(() => {
     morning: result?.morning || [],
     evening: result?.evening || [],
   }
+})
+const homecareHandoverInstructions = computed(() => {
+  const routine = session.value?.daily_home_care_routine || []
+  
+  // Check if we have actual products, not just empty labels "Morning: ", "Night: "
+  const hasValidRoutine = routine.some(item => {
+    const clean = String(item).replace(/(Morning|Night|Avoid):/i, '').trim()
+    return clean.length > 0
+  })
+
+  if (hasValidRoutine) {
+    return routine
+  }
+
+  // Fallback to pigmentation_inputs.lastPlan
+  const lastPlan = assessmentStore.assessmentData?.pigmentation_inputs?.lastPlan
+  if (lastPlan) {
+    const hc = lastPlan.homecare_plan || lastPlan.home_care || {}
+    const hcMorning = hc.morning || []
+    const hcNight = hc.evening || hc.night || []
+    const hcAvoid = hc.sun_and_heat_control || hc.avoid || []
+
+    const fallback = [
+      hcMorning.length ? `Morning: ${hcMorning.join(', ')}` : null,
+      hcNight.length ? `Night: ${hcNight.join(', ')}` : null,
+      hcAvoid.length ? `Avoid: ${hcAvoid.join(', ')}` : null,
+    ].filter(Boolean)
+
+    if (fallback.length > 0) {
+      return fallback
+    }
+  }
+
+  return routine
 })
 const nextSession = computed(() => {
   const idx = store.currentSessionIndex + 1
