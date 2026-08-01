@@ -958,8 +958,24 @@ const handleFiles = async (filesList) => {
     }
   }
 }
-
-const removeImage = (idx) => {
+const removeImage = async (idx) => {
+  const img = store.attachedImages[idx]
+  if (img && img.id && store.id) {
+    try {
+      await api.delete(`/assessments/${store.id}/images/${img.id}/pigmentation-pre`)
+      Notify.create({
+        type: 'positive',
+        message: 'Image deleted from server successfully',
+      })
+    } catch (e) {
+      console.error('Failed to delete image from server:', e)
+      Notify.create({
+        type: 'negative',
+        message: 'Failed to delete image from server. Please try again.',
+      })
+      return
+    }
+  }
   store.attachedImages.splice(idx, 1)
 }
 

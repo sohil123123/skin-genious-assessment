@@ -279,6 +279,95 @@
         </div>
       </div>
 
+      <!-- FULL COURSE SUMMARY -->
+      <div class="pblock" v-if="store.lastPlan.full_course_summary">
+        <h3><span class="bar" style="background: var(--violet)"></span>Full Course Summary</h3>
+        <div class="card bg-grey-1 q-pa-md q-mb-md" style="border: 1px solid var(--line)">
+          <div class="row q-col-gutter-md">
+            <div class="col-xs-12 col-sm-4 text-center">
+              <div class="text-caption text-grey-7 uppercase">Total Planned Sessions</div>
+              <div class="text-h5 text-weight-bold text-teal-9">
+                {{ store.lastPlan.full_course_summary.total_planned_sessions }} Sessions
+              </div>
+            </div>
+            <div class="col-xs-12 col-sm-4 text-center border-left">
+              <div class="text-caption text-grey-7 uppercase">Course Duration</div>
+              <div class="text-h5 text-weight-bold text-teal-9">
+                {{ store.lastPlan.full_course_summary.course_duration }}
+              </div>
+            </div>
+            <div class="col-xs-12 col-sm-4 text-center border-left">
+              <div class="text-caption text-grey-7 uppercase">First Reassessment</div>
+              <div class="text-subtitle1 text-weight-bold text-teal-9">
+                After Session {{ store.lastPlan.full_course_summary.first_reassessment_after_session }}
+              </div>
+            </div>
+          </div>
+
+          <q-separator class="q-my-md" v-if="store.lastPlan.full_course_summary.package_summary_text" />
+          <div v-if="store.lastPlan.full_course_summary.package_summary_text" class="text-caption text-grey-8">
+            <strong>Summary:</strong> {{ store.lastPlan.full_course_summary.package_summary_text }}
+          </div>
+
+          <q-separator class="q-my-md" v-if="store.lastPlan.full_course_summary.planned_modality_allocation?.length" />
+
+          <!-- Modality Allocation -->
+          <div v-if="store.lastPlan.full_course_summary.planned_modality_allocation?.length">
+            <div class="text-subtitle2 text-weight-bold q-mb-sm text-grey-8">
+              Planned Modality Allocation:
+            </div>
+            <div class="row q-col-gutter-sm">
+              <div
+                v-for="alloc in store.lastPlan.full_course_summary.planned_modality_allocation"
+                :key="alloc.protocol_id || alloc.modality_id"
+                class="col-xs-12 col-sm-6"
+              >
+                <div class="bg-white q-pa-sm rounded-lg border flex items-start gap-2" style="border: 1px solid #e2e8f0; height: 100%;">
+                  <q-icon name="flash_on" color="primary" size="20px" class="q-mt-xs" />
+                  <div>
+                    <div class="text-weight-bold text-dark" style="font-size: 13px">
+                      {{ formatLabel(alloc.modality_id) }} (x{{ alloc.planned_uses }} uses)
+                    </div>
+                    <div class="text-caption text-grey-7">
+                      Protocol: <code>{{ alloc.protocol_id }}</code> | Sessions: {{ alloc.session_numbers?.join(', ') }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <q-separator class="q-my-md" v-if="store.lastPlan.full_course_summary.supportive_inclusions?.length" />
+
+          <!-- Supportive Inclusions -->
+          <div v-if="store.lastPlan.full_course_summary.supportive_inclusions?.length">
+            <div class="text-subtitle2 text-weight-bold q-mb-sm text-grey-8">
+              Supportive Inclusions:
+            </div>
+            <div class="row q-col-gutter-sm">
+              <div
+                v-for="inc in store.lastPlan.full_course_summary.supportive_inclusions"
+                :key="inc.protocol_id || inc.modality_id"
+                class="col-xs-12 col-sm-6"
+              >
+                <div class="bg-white q-pa-sm rounded-lg border flex items-start gap-2" style="border: 1px solid #e2e8f0; height: 100%;">
+                  <q-icon name="healing" color="green" size="20px" class="q-mt-xs" />
+                  <div>
+                    <div class="text-weight-bold text-dark" style="font-size: 13px">
+                      {{ formatLabel(inc.modality_id) }} (x{{ inc.planned_uses }} uses)
+                    </div>
+                    <div class="text-caption text-grey-7">
+                      Protocol: <code>{{ inc.protocol_id }}</code> | Sessions: {{ inc.session_numbers?.join(', ') }}
+                      <div v-if="inc.note" style="margin-top: 2px; font-style: italic; color: #475569;">Note: {{ inc.note }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- COMPONENT TREATMENT MAP -->
       <div class="pblock" v-if="store.lastPlan.component_treatment_map?.length">
         <h3><span class="bar" style="background: var(--violet)"></span>Component Treatment Map</h3>
@@ -295,11 +384,11 @@
                   {{ formatLabel(map.working_diagnosis) }}
                 </div>
                 <div class="text-caption text-grey-6 q-mt-xs">
-                  Regions: <b>{{ map.regions?.map(formatLabel).join(', ') }}</b> | Scope:
+                  Region: <b>{{ map.regions ? map.regions.map(formatLabel).join(', ') : formatLabel(map.clinical_location_text || map.target_location_text) }}</b> | Scope:
                   <b>{{ formatLabel(map.scope) }}</b>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <span
                   class="status-badge"
                   :class="map.treatment_eligibility"
@@ -311,6 +400,20 @@
                 >
                   {{ formatLabel(map.treatment_eligibility) }}
                 </span>
+                <span
+                  v-if="map.course_allocation_status"
+                  class="status-badge"
+                  style="background: #e0f2f1; color: #004d40; border: 1px solid #b2dfdb;"
+                >
+                  {{ formatLabel(map.course_allocation_status) }}
+                </span>
+                <span
+                  v-if="map.doctor_validation_required"
+                  class="status-badge"
+                  style="background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2;"
+                >
+                  Doctor Review Required
+                </span>
               </div>
             </div>
 
@@ -319,15 +422,19 @@
             <div class="row q-col-gutter-sm text-caption">
               <div class="col-xs-12 col-sm-6">
                 <div>
-                  <strong>Selected Modality:</strong> {{ formatLabel(map.selected_modality) }}
+                  <strong>Selected Modality:</strong> {{ formatLabel(map.selected_modality_id || map.selected_modality) }}
                 </div>
-                <div v-if="map.selected_product_or_protocol_id" class="text-grey-7">
-                  Protocol: <code>{{ map.selected_product_or_protocol_id }}</code>
+                <div v-if="map.selected_protocol_id || map.selected_product_or_protocol_id" class="text-grey-7">
+                  Protocol: <code>{{ map.selected_protocol_id || map.selected_product_or_protocol_id }}</code>
                 </div>
               </div>
-              <div class="col-xs-12 col-sm-6" v-if="map.nearest_alternative">
+              <div class="col-xs-12 col-sm-6" v-if="map.nearest_reasonable_alternative || map.nearest_alternative">
                 <div>
-                  <strong>Nearest Alternative:</strong> {{ formatLabel(map.nearest_alternative) }}
+                  <strong>Nearest Alternative:</strong>
+                  {{ map.nearest_reasonable_alternative ? formatLabel(map.nearest_reasonable_alternative.modality_id) : formatLabel(map.nearest_alternative) }}
+                  <span v-if="map.nearest_reasonable_alternative?.protocol_id" class="text-grey-7">
+                    (Protocol: <code>{{ map.nearest_reasonable_alternative.protocol_id }}</code>)
+                  </span>
                 </div>
               </div>
             </div>
@@ -732,38 +839,32 @@
         style="border: 1px solid var(--line); background: #fbfbfb"
       >
         <div class="text-subtitle1 text-weight-bold text-teal-10 flex items-center justify-between">
-          <span
-            >🛡️ Active Treatment Block:
-            {{ formatLabel(store.lastPlan.current_treatment_block.block_id || 'Block 1') }}</span
-          >
+          <span>🛡️ Active Treatment Block:
+            {{ formatLabel(store.lastPlan.current_treatment_block.block_id || 'Block 1') }}</span>
           <q-badge color="teal-9"
             >Block {{ store.lastPlan.current_treatment_block.block_number }}</q-badge
           >
         </div>
-        <div class="q-mt-sm text-caption text-grey-8" style="line-height: 1.5">
+        <div class="q-mt-sm text-caption text-grey-8" style="line-height: 1.5" v-if="store.lastPlan.current_treatment_block.block_goal">
           <strong>Block Goal:</strong> {{ store.lastPlan.current_treatment_block.block_goal }}
         </div>
         <div class="q-mt-sm flex items-center gap-4 text-caption text-grey-6">
-          <span
+          <span v-if="store.lastPlan.current_treatment_block.expected_duration"
             >Expected Duration:
             <b>{{ store.lastPlan.current_treatment_block.expected_duration }}</b></span
           >
-          <span
-            >Session Range:
-            <b
-              >Sessions {{ store.lastPlan.current_treatment_block.session_range?.first_session }} to
-              {{ store.lastPlan.current_treatment_block.session_range?.last_session }}</b
-            ></span
-          >
+          <span>Session Range:
+            <b>Sessions {{ store.lastPlan.current_treatment_block.session_range?.first_session || (store.lastPlan.current_treatment_block.session_numbers ? store.lastPlan.current_treatment_block.session_numbers[0] : 1) }} to
+              {{ store.lastPlan.current_treatment_block.session_range?.last_session || (store.lastPlan.current_treatment_block.session_numbers ? store.lastPlan.current_treatment_block.session_numbers[store.lastPlan.current_treatment_block.session_numbers.length - 1] : store.lastPlan.current_treatment_block.sessions?.length || 2) }}</b></span>
         </div>
       </div>
 
       <!-- TREATMENT ROADMAP -->
-      <div class="pblock" v-if="store.lastPlan.sessions?.length">
+      <div class="pblock" v-if="activeSessions?.length">
         <h3><span class="bar"></span>Treatment Roadmap</h3>
         <div class="clinic-timeline">
           <div
-            v-for="session in store.lastPlan.sessions"
+            v-for="session in activeSessions"
             :key="session.session_number"
             class="timeline-block"
           >
@@ -777,16 +878,118 @@
             <div class="card timeline-card">
               <div class="sess-hdr">
                 <span class="sess-timing">{{ formatTiming(session.timing) }}</span>
-                <h4 class="sess-goal">{{ session.goal }}</h4>
-                <div class="modalities-chips q-mt-sm" v-if="session.selected_modalities?.length">
-                  <span class="mod-chip" v-for="m in session.selected_modalities" :key="m">
+                <h4 class="sess-goal">{{ session.session_goal || session.goal }}</h4>
+                <div class="modalities-chips q-mt-sm" v-if="session.selected_modality_ids?.length || session.selected_modalities?.length">
+                  <span class="mod-chip" v-for="m in (session.selected_modality_ids || session.selected_modalities)" :key="m">
                     {{ formatLabel(m) }}
                   </span>
                 </div>
               </div>
 
+              <!-- Treatment Operations (New Format) -->
+              <div class="roadmap-sub-section q-mt-lg" v-if="session.treatment_operations?.length">
+                <div class="sub-sec-hdr">TREATMENT OPERATIONS</div>
+                <div
+                  class="proc-detail-box q-mb-md"
+                  v-for="op in session.treatment_operations"
+                  :key="op.operation_id || op.modality_id"
+                  style="border-left: 4px solid var(--violet); background: #ffffff; padding: 16px; margin-top: 12px;"
+                >
+                  <div class="flex justify-between items-start flex-wrap q-mb-sm">
+                    <div>
+                      <div class="text-weight-bold text-subtitle2 text-indigo-9" style="font-size: 14px">
+                        {{ formatLabel(op.modality_id) }}
+                        <q-badge color="teal-9" class="q-ml-sm text-weight-bold" v-if="op.role">{{ formatLabel(op.role) }}</q-badge>
+                        <q-badge color="deep-orange" class="q-ml-xs text-weight-bold" v-if="op.injury_producing">Injury Producing</q-badge>
+                      </div>
+                      <div class="text-caption text-grey-7 q-mt-xs">
+                        Protocol: <code>{{ op.protocol_id }}</code>
+                        <span v-if="op.target_location_text"> | Target: <b>{{ op.target_location_text }}</b></span>
+                      </div>
+                    </div>
+                    <div class="text-caption text-grey-5" v-if="op.operation_id" style="font-size: 10.5px;">
+                      ID: <code>{{ op.operation_id }}</code>
+                    </div>
+                  </div>
+
+                  <!-- Parameters if present -->
+                  <div class="proc-detail-box q-mb-sm bg-grey-1" v-if="op.parameters && Object.keys(op.parameters).length" style="padding: 10px; margin-top: 8px; border: 1px solid rgba(0,0,0,0.04);">
+                    <div class="box-title">⚙️ Operation Parameters</div>
+                    <div class="params-row" style="display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; font-family: 'IBM Plex Mono', monospace;">
+                      <div v-for="(val, key) in op.parameters" :key="key">
+                        {{ formatLabel(key) }}: <b class="text-indigo-9">{{ formatParameterValue(key, val) }}</b>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Endpoint -->
+                  <div class="q-mt-sm text-caption" v-if="op.endpoint">
+                    <strong>Endpoint Target:</strong> <span class="text-grey-9 font-weight-medium">{{ op.endpoint }}</span>
+                  </div>
+
+                  <!-- Stop Conditions -->
+                  <div class="q-mt-sm" v-if="op.stop_conditions?.length">
+                    <div class="text-weight-bold text-grey-7" style="font-size: 10.5px; text-transform: uppercase;">
+                      🛑 Stop Conditions:
+                    </div>
+                    <ul class="clinic-list q-mt-xs q-mb-none" style="padding-left: 15px; font-size: 12px; color: #c62828;">
+                      <li v-for="cond in op.stop_conditions" :key="cond">{{ cond }}</li>
+                    </ul>
+                  </div>
+
+                  <!-- Aftercare -->
+                  <div class="q-mt-sm" v-if="op.aftercare?.length">
+                    <div class="text-weight-bold text-grey-7" style="font-size: 10.5px; text-transform: uppercase;">
+                      🧴 Post-Operation Aftercare:
+                    </div>
+                    <ul class="clinic-list q-mt-xs q-mb-none" style="padding-left: 15px; font-size: 12px; color: #2d3748;">
+                      <li v-for="care in op.aftercare" :key="care">{{ care }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Execution Sequence (New Format) -->
+              <div class="roadmap-sub-section q-mt-lg" v-if="session.session_execution_sequence?.length">
+                <div class="sub-sec-hdr">⚙️ Execution Sequence Steps</div>
+                <div class="clinic-table-wrap q-mt-sm">
+                  <table class="clinic-table compact">
+                    <thead>
+                      <tr>
+                        <th style="width: 50px">Seq</th>
+                        <th style="width: 120px">Step Type</th>
+                        <th>Instruction</th>
+                        <th v-if="session.session_execution_sequence.some(s => s.operation_id)" style="width: 100px">Linked Op</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="step in session.session_execution_sequence" :key="step.step_number">
+                        <td><b>#{{ step.step_number }}</b></td>
+                        <td>
+                          <span class="status-badge" :style="getStepTypeStyle(step.step_type)">
+                            {{ formatLabel(step.step_type) }}
+                          </span>
+                        </td>
+                        <td style="font-size: 12px; line-height: 1.4; color: #334155;">
+                          {{ step.instruction || step.instructions }}
+                        </td>
+                        <td v-if="session.session_execution_sequence.some(s => s.operation_id)">
+                          <code v-if="step.operation_id" style="font-size: 10.5px;">{{ step.operation_id }}</code>
+                          <span v-else>—</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Provider Checkpoint -->
+              <div class="decision-card-banner q-my-md" v-if="session.provider_checkpoint" style="background: #fff8e1; border: 1px solid #ffe082; color: #b7791f; border-radius: 6px; padding: 10px; font-size: 12px;">
+                ⚠️ <b>Provider Checkpoint:</b> {{ session.provider_checkpoint }}
+              </div>
+
               <!-- Fixed Protocol -->
-              <div class="roadmap-sub-section q-mt-lg" v-if="session.fixed_protocol">
+              <div class="roadmap-sub-section q-mt-lg" v-if="session.fixed_protocol && !session.treatment_operations?.length">
                 <div class="sub-sec-hdr">CLINICAL FIXED PROTOCOL</div>
                 <div class="proc-title-row q-my-sm">
                   Procedure: <b>{{ formatLabel(session.fixed_protocol.procedure) }}</b>
@@ -999,7 +1202,7 @@
               </div>
 
               <!-- Provider Protocol -->
-              <div class="roadmap-sub-section q-mt-lg" v-if="session.provider_protocol">
+              <div class="roadmap-sub-section q-mt-lg" v-if="session.provider_protocol && !session.treatment_operations?.length">
                 <div class="sub-sec-hdr">IN-CLINIC PROVIDER PROTOCOL</div>
                 <div class="performed-by-row q-my-sm">
                   Performed by:
@@ -1704,19 +1907,19 @@
             <div class="col-xs-12 col-sm-4 text-center">
               <div class="text-caption text-grey-7 uppercase">Expected Total Sessions</div>
               <div class="text-h5 text-weight-bold text-teal-9">
-                {{ store.lastPlan.master_treatment_roadmap.expected_total_sessions }} Sessions
+                {{ store.lastPlan.master_treatment_roadmap.total_planned_sessions || store.lastPlan.master_treatment_roadmap.expected_total_sessions }} Sessions
               </div>
             </div>
             <div class="col-xs-12 col-sm-4 text-center border-left">
               <div class="text-caption text-grey-7 uppercase">Expected Duration</div>
               <div class="text-h5 text-weight-bold text-teal-9">
-                {{ store.lastPlan.master_treatment_roadmap.expected_duration }}
+                {{ store.lastPlan.master_treatment_roadmap.expected_duration || store.lastPlan.duration || store.lastPlan.full_course_summary?.course_duration }}
               </div>
             </div>
             <div class="col-xs-12 col-sm-4 text-center border-left">
               <div class="text-caption text-grey-7 uppercase">Roadmap Status</div>
               <div class="text-subtitle1 text-weight-bold text-teal-9">
-                {{ formatLabel(store.lastPlan.master_treatment_roadmap.roadmap_status) }}
+                {{ formatLabel(store.lastPlan.master_treatment_roadmap.roadmap_status || store.lastPlan.plan_status) }}
               </div>
             </div>
           </div>
@@ -1724,7 +1927,7 @@
           <q-separator class="q-my-md" />
 
           <!-- Reassessment Points -->
-          <div class="q-px-sm">
+          <div class="q-px-sm" v-if="store.lastPlan.master_treatment_roadmap.formal_reassessment_points?.length || store.lastPlan.master_treatment_roadmap.ai_generated_reassessment_points?.length">
             <div class="text-subtitle2 text-weight-bold q-mb-sm text-grey-8">
               AI-Selected Reassessment Points:
             </div>
@@ -1749,10 +1952,10 @@
             </div>
           </div>
 
-          <q-separator class="q-my-md" />
+          <q-separator class="q-my-md" v-if="store.lastPlan.master_treatment_roadmap.blocks?.length" />
 
           <!-- Master Blocks list -->
-          <div class="q-px-sm">
+          <div class="q-px-sm" v-if="store.lastPlan.master_treatment_roadmap.blocks?.length">
             <div class="text-subtitle2 text-weight-bold q-mb-sm text-grey-8">
               Treatment Blocks Progression:
             </div>
@@ -1766,11 +1969,11 @@
                 <q-badge color="teal" rounded>{{ mb.block_number }}</q-badge>
                 <div>
                   <div class="text-weight-bold text-dark text-caption">
-                    {{ formatLabel(mb.session_range) }}
+                    {{ mb.session_range || (mb.session_numbers ? 'Sessions ' + mb.session_numbers.join(', ') : 'Block ' + mb.block_number) }}
                   </div>
                   <q-badge
                     :color="
-                      mb.detail_status === 'fully_generated' || mb.detail_status === 'completed'
+                      mb.detail_status === 'fully_generated' || mb.detail_status === 'completed' || mb.detail_status === 'detailed_current_block'
                         ? 'positive'
                         : 'grey'
                     "
@@ -1778,6 +1981,74 @@
                   >
                     {{ formatLabel(mb.detail_status) }}
                   </q-badge>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FUTURE PROVISIONAL SESSIONS (New Format) -->
+      <div class="pblock q-mt-lg" v-if="store.lastPlan.future_provisional_sessions?.length">
+        <h3>
+          <span class="bar" style="background: #0d9488"></span>Future Provisional Sessions
+          <span class="text-caption text-weight-medium text-teal-8">(Provisional)</span>
+        </h3>
+        <p class="note q-mb-md">
+          These sessions are provisional. Detailed protocols are generated only after formal reassessment.
+        </p>
+
+        <div class="row q-col-gutter-md">
+          <div
+            v-for="ps in store.lastPlan.future_provisional_sessions"
+            :key="ps.session_number"
+            class="col-xs-12 col-sm-6 col-md-4"
+          >
+            <div
+              class="card q-pa-md bg-white border"
+              style="border-radius: 10px; border: 1px solid #cbd5e1; height: 100%; display: flex; flex-direction: column;"
+            >
+              <div class="flex items-center justify-between text-caption text-weight-bold text-teal-9 q-mb-sm">
+                <span style="font-size: 14px;">Session #{{ ps.session_number }}</span>
+                <span class="text-grey-7" style="font-size: 12px;" v-if="ps.timing">{{ ps.timing }}</span>
+              </div>
+
+              <!-- Planned Protocol Uses -->
+              <div v-if="ps.planned_protocol_uses?.length" class="q-mb-sm">
+                <span class="text-weight-bold text-slate-8" style="font-size: 11px; text-transform: uppercase;">
+                  ⚡ Primary Uses:
+                </span>
+                <div v-for="use in ps.planned_protocol_uses" :key="use.protocol_id || use.modality_id" class="q-mt-xs" style="font-size: 12px; color: #334155;">
+                  • <b>{{ formatLabel(use.modality_id) }}</b>
+                  <div class="text-caption text-grey-6" style="padding-left: 10px;">
+                    Protocol: <code>{{ use.protocol_id }}</code>
+                    <span v-if="use.linked_component_ids?.length"> | Targets: {{ use.linked_component_ids.join(', ') }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Supportive Protocol Uses -->
+              <div v-if="ps.supportive_protocol_uses?.length" class="q-mb-sm">
+                <span class="text-weight-bold text-slate-8" style="font-size: 11px; text-transform: uppercase;">
+                  🌱 Supportive Uses:
+                </span>
+                <div v-for="use in ps.supportive_protocol_uses" :key="use.protocol_id || use.modality_id" class="q-mt-xs" style="font-size: 12px; color: #334155;">
+                  • <b>{{ formatLabel(use.modality_id) }}</b>
+                  <div class="text-caption text-grey-6" style="padding-left: 10px;">
+                    Protocol: <code>{{ use.protocol_id }}</code>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Decision Rules: Retain / Change If -->
+              <div style="margin-top: auto; border-top: 1px dashed #cbd5e1; padding-top: 8px;" class="text-caption">
+                <div v-if="ps.retain_if" class="q-mb-xs">
+                  <span class="text-weight-bold text-green-9">Retain if:</span>
+                  <span class="text-grey-8"> {{ ps.retain_if }}</span>
+                </div>
+                <div v-if="ps.change_if">
+                  <span class="text-weight-bold text-amber-9">Change if:</span>
+                  <span class="text-grey-8"> {{ ps.change_if }}</span>
                 </div>
               </div>
             </div>
@@ -2187,28 +2458,116 @@
         </div>
       </div>
 
+      <!-- GLOBAL HOMECARE PLAN -->
+      <div class="pblock" v-if="homecarePlan">
+        <h3><span class="bar" style="background: #0f766e"></span>Homecare Regime (Daily Support)</h3>
+        
+        <div class="row q-col-gutter-md">
+          <!-- Morning Routine -->
+          <div class="col-xs-12 col-sm-4" v-if="homecarePlan.morning?.length">
+            <div 
+              class="q-pa-md border bg-white" 
+              style="border-radius: 10px; border: 1px solid #cbd5e1; height: 100%;"
+            >
+              <div class="text-subtitle2 text-weight-bold text-teal-9 q-mb-sm flex items-center gap-1">
+                ☀️ Morning Routine
+              </div>
+              <ul class="q-pl-md q-my-none text-caption text-grey-9" style="padding-left: 20px; line-height: 1.6;">
+                <li v-for="(step, idx) in homecarePlan.morning" :key="idx" class="q-mb-xs">
+                  {{ step }}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Evening Routine -->
+          <div class="col-xs-12 col-sm-4" v-if="homecarePlan.evening?.length || homecarePlan.night?.length">
+            <div 
+              class="q-pa-md border bg-white" 
+              style="border-radius: 10px; border: 1px solid #cbd5e1; height: 100%;"
+            >
+              <div class="text-subtitle2 text-weight-bold text-indigo-9 q-mb-sm flex items-center gap-1">
+                🌙 Evening Routine
+              </div>
+              <ul class="q-pl-md q-my-none text-caption text-grey-9" style="padding-left: 20px; line-height: 1.6;">
+                <li v-for="(step, idx) in (homecarePlan.evening || homecarePlan.night)" :key="idx" class="q-mb-xs">
+                  {{ step }}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Sun & Heat Control -->
+          <div class="col-xs-12 col-sm-4" v-if="homecarePlan.sun_and_heat_control?.length || homecarePlan.avoid?.length">
+            <div 
+              class="q-pa-md border" 
+              style="border-radius: 10px; border: 1px solid #fde68a; background-color: #fffbeb; height: 100%;"
+            >
+              <div class="text-subtitle2 text-weight-bold text-amber-10 q-mb-sm flex items-center gap-1">
+                ⚠️ Sun &amp; Heat Control / Avoidance
+              </div>
+              <ul class="q-pl-md q-my-none text-caption text-grey-9" style="padding-left: 20px; line-height: 1.6;">
+                <li v-for="(step, idx) in (homecarePlan.sun_and_heat_control || homecarePlan.avoid)" :key="idx" class="q-mb-xs">
+                  {{ step }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Component Specific Homecare Instructions -->
+        <div 
+          class="q-mt-md border q-pa-md bg-white" 
+          style="border-radius: 10px; border: 1px solid #cbd5e1;"
+          v-if="homecarePlan.component_specific_instructions?.length"
+        >
+          <div class="text-subtitle2 text-weight-bold text-slate-9 q-mb-xs">
+            🎯 Target-Specific Instructions:
+          </div>
+          <div class="row q-col-gutter-sm q-mt-xs">
+            <div 
+              v-for="(inst, idx) in homecarePlan.component_specific_instructions" 
+              :key="idx"
+              class="col-xs-12"
+            >
+              <div class="q-pa-sm border rounded-md bg-grey-1" style="border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc;">
+                <div class="flex items-center justify-between text-caption text-weight-bold text-teal-8 q-mb-xs">
+                  <span>Component targets: {{ inst.linked_component_ids?.join(', ') || inst.linked_group_ids?.join(', ') || 'General' }}</span>
+                </div>
+                <div class="text-caption text-grey-9 q-mb-xs" v-if="inst.clinical_location_text">
+                  <strong>Location:</strong> {{ inst.clinical_location_text }}
+                </div>
+                <div class="text-caption text-grey-8" style="padding-left: 10px;">
+                  • {{ inst.instruction }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- REASSESSMENT PLAN -->
-      <div class="pblock" v-if="store.lastPlan.reassessment_plan">
-        <h3><span class="bar"></span>Reassessment Plan</h3>
+      <div class="pblock" v-if="reassessmentDetails">
+        <h3><span class="bar"></span>Reassessment Plan <span v-if="reassessmentDetails.after_session" class="text-caption text-weight-medium text-teal-8">(After Session {{ reassessmentDetails.after_session }})</span></h3>
         <div class="twin">
-          <div class="card" v-if="store.lastPlan.reassessment_plan.repeat_images?.length">
+          <div class="card" v-if="reassessmentDetails.repeat_images?.length">
             <span class="lbl-small">Repeat Images Required</span>
             <div class="tag-group q-mt-sm">
               <span
                 class="clinical-chip"
-                v-for="mode in store.lastPlan.reassessment_plan.repeat_images"
+                v-for="mode in reassessmentDetails.repeat_images"
                 :key="mode"
               >
                 {{ mode }}
               </span>
             </div>
           </div>
-          <div class="card" v-if="store.lastPlan.reassessment_plan.metrics_to_compare?.length">
+          <div class="card" v-if="reassessmentDetails.metrics_to_compare?.length">
             <span class="lbl-small">Metrics to Compare</span>
             <div class="tag-group q-mt-sm">
               <span
                 class="clinical-chip modifier"
-                v-for="metric in store.lastPlan.reassessment_plan.metrics_to_compare"
+                v-for="metric in reassessmentDetails.metrics_to_compare"
                 :key="metric"
               >
                 {{ formatLabel(metric) }}
@@ -2218,11 +2577,11 @@
         </div>
         <div
           class="decision-rules-card q-mt-md"
-          v-if="store.lastPlan.reassessment_plan.decision_rules?.length"
+          v-if="reassessmentDetails.decision_rules?.length"
         >
           <div class="dr-title">⚖️ Reassessment Decision Rules</div>
           <ul class="clinic-list q-mt-xs">
-            <li v-for="rule in store.lastPlan.reassessment_plan.decision_rules" :key="rule">
+            <li v-for="rule in reassessmentDetails.decision_rules" :key="rule">
               {{ rule }}
             </li>
           </ul>
@@ -2398,6 +2757,67 @@ import { Loading, Notify } from 'quasar'
 const store = usePigmentationStore()
 // const router = useRouter()
 // const route = useRoute()
+
+const activeSessions = computed(() => {
+  return store.lastPlan?.current_treatment_block?.sessions || store.lastPlan?.sessions || []
+})
+
+const homecarePlan = computed(() => {
+  return store.lastPlan?.homecare_plan || store.lastPlan?.home_care || null
+})
+
+const reassessmentDetails = computed(() => {
+  if (store.lastPlan?.current_treatment_block?.reassessment_gate) {
+    const gate = store.lastPlan.current_treatment_block.reassessment_gate
+    return {
+      after_session: gate.after_session,
+      repeat_images: gate.required_images || [],
+      metrics_to_compare: gate.metrics_and_groups_to_repeat || [],
+      decision_rules: gate.decision_rules || [],
+    }
+  }
+  if (store.lastPlan?.reassessment_plan) {
+    const plan = store.lastPlan.reassessment_plan
+    return {
+      after_session: plan.after_session || null,
+      repeat_images: plan.repeat_images || [],
+      metrics_to_compare: plan.metrics_to_compare || [],
+      decision_rules: plan.decision_rules || [],
+    }
+  }
+  return null
+})
+
+const getStepTypeStyle = (type) => {
+  const t = String(type || '').toLowerCase()
+  if (t === 'assessment' || t === 'reassessment') {
+    return 'font-size: 10px; padding: 2px 6px; background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; font-weight: bold; border-radius: 4px;'
+  } else if (t === 'treatment' || t === 'operation') {
+    return 'font-size: 10px; padding: 2px 6px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; font-weight: bold; border-radius: 4px;'
+  } else if (t === 'aftercare' || t === 'recovery' || t === 'post_treatment') {
+    return 'font-size: 10px; padding: 2px 6px; background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; font-weight: bold; border-radius: 4px;'
+  } else if (t === 'preparation' || t === 'prep') {
+    return 'font-size: 10px; padding: 2px 6px; background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; font-weight: bold; border-radius: 4px;'
+  } else {
+    return 'font-size: 10px; padding: 2px 6px; background: #eceff1; color: #37474f; border: 1px solid #cfd8dc; font-weight: bold; border-radius: 4px;'
+  }
+}
+
+const formatParameterValue = (key, val) => {
+  if (val === null || val === undefined) return '—'
+  if (Array.isArray(val)) return val.map(formatLabel).join(', ')
+  if (typeof val === 'object') return JSON.stringify(val)
+  if (typeof val === 'boolean') return val ? 'Yes' : 'No'
+  
+  const k = key.toLowerCase()
+  if (k.includes('wavelength')) return `${val} nm`
+  if (k.includes('energy')) return `${val} mJ`
+  if (k.includes('fluence')) return `${val} J/cm²`
+  if (k.includes('frequency')) return `${val} Hz`
+  if (k.includes('depth')) return `${val} mm`
+  
+  return String(val)
+}
 
 const therapists = ref([])
 const hasFetchedTherapists = ref(false)

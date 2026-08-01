@@ -1,5 +1,6 @@
 /**
- * Pigmentation Decode V2.6.1 compact plan-input builder and deterministic protocol preflight.
+ * Pigmentation Decode V2.7 compact plan-input builder and deterministic protocol preflight.
+ * Protocol availability and safety holds are authoritative. Course-allocation labels are advisory.
  */
 
 import {
@@ -139,7 +140,18 @@ function isComponentHeld(component) {
 }
 
 function requiresPrimaryProcedure(component, patternCode) {
-  if (component.direct_cosmetic_treatment_status !== 'may_plan_pending_doctor_confirmation') {
+  // Explicitly non-procedural or medically held components are not course targets.
+  // Any other pigmentation target/contributor with a treatable pattern remains eligible even
+  // when the model used a noncanonical descriptive treatment-status label.
+  if (
+    [
+      'not_applicable',
+      'observe_only',
+      'medical_control_first',
+      'hold_until_doctor_classification',
+      'hold_until_doctor_assessment',
+    ].includes(component.direct_cosmetic_treatment_status)
+  ) {
     return false
   }
 
@@ -342,6 +354,8 @@ export function buildRelevantPlanConfig({ diagnosis, imageAnalysis, policy, full
     unresolved_classification_ids: pending.map((item) => item.classification_id),
     component_eligibility: componentEligibility,
     supportive_protocols_do_not_satisfy_primary_requirement: true,
+    protocol_availability_and_current_safety_are_authoritative: true,
+    course_allocation_labels_are_advisory: true,
     course_eligible_component_ids: componentEligibility
       .filter((entry) => entry.eligible_for_course)
       .map((entry) => entry.diagnostic_component_id),

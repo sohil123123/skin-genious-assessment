@@ -77,11 +77,23 @@ function buildModeLabelledImageContent(images, initialText, finalAuditText = '',
 
 async function sourceBlobForPanel(imageRecord) {
   if (imageRecord?.file instanceof Blob) return imageRecord.file
-  if (imageRecord?.base64 && typeof fetch === 'function') {
-    const response = await fetch(imageRecord.base64)
-    if (!response.ok)
-      throw new Error(`Unable to read ${imageRecord.name || 'capture'} for zone panel.`)
-    return response.blob()
+
+  const source = imageRecord?.base64 || imageRecord?.url || imageRecord?.dataUrl
+  if (source) {
+    let url = source
+    if (imageRecord.base64 && !imageRecord.base64.startsWith('data:') && imageRecord.mediaType) {
+      url = `data:${imageRecord.mediaType};base64,${imageRecord.base64}`
+    }
+    if (typeof fetch === 'function') {
+      try {
+        const response = await fetch(url)
+        if (!response.ok)
+          throw new Error(`Unable to read ${imageRecord.name || 'capture'} for zone panel.`)
+        return response.blob()
+      } catch (e) {
+        console.error('Failed to fetch blob for panel:', e)
+      }
+    }
   }
   return null
 }
@@ -182,8 +194,8 @@ const AI_STAGE_TEXT_LIMITS = Object.freeze({
   pigmentation_observation_image_analysis: 50000,
   dynamic_questions: 35000,
   diagnosis: 55000,
-  treatment_plan: 75000,
-  formal_reassessment: 85000,
+  treatment_plan: 85000,
+  formal_reassessment: 105000,
   reassessment_questions: 35000,
 })
 
@@ -248,7 +260,7 @@ function normalizeExecutableOperationParameters(
 function isExecutionContractRepairable(errors = []) {
   if (!errors.length) return false
   const repairable =
-    /copied protocol configuration|requires an allowed scalar wavelength|energy_mj must be a scalar|frequency_hz must be a scalar|passes must be a scalar|cannot derive fluence|microneedling requires parameters\.active_id|requires depth_by_region_mm|copied microneedling configuration|copied the LED duration range|LED duration_minutes|Roadmap block/i
+    /copied protocol configuration|requires an allowed scalar wavelength|energy_mj must be a scalar|frequency_hz must be a scalar|passes must be a scalar|cannot derive fluence|microneedling requires parameters\.active_id|requires depth_by_region_mm|copied microneedling configuration|copied the LED duration range|LED duration_minutes|Roadmap block|requires target_regions|requires excluded_regions|empty effective treatment field|overlapping effective treatment fields|priority morphology group .* is not addressed/i
   return errors.every((error) => repairable.test(String(error)))
 }
 
@@ -355,6 +367,317 @@ function normalizeTreatmentPlanCourse(plan) {
   return normalized
 }
 
+function cloneJson(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value))
+}
+
+function uniqueStringList(values) {
+  return [...new Set((Array.isArray(values) ? values : []).filter(Boolean).map(String))]
+}
+
+function fallbackDoctorActionOptions(action) {
+  const type = action?.action_type || 'other'
+  if (type === 'approve_treatment_planning') {
+    return [
+      {
+        option_code: 'approve',
+        label: 'Approve treatment planning',
+        planning_effect: 'continue',
+        planning_directive:
+          'Proceed using the confirmed diagnosis, holds and selected treatment priorities.',
+      },
+      {
+        option_code: 'approve_with_constraints',
+        label: 'Approve with additional constraints',
+        planning_effect: 'continue_with_constraints',
+        planning_directive:
+          'Proceed and apply the doctor note as an additional planning constraint.',
+      },
+      {
+        option_code: 'do_not_proceed',
+        label: 'Do not proceed to treatment planning',
+        planning_effect: 'block',
+        planning_directive: 'Treatment planning is blocked by the doctor.',
+      },
+    ]
+  }
+  if (type === 'medical_control_first') {
+    return [
+      {
+        option_code: 'medical_control_confirmed',
+        label: 'Medical/barrier control is required first in the linked area',
+        planning_effect: 'continue_with_constraints',
+        planning_directive:
+          'Preserve the linked regional hold and plan treatment elsewhere when eligible.',
+      },
+      {
+        option_code: 'clinically_clear_after_exam',
+        label: 'Clinically clear after direct examination',
+        planning_effect: 'continue',
+        planning_directive:
+          'Proceed according to the doctor note and existing protocol safety rules.',
+      },
+      {
+        option_code: 'defer_all_linked_treatment',
+        label: 'Defer treatment for the linked finding',
+        planning_effect: 'continue_with_constraints',
+        planning_directive: 'Exclude the linked component/group from the current block.',
+      },
+    ]
+  }
+  if (type === 'separate_medical_evaluation') {
+    return [
+      {
+        option_code: 'separate_evaluation_required',
+        label: 'Separate medical evaluation required',
+        planning_effect: 'continue_with_constraints',
+        planning_directive:
+          'Exclude the linked finding from cosmetic treatment pending separate evaluation.',
+      },
+      {
+        option_code: 'not_required_after_exam',
+        label: 'Separate evaluation not required after direct examination',
+        planning_effect: 'continue',
+        planning_directive: 'Proceed within the doctor-confirmed diagnosis and protocol rules.',
+      },
+      {
+        option_code: 'block_planning',
+        label: 'Block treatment planning',
+        planning_effect: 'block',
+        planning_directive: 'Do not generate a treatment plan.',
+      },
+    ]
+  }
+  return [
+    {
+      option_code: 'confirm_as_written',
+      label: 'Confirm as written',
+      planning_effect: 'continue',
+      planning_directive: 'Use the AI working diagnosis and existing linked safety rules.',
+    },
+    {
+      option_code: 'confirm_with_note',
+      label: 'Confirm with doctor modification or constraint',
+      planning_effect: 'continue_with_constraints',
+      planning_directive:
+        'Use the doctor note as an authoritative modification or planning constraint.',
+    },
+    {
+      option_code: 'hold_linked_finding',
+      label: 'Do not treat this linked finding yet',
+      planning_effect: 'continue_with_constraints',
+      planning_directive:
+        'Hold the linked component/group while allowing unrelated eligible treatment.',
+    },
+  ]
+}
+
+function doctorActionItemsFromDiagnosis(diagnosis) {
+  return (Array.isArray(diagnosis?.doctor_actions) ? diagnosis.doctor_actions : []).map(
+    (action, index) => {
+      const actionId = action?.action_id || `DA_${String(index + 1).padStart(3, '0')}`
+      const suppliedOptions = Array.isArray(action?.options) ? action.options.filter(Boolean) : []
+      return {
+        ...action,
+        action_id: actionId,
+        title:
+          action?.title ||
+          String(action?.action_type || 'Doctor review')
+            .replaceAll('_', ' ')
+            .replace(/\b\w/g, (letter) => letter.toUpperCase()),
+        question: action?.question || action?.instruction || 'Confirm this doctor action.',
+        required: action?.required !== false,
+        options:
+          suppliedOptions.length >= 2 ? suppliedOptions : fallbackDoctorActionOptions(action),
+      }
+    },
+  )
+}
+
+function initializeDoctorActionResolutionState(
+  diagnosis,
+  existing = {},
+  doctorClassifications = {},
+) {
+  const state = {}
+  for (const item of doctorActionItemsFromDiagnosis(diagnosis)) {
+    const prior = existing?.[item.action_id]
+    const classificationId = item.classification_id
+    const linkedClassification = classificationId ? doctorClassifications?.[classificationId] : null
+
+    if (linkedClassification?.status === 'resolved') {
+      const optCode =
+        linkedClassification.resolution_type === 'candidate_selected'
+          ? linkedClassification.option_code
+          : item.options?.[0]?.option_code || null
+      state[item.action_id] = {
+        status: 'resolved',
+        option_code: optCode,
+        doctor_note: prior?.doctor_note || linkedClassification.doctor_note || '',
+        resolved_at_iso:
+          prior?.resolved_at_iso ||
+          linkedClassification.resolved_at_iso ||
+          new Date().toISOString(),
+      }
+    } else if (prior) {
+      state[item.action_id] = { ...prior }
+    } else {
+      state[item.action_id] = {
+        status: 'pending',
+        option_code: null,
+        doctor_note: '',
+        resolved_at_iso: null,
+      }
+    }
+  }
+  return state
+}
+
+function treatmentPriorityOptionsFromDiagnosis(diagnosis, phenotype) {
+  const groups = Array.isArray(phenotype?.morphology_groups) ? phenotype.morphology_groups : []
+  const components = Array.isArray(diagnosis?.diagnostic_components)
+    ? diagnosis.diagnostic_components
+    : []
+  const componentsByGroup = new Map()
+  for (const component of components) {
+    for (const groupId of uniqueStringList(component?.linked_group_ids)) {
+      const list = componentsByGroup.get(groupId) || []
+      list.push(component)
+      componentsByGroup.set(groupId, list)
+    }
+  }
+
+  return groups
+    .filter((group) => {
+      if (!group?.group_id) return false
+      if (group.record_class && group.record_class !== 'pigmentation_phenotype') return false
+      const linked = componentsByGroup.get(group.group_id) || []
+      return linked.some(
+        (component) =>
+          ['primary_pigment_target', 'pigmentation_contributor'].includes(
+            component?.component_role,
+          ) &&
+          !['non_pigmentation_relevant_finding', 'no_significant_diffuse_pigmentation'].includes(
+            component?.family_code,
+          ),
+      )
+    })
+    .map((group) => {
+      const linked = componentsByGroup.get(group.group_id) || []
+      const held = linked.some(
+        (component) =>
+          ['hold_until_doctor_classification', 'hold_until_doctor_assessment'].includes(
+            component?.direct_cosmetic_treatment_status,
+          ) ||
+          (component?.safety_hold?.hold_scope && component.safety_hold.hold_scope !== 'none'),
+      )
+      const diagnosisLabel = linked
+        .map((component) => component?.diagnosis_label || component?.subtype_label)
+        .filter(Boolean)
+        .join(' / ')
+      return {
+        label: `${group.clinical_location_text || group.group_id}${diagnosisLabel ? ` — ${diagnosisLabel}` : ''}${held ? ' (currently held)' : ''}`,
+        value: group.group_id,
+        group_id: group.group_id,
+        clinical_location_text: group.clinical_location_text || '',
+        anatomical_regions: uniqueStringList(group.anatomical_regions),
+        linked_component_ids: uniqueStringList(
+          linked.map((component) => component?.diagnostic_component_id),
+        ),
+        held,
+      }
+    })
+}
+
+function applyDoctorActionResolutionsToDiagnosis(
+  diagnosis,
+  resolutions = {},
+  treatmentPriorityGroupIds = [],
+  phenotype = {},
+) {
+  const resolved = cloneJson(diagnosis)
+  const items = doctorActionItemsFromDiagnosis(resolved)
+  const componentMap = new Map(
+    (resolved.diagnostic_components || []).map((component) => [
+      component.diagnostic_component_id,
+      component,
+    ]),
+  )
+  const applied = {}
+
+  for (const item of items) {
+    const resolution = resolutions?.[item.action_id]
+    if (item.required && resolution?.status !== 'resolved') {
+      throw new Error(`Resolve doctor action ${item.action_id}: ${item.question}`)
+    }
+    if (resolution?.status !== 'resolved') continue
+    const option = (item.options || []).find(
+      (candidate) => candidate.option_code === resolution.option_code,
+    )
+    if (!option) throw new Error(`Invalid resolution for doctor action ${item.action_id}.`)
+    if (option.planning_effect === 'block') {
+      throw new Error(`Treatment planning blocked by doctor action ${item.action_id}.`)
+    }
+
+    for (const update of Array.isArray(option.component_updates) ? option.component_updates : []) {
+      const component = componentMap.get(update?.diagnostic_component_id)
+      if (!component) continue
+      const allowedKeys = [
+        'family_code',
+        'subtype_code',
+        'diagnosis_label',
+        'subtype_label',
+        'treatment_pattern_code',
+        'diagnostic_status',
+        'direct_cosmetic_treatment_status',
+      ]
+      for (const key of allowedKeys) {
+        if (update[key] !== undefined && update[key] !== null) component[key] = update[key]
+      }
+      if (update.safety_hold && typeof update.safety_hold === 'object') {
+        component.safety_hold = {
+          ...(component.safety_hold || {}),
+          ...update.safety_hold,
+        }
+      }
+      component.doctor_action_resolution = {
+        action_id: item.action_id,
+        option_code: option.option_code,
+        doctor_note: String(resolution.doctor_note || ''),
+        resolved_at_iso: resolution.resolved_at_iso || null,
+      }
+    }
+
+    applied[item.action_id] = {
+      action_type: item.action_type,
+      linked_component_ids: uniqueStringList(item.linked_component_ids),
+      linked_group_ids: uniqueStringList(item.linked_group_ids),
+      option_code: option.option_code,
+      option_label: option.label,
+      planning_effect: option.planning_effect || 'continue',
+      planning_directive: option.planning_directive || '',
+      doctor_note: String(resolution.doctor_note || ''),
+      resolved_at_iso: resolution.resolved_at_iso || null,
+    }
+  }
+
+  const priorityOptions = treatmentPriorityOptionsFromDiagnosis(resolved, phenotype)
+  const allowedPriorityIds = new Set(priorityOptions.map((option) => option.group_id))
+  const selectedPriorities = uniqueStringList(treatmentPriorityGroupIds).filter((groupId) =>
+    allowedPriorityIds.has(groupId),
+  )
+  if (priorityOptions.length && (selectedPriorities.length < 1 || selectedPriorities.length > 2)) {
+    throw new Error('Select one or two morphology groups as the client’s treatment priorities.')
+  }
+
+  resolved.doctor_action_resolutions = applied
+  resolved.treatment_priority_group_ids = selectedPriorities
+  resolved.treatment_priority_groups = priorityOptions.filter((option) =>
+    selectedPriorities.includes(option.group_id),
+  )
+  return resolved
+}
+
 export const usePigmentationStore = defineStore('pigmentation', {
   state: () => ({
     model: import.meta.env.VITE_PIGMENTATION_MODEL || 'gpt-5.2',
@@ -432,6 +755,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
     // Diagnosis analysis outputs (Stage 3)
     diagnosis: null, // { data: JSON, confirmedDx: "" }
     doctorClassifications: {},
+    doctorActionResolutions: {},
+    treatmentPriorityGroupIds: [],
+    doctorDiagnosisNotes: '',
 
     // Plan stage outputs (Stage 4)
     lastPlan: null,
@@ -454,6 +780,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
     aiAnalysis: null,
     immutableImageMetrics: null,
     zonePanelGeneration: null,
+    cachedZonePanels: {},
     dynamicQuestions: [],
     loadingMessage: '',
     isLoading: false,
@@ -475,11 +802,46 @@ export const usePigmentationStore = defineStore('pigmentation', {
       (state.diagnosis?.data?.classification_required_items || []).filter(
         (item) => state.doctorClassifications?.[item.classification_id]?.status !== 'resolved',
       ),
-    treatmentPlanningReady: (state) =>
-      Boolean(state.diagnosis?.data) &&
-      !(state.diagnosis?.data?.classification_required_items || []).some(
-        (item) => state.doctorClassifications?.[item.classification_id]?.status !== 'resolved',
+    doctorActionItems: (state) => doctorActionItemsFromDiagnosis(state.diagnosis?.data),
+    pendingDoctorActionItems: (state) =>
+      doctorActionItemsFromDiagnosis(state.diagnosis?.data).filter(
+        (item) =>
+          item.required && state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved',
       ),
+    treatmentPriorityOptions: (state) =>
+      treatmentPriorityOptionsFromDiagnosis(
+        state.diagnosis?.data,
+        state.aiAnalysis?.data || state.aiAnalysis || {},
+      ),
+    treatmentPlanningReady: (state) => {
+      if (!state.diagnosis?.data) return false
+      const classificationPending = (state.diagnosis.data.classification_required_items || []).some(
+        (item) => state.doctorClassifications?.[item.classification_id]?.status !== 'resolved',
+      )
+      const actionItems = doctorActionItemsFromDiagnosis(state.diagnosis.data)
+      const actionPending = actionItems.some(
+        (item) =>
+          item.required && state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved',
+      )
+      const actionBlocks = actionItems.some((item) => {
+        const resolution = state.doctorActionResolutions?.[item.action_id]
+        if (resolution?.status !== 'resolved') return false
+        return (item.options || []).some(
+          (option) =>
+            option.option_code === resolution.option_code && option.planning_effect === 'block',
+        )
+      })
+      const priorityOptions = treatmentPriorityOptionsFromDiagnosis(
+        state.diagnosis.data,
+        state.aiAnalysis?.data || state.aiAnalysis || {},
+      )
+      const selected = uniqueStringList(state.treatmentPriorityGroupIds).filter((groupId) =>
+        priorityOptions.some((option) => option.group_id === groupId),
+      )
+      const prioritiesReady =
+        priorityOptions.length === 0 || (selected.length >= 1 && selected.length <= 2)
+      return !classificationPending && !actionPending && !actionBlocks && prioritiesReady
+    },
   },
 
   actions: {
@@ -532,6 +894,15 @@ export const usePigmentationStore = defineStore('pigmentation', {
             this.dynamicAnswers = { ...this.dynamicAnswers, ...pi.dynamicAnswers }
           if (pi.doctorClassifications)
             this.doctorClassifications = { ...(pi.doctorClassifications || {}) }
+          if (pi.doctorActionResolutions)
+            this.doctorActionResolutions = { ...(pi.doctorActionResolutions || {}) }
+          if (pi.treatmentPriorityGroupIds)
+            this.treatmentPriorityGroupIds = uniqueStringList(pi.treatmentPriorityGroupIds).slice(
+              0,
+              2,
+            )
+          if (pi.doctorDiagnosisNotes !== undefined)
+            this.doctorDiagnosisNotes = pi.doctorDiagnosisNotes || ''
           if (pi.safety) this.safety = { ...this.safety, ...pi.safety }
           if (pi.redFlags) this.redFlags = pi.redFlags || []
           if (pi.goals) this.goals = pi.goals || []
@@ -589,6 +960,11 @@ export const usePigmentationStore = defineStore('pigmentation', {
         if (this.diagnosis?.data) {
           this.doctorClassifications = initializeDoctorClassificationState(
             this.diagnosis.data,
+            this.doctorClassifications,
+          )
+          this.doctorActionResolutions = initializeDoctorActionResolutionState(
+            this.diagnosis.data,
+            this.doctorActionResolutions,
             this.doctorClassifications,
           )
         }
@@ -826,15 +1202,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
           }))
         }
 
-        if (data.post_images && data.post_images.length > 0) {
-          this.reassessImages = data.post_images.map((img) => ({
-            id: img.id,
-            name: img.name,
-            dataUrl: img.url,
-            url: img.url,
-            openai_file_id: img.custom_properties?.openai_file_id || '',
-            mode: img.custom_properties?.mode || 'white',
-          }))
+        if (data.post_images) {
+          this.reassessImages = data.post_images
+            .filter((img) => !img.custom_properties?.is_panel)
+            .map((img) => ({
+              id: img.id,
+              name: img.name,
+              dataUrl: img.url,
+              url: img.url,
+              openai_file_id: img.custom_properties?.openai_file_id || '',
+              mode: img.custom_properties?.mode || 'white',
+            }))
         }
 
         // Auto-reconstruct goals if empty
@@ -956,6 +1334,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
         fixedHistory: this.fixedHistory,
         dynamicAnswers: this.dynamicAnswers,
         doctorClassifications: this.doctorClassifications,
+        doctorActionResolutions: this.doctorActionResolutions,
+        treatmentPriorityGroupIds: this.treatmentPriorityGroupIds,
+        doctorDiagnosisNotes: this.doctorDiagnosisNotes,
         safety: this.safety,
         redFlags: this.redFlags,
         goals: this.goals,
@@ -978,17 +1359,23 @@ export const usePigmentationStore = defineStore('pigmentation', {
       // Construct treatment_plans object from lastPlan to save in the database treatment_sessions
       let treatment_plans = null
       if (this.lastPlan) {
-        const treatments = (this.lastPlan.sessions || []).map((session) => {
+        const sourceSessions =
+          this.lastPlan.sessions || this.lastPlan.current_treatment_block?.sessions || []
+        const treatments = sourceSessions.map((session) => {
           const weekMatch = String(session.timing || '').match(/\d+/)
           const weekNum = weekMatch ? parseInt(weekMatch[0]) : session.session_number
 
-          // Build checklist — prefer AI-generated pre_treatment_checklist from provider_protocol
-          const aiChecklist = session.provider_protocol?.pre_treatment_checklist
+          // Build checklist — prefer AI-generated pre_treatment_checklist or provider_checkpoint
+          const aiChecklist =
+            session.pre_treatment_checklist || session.provider_protocol?.pre_treatment_checklist
           let checklist
           if (Array.isArray(aiChecklist) && aiChecklist.length > 0) {
             checklist = aiChecklist
           } else {
             checklist = ['Check patient identification and consent']
+            if (session.provider_checkpoint) {
+              checklist.push(session.provider_checkpoint)
+            }
             if (session.fixed_protocol?.q_switch?.use) {
               const qs = session.fixed_protocol.q_switch
               checklist.push(
@@ -1027,8 +1414,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
               .join(' ')
           }
 
-          // Use string includes to handle combined modality names like "q_switch_1064_toning"
-          const hasLaserModality = session.selected_modalities?.some(
+          const selectedModalities =
+            session.selected_modalities || session.selected_modality_ids || []
+          const hasLaserModality = selectedModalities.some(
             (m) =>
               m.includes('q_switch') ||
               m.includes('laser') ||
@@ -1037,9 +1425,57 @@ export const usePigmentationStore = defineStore('pigmentation', {
           )
 
           let hasZoneSequence = false
-          // Use zone_sequence if available in provider_protocol, even if modality naming varies
-          const zoneSeqSource = session.provider_protocol?.zone_sequence
+          const zoneSeqSource = session.zone_sequence || session.provider_protocol?.zone_sequence
+          const execSequence =
+            session.session_execution_sequence ||
+            session.provider_protocol?.session_execution_sequence
+
+          if (Array.isArray(execSequence) && execSequence.length > 0) {
+            const operations =
+              session.treatment_operations || session.provider_protocol?.treatment_operations || []
+            execSequence.forEach((execStep) => {
+              const op = execStep.operation_id
+                ? operations.find((o) => o.operation_id === execStep.operation_id)
+                : null
+              let equipments = []
+              if (op) {
+                if (op.protocol_id) {
+                  equipments.push(formatLabel(op.protocol_id))
+                } else if (op.modality_id) {
+                  equipments.push(formatLabel(op.modality_id))
+                }
+                if (op.parameters?.active_id) {
+                  equipments.push(`Active: ${formatLabel(op.parameters.active_id)}`)
+                }
+              } else if (execStep.settings_or_product_id) {
+                equipments.push(formatLabel(execStep.settings_or_product_id))
+              }
+
+              const durationText = execStep.duration_minutes
+                ? `${execStep.duration_minutes} mins`
+                : op?.parameters?.duration_minutes
+                  ? `${op.parameters.duration_minutes} mins`
+                  : '5 mins'
+
+              let stepText = execStep.instruction || execStep.instructions || ''
+              if (op) {
+                stepText += `\nModality: ${formatLabel(op.modality_id)}`
+                if (op.target_location_text) stepText += `\nTarget Area: ${op.target_location_text}`
+                if (op.exclusion_instruction) stepText += `\nExclusion: ${op.exclusion_instruction}`
+              }
+
+              steps.push({
+                step_number: stepCounter++,
+                duration: durationText,
+                ingredients_equipments: equipments,
+                how_to_do: stepText.trim(),
+              })
+            })
+            hasZoneSequence = true
+          }
+
           if (
+            !hasZoneSequence &&
             Array.isArray(zoneSeqSource) &&
             zoneSeqSource.length > 0 &&
             (hasLaserModality || session.fixed_protocol?.q_switch?.use)
@@ -1084,7 +1520,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
             }
           }
 
-          if (!hasZoneSequence) {
+          if (steps.length === 0) {
             if (session.fixed_protocol?.peel?.use) {
               const p = session.fixed_protocol.peel
               steps.push({
@@ -1133,23 +1569,33 @@ export const usePigmentationStore = defineStore('pigmentation', {
           }
 
           // Build daily home care routine
-          const homecareMorning = session.fixed_protocol?.homecare?.morning || []
-          const homecareNight = session.fixed_protocol?.homecare?.night || []
-          const homecareAvoid = session.fixed_protocol?.homecare?.avoid || []
+          const hc =
+            this.lastPlan.homecare_plan ||
+            this.lastPlan.home_care ||
+            session.fixed_protocol?.homecare ||
+            {}
+          const homecareMorning = hc.morning || []
+          const homecareNight = hc.evening || hc.night || []
+          const homecareAvoid = hc.sun_and_heat_control || hc.avoid || []
           const daily_home_care_routine = [
-            `Morning: ${homecareMorning.join(', ')}`,
-            `Night: ${homecareNight.join(', ')}`,
+            homecareMorning.length ? `Morning: ${homecareMorning.join(', ')}` : null,
+            homecareNight.length ? `Night: ${homecareNight.join(', ')}` : null,
             homecareAvoid.length ? `Avoid: ${homecareAvoid.join(', ')}` : null,
           ].filter(Boolean)
 
           return {
             session_number: session.session_number,
             title:
-              session.selected_modalities?.join(' + ') || session.goal || 'Pigmentation Session',
+              session.selected_modalities?.join(' + ') ||
+              (session.selected_modality_ids &&
+                session.selected_modality_ids.map(formatLabel).join(' + ')) ||
+              session.goal ||
+              session.session_goal ||
+              'Pigmentation Session',
             treatment_time: '45 mins',
             week: weekNum,
             preparations_checklist_for_therapist: checklist,
-            concerns_addressed: [session.goal || 'Pigmentation treatment'],
+            concerns_addressed: [session.goal || session.session_goal || 'Pigmentation treatment'],
             steps: steps,
             daily_home_care_routine: daily_home_care_routine,
             provider_protocol: session.provider_protocol || null,
@@ -1276,6 +1722,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
       }
       this.diagnosis = null
       this.doctorClassifications = {}
+      this.doctorActionResolutions = {}
+      this.treatmentPriorityGroupIds = []
       this.lastPlan = null
       this.reviewState = {
         decision: null,
@@ -1291,6 +1739,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.pre_session_validation = null
       this.conversationId = ''
       this.activeAiStage = null
+      this.cachedZonePanels = {}
       this.id = null
     },
 
@@ -1303,6 +1752,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
           formData.append('assessment_type', type)
           if (img.mode) {
             formData.append('mode', img.mode)
+          }
+          if (img.is_panel) {
+            formData.append('is_panel', 'true')
           }
 
           try {
@@ -1500,7 +1952,34 @@ export const usePigmentationStore = defineStore('pigmentation', {
         }
       }
 
-      const byMode = new Map((images || []).map((image) => [image.mode, image]))
+      // Return cached panels if they already exist and are fully uploaded for this type
+      const cached = this.cachedZonePanels?.[type]
+      if (
+        Array.isArray(cached) &&
+        cached.length >= expectedIds.length &&
+        cached.every((p) => p.openai_file_id)
+      ) {
+        const uploadedPanels = cached.filter((p) => p.openai_file_id)
+        const failedIds = expectedIds.filter((id) => !uploadedPanels.some((p) => p.panel_id === id))
+        const minimum = Number(contract.minimum_successful_panel_count || expectedIds.length)
+        const complete = uploadedPanels.length >= minimum && failedIds.length === 0
+        return {
+          panels: uploadedPanels,
+          manifest: {
+            status: complete ? 'complete' : uploadedPanels.length ? 'partial' : 'failed',
+            expected_panel_ids: expectedIds,
+            generated_panel_ids: uploadedPanels.map((p) => p.panel_id),
+            failed_panel_ids: failedIds,
+          },
+        }
+      }
+
+      const byMode = new Map()
+      for (const image of images || []) {
+        if (image.mode && !byMode.has(image.mode)) {
+          byMode.set(image.mode, image)
+        }
+      }
       const white = byMode.get('white')
       const surface = byMode.get('surface_polarized')
       if (!white || !surface) {
@@ -1536,6 +2015,10 @@ export const usePigmentationStore = defineStore('pigmentation', {
         await this.uploadStoreImages(panelRecords, assessmentId, type)
       }
       const uploadedPanels = panelRecords.filter((panel) => panel.openai_file_id)
+      // Cache the successfully uploaded panels to prevent re-upload on re-run
+      if (uploadedPanels.length) {
+        this.cachedZonePanels = { ...this.cachedZonePanels, [type]: uploadedPanels }
+      }
       for (const panel of panelRecords) {
         if (!panel.openai_file_id && !failedIds.includes(panel.panel_id)) {
           failedIds.push(panel.panel_id)
@@ -1606,7 +2089,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         const zonePanelBundle = await this.buildZonePanelImages(
           orderedImages,
           assessmentId,
-          'pigmentation-ai-zone-panel-pre',
+          'pigmentation-pre',
         )
         const zonePanels = zonePanelBundle.panels
         this.zonePanelGeneration = zonePanelBundle.manifest
@@ -1630,10 +2113,17 @@ export const usePigmentationStore = defineStore('pigmentation', {
         const rawObservation = this.parseJSON(raw)
         const validatedObservation = validateAndScorePigmentationImageAnalysis(rawObservation, {
           modelVersion: this.model || 'gpt-5.2',
-          promptVersion: 'pigmentation_prompts_v2_6_1_2026_07_24',
+          promptVersion: 'pigmentation_prompts_v2_7_reliability',
           configVersion: PIGMENTATION_CONFIG.version,
           policyVersion: PIGMENTATION_CLINICAL_POLICY_V2.version,
         })
+        const observationWarnings = validatedObservation?.validation_metadata?.warnings || []
+        if (observationWarnings.length) {
+          console.warn(
+            '[PigmentationStore] Observation accepted with warnings:',
+            observationWarnings,
+          )
+        }
 
         this.aiAnalysis = { data: validatedObservation, confirmed: false }
         this.immutableImageMetrics = extractImmutablePigmentationMetrics(validatedObservation)
@@ -1810,14 +2300,20 @@ export const usePigmentationStore = defineStore('pigmentation', {
           system: DIAGNOSIS_PROMPT,
           content,
           stage: 'diagnosis',
-          max_output_tokens: 9000,
+          max_output_tokens: 20000,
           reasoning_effort: 'high',
           verbosity: 'medium',
         })
 
         const dx = this.parseJSON(raw)
         assertDiagnosisCopiedImmutableMetrics(dx, this.aiAnalysis.data)
-        validatePigmentationDiagnosis(dx, this.aiAnalysis.data)
+        const diagnosisValidation = validatePigmentationDiagnosis(dx, this.aiAnalysis.data)
+        if (diagnosisValidation.warnings?.length) {
+          console.warn(
+            '[PigmentationStore] Diagnosis accepted with warnings:',
+            diagnosisValidation.warnings,
+          )
+        }
 
         // Preserve canonical codes while providing legacy aliases for older UI/report code.
         ;(dx.diagnostic_components || []).forEach((component) => {
@@ -2065,6 +2561,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
           mappedData,
           this.doctorClassifications,
         )
+        this.doctorActionResolutions = initializeDoctorActionResolutionState(
+          mappedData,
+          {},
+          this.doctorClassifications,
+        )
+        this.treatmentPriorityGroupIds = []
         this.lastPlan = null
         this.diagnosis = { data: mappedData, confirmedDx: '' }
         await this.updateAssessment()
@@ -2111,6 +2613,26 @@ export const usePigmentationStore = defineStore('pigmentation', {
           resolved_at_iso: new Date().toISOString(),
         },
       }
+
+      // Sync linked doctor actions
+      const actions = doctorActionItemsFromDiagnosis(this.diagnosis?.data)
+      const linkedAction = actions.find((act) => act.classification_id === classificationId)
+      if (linkedAction) {
+        const optCode =
+          resolutionType === 'candidate_selected'
+            ? resolution.option_code
+            : linkedAction.options?.[0]?.option_code || null
+        this.doctorActionResolutions = {
+          ...this.doctorActionResolutions,
+          [linkedAction.action_id]: {
+            status: 'resolved',
+            option_code: optCode,
+            doctor_note: String(resolution.doctor_note || ''),
+            resolved_at_iso: new Date().toISOString(),
+          },
+        }
+      }
+
       this.lastPlan = null
       await this.updateAssessment()
     },
@@ -2127,6 +2649,75 @@ export const usePigmentationStore = defineStore('pigmentation', {
           resolved_at_iso: null,
         },
       }
+
+      // Sync linked doctor actions
+      const actions = doctorActionItemsFromDiagnosis(this.diagnosis?.data)
+      const linkedAction = actions.find((act) => act.classification_id === classificationId)
+      if (linkedAction) {
+        this.doctorActionResolutions = {
+          ...this.doctorActionResolutions,
+          [linkedAction.action_id]: {
+            status: 'pending',
+            option_code: null,
+            doctor_note: '',
+            resolved_at_iso: null,
+          },
+        }
+      }
+
+      this.lastPlan = null
+      await this.updateAssessment()
+    },
+
+    async setDoctorActionResolution(actionId, resolution = {}) {
+      const item = doctorActionItemsFromDiagnosis(this.diagnosis?.data).find(
+        (entry) => entry.action_id === actionId,
+      )
+      if (!item) throw new Error(`Unknown doctor action: ${actionId}`)
+      const option = (item.options || []).find(
+        (candidate) => candidate.option_code === resolution.option_code,
+      )
+      if (!option) throw new Error('Select one of the available doctor-action options.')
+
+      this.doctorActionResolutions = {
+        ...this.doctorActionResolutions,
+        [actionId]: {
+          status: 'resolved',
+          option_code: option.option_code,
+          doctor_note: String(resolution.doctor_note || ''),
+          resolved_at_iso: new Date().toISOString(),
+        },
+      }
+      this.lastPlan = null
+      await this.updateAssessment()
+    },
+
+    async clearDoctorActionResolution(actionId) {
+      if (!this.doctorActionResolutions?.[actionId]) return
+      this.doctorActionResolutions = {
+        ...this.doctorActionResolutions,
+        [actionId]: {
+          status: 'pending',
+          option_code: null,
+          doctor_note: '',
+          resolved_at_iso: null,
+        },
+      }
+      this.lastPlan = null
+      await this.updateAssessment()
+    },
+
+    async setTreatmentPriorityGroupIds(groupIds = []) {
+      const allowed = new Set(
+        (this.treatmentPriorityOptions || []).map((option) => option.group_id),
+      )
+      const selected = uniqueStringList(groupIds)
+        .filter((groupId) => allowed.has(groupId))
+        .slice(0, 2)
+      if ((this.treatmentPriorityOptions || []).length && selected.length < 1) {
+        throw new Error('Select at least one morphology group as a treatment priority.')
+      }
+      this.treatmentPriorityGroupIds = selected
       this.lastPlan = null
       await this.updateAssessment()
     },
@@ -2134,7 +2725,16 @@ export const usePigmentationStore = defineStore('pigmentation', {
     getResolvedDiagnosisForTreatmentPlanning() {
       if (!this.diagnosis?.data) throw new Error('Diagnosis is required.')
       assertNoPendingDoctorClassifications(this.diagnosis.data, this.doctorClassifications)
-      return applyDoctorClassificationsToDiagnosis(this.diagnosis.data, this.doctorClassifications)
+      const classificationResolvedDiagnosis = applyDoctorClassificationsToDiagnosis(
+        this.diagnosis.data,
+        this.doctorClassifications,
+      )
+      return applyDoctorActionResolutionsToDiagnosis(
+        classificationResolvedDiagnosis,
+        this.doctorActionResolutions,
+        this.treatmentPriorityGroupIds,
+        this.aiAnalysis?.data || this.aiAnalysis || {},
+      )
     },
 
     confirmDx(selectedDx) {
@@ -2168,7 +2768,10 @@ export const usePigmentationStore = defineStore('pigmentation', {
           clinic_config: compactConfig,
           doctor_classification_resolutions:
             resolvedDiagnosis.doctor_classification_resolutions || {},
-          doctor_overrides: { allowed: true, notes: null },
+          doctor_action_resolutions: resolvedDiagnosis.doctor_action_resolutions || {},
+          treatment_priority_group_ids: resolvedDiagnosis.treatment_priority_group_ids || [],
+          treatment_priority_groups: resolvedDiagnosis.treatment_priority_groups || [],
+          doctor_overrides: { allowed: true, notes: this.doctorDiagnosisNotes || null },
         }),
         resolvedDiagnosis,
         preflight,
@@ -2184,16 +2787,15 @@ export const usePigmentationStore = defineStore('pigmentation', {
       this.isLoading = true
       this.loadingMessage = 'Drafting the tiered plan…'
 
-      const planInput = this.buildPlanInput()
-      const planInputText = planInput.text
-      console.log(
-        `[PigmentationStore] Plan payload size: ${planInputText.length} chars (raw images excluded)`,
-      )
-
-      // Raw images are not included; protocol eligibility has already passed deterministic preflight.
-      const content = [{ type: 'text', text: planInputText }]
-
       try {
+        const planInput = this.buildPlanInput()
+        const planInputText = planInput.text
+        console.log(
+          `[PigmentationStore] Plan payload size: ${planInputText.length} chars (raw images excluded)`,
+        )
+
+        // Raw images are not included; protocol eligibility has already passed deterministic preflight.
+        const content = [{ type: 'text', text: planInputText }]
         const raw = await this.callOpenAI({
           system: PLAN_PROMPT,
           content,
@@ -2211,6 +2813,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
           preflight: planInput.preflight,
           componentEligibility: planInput.componentEligibility,
           compactConfig: planInput.compactConfig,
+          treatmentPriorityGroupIds:
+            planInput.resolvedDiagnosis?.treatment_priority_group_ids || [],
           throwOnError: false,
         }
         let validation = validatePigmentationPlan(
@@ -2243,6 +2847,8 @@ export const usePigmentationStore = defineStore('pigmentation', {
                   exact_eligible_protocols: exactProtocols,
                   current_treatment_block: generatedPlan.current_treatment_block,
                   master_treatment_roadmap: generatedPlan.master_treatment_roadmap,
+                  treatment_priority_group_ids:
+                    planInput.resolvedDiagnosis?.treatment_priority_group_ids || [],
                 }),
               },
             ],
@@ -2451,7 +3057,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
     async generateReassessment() {
       const requiredModes = PIGMENTATION_CONFIG.image_acquisition.canonical_mode_order
-      const imagesByMode = new Map(this.reassessImages.map((image) => [image.mode, image]))
+      const imagesByMode = new Map()
+      for (const image of this.reassessImages) {
+        if (image.mode && !imagesByMode.has(image.mode)) {
+          imagesByMode.set(image.mode, image)
+        }
+      }
       const missing = requiredModes.filter((mode) => !imagesByMode.has(mode))
       if (missing.length) {
         throw new Error(
@@ -2477,7 +3088,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         const zonePanelBundle = await this.buildZonePanelImages(
           ordered,
           assessmentId,
-          'pigmentation-ai-zone-panel-post',
+          'pigmentation-post',
         )
         const zonePanels = zonePanelBundle.panels
         this.zonePanelGeneration = zonePanelBundle.manifest
@@ -2492,7 +3103,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           system: REASSESS_PROMPT,
           content,
           stage: 'formal_reassessment',
-          max_output_tokens: 12000,
+          max_output_tokens: 30000,
           reasoning_effort: 'high',
           verbosity: 'medium',
         })
@@ -2506,11 +3117,19 @@ export const usePigmentationStore = defineStore('pigmentation', {
           result.current_phenotype,
           {
             modelVersion: this.model,
-            promptVersion: 'pigmentation_prompts_v2_6_1_2026_07_24',
+            promptVersion: 'pigmentation_prompts_v2_7_reliability',
             configVersion: PIGMENTATION_CONFIG.version,
             policyVersion: PIGMENTATION_CLINICAL_POLICY_V2.version,
           },
         )
+        const reassessmentObservationWarnings =
+          currentPhenotype?.validation_metadata?.warnings || []
+        if (reassessmentObservationWarnings.length) {
+          console.warn(
+            '[PigmentationStore] Reassessment observation accepted with warnings:',
+            reassessmentObservationWarnings,
+          )
+        }
         const currentMetrics = extractImmutablePigmentationMetrics(currentPhenotype)
 
         const nextComponentMap =
@@ -2575,13 +3194,25 @@ export const usePigmentationStore = defineStore('pigmentation', {
             component_treatment_map: nextComponentMap,
             current_treatment_block: validatedBlock,
             current_sessions: validatedBlock.sessions || [],
-            sessions: (validatedBlock.sessions || []).map((session) => ({
-              id: session.id || session.session_number,
-              status: session.status || 'pending',
-              ...session,
-            })),
+            sessions: (() => {
+              const baseSessions = [...(this.lastPlan.sessions || [])];
+              (validatedBlock.sessions || []).forEach(newSess => {
+                const idx = baseSessions.findIndex(s => s.session_number === newSess.session_number);
+                const mappedSess = {
+                  id: newSess.id || newSess.session_number,
+                  status: newSess.status || 'pending',
+                  ...newSess
+                };
+                if (idx !== -1) {
+                  baseSessions[idx] = { ...baseSessions[idx], ...mappedSess, status: mappedSess.status || baseSessions[idx].status || 'pending' };
+                } else {
+                  baseSessions.push(mappedSess);
+                }
+              });
+              return baseSessions.sort((a, b) => a.session_number - b.session_number);
+            })(),
             future_provisional_sessions:
-              result.future_treatment_roadmap || this.lastPlan.future_provisional_sessions || [],
+              result.future_provisional_sessions || result.future_treatment_roadmap || this.lastPlan.future_provisional_sessions || [],
             master_treatment_roadmap:
               result.updated_master_treatment_roadmap ||
               this.lastPlan.master_treatment_roadmap ||
