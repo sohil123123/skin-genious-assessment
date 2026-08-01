@@ -2568,7 +2568,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         )
         this.treatmentPriorityGroupIds = []
         this.lastPlan = null
-        this.diagnosis = { data: mappedData, confirmedDx: '' }
+        this.diagnosis = { data: mappedData, confirmedDx: mappedData.differential?.primary?.dx || '' }
         await this.updateAssessment()
       } catch (err) {
         console.error(err)

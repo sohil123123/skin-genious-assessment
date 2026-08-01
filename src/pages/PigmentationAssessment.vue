@@ -277,16 +277,7 @@ const goToStage = async (idx) => {
         return
       }
     }
-    if (store.currentStage === 2) {
-      if (!store.diagnosis?.confirmedDx) {
-        $q.notify({
-          type: 'warning',
-          message: 'Please confirm the working diagnosis first.',
-          position: 'top',
-        })
-        return
-      }
-    }
+
   }
 
   if (store.isConnected) {
@@ -444,16 +435,7 @@ const goNext = async (targetIdx = null) => {
           return
         }
       }
-      if (store.currentStage === 2) {
-        if (!store.diagnosis?.confirmedDx) {
-          $q.notify({
-            type: 'warning',
-            message: 'Please confirm the working diagnosis first.',
-            position: 'top',
-          })
-          return
-        }
-      }
+
       store.currentStage = targetIdx !== null ? targetIdx : (store.currentStage + 1)
       await store.updateAssessment()
     } catch (err) {

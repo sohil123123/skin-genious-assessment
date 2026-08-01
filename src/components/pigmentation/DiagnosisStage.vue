@@ -1273,7 +1273,7 @@
 
         <!-- Doctor Diagnosis Confirmation Panel -->
         <div class="pblock">
-          <DoctorClassificationPanel @continue="continueToPlan" />
+          <DoctorClassificationPanel @continue="confirmAndGoToPlan" />
         </div>
       </div>
     </div>
@@ -1539,9 +1539,5 @@ const getInterpretationColor = (interpretation) => {
   if (interp.includes('low') || interp.includes('optimal') || interp.includes('good'))
     return '#0d9488'
   return '#64748b'
-}
-
-async function continueToPlan() {
-  await confirmAndGoToPlan()
 }
 </script>
