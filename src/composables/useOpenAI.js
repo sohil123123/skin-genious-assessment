@@ -1,4 +1,4 @@
-import { Notify } from 'quasar'
+import { Notify, Loading } from 'quasar'
 import { api } from 'src/boot/axios'
 import config from 'src/config.js'
 
@@ -206,6 +206,8 @@ export function useOpenAI() {
           usage: error?.usage || null,
         },
       }
+    } finally {
+      Loading.hide()
     }
   }
 
