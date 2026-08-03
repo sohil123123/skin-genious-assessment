@@ -83,33 +83,196 @@
           <div class="col-md-8">
             <!-- Instructions -->
             <q-card class="section-card soft-bg q-pa-lg">
-              <div class="title text-weight-bold text-h5 q-mb-xs">{{ session?.title }}</div>
-              <div class="title text-grey-6 text-subtitle2 q-mb-md">Step {{ stepNumber }}</div>
-              <div
-                class="q-mt-lg q-mb-md"
-                v-if="step.ingredients_equipments && step.ingredients_equipments.length"
-              >
-                <div class="info-main text-subtitle2 text-weight-bold q-mb-sm text-grey-8">
-                  Equipment &amp; Products Used:
+              <!-- Header & Step Type -->
+              <div class="flex items-center justify-between q-mb-md flex-wrap gap-2">
+                <div>
+                  <div class="text-h5 font-bold text-dark flex items-center gap-2">
+                    <span>{{ session?.title }}</span>
+                    <q-badge color="teal-9" class="q-ml-sm text-weight-bold" style="font-size: 12px;">
+                      Step {{ stepNumber }} of {{ totalSteps }}
+                    </q-badge>
+                  </div>
+                  <div class="text-subtitle2 text-grey-7 q-mt-xs flex items-center gap-2" v-if="parsedStep?.step_type || parsedStep?.modality">
+                    <q-chip density="compact" color="primary" text-color="white" class="text-weight-bold uppercase" style="font-size: 11px;">
+                      {{ parsedStep.step_type || 'PROCEDURE' }}
+                    </q-chip>
+                    <span v-if="parsedStep.modality" class="text-weight-bold text-indigo-9">
+                      Modality: {{ parsedStep.modality }}
+                    </span>
+                  </div>
                 </div>
-                <q-list>
-                  <q-item
+                <div v-if="step.duration" class="bg-teal-1 text-teal-9 px-3 py-1 rounded-full text-caption font-mono font-bold border border-teal-2 flex items-center gap-1">
+                  <q-icon name="schedule" size="16px" />
+                  <span>Planned Duration: {{ step.duration }}</span>
+                </div>
+              </div>
+
+              <!-- Equipment & Products Used -->
+              <div class="q-mb-md bg-grey-1 q-pa-sm rounded-lg" style="border: 1px solid #e2e8f0;" v-if="step.ingredients_equipments?.length">
+                <div class="text-caption text-weight-bold text-grey-8 uppercase tracking-wide q-mb-xs flex items-center gap-1">
+                  <q-icon name="science" color="teal-9" size="18px" />
+                  <span>Equipment &amp; Products Used:</span>
+                </div>
+                <div class="flex gap-1 flex-wrap items-center">
+                  <q-chip
                     v-for="(ie, idx) in step.ingredients_equipments"
                     :key="idx"
-                    clickable
-                    v-ripple
-                    class="q-pl-none"
+                    color="teal-1"
+                    text-color="teal-9"
+                    icon="science"
+                    density="compact"
+                    class="text-weight-bold"
                   >
-                    <q-item-section avatar class="ingredients-list" top>
-                      <q-avatar class="gredient text-white" icon="science" size="24px" />
-                    </q-item-section>
-                    <q-item-section class="text-body2 text-dark">{{ ie }}</q-item-section>
-                  </q-item>
-                </q-list>
+                    {{ ie }}
+                  </q-chip>
+                </div>
               </div>
+
+              <!-- IF STRUCTURED STEP -->
+              <template v-if="hasStructuredData">
+                <!-- Step Instructions -->
+                <div class="q-mb-md bg-indigo-1 q-pa-md rounded-lg border-left-indigo" v-if="parsedStep?.instructions">
+                  <div class="text-caption font-bold text-indigo-9 uppercase tracking-wider q-mb-xs flex items-center gap-1">
+                    <q-icon name="assignment" color="indigo-8" size="18px" />
+                    <span>Step Instructions</span>
+                  </div>
+                  <div class="text-body1 text-slate-800 text-weight-medium" style="line-height: 1.5;">
+                    {{ parsedStep.instructions }}
+                  </div>
+                </div>
+
+                <!-- Laser/Device Settings if present -->
+                <div class="q-mb-md bg-blue-1 q-pa-md rounded-lg" style="border: 1px solid #bfdbfe;" v-if="parsedStep?.settings_str">
+                  <div class="text-caption font-bold text-blue-9 uppercase tracking-wider q-mb-xs flex items-center gap-1">
+                    <q-icon name="bolt" color="blue-8" size="18px" />
+                    <span>Laser / Device Settings</span>
+                  </div>
+                  <div class="text-subtitle1 text-blue-10 font-mono font-bold">
+                    {{ parsedStep.settings_str }}
+                  </div>
+                </div>
+
+                <!-- ⚡ Depth Map (mm) -->
+                <div class="q-mb-md bg-amber-1 q-pa-md rounded-lg" style="border: 1.5px solid #fcd34d;" v-if="parsedStep?.depth_map_list?.length">
+                  <div class="text-subtitle2 font-bold text-amber-10 uppercase tracking-wide q-mb-xs flex items-center justify-between">
+                    <span class="flex items-center gap-1">
+                      <q-icon name="straighten" color="amber-9" size="20px" />
+                      <span>⚡ Procedure Depth Map (mm)</span>
+                    </span>
+                    <span class="text-caption text-amber-9 font-normal">Check regional needle depth settings</span>
+                  </div>
+                  <div class="row q-col-gutter-sm q-mt-xs">
+                    <div v-for="(dm, dIdx) in parsedStep.depth_map_list" :key="dIdx" class="col-xs-6 col-sm-4">
+                      <div class="bg-white q-pa-sm rounded border flex items-center justify-between shadow-2xs" :style="dm.region.toLowerCase().includes('periocular') || dm.region.toLowerCase().includes('perioral') || dm.region.toLowerCase().includes('lip') ? 'border: 1.5px solid #f59e0b; background: #fffbf0;' : 'border: 1px solid #cbd5e1;'">
+                        <span class="text-caption text-weight-bold text-dark">{{ dm.region }}:</span>
+                        <q-badge color="amber-9" class="text-weight-bold" style="font-size: 12px; font-family: monospace;">
+                          {{ dm.depth }}
+                        </q-badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 🎯 Target Area & Active Zones -->
+                <div class="q-mb-md bg-teal-1 q-pa-md rounded-lg" style="border: 1px solid #99f6e4;" v-if="parsedStep?.target_area || parsedStep?.target_zones?.length">
+                  <div class="text-caption font-bold text-teal-9 uppercase tracking-wider q-mb-xs flex items-center gap-1">
+                    <q-icon name="center_focus_strong" color="teal-8" size="18px" />
+                    <span>Target Area &amp; Active Zones</span>
+                  </div>
+                  <div class="text-body2 text-teal-10 q-mb-xs" v-if="parsedStep.target_area">
+                    <b>Description:</b> {{ parsedStep.target_area }}
+                  </div>
+                  <div v-if="parsedStep.target_zones?.length" class="flex gap-1 flex-wrap items-center q-mt-xs">
+                    <span class="text-caption text-grey-8 text-weight-bold q-mr-xs">Active Target Zones:</span>
+                    <q-chip
+                      v-for="tz in parsedStep.target_zones"
+                      :key="tz"
+                      color="teal-2"
+                      text-color="teal-10"
+                      icon="check_circle"
+                      density="compact"
+                      class="text-weight-bold"
+                    >
+                      {{ tz }}
+                    </q-chip>
+                  </div>
+                </div>
+
+                <!-- 🛑 Exclusion Zones & Exclusion Instructions -->
+                <div class="q-mb-md bg-rose-1 q-pa-md rounded-lg" style="border: 1.5px solid #fca5a5; background-color: #fff1f2;" v-if="parsedStep?.exclusion_zones?.length || parsedStep?.exclusion_instructions">
+                  <div class="text-subtitle2 font-bold text-rose-9 uppercase tracking-wide q-mb-xs flex items-center gap-1">
+                    <q-icon name="block" color="rose-7" size="20px" />
+                    <span>🛑 Exclusion Zones &amp; Avoidance Rules</span>
+                  </div>
+                  
+                  <div v-if="parsedStep.exclusion_zones?.length" class="q-mb-sm flex items-center gap-1 flex-wrap">
+                    <span class="text-caption text-rose-9 text-weight-bold">Do NOT Treat Zones:</span>
+                    <q-chip
+                      v-for="ez in parsedStep.exclusion_zones"
+                      :key="ez"
+                      color="red-2"
+                      text-color="red-10"
+                      icon="cancel"
+                      density="compact"
+                      class="text-weight-bold"
+                    >
+                      {{ ez }}
+                    </q-chip>
+                  </div>
+
+                  <div v-if="parsedStep.exclusion_instructions" class="text-caption text-rose-9 bg-white q-pa-sm rounded" style="border: 1px solid #fecdd3; line-height: 1.5;">
+                    <b>Exclusion Rules:</b> {{ parsedStep.exclusion_instructions }}
+                  </div>
+                </div>
+
+                <!-- 🏁 Endpoint Target -->
+                <div class="q-mb-md bg-emerald-1 q-pa-sm px-md rounded-lg border border-emerald-3" v-if="parsedStep?.endpoint">
+                  <div class="text-caption font-bold text-emerald-9 uppercase tracking-wider flex items-center gap-1">
+                    <q-icon name="flag" color="emerald-7" size="18px" />
+                    <span>Clinical Endpoint Target:</span>
+                    <span class="text-body2 text-dark font-normal text-weight-medium q-ml-xs">{{ parsedStep.endpoint }}</span>
+                  </div>
+                </div>
+
+                <!-- 🚨 Stop Conditions & 🧴 Step Aftercare -->
+                <div class="row q-col-gutter-sm q-mb-md" v-if="parsedStep?.stop_conditions?.length || parsedStep?.aftercare?.length">
+                  <!-- Stop conditions -->
+                  <div :class="parsedStep.aftercare?.length ? 'col-xs-12 col-sm-6' : 'col-xs-12'" v-if="parsedStep.stop_conditions?.length">
+                    <div class="bg-red-1 q-pa-sm rounded-lg" style="border: 1px solid #fca5a5; height: 100%;">
+                      <div class="text-caption font-bold text-red-9 uppercase tracking-wider q-mb-xs flex items-center gap-1">
+                        <q-icon name="warning" color="red-7" size="18px" />
+                        <span>Stop Conditions</span>
+                      </div>
+                      <ul class="q-pl-md q-my-none text-caption text-red-10" style="line-height: 1.4;">
+                        <li v-for="(sc, sIdx) in parsedStep.stop_conditions" :key="sIdx" class="q-mb-xs">
+                          {{ sc }}
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <!-- Aftercare -->
+                  <div :class="parsedStep.stop_conditions?.length ? 'col-xs-12 col-sm-6' : 'col-xs-12'" v-if="parsedStep.aftercare?.length">
+                    <div class="bg-purple-1 q-pa-sm rounded-lg" style="border: 1px solid #d8b4fe; height: 100%;">
+                      <div class="text-caption font-bold text-purple-9 uppercase tracking-wider q-mb-xs flex items-center gap-1">
+                        <q-icon name="sanitation" color="purple-7" size="18px" />
+                        <span>Step Post-Care &amp; Aftercare</span>
+                      </div>
+                      <ul class="q-pl-md q-my-none text-caption text-purple-10" style="line-height: 1.4;">
+                        <li v-for="(ac, aIdx) in parsedStep.aftercare" :key="aIdx" class="q-mb-xs">
+                          {{ ac }}
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- FALLBACK FOR UNSTRUCTURED / PLAIN STEPS -->
               <div
-                class="desc text-body1 text-dark"
-                style="white-space: pre-line; line-height: 1.6"
+                v-else
+                class="desc text-body1 text-dark q-pa-md bg-grey-1 rounded-lg"
+                style="white-space: pre-line; line-height: 1.6; border: 1px solid #e2e8f0;"
               >
                 {{ step.how_to_do }}
               </div>
@@ -312,6 +475,135 @@ const session = computed(() => store.currentSession)
 const step = computed(() => store.currentStep)
 const totalSteps = computed(() => store.totalSteps)
 const isFirstStep = computed(() => store.currentStepIndex === 0)
+
+function parseStepText(text) {
+  if (!text || typeof text !== 'string') return null
+
+  const result = {
+    step_type: null,
+    instructions: null,
+    modality: null,
+    settings_str: null,
+    depth_map_raw: null,
+    depth_map_list: [],
+    target_area: null,
+    target_zones: [],
+    exclusion_zones: [],
+    exclusion_instructions: null,
+    endpoint: null,
+    stop_conditions: [],
+    aftercare: [],
+    other_lines: []
+  }
+
+  const lines = text.split('\n')
+  let currentSection = null
+
+  lines.forEach((line) => {
+    const trimmed = line.trim()
+    if (!trimmed) return
+
+    if (trimmed.startsWith('Step:')) {
+      result.step_type = trimmed.replace('Step:', '').trim()
+    } else if (trimmed.startsWith('Instructions:')) {
+      result.instructions = trimmed.replace('Instructions:', '').trim()
+    } else if (trimmed.startsWith('Modality:')) {
+      result.modality = trimmed.replace('Modality:', '').trim()
+    } else if (trimmed.startsWith('Treatment:')) {
+      result.modality = trimmed.replace('Treatment:', '').trim()
+    } else if (trimmed.startsWith('Treat Zone:')) {
+      const zone = trimmed.replace('Treat Zone:', '').trim()
+      result.target_area = `Treat Zone: ${zone}`
+      if (!result.target_zones.includes(zone)) {
+        result.target_zones.push(zone)
+      }
+    } else if (trimmed.startsWith('Settings:')) {
+      result.settings_str = trimmed.replace('Settings:', '').trim()
+    } else if (trimmed.startsWith('Coverage Instruction:')) {
+      if (!result.instructions) {
+        result.instructions = trimmed.replace('Coverage Instruction:', '').trim()
+      } else {
+        result.other_lines.push(trimmed)
+      }
+    } else if (trimmed.startsWith('Depth Map:')) {
+      result.depth_map_raw = trimmed.replace('Depth Map:', '').trim()
+      const parts = result.depth_map_raw.split('•')
+      result.depth_map_list = parts
+        .map((p) => {
+          const colonIdx = p.indexOf(':')
+          if (colonIdx === -1) return null
+          const region = p.substring(0, colonIdx).trim()
+          const depth = p.substring(colonIdx + 1).trim()
+          return { region, depth }
+        })
+        .filter((item) => item && item.region && item.depth)
+    } else if (trimmed.startsWith('Target Area:')) {
+      result.target_area = trimmed.replace('Target Area:', '').trim()
+    } else if (trimmed.startsWith('Target Zones:')) {
+      const raw = trimmed.replace('Target Zones:', '').trim()
+      result.target_zones = raw.split(',').map((z) => z.trim()).filter(Boolean)
+    } else if (trimmed.startsWith('Exclusion Zones:')) {
+      const raw = trimmed.replace('Exclusion Zones:', '').trim()
+      result.exclusion_zones = raw.split(',').map((z) => z.trim()).filter(Boolean)
+    } else if (trimmed.startsWith('Exclusion Instructions:')) {
+      result.exclusion_instructions = trimmed.replace('Exclusion Instructions:', '').trim()
+    } else if (trimmed.startsWith('Avoid Instruction:')) {
+      const avoid = trimmed.replace('Avoid Instruction:', '').trim()
+      if (result.exclusion_instructions) {
+        result.exclusion_instructions += ` | ${avoid}`
+      } else {
+        result.exclusion_instructions = avoid
+      }
+    } else if (trimmed.startsWith('Endpoint Target:')) {
+      result.endpoint = trimmed.replace('Endpoint Target:', '').trim()
+    } else if (trimmed.startsWith('Stop Conditions:')) {
+      currentSection = 'stop_conditions'
+    } else if (trimmed.startsWith('Step Aftercare:')) {
+      currentSection = 'aftercare'
+    } else if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+      const itemText = trimmed.replace(/^[-•]\s*/, '').trim()
+      if (currentSection === 'stop_conditions') {
+        result.stop_conditions.push(itemText)
+      } else if (currentSection === 'aftercare') {
+        result.aftercare.push(itemText)
+      } else {
+        result.other_lines.push(trimmed)
+      }
+    } else {
+      if (currentSection === 'stop_conditions') {
+        result.stop_conditions.push(trimmed)
+      } else if (currentSection === 'aftercare') {
+        result.aftercare.push(trimmed)
+      } else {
+        result.other_lines.push(trimmed)
+      }
+    }
+  })
+
+  return result
+}
+
+const parsedStep = computed(() => {
+  if (!step.value) return null
+  return parseStepText(step.value.how_to_do)
+})
+
+const hasStructuredData = computed(() => {
+  if (!parsedStep.value) return false
+  const s = parsedStep.value
+  return Boolean(
+    s.instructions ||
+      s.depth_map_list?.length ||
+      s.target_area ||
+      s.target_zones?.length ||
+      s.exclusion_zones?.length ||
+      s.exclusion_instructions ||
+      s.endpoint ||
+      s.stop_conditions?.length ||
+      s.aftercare?.length ||
+      s.settings_str
+  )
+})
 
 // Count-up Timer States & Handlers
 const elapsedSeconds = ref(0)
@@ -1012,5 +1304,11 @@ function abort() {
 <style scoped>
 .gredient {
   background: linear-gradient(90deg, #0f766e, #0d9488);
+}
+.border-left-indigo {
+  border-left: 4px solid #4f46e5;
+}
+.shadow-2xs {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 </style>

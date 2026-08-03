@@ -50,7 +50,7 @@
             <div class="col-md-6 col-sm-12">
               <q-card flat bordered class="q-pa-md full-height rounded-lg bg-teal-0">
                 <div class="text-h6 text-teal-10 text-weight-bold q-mb-xs">{{ session?.title }}</div>
-                <div class="text-subtitle2 text-grey-8 q-mb-lg">Session {{ sessionID }} completed successfully.</div>
+                <div class="text-subtitle2 text-grey-8 q-mb-lg">Session {{ sessionDisplayNumber }} completed successfully.</div>
                 
                 <q-separator class="q-my-md" />
                 
@@ -278,6 +278,13 @@ const session = computed(() => {
   return store.treatmentPlan.treatments.find(
     (s) => Number(s.id) === Number(sessionID) || Number(s.session_number) === Number(sessionID)
   )
+})
+
+const sessionDisplayNumber = computed(() => {
+  if (session.value?.session_number !== undefined && session.value?.session_number !== null) {
+    return session.value.session_number
+  }
+  return sessionID
 })
 
 function bookNextAppointment() {

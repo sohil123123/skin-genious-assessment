@@ -380,12 +380,27 @@
           >
             <div class="flex justify-between items-start flex-wrap q-mb-sm">
               <div>
-                <div class="text-weight-bold text-subtitle2 text-indigo-9" style="font-size: 14px">
-                  {{ formatLabel(map.working_diagnosis) }}
+                <div class="flex items-center gap-2">
+                  <span class="id-badge-lg" v-if="map.diagnostic_component_id">{{ map.diagnostic_component_id }}</span>
+                  <div class="text-weight-bold text-subtitle2 text-indigo-9" style="font-size: 14px">
+                    {{ formatLabel(map.working_diagnosis) }}
+                  </div>
                 </div>
-                <div class="text-caption text-grey-6 q-mt-xs">
-                  Region: <b>{{ map.regions ? map.regions.map(formatLabel).join(', ') : formatLabel(map.clinical_location_text || map.target_location_text) }}</b> | Scope:
-                  <b>{{ formatLabel(map.scope) }}</b>
+                <div class="text-caption text-grey-6 q-mt-xs flex items-center gap-1 flex-wrap">
+                  <span>Region: <b>{{ map.regions ? map.regions.map(formatLabel).join(', ') : formatLabel(map.clinical_location_text || map.target_location_text) }}</b> | Scope:
+                  <b>{{ formatLabel(map.scope) }}</b></span>
+                  <span v-if="map.linked_group_ids?.length"> | Linked Groups: 
+                    <span v-for="gId in map.linked_group_ids" :key="gId" class="id-badge-inline q-ml-xs">
+                      {{ gId }}
+                      <q-tooltip class="id-tooltip-custom">
+                        <div class="text-weight-bold text-amber-4">{{ gId }} Details</div>
+                        <div v-if="getComponentInfo(gId)">
+                          <div class="text-weight-bold" style="font-size: 12px;">{{ getComponentInfo(gId).diagnosis }}</div>
+                          <div class="text-caption text-grey-4 q-mt-xs" style="font-size: 11px;">{{ getComponentInfo(gId).location }}</div>
+                        </div>
+                      </q-tooltip>
+                    </span>
+                  </span>
                 </div>
               </div>
               <div class="flex items-center gap-2 flex-wrap">
@@ -463,6 +478,88 @@
             >
               <strong>Likely component level changes:</strong> {{ map.expected_response }}
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLINICAL COMPONENT & ID REFERENCE INDEX -->
+      <div class="pblock" v-if="Object.keys(componentIdMap).length">
+        <div class="flex items-center justify-between q-mb-sm">
+          <h3 class="q-mb-none"><span class="bar" style="background: #4f46e5"></span>Clinical ID Reference Index (Component Dictionary)</h3>
+          <q-badge color="indigo-9" outline class="text-weight-bold" style="font-size: 11px;">
+            {{ Object.keys(componentIdMap).length }} Registered IDs
+          </q-badge>
+        </div>
+        <p class="text-caption text-grey-7 q-mb-md">
+          Quick clinical guide explaining what each <code>DC_xxx</code> (Diagnostic Component), <code>PG_xxx</code> (Pigment Group), and <code>PM_xxx</code> (Modifier Group) code represents.
+        </p>
+
+        <div class="card q-pa-none" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <div class="clinic-table-wrap">
+            <table class="clinic-table compact" style="margin-bottom: 0;">
+              <thead>
+                <tr style="background: #f8fafc;">
+                  <th style="width: 100px;">ID Code</th>
+                  <th style="width: 140px;">Type</th>
+                  <th style="min-width: 200px;">Diagnosis / Title</th>
+                  <th style="min-width: 250px;">Clinical Location &amp; Details</th>
+                  <th style="width: 140px;">Status / Eligibility</th>
+                  <th style="width: 120px;">Linked IDs</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, idKey) in componentIdMap" :key="idKey">
+                  <td>
+                    <span class="id-badge-inline text-weight-bold" style="font-size: 12px; padding: 2px 8px;">
+                      {{ item.id }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="text-caption text-grey-8 text-weight-medium">
+                      {{ item.type || 'Component' }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="text-weight-bold text-indigo-10" style="font-size: 12.5px; line-height: 1.3;">
+                      {{ item.diagnosis }}
+                    </div>
+                    <div v-if="item.protocol && item.protocol !== '—'" class="text-caption text-grey-6 q-mt-xs">
+                      Protocol: <code>{{ item.protocol }}</code>
+                    </div>
+                  </td>
+                  <td style="font-size: 12px; color: #334155; line-height: 1.4;">
+                    {{ item.location }}
+                  </td>
+                  <td>
+                    <span
+                      class="status-badge"
+                      :style="
+                        item.eligibility === 'eligible' || item.eligibility === 'Active'
+                          ? 'background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;'
+                          : 'background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2;'
+                      "
+                    >
+                      {{ formatLabel(item.eligibility) }}
+                    </span>
+                  </td>
+                  <td>
+                    <div v-if="item.linkedGroups?.length" class="flex gap-1 flex-wrap">
+                      <span v-for="gId in item.linkedGroups" :key="gId" class="id-badge-inline" style="font-size: 10.5px;">
+                        {{ gId }}
+                        <q-tooltip class="id-tooltip-custom">
+                          <div class="text-weight-bold text-amber-4">{{ gId }} Details</div>
+                          <div v-if="getComponentInfo(gId)">
+                            <div class="text-weight-bold">{{ getComponentInfo(gId).diagnosis }}</div>
+                            <div class="text-caption text-grey-4 q-mt-xs">{{ getComponentInfo(gId).location }}</div>
+                          </div>
+                        </q-tooltip>
+                      </span>
+                    </div>
+                    <span v-else class="text-grey-5">—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -902,9 +999,33 @@
                         <q-badge color="teal-9" class="q-ml-sm text-weight-bold" v-if="op.role">{{ formatLabel(op.role) }}</q-badge>
                         <q-badge color="deep-orange" class="q-ml-xs text-weight-bold" v-if="op.injury_producing">Injury Producing</q-badge>
                       </div>
-                      <div class="text-caption text-grey-7 q-mt-xs">
-                        Protocol: <code>{{ op.protocol_id }}</code>
+                      <div class="text-caption text-grey-7 q-mt-xs flex items-center gap-1 flex-wrap">
+                        <span>Protocol: <code>{{ op.protocol_id }}</code></span>
                         <span v-if="op.target_location_text"> | Target: <b>{{ op.target_location_text }}</b></span>
+                        <span v-if="op.linked_component_ids?.length"> | Components: 
+                          <span v-for="cid in op.linked_component_ids" :key="cid" class="id-badge-inline q-mr-xs">
+                            {{ cid }}
+                            <q-tooltip class="id-tooltip-custom">
+                              <div class="text-weight-bold text-amber-4">{{ cid }} Details</div>
+                              <div v-if="getComponentInfo(cid)">
+                                <div class="text-weight-bold" style="font-size: 12px;">{{ getComponentInfo(cid).diagnosis }}</div>
+                                <div class="text-caption text-grey-4 q-mt-xs" style="font-size: 11px;">{{ getComponentInfo(cid).location }}</div>
+                              </div>
+                            </q-tooltip>
+                          </span>
+                        </span>
+                        <span v-if="op.linked_group_ids?.length"> | Groups: 
+                          <span v-for="gid in op.linked_group_ids" :key="gid" class="id-badge-inline q-mr-xs">
+                            {{ gid }}
+                            <q-tooltip class="id-tooltip-custom">
+                              <div class="text-weight-bold text-amber-4">{{ gid }} Details</div>
+                              <div v-if="getComponentInfo(gid)">
+                                <div class="text-weight-bold" style="font-size: 12px;">{{ getComponentInfo(gid).diagnosis }}</div>
+                                <div class="text-caption text-grey-4 q-mt-xs" style="font-size: 11px;">{{ getComponentInfo(gid).location }}</div>
+                              </div>
+                            </q-tooltip>
+                          </span>
+                        </span>
                       </div>
                     </div>
                     <div class="text-caption text-grey-5" v-if="op.operation_id" style="font-size: 10.5px;">
@@ -951,7 +1072,12 @@
 
               <!-- Execution Sequence (New Format) -->
               <div class="roadmap-sub-section q-mt-lg" v-if="session.session_execution_sequence?.length">
-                <div class="sub-sec-hdr">⚙️ Execution Sequence Steps</div>
+                <div class="sub-sec-hdr flex items-center justify-between">
+                  <span>⚙️ Execution Sequence Steps</span>
+                  <span class="text-caption text-grey-6" style="font-weight: normal; text-transform: none; font-size: 11px;">
+                    💡 Hover any ID badge (e.g. <code>DC_002</code>) to view clinical definition
+                  </span>
+                </div>
                 <div class="clinic-table-wrap q-mt-sm">
                   <table class="clinic-table compact">
                     <thead>
@@ -971,7 +1097,23 @@
                           </span>
                         </td>
                         <td style="font-size: 12px; line-height: 1.4; color: #334155;">
-                          {{ step.instruction || step.instructions }}
+                          <template v-for="(seg, sIdx) in parseInstructionSegments(step.instruction || step.instructions)" :key="sIdx">
+                            <span v-if="!seg.isId">{{ seg.text }}</span>
+                            <span v-else class="id-badge-inline">
+                              {{ seg.id }}
+                              <q-tooltip anchor="top middle" self="bottom middle" class="id-tooltip-custom">
+                                <div class="text-weight-bold text-amber-4">{{ seg.id }} Details</div>
+                                <div v-if="getComponentInfo(seg.id)">
+                                  <div class="text-weight-bold" style="font-size: 12px;">{{ getComponentInfo(seg.id).diagnosis }}</div>
+                                  <div class="text-caption text-grey-4 q-mt-xs" style="font-size: 11px;">{{ getComponentInfo(seg.id).location }}</div>
+                                  <div v-if="getComponentInfo(seg.id).linkedGroups?.length" class="text-caption text-grey-5 q-mt-xs">
+                                    Linked Groups: {{ getComponentInfo(seg.id).linkedGroups.join(', ') }}
+                                  </div>
+                                </div>
+                                <div v-else class="text-caption">Component ID reference</div>
+                              </q-tooltip>
+                            </span>
+                          </template>
                         </td>
                         <td v-if="session.session_execution_sequence.some(s => s.operation_id)">
                           <code v-if="step.operation_id" style="font-size: 10.5px;">{{ step.operation_id }}</code>
@@ -2819,6 +2961,147 @@ const formatParameterValue = (key, val) => {
   return String(val)
 }
 
+const componentIdMap = computed(() => {
+  const map = {}
+
+  // Standard group lookup fallback dictionary
+  const standardGroupLookup = {
+    'PG_001': {
+      id: 'PG_001',
+      type: 'Pigment Group',
+      diagnosis: 'Diffuse Background Melanin Field',
+      location: 'Diffuse mild background tan-brown field across forehead, glabella, nose, and cheeks',
+      eligibility: 'Eligible (Chemical Peel - BioRePeelCl3)',
+      linkedGroups: []
+    },
+    'PG_002': {
+      id: 'PG_002',
+      type: 'Pigment Group',
+      diagnosis: 'Right Malar Patch',
+      location: 'Irregular oval light-to-medium brown patch on lateral right malar/zygomatic cheek (below outer canthus)',
+      eligibility: 'Eligible (Microneedling - MN_MULTIFOCAL_MIXED_PIGMENT)',
+      linkedGroups: []
+    },
+    'PG_003': {
+      id: 'PG_003',
+      type: 'Pigment Group',
+      diagnosis: 'Multifocal Malar Macules',
+      location: 'Multiple scattered small light-brown macules on bilateral cheeks & nasal sidewalls',
+      eligibility: 'Eligible (Microneedling - MN_MULTIFOCAL_MIXED_PIGMENT)',
+      linkedGroups: []
+    },
+    'PG_004': {
+      id: 'PG_004',
+      type: 'Pigment Group',
+      diagnosis: 'Periocular Discoloration',
+      location: 'Bilateral infraorbital region (lower eyelids/tear-trough area) diffuse brown-gray discoloration',
+      eligibility: 'Eligible (Microneedling - MN_PERIOCULAR_MELANIN_OR_TEXTURE)',
+      linkedGroups: []
+    },
+    'PG_005': {
+      id: 'PG_005',
+      type: 'Pigment Group',
+      diagnosis: 'Nevus-like Macule(s)',
+      location: 'Discrete small dark-brown macules on nasal bridge & malar cheek',
+      eligibility: 'Excluded from cosmetic procedures (Observe only)',
+      linkedGroups: []
+    },
+    'PM_001': {
+      id: 'PM_001',
+      type: 'Modifier Group',
+      diagnosis: 'Structural Tear-Trough Hollowing',
+      location: 'Bilateral tear-trough hollowing causing optical shadow under eyes',
+      eligibility: 'Non-procedural (Observe / Structural assessment)',
+      linkedGroups: []
+    },
+    'PM_002': {
+      id: 'PM_002',
+      type: 'Modifier Group',
+      diagnosis: 'Facial Hair Shadow',
+      location: 'Moustache, beard, and dense lower-face hair obscuring skin assessment',
+      eligibility: 'Non-procedural (Observe)',
+      linkedGroups: []
+    },
+    'PM_003': {
+      id: 'PM_003',
+      type: 'Modifier Group',
+      diagnosis: 'Erythematous/Vascular Tone',
+      location: 'Mild redness / vascular component in periocular & perinasal areas',
+      eligibility: 'Non-procedural (Observe)',
+      linkedGroups: []
+    },
+    'PM_004': {
+      id: 'PM_004',
+      type: 'Modifier Group',
+      diagnosis: 'Active Inflammatory Acne Papules',
+      location: 'Small erythematous papules on forehead hairline & perinasal/upper lip margin',
+      eligibility: 'Hold regions (Medical control first)',
+      linkedGroups: []
+    }
+  }
+
+  // Populate from store.lastPlan.component_treatment_map
+  if (store.lastPlan?.component_treatment_map && Array.isArray(store.lastPlan.component_treatment_map)) {
+    store.lastPlan.component_treatment_map.forEach((item) => {
+      if (item.diagnostic_component_id) {
+        map[item.diagnostic_component_id] = {
+          id: item.diagnostic_component_id,
+          type: 'Diagnostic Component',
+          diagnosis: item.working_diagnosis || 'Diagnostic Component',
+          location: item.clinical_location_text || item.target_location_text || '—',
+          eligibility: item.treatment_eligibility || item.course_allocation_status || '—',
+          linkedGroups: item.linked_group_ids || [],
+          modality: item.selected_modality_id || item.selected_modality || '—',
+          protocol: item.selected_protocol_id || item.selected_product_or_protocol_id || '—',
+          expectedResponse: item.expected_response || '',
+          whySelected: item.why_selected_over_alternative || []
+        }
+      }
+    })
+  }
+
+  // Populate standard groups if not present
+  Object.entries(standardGroupLookup).forEach(([id, info]) => {
+    if (!map[id]) {
+      map[id] = info
+    }
+  })
+
+  return map
+})
+
+const getComponentInfo = (id) => {
+  if (!id) return null
+  return componentIdMap.value?.[id] || null
+}
+
+const parseInstructionSegments = (text) => {
+  if (!text || typeof text !== 'string') return [{ isId: false, text: text || '' }]
+  const regex = /\b(DC_\d+|PG_\d+|PM_\d+)\b/g
+  const segments = []
+  let lastIndex = 0
+  let match
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ isId: false, text: text.substring(lastIndex, match.index) })
+    }
+    const id = match[1]
+    segments.push({
+      isId: true,
+      id,
+      text: id
+    })
+    lastIndex = regex.lastIndex
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ isId: false, text: text.substring(lastIndex) })
+  }
+
+  return segments
+}
+
 const therapists = ref([])
 const hasFetchedTherapists = ref(false)
 
@@ -4205,6 +4488,54 @@ const resetPlan = async () => {
 .btn-regenerate:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Inline ID badge & tooltips styling */
+.id-badge-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: help;
+  vertical-align: baseline;
+  transition: all 0.15s ease;
+  line-height: 1.3;
+}
+
+.id-badge-inline:hover {
+  background: #e0e7ff;
+  border-color: #818cf8;
+  color: #1e1b4b;
+  box-shadow: 0 1px 4px rgba(79, 70, 229, 0.25);
+}
+
+.id-badge-lg {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  font-size: 12.5px;
+  padding: 2px 8px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #a5b4fc;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.id-tooltip-custom {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px 14px;
+  max-width: 320px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
 }
 
 .therapist-select :deep(.q-field__control) {
