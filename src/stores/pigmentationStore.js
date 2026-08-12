@@ -194,7 +194,7 @@ const AI_STAGE_TEXT_LIMITS = Object.freeze({
   pigmentation_observation_image_analysis: 50000,
   dynamic_questions: 35000,
   diagnosis: 55000,
-  treatment_plan: 85000,
+  treatment_plan: 90000,
   formal_reassessment: 105000,
   reassessment_questions: 35000,
 })
