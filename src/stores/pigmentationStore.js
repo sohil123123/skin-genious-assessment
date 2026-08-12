@@ -2568,7 +2568,10 @@ export const usePigmentationStore = defineStore('pigmentation', {
         )
         this.treatmentPriorityGroupIds = []
         this.lastPlan = null
-        this.diagnosis = { data: mappedData, confirmedDx: mappedData.differential?.primary?.dx || '' }
+        this.diagnosis = {
+          data: mappedData,
+          confirmedDx: mappedData.differential?.primary?.dx || '',
+        }
         await this.updateAssessment()
       } catch (err) {
         console.error(err)
@@ -2800,7 +2803,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           system: PLAN_PROMPT,
           content,
           stage: 'treatment_plan',
-          max_output_tokens: 25000,
+          max_output_tokens: 90000,
           reasoning_effort: 'high',
           verbosity: 'medium',
         })
@@ -3195,24 +3198,33 @@ export const usePigmentationStore = defineStore('pigmentation', {
             current_treatment_block: validatedBlock,
             current_sessions: validatedBlock.sessions || [],
             sessions: (() => {
-              const baseSessions = [...(this.lastPlan.sessions || [])];
-              (validatedBlock.sessions || []).forEach(newSess => {
-                const idx = baseSessions.findIndex(s => s.session_number === newSess.session_number);
+              const baseSessions = [...(this.lastPlan.sessions || [])]
+              ;(validatedBlock.sessions || []).forEach((newSess) => {
+                const idx = baseSessions.findIndex(
+                  (s) => s.session_number === newSess.session_number,
+                )
                 const mappedSess = {
                   id: newSess.id || newSess.session_number,
                   status: newSess.status || 'pending',
-                  ...newSess
-                };
-                if (idx !== -1) {
-                  baseSessions[idx] = { ...baseSessions[idx], ...mappedSess, status: mappedSess.status || baseSessions[idx].status || 'pending' };
-                } else {
-                  baseSessions.push(mappedSess);
+                  ...newSess,
                 }
-              });
-              return baseSessions.sort((a, b) => a.session_number - b.session_number);
+                if (idx !== -1) {
+                  baseSessions[idx] = {
+                    ...baseSessions[idx],
+                    ...mappedSess,
+                    status: mappedSess.status || baseSessions[idx].status || 'pending',
+                  }
+                } else {
+                  baseSessions.push(mappedSess)
+                }
+              })
+              return baseSessions.sort((a, b) => a.session_number - b.session_number)
             })(),
             future_provisional_sessions:
-              result.future_provisional_sessions || result.future_treatment_roadmap || this.lastPlan.future_provisional_sessions || [],
+              result.future_provisional_sessions ||
+              result.future_treatment_roadmap ||
+              this.lastPlan.future_provisional_sessions ||
+              [],
             master_treatment_roadmap:
               result.updated_master_treatment_roadmap ||
               this.lastPlan.master_treatment_roadmap ||
