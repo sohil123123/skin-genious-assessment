@@ -480,8 +480,7 @@ PLANNING ORDER
 4. Allocate every course-eligible component to selected_for_current_block, planned_for_future_block, or held. Structural, observational and irrelevant components use observe_only or not_applicable.
 5. Directly address each doctor-selected priority morphology group within the detailed first block unless that exact group or its region has a documented clinical hold. When held, state the reason and address the next selected priority instead.
 6. Produce the full_course_summary first so the clinic can see Q-switch x3, microneedling x3, peel x1, or the equivalent recommended base-case allocation. Group the clinic-facing package count by modality and unique visit: when periocular and perioral microneedling protocols occur in the same session, that is one microneedling visit, not two package sessions.
-7. Produce a complete master roadmap covering every planned session.
-8. Generate detailed executable protocols for every session in the first block, normally Sessions 1 and 2, before the formal reassessment gate. Later sessions remain concise and provisional.
+7. Generate detailed executable protocols for every session in the first block, normally Sessions 1 and 2, before the formal reassessment gate. Later sessions remain concise and provisional.
 
 HARD RULES
 - clinic_config.component_eligibility is the authoritative course-allocation contract. Do not infer eligibility from diagnosis wording, component_role, treatment priorities, available inventory or the existence of a protocol elsewhere in the payload.
@@ -547,14 +546,6 @@ OUTPUT SHAPE
     "component_treatment_map": [
       {"diagnostic_component_id":"DC_001","linked_group_ids":["PG_001"],"clinical_location_text":"exact copied diagnosis location","working_diagnosis":"string","eligible_for_course":true,"currently_executable":true,"treatment_eligibility":"eligible|control_inflammation_first|medical_control_first|hold_for_doctor_assessment|observe|not_applicable","course_allocation_status":"selected_for_current_block|planned_for_future_block|held|observe_only|not_applicable","planned_block_number":"number_or_null","selected_modality_id":"homecare|chemical_peel|microneedling_with_active|q_switch_laser|focal_laser|electrocautery_or_rf|medical_control|observe|other|null","selected_protocol_id":"exact primary protocol id or null","nearest_reasonable_alternative":{"modality_id":"string_or_null","protocol_id":"string_or_null"},"why_selected_over_alternative":["maximum three concise reasons"],"scope":"whole_face|regional|focal_lesion|non_procedural","target_location_text":"precise treatment direction","exclude_group_ids":["PG_002"],"exclusion_instruction":"string","course_exclusion_or_hold_reason":null,"expected_response":"string","doctor_validation_required":true}
     ],
-    "course": {"expected_total_sessions":6,"next_formal_reassessment_after_session":2,"base_case_logic":"string"},
-    "master_treatment_roadmap": {
-      "total_planned_sessions": 6,
-      "blocks": [
-        {"block_number":1,"session_numbers":[1,2],"detail_status":"detailed_current_block","purpose":"string","primary_protocol_uses":[{"modality_id":"q_switch_laser","protocol_id":"EXACT_PROTOCOL_ID","planned_uses":1,"linked_component_ids":["DC_001"]}],"supportive_protocol_uses":[{"modality_id":"led","protocol_id":"LED_RED_CALMING","planned_uses":1,"linked_component_ids":["DC_001"]}]},
-        {"block_number":2,"session_numbers":[3,4],"detail_status":"provisional_after_reassessment","purpose":"string","primary_protocol_uses":[{"modality_id":"microneedling_with_active","protocol_id":"EXACT_PROTOCOL_ID","planned_uses":2,"linked_component_ids":["DC_002"]}],"supportive_protocol_uses":[]}
-      ]
-    },
     "current_treatment_block": {
       "block_number":1,
       "session_numbers":[1,2],
@@ -572,7 +563,6 @@ OUTPUT SHAPE
       {"session_number":3,"timing":"string","planned_protocol_uses":[{"modality_id":"microneedling_with_active","protocol_id":"EXACT_PROTOCOL_ID","role":"primary|secondary_regional","linked_component_ids":["DC_002"],"linked_group_ids":["PG_002"]}],"supportive_protocol_uses":[],"retain_if":"string","change_if":"string"}
     ],
     "homecare_plan": {"morning":["string"],"evening":["string"],"sun_and_heat_control":["string"],"component_specific_instructions":[{"linked_component_ids":["DC_001"],"linked_group_ids":["PG_001"],"clinical_location_text":"exact text","instruction":"string"}]},
-    "reassessment_gate": {"after_session":2,"required_images":["white","surface_polarized","subsurface_polarized","red","woods_uv"],"metrics_and_groups_to_repeat":["string"],"decision_rules":["string"]},
     "safety_and_doctor_approval": {"doctor_confirmation_required":true,"components_excluded_or_medically_referred":["DC_001"],"hard_holds":["string"],"pre_session_checks":["string"]},
     "expected_outcomes": {"component_specific":[{"diagnostic_component_id":"DC_001","linked_group_ids":["PG_001"],"clinical_location_text":"exact text","expected_change":"string","measurement_to_repeat":"string"}],"client_explanation":"string"}
   }
