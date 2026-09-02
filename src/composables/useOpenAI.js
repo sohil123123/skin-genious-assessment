@@ -169,41 +169,76 @@ export function useOpenAI() {
 
     const requestId = createRequestId()
     const body = buildRequestBody(convId, input, MODEL, options)
+    const maxRetries = Number(options.max_retries ?? 1)
+    const timeoutMs = Number(options.timeout_ms) || DEFAULT_TIMEOUT_MS
+
+    const isRetryable = (error) => {
+      if (error?.code === 'ECONNABORTED' || error?.code === 'ERR_CANCELED') return true
+      const status = error?.response?.status
+      return status && (status === 429 || status >= 500)
+    }
 
     try {
-      const response = await api.post('ai/responses', body, {
-        timeout: Number(options.timeout_ms) || DEFAULT_TIMEOUT_MS,
-        headers: { 'X-Client-Request-Id': requestId },
-      })
-      const result = readResponse(response.data)
-      const usage = response.data?.usage || response.data?.response?.usage || null
-      console.info('[useOpenAI] completed', {
-        requestId,
-        stage: options.metadata?.stage || null,
-        model: MODEL,
-        stateless: !body.conversation,
-        maxOutputTokens: body.max_output_tokens || null,
-        usage,
-      })
-      return result
-    } catch (error) {
-      const message = messageFromError(error)
+      let lastError = null
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const attemptTimeout = attempt === 0 ? timeoutMs : Math.min(timeoutMs * 1.5, DEFAULT_TIMEOUT_MS)
+          const response = await api.post('ai/responses', body, {
+            timeout: attemptTimeout,
+            headers: { 'X-Client-Request-Id': `${requestId}-a${attempt}` },
+          })
+          const result = readResponse(response.data)
+          const usage = response.data?.usage || response.data?.response?.usage || null
+          console.info('[useOpenAI] completed', {
+            requestId,
+            attempt,
+            stage: options.metadata?.stage || null,
+            model: MODEL,
+            stateless: !body.conversation,
+            maxOutputTokens: body.max_output_tokens || null,
+            usage,
+          })
+          return result
+        } catch (error) {
+          lastError = error
+          if (attempt < maxRetries && isRetryable(error)) {
+            const backoffMs = Math.min(2000 * Math.pow(2, attempt), 8000)
+            console.warn('[useOpenAI] retryable error, backing off', {
+              requestId,
+              attempt,
+              stage: options.metadata?.stage || null,
+              code: error?.code || null,
+              status: error?.response?.status || null,
+              backoffMs,
+            })
+            await new Promise((resolve) => setTimeout(resolve, backoffMs))
+            continue
+          }
+          break
+        }
+      }
+
+      // Format a user-friendly error from the last failure
+      const isTimeout = lastError?.code === 'ECONNABORTED' || lastError?.code === 'ERR_CANCELED'
+      const message = isTimeout
+        ? `AI response timed out after ${Math.round(timeoutMs / 1000)}s. The request may still be processing — please wait a moment and retry.`
+        : messageFromError(lastError)
       console.error('[useOpenAI] response error', {
         requestId,
         stage: options.metadata?.stage || null,
         message,
-        responseId: error?.response_id || null,
-        usage: error?.usage || null,
+        responseId: lastError?.response_id || null,
+        usage: lastError?.usage || null,
       })
       Notify.create({ type: 'negative', message })
       return {
         error: {
           message,
-          status: error?.response?.status || null,
-          code: error?.code || null,
-          incomplete_reason: error?.incomplete_reason || null,
-          response_id: error?.response_id || null,
-          usage: error?.usage || null,
+          status: lastError?.response?.status || null,
+          code: lastError?.code || null,
+          incomplete_reason: lastError?.incomplete_reason || null,
+          response_id: lastError?.response_id || null,
+          usage: lastError?.usage || null,
         },
       }
     } finally {

@@ -271,6 +271,112 @@ function mergeExecutionRepair(plan, repair) {
   return plan
 }
 
+function deriveMasterRoadmap(plan) {
+  if (!plan) return null
+  const total = Number(plan.full_course_summary?.total_planned_sessions || 6)
+  const blocks = []
+
+  // Block 1 (Current Block)
+  const currentBlock = plan.current_treatment_block || {}
+  const currentSessions = currentBlock.sessions || []
+  
+  if (currentSessions.length) {
+    const block1PrimaryUses = []
+    const block1SupportiveUses = []
+    
+    for (const session of currentSessions) {
+      const ops = session.treatment_operations || session.operations || []
+      for (const op of ops) {
+        const isSupportive = op.role === 'supportive' || op.modality_id === 'led'
+        const list = isSupportive ? block1SupportiveUses : block1PrimaryUses
+        const existing = list.find(u => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id)
+        if (existing) {
+          existing.planned_uses += 1
+          if (op.linked_component_ids) {
+            existing.linked_component_ids = [...new Set([...existing.linked_component_ids, ...op.linked_component_ids])]
+          }
+        } else {
+          list.push({
+            modality_id: op.modality_id,
+            protocol_id: op.protocol_id || op.modality_id,
+            planned_uses: 1,
+            linked_component_ids: op.linked_component_ids || [],
+          })
+        }
+      }
+    }
+
+    blocks.push({
+      block_number: 1,
+      session_numbers: currentSessions.map(s => Number(s.session_number || s.id)),
+      detail_status: 'detailed_current_block',
+      purpose: currentBlock.block_goal || 'Initial treatment block',
+      primary_protocol_uses: block1PrimaryUses,
+      supportive_protocol_uses: block1SupportiveUses,
+    })
+  }
+
+  // Block 2 (Future Block/s)
+  const futureSessions = plan.future_provisional_sessions || []
+  if (futureSessions.length) {
+    const block2PrimaryUses = []
+    const block2SupportiveUses = []
+
+    for (const session of futureSessions) {
+      const primaryOps = session.planned_protocol_uses || []
+      const supportiveOps = session.supportive_protocol_uses || []
+      
+      for (const op of primaryOps) {
+        const existing = block2PrimaryUses.find(u => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id)
+        if (existing) {
+          existing.planned_uses += 1
+          if (op.linked_component_ids) {
+            existing.linked_component_ids = [...new Set([...existing.linked_component_ids, ...op.linked_component_ids])]
+          }
+        } else {
+          block2PrimaryUses.push({
+            modality_id: op.modality_id,
+            protocol_id: op.protocol_id || op.modality_id,
+            planned_uses: 1,
+            linked_component_ids: op.linked_component_ids || [],
+          })
+        }
+      }
+
+      for (const op of supportiveOps) {
+        const existing = block2SupportiveUses.find(u => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id)
+        if (existing) {
+          existing.planned_uses += 1
+          if (op.linked_component_ids) {
+            existing.linked_component_ids = [...new Set([...existing.linked_component_ids, ...op.linked_component_ids])]
+          }
+        } else {
+          block2SupportiveUses.push({
+            modality_id: op.modality_id,
+            protocol_id: op.protocol_id || op.modality_id,
+            planned_uses: 1,
+            linked_component_ids: op.linked_component_ids || [],
+          })
+        }
+      }
+    }
+
+    blocks.push({
+      block_number: 2,
+      session_numbers: futureSessions.map(s => Number(s.session_number)),
+      detail_status: 'provisional_after_reassessment',
+      purpose: 'Adaptive future course',
+      primary_protocol_uses: block2PrimaryUses,
+      supportive_protocol_uses: block2SupportiveUses,
+    })
+  }
+
+  return {
+    total_planned_sessions: total,
+    blocks,
+  }
+}
+
 function normalizeTreatmentPlanCourse(plan) {
   if (!plan || typeof plan !== 'object') return plan
   const normalized = { ...plan }
@@ -295,6 +401,10 @@ function normalizeTreatmentPlanCourse(plan) {
     status: session.status || 'pending',
     ...session,
   }))
+
+  if (!normalized.master_treatment_roadmap || !normalized.master_treatment_roadmap.blocks || !normalized.master_treatment_roadmap.blocks.length) {
+    normalized.master_treatment_roadmap = deriveMasterRoadmap(normalized)
+  }
 
   if (normalized.full_course_summary && !normalized.initial_full_course_summary) {
     normalized.initial_full_course_summary = JSON.parse(
@@ -1779,6 +1889,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
       reasoning_effort = 'medium',
       verbosity = 'low',
       timeout_ms = 600000,
+      max_retries = 0,
     }) {
       if (this.activeAiStage) {
         throw new Error(`Another pigmentation AI stage is already running: ${this.activeAiStage}.`)
@@ -1848,6 +1959,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           reasoning_effort,
           verbosity,
           timeout_ms,
+          max_retries,
           metadata: {
             pipeline_version: 'pigmentation_pipeline_v2_6_1_observation_first',
             stage: stage || 'unknown',
@@ -2300,9 +2412,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
           system: DIAGNOSIS_PROMPT,
           content,
           stage: 'diagnosis',
-          max_output_tokens: 20000,
-          reasoning_effort: 'high',
-          verbosity: 'medium',
+          max_output_tokens: 16000,
+          reasoning_effort: 'medium',
+          verbosity: 'low',
         })
 
         const dx = this.parseJSON(raw)
@@ -2803,13 +2915,19 @@ export const usePigmentationStore = defineStore('pigmentation', {
           system: PLAN_PROMPT,
           content,
           stage: 'treatment_plan',
-          max_output_tokens: 90000,
-          reasoning_effort: 'high',
-          verbosity: 'medium',
+          max_output_tokens: 32000,
+          reasoning_effort: 'medium',
+          verbosity: 'low',
+          timeout_ms: 300000,
         })
 
         const res = this.parseJSON(raw)
         let generatedPlan = normalizeExecutableOperationParameters(res.linear_treatment_plan || res)
+        
+        if (!generatedPlan.master_treatment_roadmap || !generatedPlan.master_treatment_roadmap.blocks || !generatedPlan.master_treatment_roadmap.blocks.length) {
+          generatedPlan.master_treatment_roadmap = deriveMasterRoadmap(generatedPlan)
+        }
+
         const validationOptions = {
           diagnosis: planInput.resolvedDiagnosis,
           phenotype: this.aiAnalysis?.data || {},
