@@ -57,12 +57,20 @@
               margin-bottom: 10px;
             "
           >
-            <h3><span class="bar" style="background: var(--melanin)"></span>Differential Diagnoses</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <h3>
+              <span class="bar" style="background: var(--melanin)"></span>Differential Diagnoses
+            </h3>
+            <div style="display: flex; gap: 8px; align-items: center">
               <button
                 class="btn"
                 @click="downloadDiagnosisReport"
-                style="font-size: 12px; padding: 4px 10px; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;"
+                style="
+                  font-size: 12px;
+                  padding: 4px 10px;
+                  background: #f0fdf4;
+                  color: #166534;
+                  border: 1px solid #bbf7d0;
+                "
                 title="Download diagnosis data as JSON"
               >
                 ⬇ Download Report
@@ -77,32 +85,40 @@
               </button>
             </div>
           </div>
-          <div class="dx-primary" style="margin-bottom: 12px">
-            <div>
-              <div class="nm">
-                {{ formatCategoryLabel(store.diagnosis.data.working_impression?.primary_category) }}
-              </div>
-              <div class="rs" style="margin-top: 4px; color: #6a4631; font-size: 13px; line-height: 1.45;">
-                {{ store.diagnosis.data.summaries?.clinical_summary_for_doctor }}
-              </div>
-            </div>
-            <div class="conf">
-              {{ store.diagnosis.data.working_impression?.primary_confidence_100 }}%
-            </div>
-          </div>
-
-          <!-- alternatives & secondary categories -->
-          <div v-if="store.diagnosis.data.working_impression?.secondary_categories?.length">
+          <!-- New V2 diagnostic components display -->
+          <div v-if="store.diagnosis.data.diagnostic_components?.length">
             <div
-              v-for="(sec, idx) in store.diagnosis.data.working_impression.secondary_categories"
-              :key="idx"
-              class="dx-alt q-mb-sm"
+              v-if="store.diagnosis.data.working_impression?.overall_summary"
+              class="q-mb-md font-serif text-subtitle2"
+              style="
+                font-size: 14px;
+                line-height: 1.5;
+                color: #334155;
+                padding: 12px;
+                background: #f8fafc;
+                border-radius: 6px;
+                border: 1px dashed #cbd5e1;
+                margin-bottom: 16px;
+              "
+            >
+              <strong>Summary:</strong>
+              {{ store.diagnosis.data.working_impression.overall_summary }}
+            </div>
+
+            <div
+              v-for="comp in store.diagnosis.data.diagnostic_components"
+              :key="comp.diagnostic_component_id"
+              class="dx-alt q-mb-md"
               style="
                 display: block;
-                border-left: 3px solid var(--slate-light);
-                padding-left: 12px;
-                margin-bottom: 12px;
-                border-radius: 0 4px 4px 0;
+                border-left: 4px solid var(--melanin);
+                padding-left: 14px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                background: #fdfcfb;
+                border-radius: 0 6px 6px 0;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                margin-bottom: 16px;
               "
             >
               <div
@@ -110,28 +126,199 @@
                   display: flex;
                   justify-content: space-between;
                   font-weight: bold;
-                  font-size: 13.5px;
+                  font-size: 15px;
                   color: #1e293b;
+                  margin-bottom: 4px;
                 "
               >
-                <span>{{ formatCategoryLabel(sec.category) }}</span>
+                <span>
+                  {{ comp.patient_title || formatCategoryLabel(comp.subtype || comp.family) }}
+                  <span
+                    v-if="
+                      comp.diagnostic_component_id ===
+                      store.diagnosis.data.working_impression?.dominant_treatable_component_id
+                    "
+                    style="
+                      background: #e0f2fe;
+                      color: #0369a1;
+                      font-size: 10px;
+                      padding: 1px 6px;
+                      border-radius: 4px;
+                      margin-left: 6px;
+                      vertical-align: middle;
+                    "
+                  >
+                    Dominant
+                  </span>
+                </span>
                 <span style="color: #64748b; font-weight: normal; font-size: 12px"
-                  >{{ sec.confidence_100 }}% confidence</span
+                  >{{ comp.confidence_100 }}% confidence ({{ comp.diagnostic_status }})</span
                 >
               </div>
-              <ul
+
+              <!-- Explanation -->
+              <div style="font-size: 13px; color: #334155; margin-bottom: 8px; line-height: 1.45">
+                {{ comp.patient_explanation }}
+              </div>
+
+              <!-- Evidence Lists -->
+              <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px">
+                <div v-if="comp.evidence_for?.length">
+                  <div
+                    style="
+                      font-size: 11px;
+                      font-weight: bold;
+                      color: #166534;
+                      text-transform: uppercase;
+                    "
+                  >
+                    Supporting Evidence:
+                  </div>
+                  <ul
+                    style="
+                      margin: 2px 0 0 16px;
+                      padding: 0;
+                      font-size: 12px;
+                      color: #1e3a1e;
+                      list-style-type: check;
+                    "
+                  >
+                    <li v-for="(ev, evIdx) in comp.evidence_for" :key="evIdx">{{ ev }}</li>
+                  </ul>
+                </div>
+                <div v-if="comp.evidence_against?.length">
+                  <div
+                    style="
+                      font-size: 11px;
+                      font-weight: bold;
+                      color: #991b1b;
+                      text-transform: uppercase;
+                    "
+                  >
+                    Alternative/Contra-evidence:
+                  </div>
+                  <ul
+                    style="
+                      margin: 2px 0 0 16px;
+                      padding: 0;
+                      font-size: 12px;
+                      color: #3a1e1e;
+                      list-style-type: circle;
+                    "
+                  >
+                    <li v-for="(ev, evIdx) in comp.evidence_against" :key="evIdx">{{ ev }}</li>
+                  </ul>
+                </div>
+                <div v-if="comp.missing_discriminators?.length">
+                  <div
+                    style="
+                      font-size: 11px;
+                      font-weight: bold;
+                      color: #57534e;
+                      text-transform: uppercase;
+                    "
+                  >
+                    To Refine Further:
+                  </div>
+                  <ul
+                    style="
+                      margin: 2px 0 0 16px;
+                      padding: 0;
+                      font-size: 12px;
+                      color: #44403c;
+                      list-style-type: square;
+                    "
+                  >
+                    <li v-for="(ev, evIdx) in comp.missing_discriminators" :key="evIdx">
+                      {{ ev }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div
+                style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: #64748b"
+              >
+                <span
+                  ><strong>Regions:</strong>
+                  {{ comp.regions?.map((r) => formatCategoryLabel(r)).join(', ') }}</span
+                >
+                <span>•</span>
+                <span><strong>Depth:</strong> {{ cap(comp.depth) }}</span>
+                <span>•</span>
+                <span><strong>Activity:</strong> {{ cap(comp.activity) }}</span>
+                <span>•</span>
+                <span
+                  ><strong>Status:</strong>
+                  {{ formatCategoryLabel(comp.direct_cosmetic_treatment_status) }}</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Legacy V1 fallback -->
+          <div v-else>
+            <div class="dx-primary" style="margin-bottom: 12px">
+              <div>
+                <div class="nm">
+                  {{
+                    formatCategoryLabel(store.diagnosis.data.working_impression?.primary_category)
+                  }}
+                </div>
+                <div
+                  class="rs"
+                  style="margin-top: 4px; color: #6a4631; font-size: 13px; line-height: 1.45"
+                >
+                  {{ store.diagnosis.data.summaries?.clinical_summary_for_doctor }}
+                </div>
+              </div>
+              <div class="conf">
+                {{ store.diagnosis.data.working_impression?.primary_confidence_100 }}%
+              </div>
+            </div>
+
+            <!-- alternatives & secondary categories -->
+            <div v-if="store.diagnosis.data.working_impression?.secondary_categories?.length">
+              <div
+                v-for="(sec, idx) in store.diagnosis.data.working_impression.secondary_categories"
+                :key="idx"
+                class="dx-alt q-mb-sm"
                 style="
-                  margin: 4px 0 0 16px;
-                  padding: 0;
-                  font-size: 12px;
-                  color: #475569;
-                  list-style-type: disc;
+                  display: block;
+                  border-left: 3px solid var(--slate-light);
+                  padding-left: 12px;
+                  margin-bottom: 12px;
+                  border-radius: 0 4px 4px 0;
                 "
               >
-                <li v-for="(b, bIdx) in sec.basis" :key="bIdx" style="margin-bottom: 2px">
-                  {{ b }}
-                </li>
-              </ul>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    font-weight: bold;
+                    font-size: 13.5px;
+                    color: #1e293b;
+                  "
+                >
+                  <span>{{ formatCategoryLabel(sec.category) }}</span>
+                  <span style="color: #64748b; font-weight: normal; font-size: 12px"
+                    >{{ sec.confidence_100 }}% confidence</span
+                  >
+                </div>
+                <ul
+                  style="
+                    margin: 4px 0 0 16px;
+                    padding: 0;
+                    font-size: 12px;
+                    color: #475569;
+                    list-style-type: disc;
+                  "
+                >
+                  <li v-for="(b, bIdx) in sec.basis" :key="bIdx" style="margin-bottom: 2px">
+                    {{ b }}
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -141,10 +328,13 @@
           class="pblock"
           v-if="
             store.diagnosis.data.working_impression?.doctor_review_required ||
-            store.diagnosis.data.patient_doctor_review_note?.required
+            store.diagnosis.data.patient_doctor_review_note?.required ||
+            store.diagnosis.data.doctor_actions?.length
           "
         >
-          <h3><span class="bar" style="background: #ef4444"></span>Clinical Warnings & Safety Notes</h3>
+          <h3>
+            <span class="bar" style="background: #ef4444"></span>Clinical Warnings & Safety Notes
+          </h3>
           <div
             class="redflag"
             style="
@@ -157,29 +347,89 @@
               border-radius: 8px;
             "
           >
-            <div style="font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <div
+              style="
+                font-weight: bold;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 6px;
+              "
+            >
               <q-icon name="warning" size="20px" color="amber-9" />
-              <span>{{ store.diagnosis.data.patient_doctor_review_note?.headline || 'Doctor Review Required before treatment' }}</span>
+              <span>{{
+                store.diagnosis.data.patient_doctor_review_note?.headline ||
+                'Doctor Review Required before treatment'
+              }}</span>
             </div>
-            <p style="font-size: 13px; line-height: 1.5; margin-bottom: 8px; color: #78350f;">
-              {{ store.diagnosis.data.working_impression?.doctor_review_reason || store.diagnosis.data.patient_doctor_review_note?.summary }}
+            <p style="font-size: 13px; line-height: 1.5; margin-bottom: 8px; color: #78350f">
+              {{
+                store.diagnosis.data.working_impression?.doctor_review_reason ||
+                store.diagnosis.data.patient_doctor_review_note?.summary
+              }}
             </p>
-            <p v-if="store.diagnosis.data.patient_doctor_review_note?.reassurance" style="font-size: 12px; opacity: 0.85; font-style: italic; margin-bottom: 10px; color: #92400e;">
+            <p
+              v-if="store.diagnosis.data.patient_doctor_review_note?.reassurance"
+              style="
+                font-size: 12px;
+                opacity: 0.85;
+                font-style: italic;
+                margin-bottom: 10px;
+                color: #92400e;
+              "
+            >
               {{ store.diagnosis.data.patient_doctor_review_note.reassurance }}
             </p>
 
-            <div v-if="store.diagnosis.data.patient_doctor_review_note?.areas?.length" style="margin-top: 10px;">
-              <div style="font-weight: bold; font-size: 12.5px; margin-bottom: 4px; color: #78350f;">Specific areas to review:</div>
-              <div style="display: grid; grid-template-columns: 1fr; gap: 6px;">
-                <div 
-                  v-for="(area, aIdx) in store.diagnosis.data.patient_doctor_review_note.areas" 
+            <!-- Render doctor actions list if available -->
+            <div v-if="store.diagnosis.data.doctor_actions?.length" style="margin-top: 10px">
+              <div style="font-weight: bold; font-size: 12.5px; margin-bottom: 6px; color: #78350f">
+                Required Doctor Actions:
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 8px">
+                <div
+                  v-for="(act, aIdx) in store.diagnosis.data.doctor_actions"
                   :key="aIdx"
-                  style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #d97706; padding: 8px 12px; border-radius: 0 4px 4px 0;"
+                  style="
+                    background: rgba(239, 68, 68, 0.05);
+                    border-left: 3px solid #ef4444;
+                    padding: 10px 14px;
+                    border-radius: 0 4px 4px 0;
+                  "
                 >
-                  <div style="font-weight: 600; font-size: 12px; color: #b45309;">
+                  <div style="font-weight: 600; font-size: 12.5px; color: #b91c1c">
+                    {{ formatCategoryLabel(act.action_type) }}
+                  </div>
+                  <div style="font-size: 12px; color: #7f1d1d; margin-top: 2px">
+                    {{ act.instruction }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="store.diagnosis.data.patient_doctor_review_note?.areas?.length"
+              style="margin-top: 10px"
+            >
+              <div style="font-weight: bold; font-size: 12.5px; margin-bottom: 4px; color: #78350f">
+                Specific areas to review:
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 6px">
+                <div
+                  v-for="(area, aIdx) in store.diagnosis.data.patient_doctor_review_note.areas"
+                  :key="aIdx"
+                  style="
+                    background: rgba(245, 158, 11, 0.1);
+                    border-left: 3px solid #d97706;
+                    padding: 8px 12px;
+                    border-radius: 0 4px 4px 0;
+                  "
+                >
+                  <div style="font-weight: 600; font-size: 12px; color: #b45309">
                     {{ area.natural_location }}
                   </div>
-                  <div style="font-size: 11.5px; color: #92400e;">
+                  <div style="font-size: 11.5px; color: #92400e">
                     Instruction: {{ area.instruction }}
                   </div>
                 </div>
@@ -200,86 +450,175 @@
               color: #115e59;
             "
           >
-            <div style="font-weight: bold; font-size: 13.5px; margin-bottom: 6px; color: #0f766e;">
+            <div style="font-weight: bold; font-size: 13.5px; margin-bottom: 6px; color: #0f766e">
               {{ store.diagnosis.data.summaries.patient_summary_short }}
             </div>
-            <div style="font-size: 13px; line-height: 1.5; color: #134e4a;">
+            <div style="font-size: 13px; line-height: 1.5; color: #134e4a">
               {{ store.diagnosis.data.summaries.patient_summary }}
             </div>
           </div>
         </div>
 
         <!-- Pigmentation Profile -->
-        <div class="pblock" v-if="store.diagnosis.data.pigmentation_profile">
+        <div class="pblock">
           <h3><span class="bar" style="background: var(--melanin)"></span>Pigmentation Profile</h3>
-          
+
           <!-- Fitzpatrick & Indices -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div class="vbox text-center" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 12px;">
-              <div class="lab" style="font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase;">Fitzpatrick Skin Type</div>
-              <div style="font-family: 'Fraunces', serif; font-size: 18px; font-weight: bold; color: #1e293b; margin: 4px 0;">
-                {{ store.diagnosis.data.pigmentation_profile.estimated_fitzpatrick?.type?.replace(/_/g, ' ') }}
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+              gap: 12px;
+              margin-bottom: 12px;
+            "
+          >
+            <div
+              class="vbox text-center"
+              style="
+                border: 1px solid #e2e8f0;
+                background: #ffffff;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+              "
+            >
+              <div
+                class="lab"
+                style="
+                  font-size: 10px;
+                  font-weight: bold;
+                  color: #64748b;
+                  text-transform: uppercase;
+                "
+              >
+                Fitzpatrick Skin Type
               </div>
-              <div style="font-size: 11px; color: #64748b;">
-                {{ store.diagnosis.data.pigmentation_profile.estimated_fitzpatrick?.patient_display }} ({{ store.diagnosis.data.pigmentation_profile.estimated_fitzpatrick?.confidence_100 }}% conf)
+              <div
+                style="
+                  font-family: 'Fraunces', serif;
+                  font-size: 20px;
+                  font-weight: bold;
+                  color: #1e293b;
+                  margin: 4px 0;
+                "
+              >
+                {{
+                  store.formData.fitz ||
+                  store.diagnosis.data.pigmentation_profile?.estimated_fitzpatrick?.type?.replace(
+                    /_/g,
+                    ' ',
+                  ) ||
+                  '—'
+                }}
               </div>
-            </div>
-            
-            <div class="vbox text-center" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 12px;">
-              <div class="lab" style="font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase;">Melanin Load Index</div>
-              <div style="font-family: 'Fraunces', serif; font-size: 20px; font-weight: bold; color: var(--melanin); margin: 4px 0;">
-                {{ store.diagnosis.data.pigmentation_profile.melanin_load_index }}
+              <div style="font-size: 11px; color: #64748b; font-weight: 500">
+                Clinician Confirmed
               </div>
-              <div style="font-size: 11px; color: #64748b;">Estimated melanin burden</div>
             </div>
 
-            <div class="vbox text-center" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 12px;">
-              <div class="lab" style="font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase;">Erythema Load Index</div>
-              <div style="font-family: 'Fraunces', serif; font-size: 20px; font-weight: bold; color: var(--erythema, #ef4444); margin: 4px 0;">
-                {{ store.diagnosis.data.pigmentation_profile.estimated_depth?.call?.includes('dermal') || store.diagnosis.data.pigmentation_profile.composition?.type?.includes('vascular') ? store.diagnosis.data.pigmentation_profile.erythema_load_index : store.diagnosis.data.pigmentation_profile.erythema_load_index }}
+            <div
+              v-for="score in scoreList"
+              :key="score.name"
+              class="vbox text-center"
+              style="
+                border: 1px solid #e2e8f0;
+                background: #ffffff;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+              "
+            >
+              <div
+                class="lab"
+                style="
+                  font-size: 10px;
+                  font-weight: bold;
+                  color: #64748b;
+                  text-transform: uppercase;
+                "
+              >
+                {{ score.name }}
               </div>
-              <div style="font-size: 11px; color: #64748b;">Vascular redness load</div>
+              <div
+                style="
+                  font-family: 'Fraunces', serif;
+                  font-size: 22px;
+                  font-weight: bold;
+                  margin: 4px 0;
+                "
+                :style="{ color: getScoreColor(score.name, score.value) }"
+              >
+                {{ score.value }}
+              </div>
+              <div
+                style="font-size: 11px; font-weight: 600; text-transform: capitalize"
+                :style="{ color: getInterpretationColor(score.interpretation) }"
+              >
+                {{ score.interpretation }}
+              </div>
             </div>
           </div>
 
           <!-- Composition & Depth details -->
           <div class="twin">
             <!-- Depth Call -->
-            <div :class="['vbox', getDepthClass(store.diagnosis.data.pigmentation_profile.estimated_depth?.call)]">
+            <div :class="['vbox', getDepthClass(store.formData.depth)]">
               <div class="lab">Depth Assessment</div>
-              <div class="hd" style="font-size: 16px; margin: 4px 0;">
-                {{ formatCategoryLabel(store.diagnosis.data.pigmentation_profile.estimated_depth?.call) }}
+              <div class="hd" style="font-size: 16px; margin: 4px 0">
+                {{ formatCategoryLabel(store.formData.depth) }}
               </div>
-              <div style="font-weight: 600; font-size: 12px; margin-bottom: 2px;">
-                {{ store.diagnosis.data.pigmentation_profile.estimated_depth?.patient_label }}
+              <div style="font-weight: 600; font-size: 12px; margin-bottom: 2px">
+                Clinician Verified Depth
               </div>
               <div class="ds">
-                {{ store.diagnosis.data.pigmentation_profile.estimated_depth?.patient_explanation }}
-              </div>
-              <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
-                Confidence: {{ store.diagnosis.data.pigmentation_profile.estimated_depth?.confidence_100 }}%
+                Estimated depth of target pigment (epidermal, dermal, mixed, or uncertain).
               </div>
             </div>
 
             <!-- Composition ratios -->
-            <div :class="['vbox', getCompClass(store.diagnosis.data.pigmentation_profile.composition?.type)]">
+            <div :class="['vbox', getCompClass(store.formData.comp)]">
               <div class="lab">Pigment Composition</div>
-              <div class="hd" style="font-size: 16px; margin: 4px 0;">
-                {{ formatCategoryLabel(store.diagnosis.data.pigmentation_profile.composition?.type) }}
+              <div class="hd" style="font-size: 16px; margin: 4px 0">
+                {{ formatCategoryLabel(store.formData.comp) }}
               </div>
-              
+
               <!-- Custom Horizontal Composition Progress Bar -->
-              <div style="margin: 12px 0 6px 0;">
-                <div style="display: flex; justify-content: space-between; font-size: 11.5px; font-weight: bold; margin-bottom: 3px;">
-                  <span style="color: var(--melanin)">Melanin ({{ store.diagnosis.data.pigmentation_profile.composition?.melanin_percent }}%)</span>
-                  <span style="color: var(--erythema, #ef4444)">Vascular ({{ store.diagnosis.data.pigmentation_profile.composition?.vascular_percent }}%)</span>
+              <div style="margin: 12px 0 6px 0" v-if="store.formData.comp">
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 11.5px;
+                    font-weight: bold;
+                    margin-bottom: 3px;
+                  "
+                >
+                  <span style="color: var(--melanin)">Melanin ({{ melaninPercent }}%)</span>
+                  <span style="color: var(--erythema, #ef4444)"
+                    >Vascular ({{ vascularPercent }}%)</span
+                  >
                 </div>
-                <div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: #e2e8f0;">
-                  <div :style="{ width: store.diagnosis.data.pigmentation_profile.composition?.melanin_percent + '%', background: 'var(--melanin)' }"></div>
-                  <div :style="{ width: store.diagnosis.data.pigmentation_profile.composition?.vascular_percent + '%', background: 'var(--erythema, #ef4444)' }"></div>
+                <div
+                  style="
+                    display: flex;
+                    height: 8px;
+                    border-radius: 4px;
+                    overflow: hidden;
+                    background: #e2e8f0;
+                  "
+                >
+                  <div :style="{ width: melaninPercent + '%', background: 'var(--melanin)' }"></div>
+                  <div
+                    :style="{
+                      width: vascularPercent + '%',
+                      background: 'var(--erythema, #ef4444)',
+                    }"
+                  ></div>
                 </div>
               </div>
-              
+
               <div class="ds">
                 Estimated balance of dark melanin pigment versus underlying redness/vascularity.
               </div>
@@ -290,7 +629,67 @@
         <!-- Key Drivers -->
         <div class="pblock" v-if="store.diagnosis.data.key_drivers">
           <h3><span class="bar" style="background: var(--melanin)"></span>Key Drivers</h3>
+
+          <!-- New Array format -->
           <div
+            v-if="Array.isArray(store.diagnosis.data.key_drivers)"
+            class="drivers-container"
+            style="display: grid; grid-template-columns: 1fr; gap: 12px"
+          >
+            <div
+              v-for="drv in store.diagnosis.data.key_drivers"
+              :key="drv.driver"
+              class="driver-card q-pa-md"
+              style="border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc"
+            >
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 6px;
+                "
+              >
+                <b style="font-size: 13.5px; color: #1e293b">{{
+                  formatCategoryLabel(drv.driver)
+                }}</b>
+                <div>
+                  <span
+                    class="status-badge"
+                    style="
+                      font-size: 10px;
+                      margin-right: 6px;
+                      padding: 2px 6px;
+                      background: #f1f5f9;
+                      color: #475569;
+                    "
+                  >
+                    Likelihood: {{ cap(drv.likelihood) }}
+                  </span>
+                  <span style="font-size: 11.5px; color: #64748b"
+                    >{{ drv.confidence_100 }}% confidence</span
+                  >
+                </div>
+              </div>
+              <ul
+                style="
+                  margin: 4px 0 0 16px;
+                  padding: 0;
+                  font-size: 12px;
+                  color: #475569;
+                  list-style-type: disc;
+                "
+              >
+                <li v-for="(b, bIdx) in drv.basis" :key="bIdx" style="margin-bottom: 2px">
+                  {{ b }}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Legacy Map/Object format fallback -->
+          <div
+            v-else
             class="drivers-container"
             style="display: grid; grid-template-columns: 1fr; gap: 12px"
           >
@@ -308,7 +707,9 @@
                   margin-bottom: 6px;
                 "
               >
-                <b style="font-size: 13.5px; color: #1e293b">{{ formatCategoryLabel(driverKey) }}</b>
+                <b style="font-size: 13.5px; color: #1e293b">{{
+                  formatCategoryLabel(driverKey)
+                }}</b>
                 <div>
                   <span
                     class="status-badge"
@@ -347,71 +748,135 @@
         <!-- Regional Interpretation -->
         <div class="pblock" v-if="store.diagnosis.data.regional_interpretation">
           <h3><span class="bar" style="background: var(--melanin)"></span>Regional Distribution</h3>
-          
+
           <!-- High-level Distribution Info -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div class="vbox" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 10px;">
-              <div class="lab" style="font-size: 10px; color: #64748b;">Overall Distribution</div>
-              <div style="font-weight: 600; font-size: 13px; margin-top: 2px;">
-                {{ formatCategoryLabel(store.diagnosis.data.regional_interpretation.overall_distribution) }}
+          <div
+            style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px"
+          >
+            <div class="vbox" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 10px">
+              <div class="lab" style="font-size: 10px; color: #64748b">Overall Distribution</div>
+              <div style="font-weight: 600; font-size: 13px; margin-top: 2px">
+                {{
+                  formatCategoryLabel(
+                    store.diagnosis.data.regional_interpretation.overall_distribution,
+                  )
+                }}
               </div>
             </div>
-            
-            <div class="vbox" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 10px;">
-              <div class="lab" style="font-size: 10px; color: #64748b;">Symmetry Profile</div>
-              <div style="font-weight: 600; font-size: 13px; margin-top: 2px;">
+
+            <div class="vbox" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 10px">
+              <div class="lab" style="font-size: 10px; color: #64748b">Symmetry Profile</div>
+              <div style="font-weight: 600; font-size: 13px; margin-top: 2px">
                 {{ formatCategoryLabel(store.diagnosis.data.regional_interpretation.symmetry) }}
               </div>
             </div>
           </div>
-          
-          <div class="vbox q-mb-md" style="border: 1px solid #e2e8f0; background: #ffffff; padding: 12px;">
-            <div class="lab" style="font-size: 10px; color: #64748b; margin-bottom: 4px;">Dominant Areas</div>
-            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-              <span 
-                v-for="region in store.diagnosis.data.regional_interpretation.dominant_regions" 
+
+          <div
+            class="vbox q-mb-md"
+            style="border: 1px solid #e2e8f0; background: #ffffff; padding: 12px"
+          >
+            <div class="lab" style="font-size: 10px; color: #64748b; margin-bottom: 4px">
+              Dominant Areas
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px">
+              <span
+                v-for="region in store.diagnosis.data.regional_interpretation.dominant_regions"
                 :key="region"
-                style="background: #e0f2fe; color: #0369a1; font-weight: 600; font-size: 11px; padding: 2px 8px; border-radius: 4px;"
+                style="
+                  background: #e0f2fe;
+                  color: #0369a1;
+                  font-weight: 600;
+                  font-size: 11px;
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                "
               >
                 {{ formatCategoryLabel(region) }}
               </span>
             </div>
-            <div style="font-size: 12.5px; color: #475569; margin-top: 8px; line-height: 1.4;">
+            <div style="font-size: 12.5px; color: #475569; margin-top: 8px; line-height: 1.4">
               <b>Summary:</b> {{ store.diagnosis.data.regional_interpretation.patient_summary }}
             </div>
           </div>
 
           <!-- Regions Breakdown Cards Grid -->
-          <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
-            <div 
-              v-for="region in store.diagnosis.data.regional_interpretation.regions" 
+          <div style="display: grid; grid-template-columns: 1fr; gap: 10px">
+            <div
+              v-for="region in store.diagnosis.data.regional_interpretation.regions"
               :key="region.region"
-              style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; background: #ffffff;"
+              style="
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                padding: 12px;
+                background: #ffffff;
+              "
             >
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <strong style="color: #1e293b; font-size: 13px;">{{ formatCategoryLabel(region.region) }}</strong>
-                <span 
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 6px;
+                "
+              >
+                <strong style="color: #1e293b; font-size: 13px">{{
+                  formatCategoryLabel(region.region)
+                }}</strong>
+                <span
                   class="status-badge"
                   :style="{
                     fontSize: '10px',
                     padding: '2px 6px',
                     borderRadius: '4px',
                     fontWeight: 'bold',
-                    background: region.support_level.includes('strongly') ? '#dcfce7' : region.support_level.includes('moderately') ? '#fef3c7' : '#f1f5f9',
-                    color: region.support_level.includes('strongly') ? '#15803d' : region.support_level.includes('moderately') ? '#b45309' : '#475569'
+                    background: region.support_level.includes('strongly')
+                      ? '#dcfce7'
+                      : region.support_level.includes('moderately')
+                        ? '#fef3c7'
+                        : '#f1f5f9',
+                    color: region.support_level.includes('strongly')
+                      ? '#15803d'
+                      : region.support_level.includes('moderately')
+                        ? '#b45309'
+                        : '#475569',
                   }"
                 >
                   {{ formatCategoryLabel(region.support_level) }}
                 </span>
               </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
-                <div style="border-right: 1px solid #f1f5f9; padding-right: 10px;">
-                  <div style="color: #64748b; font-size: 10px; font-weight: bold; text-transform: uppercase;">Patient Description</div>
-                  <div style="color: #475569; margin-top: 2px; line-height: 1.4;">{{ region.patient_description }}</div>
+              <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px"
+              >
+                <div style="border-right: 1px solid #f1f5f9; padding-right: 10px">
+                  <div
+                    style="
+                      color: #64748b;
+                      font-size: 10px;
+                      font-weight: bold;
+                      text-transform: uppercase;
+                    "
+                  >
+                    Patient Description
+                  </div>
+                  <div style="color: #475569; margin-top: 2px; line-height: 1.4">
+                    {{ region.patient_description }}
+                  </div>
                 </div>
                 <div>
-                  <div style="color: #64748b; font-size: 10px; font-weight: bold; text-transform: uppercase;">Clinical Findings</div>
-                  <div style="color: #1e293b; margin-top: 2px; line-height: 1.4;">{{ region.clinical_interpretation }}</div>
+                  <div
+                    style="
+                      color: #64748b;
+                      font-size: 10px;
+                      font-weight: bold;
+                      text-transform: uppercase;
+                    "
+                  >
+                    Clinical Findings
+                  </div>
+                  <div style="color: #1e293b; margin-top: 2px; line-height: 1.4">
+                    {{ region.clinical_interpretation }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -419,32 +884,121 @@
         </div>
 
         <!-- Patient-Facing Components -->
-        <div class="pblock" v-if="store.diagnosis.data.patient_facing_components">
-          <h3><span class="bar" style="background: var(--teal)"></span>Patient-Facing Explanations</h3>
-          <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
-            <div 
-              v-for="comp in store.diagnosis.data.patient_facing_components" 
-              :key="comp.component"
-              style="border: 1px solid #ccfbf1; border-radius: 8px; overflow: hidden; background: #ffffff;"
-            >
-              <!-- Component Header -->
-              <div style="background: #f0fdfa; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ccfbf1;">
-                <span style="font-weight: bold; font-size: 13px; color: #0f766e;">{{ comp.title }}</span>
-                <span style="font-size: 11px; color: #14b8a6; font-weight: 500;">
-                  {{ formatCategoryLabel(comp.support_level) }} ({{ comp.confidence_100 }}%)
-                </span>
-              </div>
-              <!-- Component Body -->
-              <div style="padding: 12px; font-size: 12.5px; line-height: 1.45;">
-                <div style="color: #334155; margin-bottom: 8px;">
-                  {{ comp.explanation }}
+        <div
+          class="pblock"
+          v-if="
+            store.diagnosis.data.patient_facing_components ||
+            store.diagnosis.data.diagnostic_components?.length
+          "
+        >
+          <h3>
+            <span class="bar" style="background: var(--teal)"></span>Patient-Facing Explanations
+          </h3>
+          <div style="display: grid; grid-template-columns: 1fr; gap: 12px">
+            <!-- Render V2 Diagnostic Components patient explanation -->
+            <template v-if="store.diagnosis.data.diagnostic_components?.length">
+              <div
+                v-for="comp in store.diagnosis.data.diagnostic_components"
+                :key="comp.diagnostic_component_id"
+                style="
+                  border: 1px solid #ccfbf1;
+                  border-radius: 8px;
+                  overflow: hidden;
+                  background: #ffffff;
+                "
+              >
+                <!-- Component Header -->
+                <div
+                  style="
+                    background: #f0fdfa;
+                    padding: 10px 14px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid #ccfbf1;
+                  "
+                >
+                  <span style="font-weight: bold; font-size: 13px; color: #0f766e">{{
+                    comp.patient_title || formatCategoryLabel(comp.family)
+                  }}</span>
+                  <span style="font-size: 11px; color: #14b8a6; font-weight: 500">
+                    {{ formatCategoryLabel(comp.diagnostic_status) }} ({{ comp.confidence_100 }}%)
+                  </span>
                 </div>
-                <!-- Implication Box -->
-                <div style="background: #f8fafc; border-left: 3px solid #14b8a6; padding: 8px 12px; border-radius: 0 4px 4px 0; font-size: 12px; color: #0f766e;">
-                  <strong>Treatment Implication:</strong> {{ comp.treatment_meaning }}
+                <!-- Component Body -->
+                <div style="padding: 12px; font-size: 12.5px; line-height: 1.45">
+                  <div style="color: #334155; margin-bottom: 8px">
+                    {{ comp.patient_explanation }}
+                  </div>
+                  <!-- Implication Box -->
+                  <div
+                    style="
+                      background: #f8fafc;
+                      border-left: 3px solid #14b8a6;
+                      padding: 8px 12px;
+                      border-radius: 0 4px 4px 0;
+                      font-size: 12px;
+                      color: #0f766e;
+                    "
+                  >
+                    <strong>Treatment Implication:</strong>
+                    {{ formatCategoryLabel(comp.direct_cosmetic_treatment_status) }}
+                  </div>
                 </div>
               </div>
-            </div>
+            </template>
+
+            <!-- Legacy Patient-Facing Explanations -->
+            <template v-else>
+              <div
+                v-for="comp in store.diagnosis.data.patient_facing_components"
+                :key="comp.component"
+                style="
+                  border: 1px solid #ccfbf1;
+                  border-radius: 8px;
+                  overflow: hidden;
+                  background: #ffffff;
+                "
+              >
+                <!-- Component Header -->
+                <div
+                  style="
+                    background: #f0fdfa;
+                    padding: 10px 14px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid #ccfbf1;
+                  "
+                >
+                  <span style="font-weight: bold; font-size: 13px; color: #0f766e">{{
+                    comp.title
+                  }}</span>
+                  <span style="font-size: 11px; color: #14b8a6; font-weight: 500">
+                    {{ formatCategoryLabel(comp.support_level) }} ({{ comp.confidence_100 }}%)
+                  </span>
+                </div>
+                <!-- Component Body -->
+                <div style="padding: 12px; font-size: 12.5px; line-height: 1.45">
+                  <div style="color: #334155; margin-bottom: 8px">
+                    {{ comp.explanation }}
+                  </div>
+                  <!-- Implication Box -->
+                  <div
+                    style="
+                      background: #f8fafc;
+                      border-left: 3px solid #14b8a6;
+                      padding: 8px 12px;
+                      border-radius: 0 4px 4px 0;
+                      font-size: 12px;
+                      color: #0f766e;
+                    "
+                  >
+                    <strong>Treatment Implication:</strong> {{ comp.treatment_meaning }}
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -717,52 +1271,9 @@
           </div>
         </div>
 
-        <!-- confirmed working dx selection -->
-        <div class="pblock" id="confirmDxBlock">
-          <h3><span class="bar"></span>Confirm working diagnosis</h3>
-          <p class="note" style="margin-bottom: 11px">
-            The plan is built on whatever you confirm here. Change it if your clinical judgement
-            differs from the AI.
-          </p>
-
-          <div class="fgrid">
-            <div class="field full">
-              <label>Working diagnosis</label>
-              <select v-model="selectedDxChoice">
-                <option v-for="opt in dxSelectOptions" :key="opt.value" :value="opt.value">
-                  {{ opt.label }}
-                </option>
-              </select>
-            </div>
-
-            <div class="field full" v-if="selectedDxChoice === '__custom__'">
-              <label>Custom diagnosis</label>
-              <input v-model="customDxValue" placeholder="Enter the working diagnosis" />
-            </div>
-          </div>
-
-          <button
-            class="btn btn-primary"
-            style="margin-top: 12px"
-            @click="confirmDxSelection"
-            v-if="!store.diagnosis.confirmedDx"
-          >
-            ✓ Confirm working diagnosis
-          </button>
-
-          <div
-            class="stamp ok show"
-            v-if="store.diagnosis.confirmedDx"
-            id="dxStamp"
-            style="margin-top: 12px"
-          >
-            <b>✓ Working diagnosis confirmed:</b> {{ store.diagnosis.confirmedDx }}
-            <div style="margin-top: 12px">
-              <button class="btn btn-primary" @click="confirmAndGoToPlan">
-                Continue to plan →
-              </button>
-            </div>
-          </div>
+        <!-- Doctor Diagnosis Confirmation Panel -->
+        <div class="pblock">
+          <DoctorClassificationPanel @continue="confirmAndGoToPlan" />
         </div>
       </div>
     </div>
@@ -774,6 +1285,7 @@ import { ref, computed, onMounted } from 'vue'
 import { usePigmentationStore } from 'src/stores/pigmentationStore'
 import { api } from 'src/boot/axios'
 import { Loading, Notify } from 'quasar'
+import DoctorClassificationPanel from './DoctorClassificationPanel.vue'
 
 const store = usePigmentationStore()
 
@@ -783,10 +1295,6 @@ onMounted(async () => {
   }
 })
 const validationError = ref('')
-const selectedDxChoice = ref(
-  store.diagnosis?.confirmedDx || store.diagnosis?.data?.working_impression?.primary_category || store.diagnosis?.data?.differential?.primary?.dx || '',
-)
-const customDxValue = ref('')
 
 const runGenerateDx = async () => {
   validationError.value = ''
@@ -808,13 +1316,6 @@ const runGenerateDx = async () => {
 
   try {
     await store.generateDx()
-
-    // Set default choice in select options
-    if (store.diagnosis?.data?.working_impression?.primary_category) {
-      selectedDxChoice.value = store.diagnosis.data.working_impression.primary_category
-    } else if (store.diagnosis?.data?.differential?.primary?.dx) {
-      selectedDxChoice.value = store.diagnosis.data.differential.primary.dx
-    }
   } catch (err) {
     validationError.value = err.message || 'API connection failed.'
   }
@@ -824,7 +1325,9 @@ const formatCategoryLabel = (val) => {
   if (!val) return ''
   if (typeof val !== 'string') {
     if (typeof val === 'object') {
-      return formatCategoryLabel(val.label || val.name || val.category || val.title || JSON.stringify(val))
+      return formatCategoryLabel(
+        val.label || val.name || val.category || val.title || JSON.stringify(val),
+      )
     }
     val = String(val)
   }
@@ -832,60 +1335,6 @@ const formatCategoryLabel = (val) => {
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .replace(/Pih/g, 'PIH')
-}
-
-// Working Dx selections
-const dxSelectOptions = computed(() => {
-  if (!store.diagnosis?.data) return []
-  const impression = store.diagnosis.data.working_impression
-  const primary = impression?.primary_category
-  const secondaries = impression?.secondary_categories || []
-
-  const list = []
-  if (primary) {
-    list.push({ value: primary, label: formatCategoryLabel(primary) })
-  }
-  secondaries.forEach((sec) => {
-    const categoryName = typeof sec === 'object' && sec ? sec.category || '' : String(sec || '')
-    // Strip any severity prefix from secondary categories to match allowed values if necessary
-    const cleanedSec = categoryName.replace(/^(mild|moderate|severe)_/, '')
-    if (cleanedSec && cleanedSec !== primary && !list.some((i) => i.value === cleanedSec)) {
-      list.push({ value: cleanedSec, label: formatCategoryLabel(categoryName) })
-    }
-  })
-
-  // Predefined allowed categories for fallback
-  const allCategories = [
-    'tanning_diffuse_pigmentation',
-    'melasma_like_pigmentation',
-    'pih_acne_marks',
-    'perioral_pigmentation',
-    'periocular_pigmentation',
-    'mixed_facial_pigmentation',
-    'frictional_body_fold_pigmentation',
-    'isolated_spot_doctor_review',
-    'active_inflammatory_pigmentation',
-    'unclear_doctor_review',
-  ]
-
-  allCategories.forEach((cat) => {
-    if (cat !== primary && !list.some((i) => i.value === cat)) {
-      list.push({ value: cat, label: formatCategoryLabel(cat) })
-    }
-  })
-
-  list.push({ value: '__custom__', label: 'Other (type below)…' })
-  return list
-})
-
-const confirmDxSelection = () => {
-  const chosen =
-    selectedDxChoice.value === '__custom__' ? customDxValue.value.trim() : selectedDxChoice.value
-  if (!chosen) {
-    alert('Enter or pick a working diagnosis first.')
-    return
-  }
-  store.confirmDx(chosen)
 }
 
 const confirmAndGoToPlan = async () => {
@@ -900,12 +1349,9 @@ const confirmAndGoToPlan = async () => {
 const downloadDiagnosisReport = async () => {
   Loading.show({ message: 'Downloading diagnosis report...' })
   try {
-    const response = await api.get(
-      `download-pigmentation-report/diagnosis/${store.id}`,
-      {
-        responseType: 'blob',
-      },
-    )
+    const response = await api.get(`download-pigmentation-report/diagnosis/${store.id}`, {
+      responseType: 'blob',
+    })
 
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
@@ -929,6 +1375,26 @@ const downloadDiagnosisReport = async () => {
   }
 }
 
+const melaninPercent = computed(() => {
+  if (store.diagnosis?.data?.scores?.composition_melanin_percent !== undefined) {
+    return store.diagnosis.data.scores.composition_melanin_percent
+  }
+  if (store.formData.comp === 'melanin') return 100
+  if (store.formData.comp === 'vascular') return 0
+  if (store.formData.comp === 'mixed') return 50
+  return 0
+})
+
+const vascularPercent = computed(() => {
+  if (store.diagnosis?.data?.scores?.composition_vascular_percent !== undefined) {
+    return store.diagnosis.data.scores.composition_vascular_percent
+  }
+  if (store.formData.comp === 'melanin') return 0
+  if (store.formData.comp === 'vascular') return 100
+  if (store.formData.comp === 'mixed') return 50
+  return 0
+})
+
 // Style helpers
 const cap = (s) => {
   const str = String(s || '')
@@ -947,5 +1413,131 @@ const getCompClass = (val) => {
   if (v.includes('melanin')) return 'melanin'
   if (v.includes('vascular')) return 'vascular'
   return ''
+}
+
+const scoreList = computed(() => {
+  if (store.diagnosis?.data?.score_list?.length) {
+    return store.diagnosis.data.score_list
+  }
+
+  // Fallback for older schemas
+  const fallback = []
+
+  const mli =
+    store.diagnosis?.data?.immutable_image_metrics?.global_background_melanin_load_index ||
+    store.formData.mel ||
+    store.diagnosis?.data?.pigmentation_profile?.melanin_load_index
+  if (mli !== undefined && mli !== null) {
+    fallback.push({
+      name: 'Melanin Load Index',
+      value: String(mli),
+      scale: '0–100',
+      interpretation: Number(mli) > 40 ? 'elevated' : 'mild/moderate',
+    })
+  }
+
+  const eli =
+    store.diagnosis?.data?.immutable_image_metrics?.global_background_erythema_load_index ||
+    store.formData.ery ||
+    store.diagnosis?.data?.pigmentation_profile?.erythema_load_index
+  if (eli !== undefined && eli !== null) {
+    fallback.push({
+      name: 'Erythema Load Index',
+      value: String(eli),
+      scale: '0–100',
+      interpretation: Number(eli) > 40 ? 'elevated' : 'mild/moderate',
+    })
+  }
+
+  const melPct = melaninPercent.value
+  fallback.push({
+    name: 'Composition Melanin %',
+    value: String(melPct),
+    scale: '0–100',
+    interpretation: melPct > 60 ? 'elevated' : 'mild/moderate',
+  })
+
+  const vasPct = vascularPercent.value
+  fallback.push({
+    name: 'Composition Vascular %',
+    value: String(vasPct),
+    scale: '0–100',
+    interpretation: vasPct > 40 ? 'elevated' : 'mild/moderate',
+  })
+
+  const risk = store.diagnosis?.data?.risk_profile
+  if (risk) {
+    if (risk.recurrence_risk) {
+      fallback.push({
+        name: 'Recurrence Risk Score',
+        value:
+          risk.recurrence_risk === 'high'
+            ? '70'
+            : risk.recurrence_risk === 'moderate'
+              ? '50'
+              : '25',
+        scale: '0–100',
+        interpretation: risk.recurrence_risk,
+      })
+    }
+    if (risk.procedure_risk) {
+      fallback.push({
+        name: 'Procedure Risk Score',
+        value:
+          risk.procedure_risk === 'high' ? '70' : risk.procedure_risk === 'moderate' ? '50' : '25',
+        scale: '0–100',
+        interpretation: risk.procedure_risk,
+      })
+    }
+    if (risk.sunscreen_compliance_risk) {
+      fallback.push({
+        name: 'Sunscreen Compliance Score',
+        value:
+          risk.sunscreen_compliance_risk === 'high'
+            ? '30'
+            : risk.sunscreen_compliance_risk === 'moderate'
+              ? '50'
+              : '85',
+        scale: '0–100',
+        interpretation: risk.sunscreen_compliance_risk,
+      })
+    }
+  }
+
+  const components = store.diagnosis?.data?.diagnostic_components || []
+  if (components.length) {
+    const avgConf = Math.round(
+      components.reduce((sum, c) => sum + (c.confidence_100 || 80), 0) / components.length,
+    )
+    fallback.push({
+      name: 'Diagnosis Confidence Score',
+      value: String(avgConf),
+      scale: '0–100',
+      interpretation: avgConf > 70 ? 'elevated' : 'mild/moderate',
+    })
+  }
+
+  return fallback
+})
+
+const getScoreColor = (name, value) => {
+  const n = String(name).toLowerCase()
+  const val = Number(value)
+  if (n.includes('melanin')) return 'var(--melanin, #854d0e)'
+  if (n.includes('erythema') || n.includes('vascular')) return 'var(--erythema, #e11d48)'
+  if (n.includes('procedure risk')) return val > 50 ? '#e11d48' : '#0d9488'
+  if (n.includes('recurrence')) return val > 50 ? '#ea580c' : '#0d9488'
+  if (n.includes('sunscreen')) return val < 50 ? '#ea580c' : '#0d9488'
+  if (n.includes('confidence')) return val > 75 ? '#0d9488' : '#64748b'
+  return '#1e293b'
+}
+
+const getInterpretationColor = (interpretation) => {
+  const interp = String(interpretation || '').toLowerCase()
+  if (interp.includes('elevated') || interp.includes('high')) return '#e11d48'
+  if (interp.includes('moderate') || interp.includes('mild/moderate')) return '#d97706'
+  if (interp.includes('low') || interp.includes('optimal') || interp.includes('good'))
+    return '#0d9488'
+  return '#64748b'
 }
 </script>

@@ -260,16 +260,12 @@
           <div class="card-title">
             <h3>What OpenAI read from the images</h3>
             <span class="meta" id="aiReadConf">
-              {{
-                store.aiAnalysis?.data?.skin_type?.confidence
-                  ? store.aiAnalysis.data.skin_type.confidence + ' confidence'
-                  : 'analyse to fill'
-              }}
+              {{ formattedConfidence ? formattedConfidence + ' confidence' : 'analyse to fill' }}
             </span>
           </div>
 
           <div id="aiReadBody" v-if="store.aiAnalysis">
-            <div class="airead-line" v-if="store.aiAnalysis.data.provisional_conditions?.length">
+            <div class="airead-line" v-if="formattedConditions">
               <span class="k">Provisional</span>
               <span class="v">
                 {{ formattedConditions }}
@@ -962,8 +958,24 @@ const handleFiles = async (filesList) => {
     }
   }
 }
-
-const removeImage = (idx) => {
+const removeImage = async (idx) => {
+  const img = store.attachedImages[idx]
+  if (img && img.id && store.id) {
+    try {
+      await api.delete(`/assessments/${store.id}/images/${img.id}/pigmentation-pre`)
+      Notify.create({
+        type: 'positive',
+        message: 'Image deleted from server successfully',
+      })
+    } catch (e) {
+      console.error('Failed to delete image from server:', e)
+      Notify.create({
+        type: 'negative',
+        message: 'Failed to delete image from server. Please try again.',
+      })
+      return
+    }
+  }
   store.attachedImages.splice(idx, 1)
 }
 
@@ -1035,6 +1047,25 @@ const getQuestionOptions = (id) => {
   return q ? q.options : []
 }
 
+const formattedConfidence = computed(() => {
+  if (!store.aiAnalysis?.data) return ''
+  const data = store.aiAnalysis.data
+
+  const gi = data.global_background_indices || data.global_indices
+  if (gi?.estimated_fitzpatrick) {
+    const ef = gi.estimated_fitzpatrick
+    if (ef.confidence_100) return `${ef.confidence_100}%`
+    if (ef.confidence) return `${Math.round(ef.confidence * 100)}%`
+  }
+
+  if (data.skin_type?.confidence) {
+    const c = String(data.skin_type.confidence)
+    return c.includes('%') ? c : `${parseFloat(c) * 100}%`
+  }
+
+  return ''
+})
+
 const formattedConditions = computed(() => {
   if (!store.aiAnalysis?.data) return ''
   const data = store.aiAnalysis.data
@@ -1043,7 +1074,7 @@ const formattedConditions = computed(() => {
     return data.pattern_hypotheses_from_images
       .map(
         (p) =>
-          `${p.pattern.replace(/_/g, ' ')}${p.image_confidence ? ' (' + Math.round(p.image_confidence * 100) + '%)' : ''}`,
+          `${(p.family || p.pattern || '').replace(/_/g, ' ')}${p.image_confidence_100 ? ' (' + p.image_confidence_100 + '%)' : p.image_confidence ? ' (' + Math.round(p.image_confidence * 100) + '%)' : ''}`,
       )
       .join(' · ')
   }
@@ -1061,8 +1092,8 @@ const formattedDistribution = computed(() => {
   if (!store.aiAnalysis?.data) return ''
   const data = store.aiAnalysis.data
   if (data.distribution_summary) {
-    const gd = data.distribution_summary.global_distribution || ''
-    const sym = data.distribution_summary.symmetry || ''
+    const gd = data.distribution_summary.global_background_distribution || data.distribution_summary.global_distribution || ''
+    const sym = data.distribution_summary.distributional_symmetry || data.distribution_summary.symmetry || ''
     return [gd, sym]
       .filter(Boolean)
       .map((x) => x.replace(/_/g, ' '))
@@ -1075,6 +1106,18 @@ const formattedFeatures = computed(() => {
   if (!store.aiAnalysis?.data) return []
   const data = store.aiAnalysis.data
   if (Array.isArray(data.observed_features)) return data.observed_features
+
+  // Support V2 morphology groups
+  if (Array.isArray(data.morphology_groups)) {
+    const list = []
+    data.morphology_groups.forEach((g) => {
+      if (g.morphology) {
+        const regionsStr = Array.isArray(g.regions) ? g.regions.map(r => r.replace(/_/g, ' ')).join('/') : ''
+        list.push(`${regionsStr || 'lesion'}: ${g.morphology.replace(/_/g, ' ')} (${g.colour_description || g.surface || ''})`)
+      }
+    })
+    if (list.length > 0) return list
+  }
 
   if (data.regional_analysis) {
     const list = []
@@ -1091,6 +1134,20 @@ const formattedFeatures = computed(() => {
 const formattedRedFlags = computed(() => {
   if (!store.aiAnalysis?.data) return null
   const data = store.aiAnalysis.data
+
+  // Support V2 morphology groups flagged for review
+  if (Array.isArray(data.morphology_groups)) {
+    const flagged = data.morphology_groups.filter((g) => g.doctor_review_required)
+    if (flagged.length > 0) {
+      return {
+        present: true,
+        items: flagged.map(
+          (g) =>
+            `${g.regions?.map((r) => r.replace(/_/g, ' ')).join('/') || 'Focal lesion'}: ${g.subregion_description || 'Doctor review required'}`,
+        ),
+      }
+    }
+  }
 
   if (data.special_findings?.isolated_lesion_review) {
     const r = data.special_findings.isolated_lesion_review
@@ -1125,10 +1182,15 @@ const fitzHint = computed(() => {
   if (!store.aiAnalysis?.data) return 'Confirm with burn/tan history.'
   const data = store.aiAnalysis.data
 
-  if (data.global_indices?.estimated_fitzpatrick) {
-    const ef = data.global_indices.estimated_fitzpatrick
+  const gi = data.global_background_indices || data.global_indices
+  if (gi?.estimated_fitzpatrick) {
+    const ef = gi.estimated_fitzpatrick
     const type = ef.type || ''
-    const conf = ef.confidence ? ` · ${Math.round(ef.confidence * 100)}% confidence` : ''
+    const conf = ef.confidence_100
+      ? ` · ${ef.confidence_100}% confidence`
+      : ef.confidence
+        ? ` · ${Math.round(ef.confidence * 100)}% confidence`
+        : ''
     return `AI: ${type.replace(/_/g, ' ')}${conf} — confirm with burn/tan history.`
   }
 

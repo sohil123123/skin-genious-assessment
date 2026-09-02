@@ -2,153 +2,214 @@ import { Notify, Loading } from 'quasar'
 import { api } from 'src/boot/axios'
 import config from 'src/config.js'
 
-// Response Examples
+// Existing non-pigmentation test-mode fixtures.
 import ivScore from 'src/response-examples/iv-score.json'
 import clinicalScore from 'src/response-examples/clinical-score.json'
 import treatmentPlan from 'src/response-examples/treatment-plans.json'
 import nurseRunSheet from 'src/response-examples/nurse-runsheet-single-session.json'
 import nurseRunSheetMulti from 'src/response-examples/nurse-runsheet-multi-session.json'
 
-export function useOpenAI() {
-  // 🧠 1. Get or create conversation
-  const getOrCreateConversation = async (pid, convId, name, assessmentId) => {
-    try {
-      let id = convId
-      if (id) return id
+const DEFAULT_MODEL = import.meta.env.VITE_OPENAI_MODEL || 'gpt-5.2'
+const DEFAULT_TIMEOUT_MS = 600_000
+const DEFAULT_CACHE_KEY = 'ai-aesthetics-assessment-key-v2-6'
+const VALID_REASONING = new Set(['none', 'low', 'medium', 'high', 'xhigh'])
 
-      const res = await api.post(`ai/conversations`, {
-        patient_id: pid,
-        patient_name: name,
-        assessment_id: `${assessmentId}`,
-      })
+function isObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
 
-      const data = res.data
-      if (!data || !data.id) {
-        throw new Error(`Conversation creation failed: ${JSON.stringify(data)}`)
+function messageFromError(error) {
+  return (
+    error?.response?.data?.error?.message ||
+    error?.response?.data?.message ||
+    error?.error?.message ||
+    error?.message ||
+    'Error generating AI response'
+  )
+}
+
+function createRequestId() {
+  const suffix =
+    typeof globalThis?.crypto?.randomUUID === 'function'
+      ? globalThis.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `ai-${suffix}`.slice(0, 250)
+}
+
+function normalizeMetadata(metadata) {
+  if (!isObject(metadata)) return undefined
+  const entries = Object.entries(metadata)
+    .filter(([key, value]) => key && value !== undefined && value !== null)
+    .slice(0, 16)
+    .map(([key, value]) => [String(key).slice(0, 64), String(value).slice(0, 512)])
+  return entries.length ? Object.fromEntries(entries) : undefined
+}
+
+function parseJsonIfPossible(value) {
+  if (value && typeof value === 'object') return value
+  if (typeof value !== 'string') return value
+  const text = value
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim()
+  try {
+    return JSON.parse(text)
+  } catch {
+    return value
+  }
+}
+
+function collectOutputText(data) {
+  if (typeof data?.output_text === 'string' && data.output_text.trim()) {
+    return data.output_text.trim()
+  }
+
+  const chunks = []
+  const refusals = []
+  for (const item of Array.isArray(data?.output) ? data.output : []) {
+    for (const part of Array.isArray(item?.content) ? item.content : []) {
+      if (part?.type === 'refusal' && typeof part.refusal === 'string') {
+        refusals.push(part.refusal)
+      } else if (typeof part?.text === 'string' && part.text.trim()) {
+        chunks.push(part.text.trim())
       }
-
-      return data.id
-    } catch (err) {
-      console.error(err)
-      Notify.create({
-        type: 'negative',
-        message: err.message || 'Failed to create conversation',
-      })
-      throw err
     }
   }
 
-  // 💬 2. Run response (send message + get reply)
-  const runResponse = async (convId, input, MODEL = 'gpt-5.2') => {
-    // --- TEST MODE INTERCEPTION ---
+  if (!chunks.length && refusals.length) {
+    throw new Error(`The AI declined the request: ${refusals.join(' ')}`)
+  }
+  return [...new Set(chunks)].join('\n').trim()
+}
+
+function readResponse(raw) {
+  const data = raw?.response?.output ? raw.response : raw?.data?.output ? raw.data : raw
+  if (!isObject(data) || (!Array.isArray(data.output) && typeof data.output_text !== 'string')) {
+    return parseJsonIfPossible(data)
+  }
+
+  if (data.status === 'incomplete') {
+    const reason = data?.incomplete_details?.reason || 'unknown_reason'
+    const error = new Error(`The AI response was incomplete: ${reason}.`)
+    error.code = 'response_incomplete'
+    error.incomplete_reason = reason
+    error.response_id = data.id || null
+    error.usage = data.usage || null
+    throw error
+  }
+  if (data.status === 'failed' || data.status === 'cancelled') {
+    throw new Error(data?.error?.message || `The AI response ${data.status}.`)
+  }
+  if (data.status === 'queued' || data.status === 'in_progress') {
+    throw new Error(`The backend returned an AI response that is still ${data.status}.`)
+  }
+
+  const text = collectOutputText(data)
+  if (!text) throw new Error('The AI response contained no output text.')
+  return parseJsonIfPossible(text)
+}
+
+function buildRequestBody(convId, input, model, options) {
+  const useConversation = options.use_conversation === true
+  const body = {
+    model,
+    ...(useConversation && convId ? { conversation: convId } : {}),
+    input,
+    prompt_cache_key: options.prompt_cache_key || DEFAULT_CACHE_KEY,
+    prompt_cache_retention: options.prompt_cache_retention || '24h',
+  }
+
+  const maxTokens = Number(options.max_output_tokens ?? options.max_tokens)
+  if (Number.isInteger(maxTokens) && maxTokens > 0) body.max_output_tokens = maxTokens
+
+  const effort = String(options.reasoning_effort || options.reasoning?.effort || '').toLowerCase()
+  if (VALID_REASONING.has(effort)) body.reasoning = { effort }
+
+  const verbosity = String(options.verbosity || options.text?.verbosity || '').toLowerCase()
+  if (['low', 'medium', 'high'].includes(verbosity)) body.text = { verbosity }
+
+  const metadata = normalizeMetadata(options.metadata)
+  if (metadata) body.metadata = metadata
+
+  // Temperature is deliberately not sent for GPT-5 reasoning calls.
+  if (!/^gpt-5(?:\.|-|$)/i.test(model) && Number.isFinite(Number(options.temperature))) {
+    body.temperature = Number(options.temperature)
+  }
+
+  return body
+}
+
+export function useOpenAI() {
+  const getOrCreateConversation = async (pid, convId, name, assessmentId) => {
+    if (convId) return convId
+    const res = await api.post('ai/conversations', {
+      patient_id: pid,
+      patient_name: name,
+      assessment_id: `${assessmentId}`,
+    })
+    if (!res.data?.id) throw new Error('Conversation creation failed.')
+    return res.data.id
+  }
+
+  const runResponse = async (convId, input, MODEL = DEFAULT_MODEL, options = {}) => {
     if (config.is_test_mode) {
-      console.log('🚧 TEST MODE: Intercepting OpenAI Call')
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate network latency
-
       const inputStr = JSON.stringify(input)
-
-      // 1. IV SCORING STAGES Check
-      // Stage 1 (Analysing images)
-      if (inputStr.includes('Image 1 = UV MODE')) {
-        console.log('🚧 TEST MODE: Returning mock for IV Scoring Stage 1')
-        return { message: 'Stage 1 mock complete' } // Intermediate, just needs to return something
-      }
-      // Stage 2 (Refining analysis)
-      if (
-        inputStr.includes('Stage 1 mock complete') ||
-        inputStr.includes('"message":"Stage 1 mock complete"')
-      ) {
-        console.log('🚧 TEST MODE: Returning mock for IV Scoring Stage 2')
-        return { message: 'Stage 2 mock complete' }
-      }
-      // Stage 3 (Final Output Generation - Dermatological AI)
-      if (
-        inputStr.includes('Stage 2 mock complete') ||
-        inputStr.includes('"message":"Stage 2 mock complete"')
-      ) {
-        console.log('🚧 TEST MODE: Returning IV Score (Dermatological)', ivScore)
-        return ivScore
-      }
-
-      // 2. CLINICAL SCORING (Stage 4 / "generateIVScoring" / "Clinical Vitality Profiling")
-      // Check for iv_score content being passed or specific prompts
-      if (
-        inputStr.includes('AI_IV_ClinicalScoring') // from Stage 4 prompt if visible, but we rely on data passed
-      ) {
-        // This is likely the Clinical Scoring step because it usually receives the IV Score result
-        console.log('🚧 TEST MODE: Returning Clinical Score', clinicalScore)
-        return clinicalScore
-      }
-
-      // 3. TREATMENT GENERATION
-      if (
-        inputStr.includes('AI_IV_TreatmentGeneration') ||
-        inputStr.includes('AI_IV_TreatmentGeneration Engine v2.1')
-      ) {
-        console.log('🚧 TEST MODE: Returning Treatment Plan', treatmentPlan)
-        return treatmentPlan
-      }
-
-      // 4. NURSE RUN SHEET
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      if (inputStr.includes('Image 1 = UV MODE')) return { message: 'Stage 1 mock complete' }
+      if (inputStr.includes('Stage 1 mock complete')) return { message: 'Stage 2 mock complete' }
+      if (inputStr.includes('Stage 2 mock complete')) return ivScore
+      if (inputStr.includes('AI_IV_ClinicalScoring')) return clinicalScore
+      if (inputStr.includes('AI_IV_TreatmentGeneration')) return treatmentPlan
       if (inputStr.includes('Nurse Run Sheet') || inputStr.includes('clinic_sop_defaults')) {
-        if (inputStr.includes('P1-W') || inputStr.includes('plan_option')) {
-          console.log('🚧 TEST MODE: Returning Multi-Session Nurse Run Sheet', nurseRunSheetMulti)
-          return nurseRunSheetMulti
-        }
-        console.log('🚧 TEST MODE: Returning Nurse Run Sheet', nurseRunSheet)
-        return nurseRunSheet
+        return inputStr.includes('P1-W') ? nurseRunSheetMulti : nurseRunSheet
       }
-
-      // Default fallback if no match found
-      console.warn('🚧 TEST MODE: No specific mock matched. Returning empty object.')
       return {}
     }
 
-    // --- REAL API CALL ---
+    const requestId = createRequestId()
+    const body = buildRequestBody(convId, input, MODEL, options)
+
     try {
-      const body = {
-        model: MODEL,
-        conversation: convId,
-        input,
-        prompt_cache_retention: '24h',
-        prompt_cache_key: 'ai-aesthetics-assessment-key-v1-ai',
-      }
-
-      const res = await api.post(`ai/responses`, body)
-      const data = res.data
-      if (!data) return data
-
-      // Try to return the assistant's text output
-      // return data.output?.[0]?.content?.[0]?.text || JSON.stringify(data, null, 2)
-
-      const extractedText =
-        data.output?.[data.output?.length - 1]?.content?.[0]?.text || JSON.stringify(data, null, 2)
-
-      try {
-        const parsed = JSON.parse(extractedText)
-        console.log('AI Response: ', parsed)
-        return parsed
-      } catch (e) {
-        return {
-          error: e,
-        }
-      }
-    } catch (err) {
-      console.error(err)
-      Notify.create({
-        type: 'negative',
-        message: err.message || 'Error generating response',
+      const response = await api.post('ai/responses', body, {
+        timeout: Number(options.timeout_ms) || DEFAULT_TIMEOUT_MS,
+        headers: { 'X-Client-Request-Id': requestId },
       })
+      const result = readResponse(response.data)
+      const usage = response.data?.usage || response.data?.response?.usage || null
+      console.info('[useOpenAI] completed', {
+        requestId,
+        stage: options.metadata?.stage || null,
+        model: MODEL,
+        stateless: !body.conversation,
+        maxOutputTokens: body.max_output_tokens || null,
+        usage,
+      })
+      return result
+    } catch (error) {
+      const message = messageFromError(error)
+      console.error('[useOpenAI] response error', {
+        requestId,
+        stage: options.metadata?.stage || null,
+        message,
+        responseId: error?.response_id || null,
+        usage: error?.usage || null,
+      })
+      Notify.create({ type: 'negative', message })
       return {
-        error: err,
+        error: {
+          message,
+          status: error?.response?.status || null,
+          code: error?.code || null,
+          incomplete_reason: error?.incomplete_reason || null,
+          response_id: error?.response_id || null,
+          usage: error?.usage || null,
+        },
       }
     } finally {
       Loading.hide()
     }
   }
 
-  return {
-    getOrCreateConversation,
-    runResponse,
-  }
+  return { getOrCreateConversation, runResponse }
 }
