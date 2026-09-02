@@ -613,14 +613,25 @@ export const useIVAssessmentStore = defineStore('iv-assessment', {
       return file_id
     },
     async updateTreatmentSessionId(appointmentId) {
+      if (!appointmentId || appointmentId === 'null' || appointmentId === 'undefined' || appointmentId === '') {
+        console.warn('Cannot link appointment: invalid appointmentId:', appointmentId)
+        return false
+      }
+      const sessionId = this.treatment_session_id || this.formData.treatment_sessions?.treatments?.[0]?.id
+      console.log('updateTreatmentSessionId CALLED WITH:', appointmentId, 'session_id:', sessionId)
+      if (!sessionId) {
+        console.warn('Cannot link appointment: treatment_session_id is null')
+        return false
+      }
       try {
-        await api.post(`/appointments/update-treatment-session-id/${appointmentId}`, {
+        const response = await api.post(`/appointments/update-treatment-session-id/${appointmentId}`, {
           assessment_id: this.formData.id,
-          treatment_session_id: this.treatment_session_id,
+          treatment_session_id: sessionId,
         })
+        console.log('updateTreatmentSessionId RESPONSE:', response.data)
         return true
       } catch (e) {
-        console.log(e)
+        console.error('updateTreatmentSessionId ERROR:', e)
         return false
       }
     },
