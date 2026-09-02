@@ -182,7 +182,8 @@ export function useOpenAI() {
       let lastError = null
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const attemptTimeout = attempt === 0 ? timeoutMs : Math.min(timeoutMs * 1.5, DEFAULT_TIMEOUT_MS)
+          const attemptTimeout =
+            attempt === 0 ? timeoutMs : Math.min(timeoutMs * 1.5, DEFAULT_TIMEOUT_MS)
           const response = await api.post('ai/responses', body, {
             timeout: attemptTimeout,
             headers: { 'X-Client-Request-Id': `${requestId}-a${attempt}` },
