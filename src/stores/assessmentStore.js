@@ -224,13 +224,14 @@ export const useAssessmentStore = defineStore('assessment', {
     setData(data) {
       Object.assign(this.assessmentData, data)
     },
-    async storeFaceImages(file, assessment_type, session_id = null) {
+    async storeFaceImages(file, assessment_type, session_id = null, mode = null) {
       const formData = new FormData()
       const raw = file.__file || file
       if (raw instanceof File) {
         formData.append('image', raw)
       }
       formData.append('assessment_type', assessment_type)
+      if (mode) formData.append('mode', mode)
 
       const url = session_id 
         ? `treatment-sessions/${session_id}/images` 

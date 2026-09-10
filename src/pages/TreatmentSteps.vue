@@ -153,7 +153,7 @@
                 <q-card flat class="timer-card q-pa-lg full-height">
                   <TreatmentTimerV1
                     ref="timerRef"
-                    :duration="Number(step.duration.replace(/(mins|minutes)/g, '') * 60) || 0"
+                    :duration="(Number(step.duration_minutes) || Number.parseFloat(String(step.duration ?? '').replace(/(mins|minutes)/gi, '')) || 0) * 60"
                     @start="onTimerStart"
                     @finished="onTimerFinished"
                   />

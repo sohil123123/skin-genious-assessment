@@ -210,6 +210,27 @@ import reassessment from 'src/info/reassessment.json'
 const $q = useQuasar()
 const { getOrCreateConversation, runResponse } = useOpenAI()
 
+const FIVE_MODE_ORDER = [
+  'red',
+  'subsurface_polarized',
+  'surface_polarized',
+  'white',
+  'woods_uv',
+]
+
+const isFiveMode = (value = assessmentData.value?.face_scan_machine) =>
+  String(value ?? '').startsWith('5')
+
+const v34ErrorPayload = (error) => ({
+  error: {
+    message:
+      error?.response?.data?.error?.message ||
+      error?.response?.data?.message ||
+      error?.message ||
+      'Facial V3.4 request failed.',
+  },
+})
+
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
@@ -564,7 +585,7 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
 
       assessmentData.value.treatment_plans = apiResponse
       assessmentData.value.treatment_sessions = apiResponse.treatment_plan
-      await submit(['treatment_plans'])
+      await submit(['treatment_plans', 'selected_plan_type'])
       if (route.params.appointment_id)
         await store.updateTreatmentSessionId(route.params.appointment_id)
       goNext()
@@ -584,10 +605,13 @@ const renumberSteps = (plan) => {
 const updateTreatmentDurations = async (apiResponse) => {
   await Promise.all(
     apiResponse.treatment_plan.treatments.map(async (treatment) => {
-      const totalDuration = treatment.steps.reduce(
-        (sum, step) => sum + Number(step.duration || 0),
-        0,
-      )
+      const totalDuration = treatment.steps.reduce((sum, step) => {
+        const minutes =
+          Number(step.duration_minutes) ||
+          Number.parseFloat(String(step.duration ?? '').replace(/(mins|minutes)/gi, '')) ||
+          0
+        return sum + minutes
+      }, 0)
 
       treatment.treatment_time = totalDuration
       treatment.step_duration_total = totalDuration
@@ -602,10 +626,12 @@ const updateTreatmentDurations = async (apiResponse) => {
 
 async function uploadImageFileToOpenAI(files, type, session_id = null) {
   const uploaded = []
+  const fiveMode = isFiveMode()
 
-  for (const f of files) {
-    const fileId = await store.storeFaceImages(f, type, session_id)
-    uploaded.push({ type: 'input_image', file_id: fileId })
+  for (const [index, f] of files.entries()) {
+    const mode = fiveMode ? FIVE_MODE_ORDER[index] ?? null : null
+    const fileId = await store.storeFaceImages(f, type, session_id, mode)
+    uploaded.push({ type: 'input_image', file_id: fileId, ...(mode ? { mode } : {}) })
   }
 
   return uploaded
@@ -631,6 +657,31 @@ async function uploadImageFileToOpenAI(files, type, session_id = null) {
 
 // Placeholder API functions - replace with actual implementations
 async function callApiForDiagnosis(data, images) {
+  if (isFiveMode(data.face_scan_machine)) {
+    try {
+      processingMessage.value = 'Uploading five-mode images...'
+      await uploadImageFileToOpenAI(images, 'pre')
+
+      processingMessage.value = 'Running Facial Engine V3.4 assessment...'
+      const response = await api.post(`facial-v34/assessment/${data.id}`, {
+        stated_concerns: assessmentData.value.parameters_with_abnormal_scores ?? [],
+      })
+      const result = response.data?.results
+      if (!result?.diagnosis) {
+        throw new Error('V3.4 assessment returned no diagnosis payload.')
+      }
+
+      assessmentData.value.feature_packet = result.feature_packet
+      await submit(['feature_packet'])
+      console.log('✅ V3.4 Skin State:', result.skin_state)
+      console.log('✅ V3.4 Diagnosis Compatibility:', result.diagnosis)
+      return result.diagnosis
+    } catch (error) {
+      return v34ErrorPayload(error)
+    }
+  }
+
+
   // Convert all images to base64
 
   // const base64Images = await Promise.all(images.map((url) => imageToBase64(url)))
@@ -711,8 +762,68 @@ async function callApiForDiagnosis(data, images) {
 
   return result2
 }
-
 async function callApiForTreatmentPlan(selected, treatmentType) {
+  if (isFiveMode()) {
+    Loading.show({
+      spinner: QSpinnerFacebook,
+      spinnerColor: 'yellow',
+      backgroundColor: 'purple',
+      message: 'Generating V3.4 personalised treatment plan...',
+      messageColor: 'white',
+    })
+
+    const normalizedMode = treatmentType === 'full' ? 'multiple' : treatmentType
+    assessmentData.value.selected_plan_type = normalizedMode
+
+    const medicalHistoryText = JSON.stringify(assessmentData.value.medical_history ?? '').toLowerCase()
+    const patientHistory = {
+      age: assessmentData.value.age,
+      gender: assessmentData.value.gender,
+      daily_sun_exposure_hours: assessmentData.value.daily_sun_exposure_hours,
+      days_until_social_event: assessmentData.value.social_event,
+      days_until_travel: assessmentData.value.upcoming_travel,
+      medical_history: assessmentData.value.medical_history,
+      allergies: assessmentData.value.allergies,
+      pregnant: assessmentData.value.is_pregnant,
+      breastfeeding: assessmentData.value.breastfeeding,
+      diabetes: medicalHistoryText.includes('diabet'),
+      thyroid: medicalHistoryText.includes('thyroid'),
+      pcod: medicalHistoryText.includes('pcod') || medicalHistoryText.includes('pcos'),
+      on_blood_thinners:
+        medicalHistoryText.includes('blood thinner') || medicalHistoryText.includes('anticoag'),
+      laser_within_last_7_days: assessmentData.value.recent_peel_or_laser,
+      used_retinol_last_24_hours: assessmentData.value.retinol_used_last_night,
+      used_salicylic_yesterday: assessmentData.value.used_salicylic_yesterday ?? false,
+      used_glycolic_acid_yesterday: assessmentData.value.used_glycolic_yesterday ?? false,
+    }
+
+    const regionalTemperatures = {
+      forehead: Number(assessmentData.value.skin_temp_for_head),
+      left_cheek: Number(assessmentData.value.left_cheek_temp),
+      right_cheek: Number(assessmentData.value.right_cheek_temp),
+    }
+
+    try {
+      const response = await api.post(`facial-v34/treatment-plan/${assessmentData.value.id}`, {
+        treatment_mode: normalizedMode,
+        selected_concerns: selected,
+        patient_history: patientHistory,
+        regional_temperatures_c: regionalTemperatures,
+      })
+      const result = response.data?.results
+      if (!result?.treatment_plan?.treatments) {
+        throw new Error('V3.4 treatment engine returned no treatment sessions.')
+      }
+      console.log('🩺 V3.4 Treatment Plan:', result)
+      return result
+    } catch (error) {
+      return v34ErrorPayload(error)
+    } finally {
+      Loading.hide()
+    }
+  }
+
+
   // Implement ChatGPT API call here
   // Prompt example: "Generate treatment plan based on diagnosis: [JSON.stringify(input)], constraints: [paste DOCX content]"
 
@@ -791,8 +902,28 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
   console.log('🩺 Treatment plans:', result)
   return result
 }
-
 async function callApiForPostDiagnosis(data, images) {
+  if (isFiveMode(data.face_scan_machine)) {
+    try {
+      processingMessage.value = 'Uploading post-treatment five-mode images...'
+      await uploadImageFileToOpenAI(images, 'post', sessionId.value)
+
+      processingMessage.value = 'Running Facial Engine V3.4 reassessment...'
+      const response = await api.post(`facial-v34/reassessment/${data.id}`, {
+        treatment_session_id: sessionId.value,
+      })
+      const result = response.data?.results
+      if (!result?.post_diagnosis) {
+        throw new Error('V3.4 reassessment returned no post-diagnosis payload.')
+      }
+      console.log('✅ V3.4 Reassessment:', result.reassessment_result)
+      return result.post_diagnosis
+    } catch (error) {
+      return v34ErrorPayload(error)
+    }
+  }
+
+
   const convId = await getOrCreateConversation(
     `${data.user_id}`,
     data.conversation_id,
@@ -872,7 +1003,6 @@ Reference Scores: ${JSON.stringify(prevContext.scores)}`
   console.log('✅ Post Assessment Result:', result)
   return result
 }
-
 function finalizeAndExit() {
   $q.dialog({
     title: 'Confirm',
