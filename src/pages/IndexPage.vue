@@ -155,6 +155,12 @@
             @finalize_and_exit="finalizeAndExit"
           />
 
+          <CalibrationAuditV36
+            v-if="showCalibrationAudit"
+            :skin-state="assessmentData.diagnosis?.v3_4_skin_state"
+            :evidence="assessmentData.feature_packet"
+          />
+
           <!-- Navigation Buttons -->
           <div class="q-mt-lg flex justify-between" v-if="currentStep !== 'selection'">
             <q-btn color="black" label="Previous" :disable="isFirstStep" @click="goPrev" />
@@ -183,6 +189,7 @@
 
 <script setup>
 import { onMounted, ref, watch, computed } from 'vue'
+import CalibrationAuditV36 from './CalibrationAuditV36.vue'
 import PatientIntake from 'src/components/assessment/PatientIntake.vue'
 import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
 import DiagnosisComponent from 'src/components/assessment/DiagnosisComponent.vue'
@@ -236,6 +243,7 @@ const { assessmentData } = storeToRefs(store)
 
 const route = useRoute()
 const router = useRouter()
+const showCalibrationAudit = computed(() => process.env.DEV && route.query.calibration === '1')
 
 const sessionId = computed(() => route.query.session_id ? Number(route.query.session_id) : null)
 const currentSession = computed(() => {
@@ -662,7 +670,7 @@ async function callApiForDiagnosis(data, images) {
       processingMessage.value = 'Uploading five-mode images...'
       await uploadImageFileToOpenAI(images, 'pre')
 
-      processingMessage.value = 'Running Facial Engine V3.4 assessment...'
+      processingMessage.value = 'Analyzing your five-mode scan...'
       const response = await api.post(`facial-v34/assessment/${data.id}`, {
         stated_concerns: assessmentData.value.parameters_with_abnormal_scores ?? [],
       })
@@ -908,7 +916,7 @@ async function callApiForPostDiagnosis(data, images) {
       processingMessage.value = 'Uploading post-treatment five-mode images...'
       await uploadImageFileToOpenAI(images, 'post', sessionId.value)
 
-      processingMessage.value = 'Running Facial Engine V3.4 reassessment...'
+      processingMessage.value = 'Comparing your skin scans...'
       const response = await api.post(`facial-v34/reassessment/${data.id}`, {
         treatment_session_id: sessionId.value,
       })
