@@ -119,7 +119,10 @@
       >
         <div class="row items-start justify-between q-col-gutter-md">
           <div class="col-12 col-md">
-            <div class="text-subtitle1 text-weight-medium">{{ item.title }}</div>
+            <div class="text-subtitle1 text-weight-medium">
+              <span style="font-size: 11px; font-weight: 700; color: #6d4c41; background: #efebe9; border: 1px solid #d7ccc8; border-radius: 4px; padding: 2px 6px; margin-right: 8px; letter-spacing: 0.5px; vertical-align: middle;">{{ item.action_id }}</span>
+              {{ item.title }}
+            </div>
             <div class="text-body2 q-mt-xs">{{ item.question }}</div>
             <div v-if="item.instruction" class="text-caption text-grey-7 q-mt-sm">
               {{ item.instruction }}
