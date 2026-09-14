@@ -616,10 +616,10 @@ function initializeDoctorActionResolutionState(
     const linkedClassification = classificationId ? doctorClassifications?.[classificationId] : null
 
     if (linkedClassification?.status === 'resolved') {
-      const optCode =
-        linkedClassification.resolution_type === 'candidate_selected'
-          ? linkedClassification.option_code
-          : item.options?.[0]?.option_code || null
+      // Always use the first doctor-action option (default continue/approve).
+      // The classification's option_code belongs to candidate_options, not to the
+      // doctor action's options, so using it would cause an "Invalid resolution" error.
+      const optCode = item.options?.[0]?.option_code || null
       state[item.action_id] = {
         status: 'resolved',
         option_code: optCode,
@@ -721,9 +721,20 @@ function applyDoctorActionResolutionsToDiagnosis(
       throw new Error(`Resolve doctor action ${item.action_id}: ${item.question}`)
     }
     if (resolution?.status !== 'resolved') continue
-    const option = (item.options || []).find(
+    let option = (item.options || []).find(
       (candidate) => candidate.option_code === resolution.option_code,
     )
+    // Auto-repair: if the stored option_code is stale (e.g. a classification option_code
+    // that was incorrectly saved as a doctor-action resolution), fall back to the first
+    // available option instead of blocking plan generation.
+    if (!option && item.options?.length) {
+      console.warn(
+        `[PigmentationStore] Auto-repairing stale resolution for ${item.action_id}: ` +
+        `option_code "${resolution.option_code}" not found in action options, ` +
+        `falling back to "${item.options[0].option_code}".`,
+      )
+      option = item.options[0]
+    }
     if (!option) throw new Error(`Invalid resolution for doctor action ${item.action_id}.`)
     if (option.planning_effect === 'block') {
       throw new Error(`Treatment planning blocked by doctor action ${item.action_id}.`)
@@ -2733,10 +2744,10 @@ export const usePigmentationStore = defineStore('pigmentation', {
       const actions = doctorActionItemsFromDiagnosis(this.diagnosis?.data)
       const linkedAction = actions.find((act) => act.classification_id === classificationId)
       if (linkedAction) {
-        const optCode =
-          resolutionType === 'candidate_selected'
-            ? resolution.option_code
-            : linkedAction.options?.[0]?.option_code || null
+        // Always use the first doctor-action option (the default continue/approve option).
+        // The classification's option_code belongs to candidate_options and is NOT valid
+        // for the doctor action's own options list.
+        const optCode = linkedAction.options?.[0]?.option_code || null
         this.doctorActionResolutions = {
           ...this.doctorActionResolutions,
           [linkedAction.action_id]: {
