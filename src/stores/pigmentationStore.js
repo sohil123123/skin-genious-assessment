@@ -604,6 +604,65 @@ function doctorActionItemsFromDiagnosis(diagnosis) {
   )
 }
 
+function matchingDoctorActionOptionForClassification(action, classificationItem, resolution) {
+  if (resolution?.resolution_type !== 'candidate_selected') return null
+  const candidate = (classificationItem?.candidate_options || []).find(
+    (entry) => entry.option_code === resolution.option_code,
+  )
+  if (!candidate) return null
+  return (action.options || []).find((option) =>
+    (option.component_updates || []).some(
+      (update) =>
+        update.diagnostic_component_id === classificationItem.linked_component_id &&
+        update.family_code === candidate.family_code &&
+        update.subtype_code === candidate.subtype_code &&
+        update.treatment_pattern_code === candidate.treatment_pattern_code &&
+        update.direct_cosmetic_treatment_status === candidate.direct_cosmetic_treatment_status,
+    ),
+  ) || null
+}
+
+function matchingClassificationCandidateForDoctorAction(diagnosis, action, option) {
+  const item = (diagnosis?.classification_required_items || []).find(
+    (entry) => entry.classification_id === action.classification_id,
+  )
+  if (!item) return null
+  return (item.candidate_options || []).find((candidate) =>
+    (option.component_updates || []).some(
+      (update) =>
+        update.diagnostic_component_id === item.linked_component_id &&
+        update.family_code === candidate.family_code &&
+        update.subtype_code === candidate.subtype_code &&
+        update.treatment_pattern_code === candidate.treatment_pattern_code &&
+        update.direct_cosmetic_treatment_status === candidate.direct_cosmetic_treatment_status,
+    ),
+  ) || null
+}
+
+function classificationsWithDoctorActionOverrides(diagnosis, classifications, actionResolutions) {
+  const effective = { ...classifications }
+  for (const action of doctorActionItemsFromDiagnosis(diagnosis)) {
+    if (!action.classification_id) continue
+    const resolution = actionResolutions?.[action.action_id]
+    if (resolution?.status !== 'resolved') continue
+    const option = (action.options || []).find(
+      (entry) => entry.option_code === resolution.option_code,
+    )
+    if (!option) continue
+    const candidate = matchingClassificationCandidateForDoctorAction(diagnosis, action, option)
+    if (!candidate) continue
+    effective[action.classification_id] = {
+      ...effective[action.classification_id],
+      status: 'resolved',
+      resolution_type: 'candidate_selected',
+      option_code: candidate.option_code,
+      doctor_note: String(resolution.doctor_note || effective[action.classification_id]?.doctor_note || ''),
+      resolved_at_iso: resolution.resolved_at_iso || effective[action.classification_id]?.resolved_at_iso || null,
+    }
+  }
+  return effective
+}
+
 function initializeDoctorActionResolutionState(
   diagnosis,
   existing = {},
@@ -615,21 +674,30 @@ function initializeDoctorActionResolutionState(
     const classificationId = item.classification_id
     const linkedClassification = classificationId ? doctorClassifications?.[classificationId] : null
 
-    if (linkedClassification?.status === 'resolved') {
-      const optCode =
-        linkedClassification.resolution_type === 'candidate_selected'
-          ? linkedClassification.option_code
-          : item.options?.[0]?.option_code || null
+    const validPrior = prior?.status === 'resolved' && (item.options || []).some(
+      (option) => option.option_code === prior.option_code,
+    )
+    if (validPrior) {
+      state[item.action_id] = { ...prior }
+      continue
+    }
+    const classificationItem = (diagnosis?.classification_required_items || []).find(
+      (entry) => entry.classification_id === classificationId,
+    )
+    const matchedOption = matchingDoctorActionOptionForClassification(
+      item, classificationItem, linkedClassification,
+    )
+    if (matchedOption) {
       state[item.action_id] = {
         status: 'resolved',
-        option_code: optCode,
-        doctor_note: prior?.doctor_note || linkedClassification.doctor_note || '',
+        option_code: matchedOption.option_code,
+        doctor_note: String(prior?.doctor_note || linkedClassification?.doctor_note || ''),
         resolved_at_iso:
           prior?.resolved_at_iso ||
-          linkedClassification.resolved_at_iso ||
+          linkedClassification?.resolved_at_iso ||
           new Date().toISOString(),
       }
-    } else if (prior) {
+    } else if (prior && prior.status !== 'resolved') {
       state[item.action_id] = { ...prior }
     } else {
       state[item.action_id] = {
@@ -916,7 +984,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
     pendingDoctorActionItems: (state) =>
       doctorActionItemsFromDiagnosis(state.diagnosis?.data).filter(
         (item) =>
-          item.required && state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved',
+          item.required && (
+            state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved' ||
+            !(item.options || []).some(
+              (option) => option.option_code === state.doctorActionResolutions?.[item.action_id]?.option_code,
+            )
+          ),
       ),
     treatmentPriorityOptions: (state) =>
       treatmentPriorityOptionsFromDiagnosis(
@@ -925,13 +998,23 @@ export const usePigmentationStore = defineStore('pigmentation', {
       ),
     treatmentPlanningReady: (state) => {
       if (!state.diagnosis?.data) return false
+      const effectiveClassifications = classificationsWithDoctorActionOverrides(
+        state.diagnosis.data,
+        state.doctorClassifications,
+        state.doctorActionResolutions,
+      )
       const classificationPending = (state.diagnosis.data.classification_required_items || []).some(
-        (item) => state.doctorClassifications?.[item.classification_id]?.status !== 'resolved',
+        (item) => effectiveClassifications?.[item.classification_id]?.status !== 'resolved',
       )
       const actionItems = doctorActionItemsFromDiagnosis(state.diagnosis.data)
       const actionPending = actionItems.some(
         (item) =>
-          item.required && state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved',
+          item.required && (
+            state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved' ||
+            !(item.options || []).some(
+              (option) => option.option_code === state.doctorActionResolutions?.[item.action_id]?.option_code,
+            )
+          ),
       )
       const actionBlocks = actionItems.some((item) => {
         const resolution = state.doctorActionResolutions?.[item.action_id]
@@ -2733,18 +2816,34 @@ export const usePigmentationStore = defineStore('pigmentation', {
       const actions = doctorActionItemsFromDiagnosis(this.diagnosis?.data)
       const linkedAction = actions.find((act) => act.classification_id === classificationId)
       if (linkedAction) {
-        const optCode =
-          resolutionType === 'candidate_selected'
-            ? resolution.option_code
-            : linkedAction.options?.[0]?.option_code || null
+        const matchedOption = matchingDoctorActionOptionForClassification(
+          linkedAction, item, this.doctorClassifications[classificationId],
+        )
+        const prior = this.doctorActionResolutions?.[linkedAction.action_id]
+        const priorOption = (linkedAction.options || []).find(
+          (option) => option.option_code === prior?.option_code,
+        )
+        const compatiblePrior = priorOption && (
+          matchingClassificationCandidateForDoctorAction(this.diagnosis?.data, linkedAction, priorOption)
+            ?.option_code === resolution.option_code
+        )
         this.doctorActionResolutions = {
           ...this.doctorActionResolutions,
-          [linkedAction.action_id]: {
-            status: 'resolved',
-            option_code: optCode,
-            doctor_note: String(resolution.doctor_note || ''),
-            resolved_at_iso: new Date().toISOString(),
-          },
+          [linkedAction.action_id]: compatiblePrior
+            ? { ...prior }
+            : matchedOption
+              ? {
+                  status: 'resolved',
+                  option_code: matchedOption.option_code,
+                  doctor_note: String(resolution.doctor_note || ''),
+                  resolved_at_iso: new Date().toISOString(),
+                }
+              : {
+                  status: 'pending',
+                  option_code: null,
+                  doctor_note: '',
+                  resolved_at_iso: null,
+                },
         }
       }
 
@@ -2803,6 +2902,23 @@ export const usePigmentationStore = defineStore('pigmentation', {
           resolved_at_iso: new Date().toISOString(),
         },
       }
+      if (item.classification_id) {
+        const candidate = matchingClassificationCandidateForDoctorAction(
+          this.diagnosis?.data, item, option,
+        )
+        if (candidate) {
+          this.doctorClassifications = {
+            ...this.doctorClassifications,
+            [item.classification_id]: {
+              status: 'resolved',
+              resolution_type: 'candidate_selected',
+              option_code: candidate.option_code,
+              doctor_note: String(resolution.doctor_note || ''),
+              resolved_at_iso: new Date().toISOString(),
+            },
+          }
+        }
+      }
       this.lastPlan = null
       await this.updateAssessment()
     },
@@ -2839,10 +2955,15 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
     getResolvedDiagnosisForTreatmentPlanning() {
       if (!this.diagnosis?.data) throw new Error('Diagnosis is required.')
-      assertNoPendingDoctorClassifications(this.diagnosis.data, this.doctorClassifications)
-      const classificationResolvedDiagnosis = applyDoctorClassificationsToDiagnosis(
+      const effectiveClassifications = classificationsWithDoctorActionOverrides(
         this.diagnosis.data,
         this.doctorClassifications,
+        this.doctorActionResolutions,
+      )
+      assertNoPendingDoctorClassifications(this.diagnosis.data, effectiveClassifications)
+      const classificationResolvedDiagnosis = applyDoctorClassificationsToDiagnosis(
+        this.diagnosis.data,
+        effectiveClassifications,
       )
       return applyDoctorActionResolutionsToDiagnosis(
         classificationResolvedDiagnosis,
