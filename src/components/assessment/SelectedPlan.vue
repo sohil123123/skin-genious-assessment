@@ -10,7 +10,8 @@
         </div> -->
         <div class="text-caption text-grey-7 q-mt-xs">
           Total Duration: {{ treatmentPlan?.total_time }} •
-          {{ treatmentPlan?.treatments?.length }} sessions
+          {{ assessmentData.treatment_plans?.treatment_plan?.estimated_sessions || treatmentPlan?.treatments?.length }} estimated sessions
+          <span v-if="assessmentData.treatment_plans?.workflow_v39?.mode === 'multiple'"> · Next steps are updated after each two-session reassessment.</span>
         </div>
       </div>
 
@@ -66,7 +67,7 @@
         <q-expansion-item
           expand-separator
           :label="`Session ${session.session_number} • ${session.title}`"
-          :caption="`Week ${session.week} | ${session.treatment_time}`"
+          :caption="`Week ${session.week} | ${session.treatment_time} minutes`"
           header-class="bg-white text-weight-bold"
           dense
           expand-icon="arrow_drop_down"
@@ -150,6 +151,7 @@
           unelevated
           rounded
           no-caps
+          :disable="session.status === 'completed'"
           @click="startSession(session)"
         />
       </q-card-actions>

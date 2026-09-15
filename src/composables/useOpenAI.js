@@ -9,7 +9,7 @@ import treatmentPlan from 'src/response-examples/treatment-plans.json'
 import nurseRunSheet from 'src/response-examples/nurse-runsheet-single-session.json'
 import nurseRunSheetMulti from 'src/response-examples/nurse-runsheet-multi-session.json'
 
-const DEFAULT_MODEL = import.meta.env.VITE_OPENAI_MODEL || 'gpt-5.2'
+const DEFAULT_MODEL = import.meta.env.VITE_OPENAI_MODEL || 'gpt-5.4'
 const DEFAULT_TIMEOUT_MS = 600_000
 const DEFAULT_CACHE_KEY = 'ai-aesthetics-assessment-key-v2-6'
 const VALID_REASONING = new Set(['none', 'low', 'medium', 'high', 'xhigh'])

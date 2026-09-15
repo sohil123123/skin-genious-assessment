@@ -4,7 +4,8 @@
     <div class="text-h5 text-weight-bold">Recommended Full Plan</div>
     <div class="text-caption text-grey-7 q-mt-xs">
       Total Duration: {{ treatmentPlan.total_time }} •
-      {{ treatmentPlan.treatments.length }} sessions
+      {{ treatmentPlan.estimated_sessions || treatmentPlan.treatments.length }} estimated sessions
+      <span v-if="treatmentPlan.estimated_sessions"> · Detailed two sessions at a time, updated after reassessment.</span>
     </div>
 
     <div class="q-mt-sm row q-gutter-sm">

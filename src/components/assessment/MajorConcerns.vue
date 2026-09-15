@@ -32,6 +32,7 @@
         <div class="text-body2 text-grey-7 q-mt-xs">
           {{ treatableConcernsSummary?.description }}
         </div>
+        <div class="text-caption text-grey-7 q-mt-xs">Potential is estimated for treating each concern. Your chosen treatment determines the final targets.</div>
         <q-list separator>
           <q-item
             v-for="(param, index) in treatableConcernsSummary?.parameters_with_abnormal_scores"
@@ -57,7 +58,7 @@
                 </div>
                 <div class="text-grey-8">
                   <span class="text-weight-medium text-positive">Target:</span>
-                  {{ param.target_single_session_score }}
+                  {{ param.potential_target_text || param.target_single_session_score }}
                 </div>
               </q-item-label>
             </q-item-section>
@@ -169,6 +170,8 @@
               label="Generate Treatment Plan"
               color="positive"
               icon="assignment"
+              :loading="busy"
+              :disable="busy"
               @click="generatePlan"
               class="q-ml-sm q-px-lg"
               unelevated
@@ -186,6 +189,7 @@ import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
 import { Notify } from 'quasar'
 
+const props = defineProps({busy: {type:Boolean,default:false}})
 const emit = defineEmits(['generate-treatment', 'previous', 'save_data', 'next'])
 
 const store = useAssessmentStore()
@@ -206,6 +210,7 @@ watch(
 )
 
 const generatePlan = () => {
+  if (props.busy) return
   if (!treatmentType.value) {
     Notify.create({
       type: 'negative',
@@ -223,6 +228,7 @@ const generatePlan = () => {
 }
 
 function addPrimaryConcern(index) {
+  if (props.busy) return
   assessmentData.value.parameters_with_abnormal_scores.parameters_with_abnormal_scores[
     index
   ].is_primary_concern =

@@ -99,6 +99,7 @@
                 {{ param.parameter_name }}
               </div>
 
+              <div v-if="clientAfter(param) === 'Follow-up'" class="text-caption q-mt-sm">A lower scan reading needs follow-up; this is not an unchanged measurement. Your clinic retains the reading for review.</div>
               <q-separator spaced />
 
               <div class="row items-center q-col-gutter-md">
@@ -125,7 +126,7 @@
                 <div class="col-6">
                   <div class="text-caption text-grey">Post Treatment</div>
                   <q-badge color="positive" outline class="q-mt-sm q-mb-sm">
-                    {{ param.post_treatment_score_or_label }}
+                    {{ clientAfter(param) }}
                   </q-badge>
 
                   <q-img
@@ -161,6 +162,7 @@ import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import config from 'src/config.js'
 
+const clientAfter = (param) => param.score_polarity === 'higher_is_better' && Number.isFinite(param.before_treatment_score_or_label) && Number.isFinite(param.post_treatment_score_or_label) && param.post_treatment_score_or_label < param.before_treatment_score_or_label ? 'Follow-up' : param.post_treatment_score_or_label
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 

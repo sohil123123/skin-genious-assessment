@@ -571,7 +571,7 @@
         "type": "laser",
         "configurations": {
           "wavelengths": "532nm, 755nm, 1064nm",
-          "fluence_range": "1Hz to 10Hz",
+          "repetition_rate_hz": "1Hz to 10Hz",
           "energy": "100mJ to 2000mJ"
         }
       },

@@ -165,6 +165,24 @@ export const useAssessmentStore = defineStore('assessment', {
       if (!this.assessmentData.id) return
       payload.user_id = this.assessmentData.user_id
       payload._method = 'PUT'
+      const structuredKeys = ['feature_packet', 'diagnosis', 'parameters_with_abnormal_scores', 'post_diagnosis', 'post_feature_packet', 'treatment_plans']
+      if (structuredKeys.some(key => Object.prototype.hasOwnProperty.call(payload, key))) {
+        const jsonPayload = { ...payload }
+        delete jsonPayload._method
+        const response = await api.put(`assessments/${this.assessmentData.id}`, jsonPayload, {
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        })
+        const saved = response.data.results
+        if (response.data.success === false || !saved) throw new Error(response.data.error?.message || 'Assessment save failed.')
+        for (const key of ['images', 'post_images', 'conversation_id']) {
+          if (Object.prototype.hasOwnProperty.call(saved, key)) this.assessmentData[key] = saved[key]
+        }
+        if (saved.treatment_sessions?.treatments?.length) {
+          this.treatment_session_id = saved.treatment_sessions.treatments[0].id
+          this.assessmentData.treatment_sessions = saved.treatment_sessions
+        }
+        return saved
+      }
       const config = {
         indices: true,
         nullAsUndefined: true,
@@ -206,7 +224,7 @@ export const useAssessmentStore = defineStore('assessment', {
           }
         })
         .catch((e) => {
-          console.log(e)
+          throw e
           // Notify.create({
           //   type: 'negative',
           //   message: e.response.data.message,
@@ -224,14 +242,13 @@ export const useAssessmentStore = defineStore('assessment', {
     setData(data) {
       Object.assign(this.assessmentData, data)
     },
-    async storeFaceImages(file, assessment_type, session_id = null, mode = null) {
+    async storeFaceImages(file, assessment_type, session_id = null) {
       const formData = new FormData()
       const raw = file.__file || file
       if (raw instanceof File) {
         formData.append('image', raw)
       }
       formData.append('assessment_type', assessment_type)
-      if (mode) formData.append('mode', mode)
 
       const url = session_id 
         ? `treatment-sessions/${session_id}/images` 
@@ -269,7 +286,7 @@ export const useAssessmentStore = defineStore('assessment', {
           })
           return null
         })
-      const file_id = response.results.file_id
+      const file_id = response?.results?.file_id
       return file_id
     },
     async updateTreatmentSessionId(appointmentId) {

@@ -259,7 +259,7 @@ Per constraints JSON:
 ⚡ You may combine modalities intelligently based on scoring outcomes.
 You must only respect two mandatory rules:
 1.	Treatment must include lymphatic drainage if possible.
-2.	Treatment must finish with Serum + Moisturizer + Sunscreen. This is ONE single combined final step, and its duration must ALWAYS be EXACTLY 4 minutes — never less, never more
+2.	Treatment must finish with Serum + Moisturizer + Sunscreen. This is ONE single combined final step, and its duration must ALWAYS be EXACTLY 3 minutes — never less, never more
 Everything else is FULLY flexible.
 ________________________________________
 3. Choose treatment strategy based on 9 scenarios
@@ -665,7 +665,7 @@ J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
       Incorrect: "10 minutes", "10 mins", "approx 10"
 
     2. For every session:
-      treatment_time = sum of all steps[].duration and it should be minimum 55 minutes.
+      treatment_time = sum of all steps[].duration and it should be minimum 60 minutes.
 
     3. If the sum of step durations is lower than the selected treatment_time:
       - Either add clinically meaningful missing steps, OR
@@ -690,17 +690,17 @@ J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
           - Serum application: 1–2 min
           - Moisturizer application: 1–2 min
           - Sunscreen application: 1–2 min
-          - Combined finish step (serum + moisturizer + sunscreen together): EXACTLY 4 min (fixed — always 4, never less, never more)
+          - Combined finish step (serum + moisturizer + sunscreen together): EXACTLY 3 min (fixed — always 3, never less, never more)
           - Ice / cool-down pass: 2–5 min
           - Post-care verbal instructions: 1–2 min
-      • FIXED DURATION: the mandatory finish (serum + moisturizer + sunscreen) is ONE combined final step with a duration of EXACTLY 4 minutes — always 4, never less and never more. Do NOT split it into separate serum/moisturizer/sunscreen steps and do NOT change this number. Any finish step that is not exactly 4 minutes is INVALID and must be corrected to 4.
+      • FIXED DURATION: the mandatory finish (serum + moisturizer + sunscreen) is ONE combined final step with a duration of EXACTLY 3 minutes — always 3, never less and never more. Do NOT split it into separate serum/moisturizer/sunscreen steps and do NOT change this number. Any finish step that is not exactly 3 minutes is INVALID and must be corrected to 3.
       • The bulk of session minutes must sit in the HERO / SECONDARY corrective and active-treatment blocks — NOT in cleansing, cooling, masking, or finishing.
-      • The minimum session time (treatment_time >= 55 min for single/multiple plans) is a HARD floor and stays in force.
+      • The minimum session time (treatment_time >= 60 min for single/multiple plans) is a HARD floor and stays in force.
       • Every LYMPHATIC DRAINAGE MASSAGE step must explicitly state "Face and Neck Lymphatic Drainage Massage" in the step name.
       • If realistic durations sum BELOW the minimum, absorb the shortfall into the LYMPHATIC DRAINAGE MASSAGE step — it is the designated time-flexible step:
           1) Extend the mandatory lymphatic drainage massage to close the gap, up to a realistic ceiling of 15 minutes. A longer, more thorough drainage protocol (additional pathways and reps) is genuine clinical value, not padding.
           2) ONLY if still below the floor after the massage reaches 15 min, extend a genuinely beneficial CORRECTIVE step (more passes, or a clinically justified longer infusion / mask contact time) — never a trivial, cooling, or finishing step.
-      • Slack minutes go to the lymphatic massage first, then corrective time. They must NEVER go to cleansing, cooling, masking, serum, moisturizer, or sunscreen. The finish HARD CAP (<=4 min) and the per-step ceilings above are never overridden to reach the floor.
+      • Slack minutes go to the lymphatic massage first, then corrective time. They must NEVER go to cleansing, cooling, masking, serum, moisturizer, or sunscreen. The finish HARD CAP (<=3 min) and the per-step ceilings above are never overridden to reach the floor.
 
 K) SESSION DURATION RANGE RULES
 
@@ -709,7 +709,7 @@ K) SESSION DURATION RANGE RULES
     - Sum of step durations must also be 30–40 minutes.
 
     For treatment_plan_type = "single":
-    - treatment_time should usually be 55-75 minutes.
+    - treatment_time should usually be 60-75 minutes.
     - It may extend to 80 minutes only if clinically meaningful corrective steps require it.
 
     For treatment_plan_type = "multiple":
