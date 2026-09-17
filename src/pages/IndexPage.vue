@@ -205,7 +205,11 @@ import _ from 'lodash'
 import { getFacialPrompts } from 'src/utils/facial'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
-import { selectedConcernsV39, workflowPromptV39, planningEvidenceV39 } from 'src/utils/facial/workflowV39/workflowContractV39.js'
+import {
+  selectedConcernsV39,
+  workflowPromptV39,
+  planningEvidenceV39,
+} from 'src/utils/facial/workflowV39/workflowContractV39.js'
 import { generateValidatedWorkflowV3101 } from 'src/utils/facial/workflowV39/workflowGenerationV3101.js'
 
 // INFO: This jsons are just for testing
@@ -223,17 +227,17 @@ const { assessmentData } = storeToRefs(store)
 const route = useRoute()
 const router = useRouter()
 
-const sessionId = computed(() => route.query.session_id ? Number(route.query.session_id) : null)
+const sessionId = computed(() => (route.query.session_id ? Number(route.query.session_id) : null))
 const currentSession = computed(() => {
   if (!sessionId.value || !assessmentData.value.treatment_sessions?.treatments) return null
-  return assessmentData.value.treatment_sessions.treatments.find(t => t.id === sessionId.value)
+  return assessmentData.value.treatment_sessions.treatments.find((t) => t.id === sessionId.value)
 })
 
 function getPreviousScores() {
   if (!sessionId.value || !currentSession.value) {
     return {
       source: 'baseline',
-      scores: assessmentData.value.diagnosis
+      scores: assessmentData.value.diagnosis,
     }
   }
 
@@ -241,24 +245,24 @@ function getPreviousScores() {
   if (currentNum === 1) {
     return {
       source: 'baseline',
-      scores: assessmentData.value.diagnosis
+      scores: assessmentData.value.diagnosis,
     }
   }
 
   const prevSess = assessmentData.value.treatment_sessions?.treatments?.find(
-    t => t.session_number === currentNum - 1
+    (t) => t.session_number === currentNum - 1,
   )
 
   if (prevSess && prevSess.post_diagnosis) {
     return {
       source: `session_${currentNum - 1}`,
-      scores: prevSess.post_diagnosis
+      scores: prevSess.post_diagnosis,
     }
   }
 
   return {
     source: 'baseline',
-    scores: assessmentData.value.diagnosis
+    scores: assessmentData.value.diagnosis,
   }
 }
 const currentStep = ref(route.params.step || 'selection')
@@ -474,12 +478,20 @@ async function handleDiagnosis(files) {
       assessmentData.value.diagnosis = apiResponse
       assessmentData.value.parameters_with_abnormal_scores = apiResponse.treatable_concerns_summary
       try {
-        await submit(String(assessmentData.value.face_scan_machine).startsWith('5')
-          ? ['feature_packet', 'diagnosis', 'parameters_with_abnormal_scores']
-          : ['diagnosis', 'parameters_with_abnormal_scores'])
+        await submit(
+          String(assessmentData.value.face_scan_machine).startsWith('5')
+            ? ['feature_packet', 'diagnosis', 'parameters_with_abnormal_scores']
+            : ['diagnosis', 'parameters_with_abnormal_scores'],
+        )
         goNext()
       } catch (e) {
-        Notify.create({ type: 'negative', message: 'Scores are ready, but saving failed: ' + (e.response?.data?.error?.message || e.message), timeout: 0 })
+        Notify.create({
+          type: 'negative',
+          message:
+            'Scores are ready, but saving failed: ' +
+            (e.response?.data?.error?.message || e.message),
+          timeout: 0,
+        })
       }
     }
   }
@@ -503,7 +515,7 @@ async function handlePostAssessment(files) {
     if (sessionId.value) {
       currentSession.value.post_diagnosis = reassessment
       await store.saveTreatmentSessionPostAssessment(sessionId.value, {
-        post_diagnosis: reassessment
+        post_diagnosis: reassessment,
       })
     } else {
       assessmentData.value.post_diagnosis = reassessment
@@ -532,7 +544,7 @@ async function handlePostAssessment(files) {
         currentSession.value.post_diagnosis = apiResponse
         const saved = await store.saveTreatmentSessionPostAssessment(sessionId.value, {
           post_feature_packet: currentSession.value.post_feature_packet,
-          post_diagnosis: apiResponse
+          post_diagnosis: apiResponse,
         })
         if (!saved) return
         await releaseNextCourseBlockV39()
@@ -548,8 +560,11 @@ async function handlePostAssessment(files) {
 // Course commits are append-only on the server; never resubmit completed sessions
 // through the legacy assessment replacement endpoint.
 async function persistCourseBlockV39(plan) {
-  const { data: response } = await api.post(`facial-v34/course-block/${assessmentData.value.id}`, { plan })
-  if (!response.success) throw new Error(response.error?.message || 'Unable to save the treatment block.')
+  const { data: response } = await api.post(`facial-v34/course-block/${assessmentData.value.id}`, {
+    plan,
+  })
+  if (!response.success)
+    throw new Error(response.error?.message || 'Unable to save the treatment block.')
   assessmentData.value.treatment_plans = response.results.treatment_plans
   assessmentData.value.treatment_sessions = response.results.treatment_sessions
   store.treatment_session_id = response.results.treatment_sessions.treatments[0]?.id
@@ -561,17 +576,38 @@ async function releaseNextCourseBlockV39() {
   const plan = assessmentData.value.treatment_plans
   const total = plan?.treatment_plan?.estimated_sessions
   if (plan?.workflow_v39?.mode !== 'multiple' || !number || number % 2 || number >= total) return
-  if (assessmentData.value.treatment_sessions?.treatments?.some(s => Number(s.session_number) === number + 1)) return
-  const selected = assessmentData.value.parameters_with_abnormal_scores || plan.workflow_v39.selected_concerns
-  const next = await callApiForTreatmentPlan(selected, 'multiple', { after_session_id: sessionId.value })
+  if (
+    assessmentData.value.treatment_sessions?.treatments?.some(
+      (s) => Number(s.session_number) === number + 1,
+    )
+  )
+    return
+  const selected =
+    assessmentData.value.parameters_with_abnormal_scores || plan.workflow_v39.selected_concerns
+  const next = await callApiForTreatmentPlan(selected, 'multiple', {
+    after_session_id: sessionId.value,
+  })
   if (next.error) {
-    Notify.create({ type: 'negative', message: 'Reassessment saved. Next sessions remain pending: ' + next.error.message, timeout: 0,
-      actions: [{ label: 'Retry', handler: releaseNextCourseBlockV39 }] })
+    Notify.create({
+      type: 'negative',
+      message: 'Reassessment saved. Next sessions remain pending: ' + next.error.message,
+      timeout: 0,
+      actions: [{ label: 'Retry', handler: releaseNextCourseBlockV39 }],
+    })
     return
   }
-  try { await persistCourseBlockV39(next) }
-  catch (e) { Notify.create({ type: 'negative', message: 'Reassessment saved. Could not save next sessions: ' + (e.response?.data?.error?.message || e.message), timeout: 0,
-    actions: [{ label: 'Retry', handler: releaseNextCourseBlockV39 }] }) }
+  try {
+    await persistCourseBlockV39(next)
+  } catch (e) {
+    Notify.create({
+      type: 'negative',
+      message:
+        'Reassessment saved. Could not save next sessions: ' +
+        (e.response?.data?.error?.message || e.message),
+      timeout: 0,
+      actions: [{ label: 'Retry', handler: releaseNextCourseBlockV39 }],
+    })
+  }
 }
 
 const handleMajorConcerns = async () => {
@@ -582,69 +618,98 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
   if (treatmentGenerationBusy.value) return
   treatmentGenerationBusy.value = true
   try {
-  treatment_type.value = treatmentType
+    treatment_type.value = treatmentType
 
-  if (process.env.APP_TEST) {
-    if (treatmentType === 'single') {
-      assessmentData.value.treatment_sessions = singleSessionJson
-    } else {
-      assessmentData.value.treatment_sessions = fullTreatmentJson
-    }
-    goNext()
-  } else {
-    const draftKey = JSON.stringify([assessmentData.value.id, selected, treatmentType])
-    const apiResponse = pendingTreatmentDraft?.key === draftKey ? pendingTreatmentDraft.plan : await callApiForTreatmentPlan(selected, treatmentType)
-    if (apiResponse.error) {
-      Notify.create({
-        type: 'negative',
-        message: apiResponse.error.message,
-        timeout: 0,
-        actions: [
-          {
-            icon: 'close',
-            color: 'white',
-            round: true,
-          },
-        ],
-      })
-    } else {
-      if (String(assessmentData.value.face_scan_machine).startsWith('5')) {
-        pendingTreatmentDraft = {key:draftKey,plan:apiResponse}
-        try {
-          apiResponse.workflow_v39.generation_id ??= crypto.randomUUID()
-          // Check saved state before a retry, so a lost HTTP response does not
-          // cause a second initial-plan save or overwrite existing sessions.
-          const {data: existingResponse} = await api.get(`assessments/${assessmentData.value.id}`)
-          const existing = existingResponse.results
-          if (!existing) throw new Error('Could not verify the saved treatment state.')
-          if(existing.treatment_plans?.workflow_v39?.generation_id === apiResponse.workflow_v39.generation_id) {
-            assessmentData.value.treatment_plans=existing.treatment_plans
-            assessmentData.value.treatment_sessions=existing.treatment_sessions
-          } else {
-            if(existing.treatment_sessions?.treatments?.length) throw new Error('A saved treatment plan already exists. Open it instead of replacing its sessions.')
-            // Initial Single, Express and first package pair use the host's
-            // existing AssessmentController persistence and session creation.
-            assessmentData.value.treatment_plans = apiResponse
-            const saved = await store.updateAssessment({treatment_plans:apiResponse,selected_plan_type:treatmentType})
-            if (!saved?.treatment_sessions?.treatments?.length) throw new Error('Plan save did not return treatment sessions. Check the assessment update response.')
-            assessmentData.value.treatment_sessions = saved.treatment_sessions
-          }
-          store.treatment_session_id = assessmentData.value.treatment_sessions?.treatments?.[0]?.id
-          pendingTreatmentDraft = null
-        } catch (e) { Notify.create({ type: 'negative', message: 'Plan is ready; saving failed. Click Generate again to retry saving this draft: ' + (e.response?.data?.error?.message || e.message), timeout:0 }); return }
+    if (process.env.APP_TEST) {
+      if (treatmentType === 'single') {
+        assessmentData.value.treatment_sessions = singleSessionJson
       } else {
-        renumberSteps(apiResponse)
-        await updateTreatmentDurations(apiResponse)
-        assessmentData.value.treatment_plans = apiResponse
-        assessmentData.value.treatment_sessions = apiResponse.treatment_plan
-        await submit(['treatment_plans'])
+        assessmentData.value.treatment_sessions = fullTreatmentJson
       }
-      if (route.params.appointment_id)
-        await store.updateTreatmentSessionId(route.params.appointment_id)
       goNext()
+    } else {
+      const draftKey = JSON.stringify([assessmentData.value.id, selected, treatmentType])
+      const apiResponse =
+        pendingTreatmentDraft?.key === draftKey
+          ? pendingTreatmentDraft.plan
+          : await callApiForTreatmentPlan(selected, treatmentType)
+      if (apiResponse.error) {
+        Notify.create({
+          type: 'negative',
+          message: apiResponse.error.message,
+          timeout: 0,
+          actions: [
+            {
+              icon: 'close',
+              color: 'white',
+              round: true,
+            },
+          ],
+        })
+      } else {
+        if (String(assessmentData.value.face_scan_machine).startsWith('5')) {
+          pendingTreatmentDraft = { key: draftKey, plan: apiResponse }
+          try {
+            apiResponse.workflow_v39.generation_id ??= crypto.randomUUID()
+            // Check saved state before a retry, so a lost HTTP response does not
+            // cause a second initial-plan save or overwrite existing sessions.
+            const { data: existingResponse } = await api.get(
+              `assessments/${assessmentData.value.id}`,
+            )
+            const existing = existingResponse.results
+            if (!existing) throw new Error('Could not verify the saved treatment state.')
+            if (
+              existing.treatment_plans?.workflow_v39?.generation_id ===
+              apiResponse.workflow_v39.generation_id
+            ) {
+              assessmentData.value.treatment_plans = existing.treatment_plans
+              assessmentData.value.treatment_sessions = existing.treatment_sessions
+            } else {
+              if (existing.treatment_sessions?.treatments?.length)
+                throw new Error(
+                  'A saved treatment plan already exists. Open it instead of replacing its sessions.',
+                )
+              // Initial Single, Express and first package pair use the host's
+              // existing AssessmentController persistence and session creation.
+              assessmentData.value.treatment_plans = apiResponse
+              const saved = await store.updateAssessment({
+                treatment_plans: apiResponse,
+                selected_plan_type: treatmentType,
+              })
+              if (!saved?.treatment_sessions?.treatments?.length)
+                throw new Error(
+                  'Plan save did not return treatment sessions. Check the assessment update response.',
+                )
+              assessmentData.value.treatment_sessions = saved.treatment_sessions
+            }
+            store.treatment_session_id =
+              assessmentData.value.treatment_sessions?.treatments?.[0]?.id
+            pendingTreatmentDraft = null
+          } catch (e) {
+            Notify.create({
+              type: 'negative',
+              message:
+                'Plan is ready; saving failed. Click Generate again to retry saving this draft: ' +
+                (e.response?.data?.error?.message || e.message),
+              timeout: 0,
+            })
+            return
+          }
+        } else {
+          renumberSteps(apiResponse)
+          await updateTreatmentDurations(apiResponse)
+          assessmentData.value.treatment_plans = apiResponse
+          assessmentData.value.treatment_sessions = apiResponse.treatment_plan
+          await submit(['treatment_plans'])
+        }
+        if (route.params.appointment_id)
+          await store.updateTreatmentSessionId(route.params.appointment_id)
+        goNext()
+      }
     }
+  } finally {
+    treatmentGenerationBusy.value = false
   }
-  } finally { treatmentGenerationBusy.value = false }
 }
 
 const renumberSteps = (plan) => {
@@ -713,8 +778,9 @@ async function callApiForDiagnosis(data, images) {
       await uploadImageFileToOpenAI(images, 'pre')
       let response
       if (!images?.length) {
-        try { response = (await api.get(`facial-v34/assessment/${data.id}`)).data }
-        catch (e) {
+        try {
+          response = (await api.get(`facial-v34/assessment/${data.id}`)).data
+        } catch (e) {
           // Only a missing/stale cache permits a new vision call. Never hide an
           // actual server failure behind an automatic, expensive re-analysis.
           if (![404, 409].includes(e.response?.status)) throw e
@@ -723,12 +789,18 @@ async function callApiForDiagnosis(data, images) {
       if (!response) response = (await api.post(`facial-v34/assessment/${data.id}`, {})).data
       if (!response.success) return { error: response.error }
       if (response.results?.transport_version !== 'aia_compact_transport_v3.9.1') {
-        throw new Error('Deploy the matching v3.9.1 backend transport patch before saving this assessment.')
+        throw new Error(
+          'Deploy the matching v3.9.1 backend transport patch before saving this assessment.',
+        )
       }
       assessmentData.value.feature_packet = response.results.feature_packet
       // diagnosis already contains deterministic scores; there is no LLM scoring call.
+      console.log(response)
       return response.results.diagnosis
-    } catch (e) { return { error: { message: e.response?.data?.error?.message || e.message } } }
+    } catch (e) {
+      console.log(e.response.data)
+      return { error: { message: e.response?.data?.error?.message || e.message } }
+    }
   }
   // Convert all images to base64
 
@@ -825,88 +897,115 @@ async function callApiForTreatmentPlan(selected, treatmentType, courseContext = 
   })
 
   try {
-  const isV39 = String(assessmentData.value.face_scan_machine).startsWith('5')
-  const concerns = planningEvidenceV39(selectedConcernsV39(selected))
-  const convId = await getOrCreateConversation(
-    `${assessmentData.value.user_id}`, assessmentData.value.conversation_id,
-    assessmentData.value.name, assessmentData.value.id,
-  )
-  assessmentData.value.conversation_id = convId
-  await submit(['conversation_id'])
-  const patientData = {
-    name: assessmentData.value.name,
-    age: assessmentData.value.age,
-    gender: assessmentData.value.gender,
-    daily_sun_exposure_hours: assessmentData.value.daily_sun_exposure_hours,
-    social_event: assessmentData.value.social_event,
-    upcoming_travel: assessmentData.value.upcoming_travel,
-    medical_history: assessmentData.value.medical_history,
-    allergies: assessmentData.value.allergies,
-    is_pregnant: assessmentData.value.is_pregnant,
-    breastfeeding: assessmentData.value.breastfeeding,
-    forehead_surface_c: assessmentData.value.skin_temp_for_head + '°C',
-    left_cheek_surface_c: assessmentData.value.left_cheek_temp + '°C',
-    right_cheek_surface_c: assessmentData.value.right_cheek_temp + '°C',
-    laser_within_last_7_days: assessmentData.value.recent_peel_or_laser,
-    used_retinol_last_24_hours: assessmentData.value.retinol_used_last_night,
-  }
+    const isV39 = String(assessmentData.value.face_scan_machine).startsWith('5')
+    const concerns = planningEvidenceV39(selectedConcernsV39(selected))
+    const convId = await getOrCreateConversation(
+      `${assessmentData.value.user_id}`,
+      assessmentData.value.conversation_id,
+      assessmentData.value.name,
+      assessmentData.value.id,
+    )
+    assessmentData.value.conversation_id = convId
+    await submit(['conversation_id'])
+    const patientData = {
+      name: assessmentData.value.name,
+      age: assessmentData.value.age,
+      gender: assessmentData.value.gender,
+      daily_sun_exposure_hours: assessmentData.value.daily_sun_exposure_hours,
+      social_event: assessmentData.value.social_event,
+      upcoming_travel: assessmentData.value.upcoming_travel,
+      medical_history: assessmentData.value.medical_history,
+      allergies: assessmentData.value.allergies,
+      is_pregnant: assessmentData.value.is_pregnant,
+      breastfeeding: assessmentData.value.breastfeeding,
+      forehead_surface_c: assessmentData.value.skin_temp_for_head + '°C',
+      left_cheek_surface_c: assessmentData.value.left_cheek_temp + '°C',
+      right_cheek_surface_c: assessmentData.value.right_cheek_temp + '°C',
+      laser_within_last_7_days: assessmentData.value.recent_peel_or_laser,
+      used_retinol_last_24_hours: assessmentData.value.retinol_used_last_night,
+    }
 
-  const prompts = await getFacialPrompts(assessmentData.value.face_scan_machine)
-  const input = [
-    {
-      role: 'system',
-      content: [
+    const prompts = await getFacialPrompts(assessmentData.value.face_scan_machine)
+    const input = [
+      {
+        role: 'system',
+        content: [
+          {
+            type: 'input_text',
+            text:
+              prompts.SYSTEM_TREATMENT_PLAN_PROMPT +
+              (isV39
+                ? workflowPromptV39() +
+                  '\nUse only the supplied clinic-approved procedure settings. Device capability ranges alone are not approved treatment settings. If essential settings or permissions are absent, identify the exact missing field and affected modality in the error; do not return a generic missing-clinic-information error. Resolve $ref objects against this request’s planning context; they preserve identical clinical evidence without repeating it.'
+                : ''),
+          },
+          {
+            type: 'input_text',
+            text: encode(prompts.constraints),
+          },
+        ],
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'input_text',
+            text: encode(patientData),
+          },
+          {
+            type: 'input_text',
+            text: isV39
+              ? 'Use the completed assessment supplied by the server planning context below.'
+              : encode(assessmentData.value.feature_packet),
+          },
+          {
+            type: 'input_text',
+            text: encode({
+              treatable_concerns: {
+                description:
+                  'Parameters showing deviations that can be treated or improved with appropriate interventions.',
+                parameters_with_abnormal_scores: concerns,
+              },
+              treatment_plan_type: treatmentType,
+              selected_plan_type: `${treatmentType}`, // 'single', 'express' or 'full'
+            }),
+          },
+        ],
+      },
+    ]
+    if (isV39) {
+      const { data: contextResponse } = await api.post(
+        `facial-v34/planning-context/${assessmentData.value.id}`,
         {
-          type: 'input_text',
-          text: prompts.SYSTEM_TREATMENT_PLAN_PROMPT + (isV39 ? workflowPromptV39() + '\nUse only the supplied clinic-approved procedure settings. Device capability ranges alone are not approved treatment settings. If essential settings or permissions are absent, identify the exact missing field and affected modality in the error; do not return a generic missing-clinic-information error. Resolve $ref objects against this request’s planning context; they preserve identical clinical evidence without repeating it.' : ''),
+          after_session_id: courseContext.after_session_id || null,
         },
-        {
-          type: 'input_text',
-          text: encode(prompts.constraints),
-        },
-      ],
-    },
-    {
-      role: 'user',
-      content: [
-        {
-          type: 'input_text',
-          text: encode(patientData),
-        },
-        {
-          type: 'input_text',
-          text: isV39 ? 'Use the completed assessment supplied by the server planning context below.' : encode(assessmentData.value.feature_packet),
-        },
-        {
-          type: 'input_text',
-          text: encode({
-            treatable_concerns: {
-              description:
-                'Parameters showing deviations that can be treated or improved with appropriate interventions.',
-              parameters_with_abnormal_scores: concerns,
-            },
-            treatment_plan_type: treatmentType,
-            selected_plan_type: `${treatmentType}`, // 'single', 'express' or 'full'
-          }),
-        },
-      ],
-    },
-  ]
-  if (isV39) {
-    const { data: contextResponse } = await api.post(`facial-v34/planning-context/${assessmentData.value.id}`, {
-      after_session_id: courseContext.after_session_id || null,
+      )
+      if (!contextResponse.success)
+        throw new Error(contextResponse.error?.message || 'Planning context unavailable.')
+      Object.assign(courseContext, contextResponse.results.course_context)
+      input.push({
+        role: 'user',
+        content: [
+          {
+            type: 'input_text',
+            text: JSON.stringify(compactPlanningInputForRequest(contextResponse.results)),
+          },
+        ],
+      })
+    }
+    if (!isV39) return await runResponse(convId, input)
+    return await generateValidatedWorkflowV3101({
+      generate: (messages) => runResponse(convId, messages),
+      input,
+      mode: treatmentType,
+      concerns,
+      context: courseContext,
     })
-    if (!contextResponse.success) throw new Error(contextResponse.error?.message || 'Planning context unavailable.')
-    Object.assign(courseContext, contextResponse.results.course_context)
-    input.push({ role: 'user', content: [{ type: 'input_text', text: JSON.stringify(compactPlanningInputForRequest(contextResponse.results)) }] })
+  } catch (e) {
+    return { error: { message: e.response?.data?.error?.message || e.message } }
+  } finally {
+    Loading.hide()
   }
-  if (!isV39) return await runResponse(convId, input)
-  return await generateValidatedWorkflowV3101({
-    generate: messages => runResponse(convId, messages),
-    input, mode: treatmentType, concerns, context: courseContext,
-  })
-  } catch (e) { return { error: { message: e.response?.data?.error?.message || e.message } } }
-  finally { Loading.hide() }
 }
 
 // Request-only deduplication. Original assessment objects are never mutated.
@@ -914,13 +1013,18 @@ async function callApiForTreatmentPlan(selected, treatmentType, courseContext = 
 function compactPlanningInputForRequest(value) {
   const clean = planningEvidenceV39(value)
   if (!clean?.skin_state) return clean
-  const canonical = value => JSON.stringify(value, function (key, item) {
-    if (item && typeof item === 'object' && !Array.isArray(item)) {
-      return Object.fromEntries(Object.keys(item).sort().map(k => [k, item[k]]))
-    }
-    return item
-  })
-  const escape = key => String(key).replace(/~/g, '~0').replace(/\//g, '~1')
+  const canonical = (value) =>
+    JSON.stringify(value, function (key, item) {
+      if (item && typeof item === 'object' && !Array.isArray(item)) {
+        return Object.fromEntries(
+          Object.keys(item)
+            .sort()
+            .map((k) => [k, item[k]]),
+        )
+      }
+      return item
+    })
+  const escape = (key) => String(key).replace(/~/g, '~0').replace(/\//g, '~1')
   const index = new Map()
   const visit = (value, path) => {
     if (!value || typeof value !== 'object') return
@@ -929,12 +1033,14 @@ function compactPlanningInputForRequest(value) {
     for (const [key, child] of Object.entries(value)) visit(child, `${path}/${escape(key)}`)
   }
   visit(clean.skin_state, '#/skin_state')
-  const deduplicate = value => {
+  const deduplicate = (value) => {
     if (!value || typeof value !== 'object') return value
     const target = index.get(canonical(value))
     if (target) return { $ref: target }
     if (Array.isArray(value)) return value.map(deduplicate)
-    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, deduplicate(child)]))
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, deduplicate(child)]),
+    )
   }
   const result = { ...clean }
   for (const key of ['feature_packet', 'diagnosis']) {
@@ -953,9 +1059,12 @@ async function callApiForPostDiagnosis(data, images) {
         treatment_session_id: sessionId.value || null,
       })
       if (!response.success) return { error: response.error }
-      if (currentSession.value) currentSession.value.post_feature_packet = response.results.post_feature_packet
+      if (currentSession.value)
+        currentSession.value.post_feature_packet = response.results.post_feature_packet
       return response.results.post_diagnosis
-    } catch (e) { return { error: { message: e.response?.data?.error?.message || e.message } } }
+    } catch (e) {
+      return { error: { message: e.response?.data?.error?.message || e.message } }
+    }
   }
   const convId = await getOrCreateConversation(
     `${data.user_id}`,
@@ -971,7 +1080,8 @@ async function callApiForPostDiagnosis(data, images) {
   processingMessage.value = 'Uploading images to OpenAI...'
   await uploadImageFileToOpenAI(images, 'post', sessionId.value)
 
-  const targetPostImages = sessionId.value && currentSession.value ? currentSession.value.post_images : data.post_images
+  const targetPostImages =
+    sessionId.value && currentSession.value ? currentSession.value.post_images : data.post_images
 
   const storedFiles = await Promise.all(
     targetPostImages.map((item) => ({
@@ -984,7 +1094,9 @@ async function callApiForPostDiagnosis(data, images) {
   const prompts = await getFacialPrompts(data.face_scan_machine)
 
   const prevContext = getPreviousScores()
-  const sessionLabel = currentSession.value ? `Session ${currentSession.value.session_number}` : 'Session 1'
+  const sessionLabel = currentSession.value
+    ? `Session ${currentSession.value.session_number}`
+    : 'Session 1'
 
   const input = [
     {
@@ -1009,7 +1121,7 @@ async function callApiForPostDiagnosis(data, images) {
           type: 'input_text',
           text: `IMPORTANT: For this reassessment, compare the patient's current post-treatment condition (provided in files above) against the following previous scores representing the patient's state before this treatment session. Use these previous values as the "before_treatment_score_or_label" values to evaluate progress:
 Reference Source: ${prevContext.source}
-Reference Scores: ${JSON.stringify(prevContext.scores)}`
+Reference Scores: ${JSON.stringify(prevContext.scores)}`,
         },
         {
           type: 'input_text',

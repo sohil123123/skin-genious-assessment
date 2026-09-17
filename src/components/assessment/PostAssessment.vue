@@ -8,7 +8,8 @@
         </span>
       </div>
       <div v-if="assessmentData?.age || assessmentData?.gender" class="text-caption text-grey-7">
-        {{ assessmentData?.gender ? assessmentData.gender + ', ' : '' }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
+        {{ assessmentData?.gender ? assessmentData.gender + ', ' : ''
+        }}{{ assessmentData?.age ? assessmentData.age + ' years' : '' }}
       </div>
     </q-card-section>
   </q-card>
@@ -99,7 +100,10 @@
                 {{ param.parameter_name }}
               </div>
 
-              <div v-if="clientAfter(param) === 'Follow-up'" class="text-caption q-mt-sm">A lower scan reading needs follow-up; this is not an unchanged measurement. Your clinic retains the reading for review.</div>
+              <div v-if="clientAfter(param) === 'Follow-up'" class="text-caption q-mt-sm">
+                A lower scan reading needs follow-up; this is not an unchanged measurement. Your
+                clinic retains the reading for review.
+              </div>
               <q-separator spaced />
 
               <div class="row items-center q-col-gutter-md">
@@ -162,17 +166,23 @@ import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import config from 'src/config.js'
 
-const clientAfter = (param) => param.score_polarity === 'higher_is_better' && Number.isFinite(param.before_treatment_score_or_label) && Number.isFinite(param.post_treatment_score_or_label) && param.post_treatment_score_or_label < param.before_treatment_score_or_label ? 'Follow-up' : param.post_treatment_score_or_label
+const clientAfter = (param) =>
+  param.score_polarity === 'higher_is_better' &&
+  Number.isFinite(param.before_treatment_score_or_label) &&
+  Number.isFinite(param.post_treatment_score_or_label) &&
+  param.post_treatment_score_or_label < param.before_treatment_score_or_label
+    ? 'Follow-up'
+    : param.post_treatment_score_or_label
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
 defineEmits(['save_data', 'finalize_and_exit'])
 
 const route = useRoute()
-const sessionId = computed(() => route.query.session_id ? Number(route.query.session_id) : null)
+const sessionId = computed(() => (route.query.session_id ? Number(route.query.session_id) : null))
 const currentSession = computed(() => {
   if (!sessionId.value || !assessmentData.value?.treatment_sessions?.treatments) return null
-  return assessmentData.value.treatment_sessions.treatments.find(t => t.id === sessionId.value)
+  return assessmentData.value.treatment_sessions.treatments.find((t) => t.id === sessionId.value)
 })
 
 const showComparisonDropdown = computed(() => {
@@ -202,23 +212,25 @@ watch(
           beforeImagesSource = val.images || []
         } else {
           const prevSess = val.treatment_sessions?.treatments?.find(
-            t => t.session_number === currentNum - 1
+            (t) => t.session_number === currentNum - 1,
           )
-          beforeImagesSource = prevSess ? (prevSess.post_images || []) : (val.images || [])
+          beforeImagesSource = prevSess ? prevSess.post_images || [] : val.images || []
         }
       } else {
         post_diagnosis.value = val.post_diagnosis
       }
 
-      const desiredImages = imagesOrder.map((name) =>
-        beforeImagesSource.find((img) => img.url.toLowerCase().includes(`${name}.`)),
-      ).filter(Boolean)
+      const desiredImages = imagesOrder
+        .map((name) => beforeImagesSource.find((img) => img.url.toLowerCase().includes(`${name}.`)))
+        .filter(Boolean)
 
       faceImages.value = desiredImages.map((img) => img.url)
 
-      const desiredPostImages = imagesOrder.map((name) =>
-        postImagesSource.find((img) => img.url.toLowerCase().includes(`${name}.`)),
-      ).filter(Boolean)
+      console.log(faceImages.value)
+
+      const desiredPostImages = imagesOrder
+        .map((name) => postImagesSource.find((img) => img.url.toLowerCase().includes(`${name}.`)))
+        .filter(Boolean)
 
       postTreatmentImages.value = desiredPostImages.map((img) => img.url)
     }

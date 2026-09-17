@@ -174,8 +174,8 @@ Hydration:
 - dry_patch_fluorescence_bin: primary = woods_uv
 
 Barrier / sensitivity:
-- erythema_intensity_bin: primary = red; secondary = white
-- erythema_coverage_bin: primary = red; secondary = subsurface_polarized
+- erythema_intensity_bin: primary = white + subsurface_polarized; support = red (vascular pattern context only; never grade intensity from the red-illumination image)
+- erythema_coverage_bin: primary = subsurface_polarized + white; support = red
 - flaking_texture_bin: primary = surface_polarized; secondary = woods_uv
 - barrier_uniformity_bin: primary = surface_polarized; secondary = white
 - hydration_signal_bin: primary = subsurface_polarized; secondary = white
@@ -199,8 +199,8 @@ Sebum / oiliness:
     minimal when both are low
 
 Redness:
-- diffuse_redness_bin: primary = red; secondary = white
-- vascular_pattern_bin: primary = red; secondary = subsurface_polarized
+- diffuse_redness_bin: primary = white + subsurface_polarized; support = red (pattern context only)
+- vascular_pattern_bin: primary = subsurface_polarized; support = red
 - subclinical_hotspots_bin: primary = red; secondary = woods_uv
 - diffuse_vs_vascular_dominance_bin:
     diffuse_dominant when background erythema visually outweighs vessel-like structure;

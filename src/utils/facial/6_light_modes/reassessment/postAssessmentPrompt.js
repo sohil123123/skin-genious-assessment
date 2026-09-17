@@ -488,10 +488,10 @@ If raw_comparison_result_internal = declined:
 
 If raw_comparison_result_internal = stable:
 - result may remain stable
-- OR if visible treatment response clearly justifies improvement, you may apply a patient-facing improvement override using response_strength and the rules below
+- result stays stable. Do NOT convert a stable rescore into a patient-facing improvement on the strength of visible impression alone.
 
 If raw_comparison_result_internal = improved:
-- you may keep or amplify the patient-facing improvement if justified by visible response strength and parameter responsiveness
+- keep the patient-facing improvement at the size supported by the fresh rescore; never amplify it beyond the measured change
 
 STEP 5 — MULTI-POINT IMPROVEMENT RULE (MANDATORY)
 The final patient-facing change may be:
@@ -534,9 +534,12 @@ Usually cap at 1-point improvement for:
 - vascularity_redness_profiling
 - periorbital_health
 - lip_pigmentation
-- superficial_wrinkles
+- superficial_wrinkles (dehydration microlines only; fixed lines do not change same-day)
+
+STRUCTURAL PARAMETERS ARE NOT RESCORED SAME-DAY (cap = 0 points; carry the baseline forward):
 - jawline_sagging
 - skin_firmness_elasticity_index
+These change over a course of treatment, not within one session. Apparent same-day movement is almost always head position or lighting.
 
 Skin type:
 - usually stable unless a clearly obvious classification shift is visible
