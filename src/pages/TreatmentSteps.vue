@@ -30,7 +30,7 @@
                 {{ commonStore.isAudioEnabled ? 'Disable All Audio' : 'Enable All Audio' }}
               </q-tooltip>
             </q-btn>
-            
+
             <!-- Dr. Voice Toggle Button -->
             <q-btn
               :icon="commonStore.isVoiceEnabled ? 'record_voice_over' : 'voice_over_off'"
@@ -153,7 +153,7 @@
                 <q-card flat class="timer-card q-pa-lg full-height">
                   <TreatmentTimerV1
                     ref="timerRef"
-                    :duration="Number(step.duration.replace(/(mins|minutes)/g, '') * 60) || 0"
+                    :duration="stepDuration"
                     @start="onTimerStart"
                     @finished="onTimerFinished"
                   />
@@ -282,7 +282,7 @@ const step = computed(() => store.currentStep)
 const totalSteps = computed(() => store.totalSteps)
 const isFirstStep = computed(() => store.currentStepIndex === 0)
 const stepDuration = computed(
-  () => Number(step.value?.duration?.replace(/(mins|minutes)/g, '')) * 60 || 0,
+  () => Number(String(step.value?.duration ?? '').replace(/(mins|minutes)/g, '')) * 60 || 0,
 )
 
 /* -------------------------------------------
