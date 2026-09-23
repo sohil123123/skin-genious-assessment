@@ -279,21 +279,25 @@ function deriveMasterRoadmap(plan) {
   // Block 1 (Current Block)
   const currentBlock = plan.current_treatment_block || {}
   const currentSessions = currentBlock.sessions || []
-  
+
   if (currentSessions.length) {
     const block1PrimaryUses = []
     const block1SupportiveUses = []
-    
+
     for (const session of currentSessions) {
       const ops = session.treatment_operations || session.operations || []
       for (const op of ops) {
         const isSupportive = op.role === 'supportive' || op.modality_id === 'led'
         const list = isSupportive ? block1SupportiveUses : block1PrimaryUses
-        const existing = list.find(u => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id)
+        const existing = list.find(
+          (u) => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id,
+        )
         if (existing) {
           existing.planned_uses += 1
           if (op.linked_component_ids) {
-            existing.linked_component_ids = [...new Set([...existing.linked_component_ids, ...op.linked_component_ids])]
+            existing.linked_component_ids = [
+              ...new Set([...existing.linked_component_ids, ...op.linked_component_ids]),
+            ]
           }
         } else {
           list.push({
@@ -308,7 +312,7 @@ function deriveMasterRoadmap(plan) {
 
     blocks.push({
       block_number: 1,
-      session_numbers: currentSessions.map(s => Number(s.session_number || s.id)),
+      session_numbers: currentSessions.map((s) => Number(s.session_number || s.id)),
       detail_status: 'detailed_current_block',
       purpose: currentBlock.block_goal || 'Initial treatment block',
       primary_protocol_uses: block1PrimaryUses,
@@ -325,13 +329,17 @@ function deriveMasterRoadmap(plan) {
     for (const session of futureSessions) {
       const primaryOps = session.planned_protocol_uses || []
       const supportiveOps = session.supportive_protocol_uses || []
-      
+
       for (const op of primaryOps) {
-        const existing = block2PrimaryUses.find(u => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id)
+        const existing = block2PrimaryUses.find(
+          (u) => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id,
+        )
         if (existing) {
           existing.planned_uses += 1
           if (op.linked_component_ids) {
-            existing.linked_component_ids = [...new Set([...existing.linked_component_ids, ...op.linked_component_ids])]
+            existing.linked_component_ids = [
+              ...new Set([...existing.linked_component_ids, ...op.linked_component_ids]),
+            ]
           }
         } else {
           block2PrimaryUses.push({
@@ -344,11 +352,15 @@ function deriveMasterRoadmap(plan) {
       }
 
       for (const op of supportiveOps) {
-        const existing = block2SupportiveUses.find(u => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id)
+        const existing = block2SupportiveUses.find(
+          (u) => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id,
+        )
         if (existing) {
           existing.planned_uses += 1
           if (op.linked_component_ids) {
-            existing.linked_component_ids = [...new Set([...existing.linked_component_ids, ...op.linked_component_ids])]
+            existing.linked_component_ids = [
+              ...new Set([...existing.linked_component_ids, ...op.linked_component_ids]),
+            ]
           }
         } else {
           block2SupportiveUses.push({
@@ -363,7 +375,7 @@ function deriveMasterRoadmap(plan) {
 
     blocks.push({
       block_number: 2,
-      session_numbers: futureSessions.map(s => Number(s.session_number)),
+      session_numbers: futureSessions.map((s) => Number(s.session_number)),
       detail_status: 'provisional_after_reassessment',
       purpose: 'Adaptive future course',
       primary_protocol_uses: block2PrimaryUses,
@@ -402,7 +414,11 @@ function normalizeTreatmentPlanCourse(plan) {
     ...session,
   }))
 
-  if (!normalized.master_treatment_roadmap || !normalized.master_treatment_roadmap.blocks || !normalized.master_treatment_roadmap.blocks.length) {
+  if (
+    !normalized.master_treatment_roadmap ||
+    !normalized.master_treatment_roadmap.blocks ||
+    !normalized.master_treatment_roadmap.blocks.length
+  ) {
     normalized.master_treatment_roadmap = deriveMasterRoadmap(normalized)
   }
 
@@ -730,8 +746,8 @@ function applyDoctorActionResolutionsToDiagnosis(
     if (!option && item.options?.length) {
       console.warn(
         `[PigmentationStore] Auto-repairing stale resolution for ${item.action_id}: ` +
-        `option_code "${resolution.option_code}" not found in action options, ` +
-        `falling back to "${item.options[0].option_code}".`,
+          `option_code "${resolution.option_code}" not found in action options, ` +
+          `falling back to "${item.options[0].option_code}".`,
       )
       option = item.options[0]
     }
@@ -2934,8 +2950,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         const res = this.parseJSON(raw)
         let generatedPlan = normalizeExecutableOperationParameters(res.linear_treatment_plan || res)
-        
-        if (!generatedPlan.master_treatment_roadmap || !generatedPlan.master_treatment_roadmap.blocks || !generatedPlan.master_treatment_roadmap.blocks.length) {
+
+        if (
+          !generatedPlan.master_treatment_roadmap ||
+          !generatedPlan.master_treatment_roadmap.blocks ||
+          !generatedPlan.master_treatment_roadmap.blocks.length
+        ) {
           generatedPlan.master_treatment_roadmap = deriveMasterRoadmap(generatedPlan)
         }
 
@@ -3018,7 +3038,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           ts: null,
         }
 
-        // Map baseline & continue criteria to goals for reassessment backward-compatibility
+        // Map baseline & continue criteria to goals for reassessment backward-compatibility 123
         const goals = []
         const base = planObj.baseline_summary || {}
 
