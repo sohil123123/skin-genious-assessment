@@ -185,6 +185,19 @@
             <span class="text-weight-medium">Doctor decision:</span>
             {{ actionResolvedLabel(item) }}
           </div>
+          <div v-if="store.blockingDoctorActionItems.some((action) => action.action_id === item.action_id)" class="text-negative text-weight-medium q-mt-sm" role="alert">
+            This decision blocks treatment planning. The doctor can override the block to authorize generation.
+            <q-btn
+              class="q-mt-sm"
+              color="primary"
+              label="Doctor override: authorize plan"
+              :loading="savingId === item.action_id"
+              @click="overrideAction(item)"
+            />
+          </div>
+          <div v-if="actionState(item)?.planning_override" class="text-primary q-mt-sm">
+            Doctor override saved: plan generation authorized.
+          </div>
           <div v-if="actionState(item)?.doctor_note" class="text-body2 q-mt-xs">
             <span class="text-weight-medium">Note:</span>
             {{ actionState(item).doctor_note }}
@@ -302,7 +315,9 @@ const prioritySelection = ref([])
 const hasDiagnosis = computed(() => Boolean(store.diagnosis?.data))
 const classificationItems = computed(() => store.classificationRequiredItems || [])
 const routineActionItems = computed(() =>
-  (store.doctorActionItems || []).filter((item) => !item.classification_id),
+  (store.doctorActionItems || []).filter((item) =>
+    !item.classification_id || item.options.some((option) => option.planning_effect === 'block'),
+  ),
 )
 const priorityOptions = computed(() => store.treatmentPriorityOptions || [])
 const planningReady = computed(() => store.treatmentPlanningReady)
@@ -315,6 +330,9 @@ const readinessMessage = computed(() => {
   const parts = []
   if (pendingClassifications) parts.push(`${pendingClassifications} classification(s) pending`)
   if (pendingActions) parts.push(`${pendingActions} doctor action(s) pending`)
+  for (const item of store.blockingDoctorActionItems || []) {
+    parts.push(`${item.action_id}: ${item.selectedOption.label} — treatment planning blocked`)
+  }
   if (priorityNeeded) parts.push('treatment priority not selected')
   return parts.length
     ? parts.join(' · ')
@@ -468,6 +486,18 @@ async function clearAction(item) {
   actionDrafts[item.action_id] = {
     option_code: null,
     doctor_note: '',
+  }
+}
+
+async function overrideAction(item) {
+  savingId.value = item.action_id
+  try {
+    await store.setDoctorActionResolution(item.action_id, {
+      ...actionState(item),
+      planning_override: true,
+    })
+  } finally {
+    savingId.value = null
   }
 }
 

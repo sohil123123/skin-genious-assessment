@@ -793,8 +793,10 @@ function applyDoctorActionResolutionsToDiagnosis(
       (candidate) => candidate.option_code === resolution.option_code,
     )
     if (!option) throw new Error(`Invalid resolution for doctor action ${item.action_id}.`)
-    if (option.planning_effect === 'block') {
-      throw new Error(`Treatment planning blocked by doctor action ${item.action_id}.`)
+    if (option.planning_effect === 'block' && resolution.planning_override !== true) {
+      throw new Error(
+        `Treatment planning is blocked by ${item.action_id} (${item.title}): ${option.label}. Review this decision in the Diagnosis step before generating a plan.`,
+      )
     }
 
     for (const update of Array.isArray(option.component_updates) ? option.component_updates : []) {
@@ -832,8 +834,15 @@ function applyDoctorActionResolutionsToDiagnosis(
       linked_group_ids: uniqueStringList(item.linked_group_ids),
       option_code: option.option_code,
       option_label: option.label,
-      planning_effect: option.planning_effect || 'continue',
-      planning_directive: option.planning_directive || '',
+      planning_effect: resolution.planning_override === true
+        ? 'continue_with_constraints'
+        : option.planning_effect || 'continue',
+      planning_directive: resolution.planning_override === true
+        ? 'The doctor explicitly overrides this planning block and authorizes plan generation. Apply the doctor note and retain component-specific treatment constraints.'
+        : option.planning_directive || '',
+      planning_override: resolution.planning_override === true,
+      original_planning_effect: option.planning_effect || 'continue',
+      original_planning_directive: option.planning_directive || '',
       doctor_note: String(resolution.doctor_note || ''),
       resolved_at_iso: resolution.resolved_at_iso || null,
     }
@@ -981,6 +990,15 @@ export const usePigmentationStore = defineStore('pigmentation', {
         (item) => state.doctorClassifications?.[item.classification_id]?.status !== 'resolved',
       ),
     doctorActionItems: (state) => doctorActionItemsFromDiagnosis(state.diagnosis?.data),
+    blockingDoctorActionItems: (state) =>
+      doctorActionItemsFromDiagnosis(state.diagnosis?.data).flatMap((item) => {
+        const resolution = state.doctorActionResolutions?.[item.action_id]
+        const option = resolution?.status === 'resolved'
+          ? item.options.find((entry) => entry.option_code === resolution.option_code)
+          : null
+        return option?.planning_effect === 'block' && resolution.planning_override !== true
+          ? [{ ...item, selectedOption: option }] : []
+      }),
     pendingDoctorActionItems: (state) =>
       doctorActionItemsFromDiagnosis(state.diagnosis?.data).filter(
         (item) =>
@@ -1018,7 +1036,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
       )
       const actionBlocks = actionItems.some((item) => {
         const resolution = state.doctorActionResolutions?.[item.action_id]
-        if (resolution?.status !== 'resolved') return false
+        if (resolution?.status !== 'resolved' || resolution.planning_override === true) return false
         return (item.options || []).some(
           (option) =>
             option.option_code === resolution.option_code && option.planning_effect === 'block',
@@ -2898,6 +2916,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
         [actionId]: {
           status: 'resolved',
           option_code: option.option_code,
+          planning_override: option.planning_effect === 'block' && resolution.planning_override === true,
           doctor_note: String(resolution.doctor_note || ''),
           resolved_at_iso: new Date().toISOString(),
         },
