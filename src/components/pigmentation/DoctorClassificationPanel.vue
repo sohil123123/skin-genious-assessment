@@ -22,6 +22,7 @@
         <div class="row items-start justify-between q-col-gutter-md">
           <div class="col-12 col-md">
             <div class="text-subtitle1 text-weight-medium">
+              <q-badge outline color="primary" class="q-mr-sm">{{ item.classification_id }}</q-badge>
               {{ item.clinical_location_text }}
             </div>
             <div class="text-body2 q-mt-xs">
@@ -119,7 +120,10 @@
       >
         <div class="row items-start justify-between q-col-gutter-md">
           <div class="col-12 col-md">
-            <div class="text-subtitle1 text-weight-medium">{{ item.title }}</div>
+            <div class="text-subtitle1 text-weight-medium">
+              <q-badge outline color="primary" class="q-mr-sm">{{ item.action_id }}</q-badge>
+              {{ item.title }}
+            </div>
             <div class="text-body2 q-mt-xs">{{ item.question }}</div>
             <div v-if="item.instruction" class="text-caption text-grey-7 q-mt-sm">
               {{ item.instruction }}
