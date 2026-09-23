@@ -826,7 +826,6 @@ function applyDoctorActionResolutionsToDiagnosis(
           `option_code "${resolution.option_code}" not found in action options, ` +
           `falling back to "${item.options[0].option_code}".`,
       )
-      option = item.options[0]
     }
     if (!option) throw new Error(`Invalid resolution for doctor action ${item.action_id}.`)
     if (option.planning_effect === 'block') {
