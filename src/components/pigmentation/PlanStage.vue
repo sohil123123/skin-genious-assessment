@@ -18,6 +18,19 @@
 
     <!-- INITIAL PLAN BUTTON -->
     <div
+      v-if="store.diagnosis?.data && !store.treatmentPlanningReady && !store.isLoading"
+      class="err-box q-mb-lg"
+      role="alert"
+    >
+      <b>Doctor review required before generating a plan.</b>
+      <div v-for="item in store.blockingDoctorActionItems" :key="item.action_id" class="q-mt-sm">
+        {{ item.action_id }} — {{ item.title }}: {{ item.selectedOption.label }}
+        <div v-if="item.selectedOption.planning_directive">{{ item.selectedOption.planning_directive }}</div>
+      </div>
+      <p class="q-mt-sm">Review doctor decisions, required classifications and treatment priorities in the Diagnosis step.</p>
+      <button class="btn btn-primary" @click="store.currentStage = 2">Review doctor decisions</button>
+    </div>
+    <div
       class="card tight q-pa-xl text-center q-mb-lg"
       v-if="!store.lastPlan && !store.isLoading"
       id="genStart"
@@ -37,7 +50,7 @@
       <button
         class="btn btn-primary q-mt-md"
         @click="runGeneratePlan"
-        :disabled="!store.diagnosis?.confirmedDx"
+        :disabled="!store.diagnosis?.confirmedDx || !store.treatmentPlanningReady"
       >
         ✦ Generate treatment plan
       </button>
@@ -99,7 +112,7 @@
             <button
               class="btn-regenerate"
               @click="runGeneratePlan"
-              :disabled="store.reviewState.finalized || store.isLoading"
+              :disabled="store.reviewState.finalized || store.isLoading || !store.treatmentPlanningReady"
               v-if="!store.reviewState.finalized"
               id="reGenPlanBtn"
             >
@@ -3214,6 +3227,8 @@ const soReviewer = ref(store.reviewState.reviewer || 'Dr. A. Mehra')
 
 const runGeneratePlan = async () => {
   validationError.value = ''
+
+  if (store.diagnosis?.data && !store.treatmentPlanningReady) return
 
   if (!store.diagnosis?.confirmedDx) {
     validationError.value =
