@@ -279,21 +279,25 @@ function deriveMasterRoadmap(plan) {
   // Block 1 (Current Block)
   const currentBlock = plan.current_treatment_block || {}
   const currentSessions = currentBlock.sessions || []
-  
+
   if (currentSessions.length) {
     const block1PrimaryUses = []
     const block1SupportiveUses = []
-    
+
     for (const session of currentSessions) {
       const ops = session.treatment_operations || session.operations || []
       for (const op of ops) {
         const isSupportive = op.role === 'supportive' || op.modality_id === 'led'
         const list = isSupportive ? block1SupportiveUses : block1PrimaryUses
-        const existing = list.find(u => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id)
+        const existing = list.find(
+          (u) => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id,
+        )
         if (existing) {
           existing.planned_uses += 1
           if (op.linked_component_ids) {
-            existing.linked_component_ids = [...new Set([...existing.linked_component_ids, ...op.linked_component_ids])]
+            existing.linked_component_ids = [
+              ...new Set([...existing.linked_component_ids, ...op.linked_component_ids]),
+            ]
           }
         } else {
           list.push({
@@ -308,7 +312,7 @@ function deriveMasterRoadmap(plan) {
 
     blocks.push({
       block_number: 1,
-      session_numbers: currentSessions.map(s => Number(s.session_number || s.id)),
+      session_numbers: currentSessions.map((s) => Number(s.session_number || s.id)),
       detail_status: 'detailed_current_block',
       purpose: currentBlock.block_goal || 'Initial treatment block',
       primary_protocol_uses: block1PrimaryUses,
@@ -325,13 +329,17 @@ function deriveMasterRoadmap(plan) {
     for (const session of futureSessions) {
       const primaryOps = session.planned_protocol_uses || []
       const supportiveOps = session.supportive_protocol_uses || []
-      
+
       for (const op of primaryOps) {
-        const existing = block2PrimaryUses.find(u => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id)
+        const existing = block2PrimaryUses.find(
+          (u) => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id,
+        )
         if (existing) {
           existing.planned_uses += 1
           if (op.linked_component_ids) {
-            existing.linked_component_ids = [...new Set([...existing.linked_component_ids, ...op.linked_component_ids])]
+            existing.linked_component_ids = [
+              ...new Set([...existing.linked_component_ids, ...op.linked_component_ids]),
+            ]
           }
         } else {
           block2PrimaryUses.push({
@@ -344,11 +352,15 @@ function deriveMasterRoadmap(plan) {
       }
 
       for (const op of supportiveOps) {
-        const existing = block2SupportiveUses.find(u => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id)
+        const existing = block2SupportiveUses.find(
+          (u) => u.protocol_id === op.protocol_id && u.modality_id === op.modality_id,
+        )
         if (existing) {
           existing.planned_uses += 1
           if (op.linked_component_ids) {
-            existing.linked_component_ids = [...new Set([...existing.linked_component_ids, ...op.linked_component_ids])]
+            existing.linked_component_ids = [
+              ...new Set([...existing.linked_component_ids, ...op.linked_component_ids]),
+            ]
           }
         } else {
           block2SupportiveUses.push({
@@ -363,7 +375,7 @@ function deriveMasterRoadmap(plan) {
 
     blocks.push({
       block_number: 2,
-      session_numbers: futureSessions.map(s => Number(s.session_number)),
+      session_numbers: futureSessions.map((s) => Number(s.session_number)),
       detail_status: 'provisional_after_reassessment',
       purpose: 'Adaptive future course',
       primary_protocol_uses: block2PrimaryUses,
@@ -402,7 +414,11 @@ function normalizeTreatmentPlanCourse(plan) {
     ...session,
   }))
 
-  if (!normalized.master_treatment_roadmap || !normalized.master_treatment_roadmap.blocks || !normalized.master_treatment_roadmap.blocks.length) {
+  if (
+    !normalized.master_treatment_roadmap ||
+    !normalized.master_treatment_roadmap.blocks ||
+    !normalized.master_treatment_roadmap.blocks.length
+  ) {
     normalized.master_treatment_roadmap = deriveMasterRoadmap(normalized)
   }
 
@@ -610,16 +626,18 @@ function matchingDoctorActionOptionForClassification(action, classificationItem,
     (entry) => entry.option_code === resolution.option_code,
   )
   if (!candidate) return null
-  return (action.options || []).find((option) =>
-    (option.component_updates || []).some(
-      (update) =>
-        update.diagnostic_component_id === classificationItem.linked_component_id &&
-        update.family_code === candidate.family_code &&
-        update.subtype_code === candidate.subtype_code &&
-        update.treatment_pattern_code === candidate.treatment_pattern_code &&
-        update.direct_cosmetic_treatment_status === candidate.direct_cosmetic_treatment_status,
-    ),
-  ) || null
+  return (
+    (action.options || []).find((option) =>
+      (option.component_updates || []).some(
+        (update) =>
+          update.diagnostic_component_id === classificationItem.linked_component_id &&
+          update.family_code === candidate.family_code &&
+          update.subtype_code === candidate.subtype_code &&
+          update.treatment_pattern_code === candidate.treatment_pattern_code &&
+          update.direct_cosmetic_treatment_status === candidate.direct_cosmetic_treatment_status,
+      ),
+    ) || null
+  )
 }
 
 function matchingClassificationCandidateForDoctorAction(diagnosis, action, option) {
@@ -627,16 +645,18 @@ function matchingClassificationCandidateForDoctorAction(diagnosis, action, optio
     (entry) => entry.classification_id === action.classification_id,
   )
   if (!item) return null
-  return (item.candidate_options || []).find((candidate) =>
-    (option.component_updates || []).some(
-      (update) =>
-        update.diagnostic_component_id === item.linked_component_id &&
-        update.family_code === candidate.family_code &&
-        update.subtype_code === candidate.subtype_code &&
-        update.treatment_pattern_code === candidate.treatment_pattern_code &&
-        update.direct_cosmetic_treatment_status === candidate.direct_cosmetic_treatment_status,
-    ),
-  ) || null
+  return (
+    (item.candidate_options || []).find((candidate) =>
+      (option.component_updates || []).some(
+        (update) =>
+          update.diagnostic_component_id === item.linked_component_id &&
+          update.family_code === candidate.family_code &&
+          update.subtype_code === candidate.subtype_code &&
+          update.treatment_pattern_code === candidate.treatment_pattern_code &&
+          update.direct_cosmetic_treatment_status === candidate.direct_cosmetic_treatment_status,
+      ),
+    ) || null
+  )
 }
 
 function classificationsWithDoctorActionOverrides(diagnosis, classifications, actionResolutions) {
@@ -656,8 +676,11 @@ function classificationsWithDoctorActionOverrides(diagnosis, classifications, ac
       status: 'resolved',
       resolution_type: 'candidate_selected',
       option_code: candidate.option_code,
-      doctor_note: String(resolution.doctor_note || effective[action.classification_id]?.doctor_note || ''),
-      resolved_at_iso: resolution.resolved_at_iso || effective[action.classification_id]?.resolved_at_iso || null,
+      doctor_note: String(
+        resolution.doctor_note || effective[action.classification_id]?.doctor_note || '',
+      ),
+      resolved_at_iso:
+        resolution.resolved_at_iso || effective[action.classification_id]?.resolved_at_iso || null,
     }
   }
   return effective
@@ -674,9 +697,9 @@ function initializeDoctorActionResolutionState(
     const classificationId = item.classification_id
     const linkedClassification = classificationId ? doctorClassifications?.[classificationId] : null
 
-    const validPrior = prior?.status === 'resolved' && (item.options || []).some(
-      (option) => option.option_code === prior.option_code,
-    )
+    const validPrior =
+      prior?.status === 'resolved' &&
+      (item.options || []).some((option) => option.option_code === prior.option_code)
     if (validPrior) {
       state[item.action_id] = { ...prior }
       continue
@@ -685,7 +708,9 @@ function initializeDoctorActionResolutionState(
       (entry) => entry.classification_id === classificationId,
     )
     const matchedOption = matchingDoctorActionOptionForClassification(
-      item, classificationItem, linkedClassification,
+      item,
+      classificationItem,
+      linkedClassification,
     )
     if (matchedOption) {
       state[item.action_id] = {
@@ -792,6 +817,17 @@ function applyDoctorActionResolutionsToDiagnosis(
     const option = (item.options || []).find(
       (candidate) => candidate.option_code === resolution.option_code,
     )
+    // Auto-repair: if the stored option_code is stale (e.g. a classification option_code
+    // that was incorrectly saved as a doctor-action resolution), fall back to the first
+    // available option instead of blocking plan generation.
+    if (!option && item.options?.length) {
+      console.warn(
+        `[PigmentationStore] Auto-repairing stale resolution for ${item.action_id}: ` +
+          `option_code "${resolution.option_code}" not found in action options, ` +
+          `falling back to "${item.options[0].option_code}".`,
+      )
+      option = item.options[0]
+    }
     if (!option) throw new Error(`Invalid resolution for doctor action ${item.action_id}.`)
     if (option.planning_effect === 'block') {
       throw new Error(`Treatment planning blocked by doctor action ${item.action_id}.`)
@@ -984,12 +1020,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
     pendingDoctorActionItems: (state) =>
       doctorActionItemsFromDiagnosis(state.diagnosis?.data).filter(
         (item) =>
-          item.required && (
-            state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved' ||
+          item.required &&
+          (state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved' ||
             !(item.options || []).some(
-              (option) => option.option_code === state.doctorActionResolutions?.[item.action_id]?.option_code,
-            )
-          ),
+              (option) =>
+                option.option_code === state.doctorActionResolutions?.[item.action_id]?.option_code,
+            )),
       ),
     treatmentPriorityOptions: (state) =>
       treatmentPriorityOptionsFromDiagnosis(
@@ -1009,12 +1045,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
       const actionItems = doctorActionItemsFromDiagnosis(state.diagnosis.data)
       const actionPending = actionItems.some(
         (item) =>
-          item.required && (
-            state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved' ||
+          item.required &&
+          (state.doctorActionResolutions?.[item.action_id]?.status !== 'resolved' ||
             !(item.options || []).some(
-              (option) => option.option_code === state.doctorActionResolutions?.[item.action_id]?.option_code,
-            )
-          ),
+              (option) =>
+                option.option_code === state.doctorActionResolutions?.[item.action_id]?.option_code,
+            )),
       )
       const actionBlocks = actionItems.some((item) => {
         const resolution = state.doctorActionResolutions?.[item.action_id]
@@ -2817,16 +2853,21 @@ export const usePigmentationStore = defineStore('pigmentation', {
       const linkedAction = actions.find((act) => act.classification_id === classificationId)
       if (linkedAction) {
         const matchedOption = matchingDoctorActionOptionForClassification(
-          linkedAction, item, this.doctorClassifications[classificationId],
+          linkedAction,
+          item,
+          this.doctorClassifications[classificationId],
         )
         const prior = this.doctorActionResolutions?.[linkedAction.action_id]
         const priorOption = (linkedAction.options || []).find(
           (option) => option.option_code === prior?.option_code,
         )
-        const compatiblePrior = priorOption && (
-          matchingClassificationCandidateForDoctorAction(this.diagnosis?.data, linkedAction, priorOption)
-            ?.option_code === resolution.option_code
-        )
+        const compatiblePrior =
+          priorOption &&
+          matchingClassificationCandidateForDoctorAction(
+            this.diagnosis?.data,
+            linkedAction,
+            priorOption,
+          )?.option_code === resolution.option_code
         this.doctorActionResolutions = {
           ...this.doctorActionResolutions,
           [linkedAction.action_id]: compatiblePrior
@@ -2904,7 +2945,9 @@ export const usePigmentationStore = defineStore('pigmentation', {
       }
       if (item.classification_id) {
         const candidate = matchingClassificationCandidateForDoctorAction(
-          this.diagnosis?.data, item, option,
+          this.diagnosis?.data,
+          item,
+          option,
         )
         if (candidate) {
           this.doctorClassifications = {
@@ -3044,8 +3087,12 @@ export const usePigmentationStore = defineStore('pigmentation', {
 
         const res = this.parseJSON(raw)
         let generatedPlan = normalizeExecutableOperationParameters(res.linear_treatment_plan || res)
-        
-        if (!generatedPlan.master_treatment_roadmap || !generatedPlan.master_treatment_roadmap.blocks || !generatedPlan.master_treatment_roadmap.blocks.length) {
+
+        if (
+          !generatedPlan.master_treatment_roadmap ||
+          !generatedPlan.master_treatment_roadmap.blocks ||
+          !generatedPlan.master_treatment_roadmap.blocks.length
+        ) {
           generatedPlan.master_treatment_roadmap = deriveMasterRoadmap(generatedPlan)
         }
 
@@ -3128,7 +3175,7 @@ export const usePigmentationStore = defineStore('pigmentation', {
           ts: null,
         }
 
-        // Map baseline & continue criteria to goals for reassessment backward-compatibility
+        // Map baseline & continue criteria to goals for reassessment backward-compatibility 123
         const goals = []
         const base = planObj.baseline_summary || {}
 
