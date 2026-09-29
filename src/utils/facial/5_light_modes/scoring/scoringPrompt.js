@@ -1,7 +1,7 @@
 import { encode } from '@toon-format/toon'
 
 // NOTE:
-// This rewrite preserves the existing score names, score polarities, score bins,
+// This rewrite preserves the existing score names, score polarities,
 // and core continuous equations wherever possible.
 // The migration is semantic: old 6-mode evidence assumptions are replaced by the
 // new 5-mode evidence model consumed through the upstream Feature Packet.
@@ -300,28 +300,33 @@ const combined_barrier_sensitivity = {
         'BSI = 0.30*(1 - surface_texture_uniformity) + 0.25*(1 - hydration_signal_index) + 0.25*erythema_intensity_index + 0.10*vascular_pattern_index + 0.10*flaking_texture_index',
     },
 
-    score_bins: {
-      1: {
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 99 * clip(BSI, 0, 1)',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
+    clinical_reference_ranges: {
+      reference_1: {
         range: '<0.20',
         label: 'Strong Barrier / Low Sensitivity',
         anchor: 'Smooth texture, well hydrated, minimal redness or reactivity.',
       },
-      2: {
+      reference_2: {
         range: '0.20-0.35',
         label: 'Mildly Compromised',
         anchor: 'Early dryness or mild sensitivity but stable barrier.',
       },
-      3: {
+      reference_3: {
         range: '0.35-0.55',
         label: 'Moderately Compromised',
         anchor: 'Visible dryness, uneven texture, mild-to-moderate redness.',
       },
-      4: {
+      reference_4: {
         range: '0.55-0.75',
         label: 'Severely Compromised',
         anchor: 'Marked dryness, flaking, barrier disruption, persistent sensitivity.',
       },
-      5: {
+      reference_5: {
         range: '>0.75',
         label: 'Highly Sensitive / Barrier Breakdown',
         anchor: 'Severe redness, scaling, burning-prone skin; urgent barrier repair needed.',
@@ -340,7 +345,7 @@ const combined_barrier_sensitivity = {
     },
 
     output_format: {
-      final_score: 'integer (1-5)',
+      final_score: 'continuous number (1-100)',
       BSI_continuous: 'float 0-1',
       backend_details: {
         surface_texture_uniformity: '0-1',
@@ -374,7 +379,7 @@ const visual_acne_scoring = {
         'jawline_right',
       ],
       notes:
-        'Scale 1-5 where 1 = minimal acne and 5 = severe/nodulocystic. Includes spatial maps & per-lesion coordinates for treatment-level intelligence. Core ASI distribution preserved. New helper bins are consumed from the feature packet.',
+        'Scale 1-100 where 1 = minimal acne and 100 = severe/nodulocystic. Includes spatial maps & per-lesion coordinates for treatment-level intelligence. Core ASI distribution preserved. New helper bins are consumed from the feature packet.',
     },
 
     lesion_types: {
@@ -558,28 +563,33 @@ const visual_acne_scoring = {
         'ASI = 0.40*lesion_load_normalized + 0.30*inflammation_normalized + 0.15*comedone_density_index + 0.15*inflammatory_cluster_index',
     },
 
-    grading_scale: {
-      1: {
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 99 * clip(ASI, 0, 1)',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
+    clinical_reference_ranges: {
+      reference_1: {
         range: '<0.20',
         label: 'Minimal Acne',
         anchor: 'Few comedones, almost no inflammation.',
       },
-      2: {
+      reference_2: {
         range: '0.20-0.35',
         label: 'Mild Acne',
         anchor: 'Comedonal or occasional papules.',
       },
-      3: {
+      reference_3: {
         range: '0.35-0.55',
         label: 'Moderate Acne',
         anchor: 'Papules/pustules, some clusters.',
       },
-      4: {
+      reference_4: {
         range: '0.55-0.75',
         label: 'Marked Acne',
         anchor: 'Dense inflammatory lesions.',
       },
-      5: {
+      reference_5: {
         range: '>0.75',
         label: 'Severe/Nodulocystic Acne',
         anchor: 'Nodules, widespread inflammation.',
@@ -595,7 +605,7 @@ const visual_acne_scoring = {
         '5. Build region_activity_map and inflammatory hotspots.',
         '6. Construct acne_grid_map from density + inflammation + porphyrin support.',
         '7. Compute ASI (Acne Severity Index).',
-        '8. Map ASI to 1-5 severity.',
+        '8. Map ASI directly to continuous 1-100 using continuous_score_mapping.',
         '9. Output backend indices and spatial maps.',
       ],
     },
@@ -612,7 +622,7 @@ const visual_acne_scoring = {
     },
 
     output_format: {
-      final_score: 'integer 1-5',
+      final_score: 'continuous number 1-100',
       ASI_continuous: 'float 0-1',
       lesion_counts: {
         open_comedone: 'integer',
@@ -647,7 +657,7 @@ const sebum_content_scoring = {
       lighting_modes_used: NEW_MODE_SET,
       regions_analyzed: ['forehead', 'nose', 'cheeks_left', 'cheeks_right', 'chin'],
       notes:
-        'Score reflects clinically visible oiliness, subclinical sebaceous activity, bacterial porphyrins, and shine dynamics. Designed to be treatment-responsive. Core SSI equation and score bins preserved.',
+        'Score reflects clinically visible oiliness, subclinical sebaceous activity, bacterial porphyrins, and shine dynamics. Designed to be treatment-responsive. Core SSI equation preserved; final score banding removed.',
     },
 
     mode_roles: {
@@ -755,12 +765,17 @@ const sebum_content_scoring = {
         'SSI = 0.40*shine_norm + 0.25*fluorescence_norm + 0.20*porphyrin_norm + 0.15*congestion_norm',
     },
 
-    score_bins: {
-      1: { range: '<0.20', label: 'Very Low Sebum / Dry' },
-      2: { range: '0.20-0.38', label: 'Low-Normal Sebum' },
-      3: { range: '0.38-0.58', label: 'Moderate Sebum' },
-      4: { range: '0.58-0.78', label: 'High Sebum / Oily' },
-      5: { range: '>0.78', label: 'Very Oily / Seborrheic' },
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 99 * clip(SSI, 0, 1)',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
+    clinical_reference_ranges: {
+      reference_1: { range: '<0.20', label: 'Very Low Sebum / Dry' },
+      reference_2: { range: '0.20-0.38', label: 'Low-Normal Sebum' },
+      reference_3: { range: '0.38-0.58', label: 'Moderate Sebum' },
+      reference_4: { range: '0.58-0.78', label: 'High Sebum / Oily' },
+      reference_5: { range: '>0.78', label: 'Very Oily / Seborrheic' },
     },
 
     decision_logic: {
@@ -771,7 +786,7 @@ const sebum_content_scoring = {
         '4. Count porphyrin-like support from woods_uv.',
         '5. Compute regional_sebum_map and sebum_hotspot_grid.',
         '6. Compute SSI.',
-        '7. Map SSI to 1-5 severity.',
+        '7. Map SSI directly to continuous 1-100 using continuous_score_mapping.',
         '8. Compute backend indices including BIBI.',
       ],
     },
@@ -788,7 +803,7 @@ const sebum_content_scoring = {
     },
 
     output_format: {
-      final_score: 'integer 1-5',
+      final_score: 'continuous number 1-100',
       SSI_continuous: 'float 0-1',
       shine_reflectance_index: '0-1',
       sebum_fluorescence_index: '0-1',
@@ -845,8 +860,14 @@ const vascularity_redness_scoring = {
       },
     },
 
-    score_definitions: {
-      1: {
+    continuous_score_mapping: {
+      method:
+        'Apply the same clinical hierarchy continuously on 1-100 for every component and the final score. Interpolate between clinical_reference_anchors without first assigning an integer grade; preserve the existing hierarchy and modifiers. Clip the final score to [1, 100].',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
+    clinical_reference_anchors: {
+      '1.00': {
         label: 'Minimal Redness',
         clinical_features: [
           'Almost no visible redness in white light',
@@ -857,7 +878,7 @@ const vascularity_redness_scoring = {
         patient_perception: 'Skin appears even-toned with no visible redness.',
         treatment_responsiveness: 'Small but noticeable improvements possible.',
       },
-      2: {
+      '25.75': {
         label: 'Mild Redness / Reactive',
         clinical_features: [
           'Faint cheek or nose redness visible only on close view',
@@ -868,7 +889,7 @@ const vascularity_redness_scoring = {
         patient_perception: 'Occasional redness, often called sensitive skin.',
         treatment_responsiveness: 'Improves well with facials, LED, calming agents.',
       },
-      3: {
+      '50.50': {
         label: 'Moderate Redness',
         clinical_features: [
           'Easily visible redness in cheeks/nose in white light',
@@ -879,7 +900,7 @@ const vascularity_redness_scoring = {
         patient_perception: 'Redness is a visible cosmetic concern.',
         treatment_responsiveness: 'Strongly responsive to clinical facials, yellow LED, peels.',
       },
-      4: {
+      '75.25': {
         label: 'High Redness / Vascular Prominence',
         clinical_features: [
           'Obvious redness from conversational distance',
@@ -891,7 +912,7 @@ const vascularity_redness_scoring = {
         treatment_responsiveness:
           'Requires stronger interventions like vascular lasers or multiple sessions.',
       },
-      5: {
+      '100.00': {
         label: 'Severe Redness / Rosacea-like',
         clinical_features: [
           'Intense diffuse redness covering large areas',
@@ -906,13 +927,13 @@ const vascularity_redness_scoring = {
     },
 
     backend_output: {
-      clinical_erythema_score: '1-5',
-      vascular_pattern_score: '1-5',
-      diffuse_redness_score: '1-5',
-      subclinical_hotspot_score: '1-5',
-      sebaceous_inflammation_score: '1-5',
+      clinical_erythema_score: 'continuous number 1-100',
+      vascular_pattern_score: 'continuous number 1-100',
+      diffuse_redness_score: 'continuous number 1-100',
+      subclinical_hotspot_score: 'continuous number 1-100',
+      sebaceous_inflammation_score: 'continuous number 1-100',
       global_vascularity_redness_score:
-        'Final score (1-5 based on clinical hierarchy, not averaging)',
+        'Final score (continuous 1-100 based on clinical hierarchy, not averaging)',
       BIBI_index: {
         description: 'Bacterial + Inflammatory Burden Index for redness pathways.',
         components: {
@@ -930,8 +951,8 @@ const vascularity_redness_scoring = {
     decision_logic: {
       rules: [
         'White-light erythema sets the baseline patient-visible severity.',
-        'Red-supported vascular structure can raise the score by +1 if significant.',
-        'Diffuse red background erythema can raise the score by +1 if widespread.',
+        'Red-supported vascular structure can raise the score by +24.75 if significant.',
+        'Diffuse red background erythema can raise the score by +24.75 if widespread.',
         'red/woods_uv hotspots refine whether redness is inflammatory or vascular.',
         'Final score reflects the highest clinically meaningful severity, not a mathematical mean.',
       ],
@@ -1079,28 +1100,33 @@ const skin_hydration_scoring = {
         'HSI = 0.40*surface_reflectance_index + 0.25*subsurface_diffusion_index + 0.15*(1 - microline_density_index) + 0.10*sebum_balance_ratio + 0.10*(1 - dry_patch_fluorescence_index)',
     },
 
-    score_bins: {
-      1: {
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 99 * clip(HSI, 0, 1)',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
+    clinical_reference_ranges: {
+      reference_1: {
         range: '<0.30',
         label: 'Severely Dehydrated',
         anchor: 'Dull, flaky, tight appearance; marked micro-lines.',
       },
-      2: {
+      reference_2: {
         range: '0.30-0.45',
         label: 'Moderately Dehydrated',
         anchor: 'Uneven reflectance, scattered dry patches, visible fine lines.',
       },
-      3: {
+      reference_3: {
         range: '0.45-0.60',
         label: 'Mild Dehydration',
         anchor: 'Healthy but lacks plumpness; minor dullness.',
       },
-      4: {
+      reference_4: {
         range: '0.60-0.75',
         label: 'Well Hydrated',
         anchor: 'Smooth surface, good glow, soft micro-lines.',
       },
-      5: {
+      reference_5: {
         range: '>0.75',
         label: 'Optimally Hydrated',
         anchor: 'Plump, luminous, radiant appearance with high diffusion.',
@@ -1116,7 +1142,7 @@ const skin_hydration_scoring = {
         '5. Compute regional hydration metrics and full-face averages.',
         '6. Normalize all metrics (0-1).',
         '7. Calculate HSI using hydration_burden_equation.',
-        '8. Map HSI to 1-5 hydration score.',
+        '8. Map HSI directly to continuous 1-100 using continuous_score_mapping.',
         '9. Generate backend indices (hydration type, barrier compromise, recovery potential).',
       ],
     },
@@ -1129,11 +1155,11 @@ const skin_hydration_scoring = {
       continuous_index_polarity: 'higher_is_better',
       comparison_mode: 'direct_numeric',
       target_interpretation_rule:
-        'Higher score is better; target is progressive upward movement toward 5 while preserving clinical realism and avoiding overstating short-term gains.',
+        'Higher score is better; target is progressive upward movement toward 100 while preserving clinical realism and avoiding overstating short-term gains.',
     },
 
     output_format: {
-      final_score: 'integer 1-5',
+      final_score: 'continuous number 1-100',
       HSI_continuous: 'float 0-1',
       surface_reflectance_index: '0-1',
       microline_density_index: '0-1',
@@ -1279,28 +1305,33 @@ const skin_luminosity_index = {
         'GLI = 0.30*surface_reflectance_uniformity + 0.25*color_luminance_index + 0.20*subsurface_diffusion_index + 0.15*shadow_softness_index + 0.05*sebum_gloss_index + 0.05*(1 - dryness_dullness_index)',
     },
 
-    score_bins: {
-      1: {
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 99 * clip(GLI, 0, 1)',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
+    clinical_reference_ranges: {
+      reference_1: {
         range: '<0.25',
         label: 'Very Dull',
         anchor: 'Low brightness, marked dryness, uneven reflection.',
       },
-      2: {
+      reference_2: {
         range: '0.25-0.40',
         label: 'Mild Glow',
         anchor: 'Some brightness, but dullness/patchiness persists.',
       },
-      3: {
+      reference_3: {
         range: '0.40-0.60',
         label: 'Healthy Glow',
         anchor: 'Good brightness and uniformity with mild shadow softness.',
       },
-      4: {
+      reference_4: {
         range: '0.60-0.78',
         label: 'Radiant',
         anchor: 'Bright, even surface glow and soft facial contours.',
       },
-      5: {
+      reference_5: {
         range: '>0.78',
         label: 'Luminous / High Radiance',
         anchor: 'Strong surface + subsurface glow, minimal dullness.',
@@ -1315,11 +1346,11 @@ const skin_luminosity_index = {
       continuous_index_polarity: 'higher_is_better',
       comparison_mode: 'direct_numeric',
       target_interpretation_rule:
-        'Higher score is better; target is progressive upward movement toward 5 while preserving clinical realism and avoiding overstating short-term gains.',
+        'Higher score is better; target is progressive upward movement toward 100 while preserving clinical realism and avoiding overstating short-term gains.',
     },
 
     output_format: {
-      final_score: 'integer 1-5',
+      final_score: 'continuous number 1-100',
       GLI_continuous: 'float 0-1',
       backend_details: {
         surface_reflectance_uniformity: '0-1',
@@ -1344,7 +1375,7 @@ const superficial_pigmentation_scoring = {
       lighting_modes_used: NEW_MODE_SET,
       regions_analyzed: ['forehead', 'malar_left', 'malar_right', 'nose', 'chin'],
       notes:
-        'Score reflects perceived superficial pigment burden in real-life lighting and is designed to be treatment-relevant, sensitive to change, and spatially precise for localized treatments. Core PPL equation and score bins preserved.',
+        'Score reflects perceived superficial pigment burden in real-life lighting and is designed to be treatment-relevant, sensitive to change, and spatially precise for localized treatments. Core PPL equation preserved; final score banding removed.',
     },
 
     mode_roles: {
@@ -1511,7 +1542,7 @@ const superficial_pigmentation_scoring = {
 
     scoring_logic: {
       description:
-        'Determines a perceived pigment load score (1-5) without population-based Gaussian normalization, while being sensitive to mottling and regional variation.',
+        'Determines a perceived pigment load score (1-100) without population-based Gaussian normalization, while being sensitive to mottling and regional variation.',
 
       normalization: {
         coverage_area_normalized: {
@@ -1544,24 +1575,29 @@ const superficial_pigmentation_scoring = {
           'PPL = 0.25 * coverage_area_normalized + 0.40 * mean_intensity_normalized + 0.15 * contrast_to_surrounding_skin_normalized + 0.15 * woods_cluster_normalized + 0.05 * ((uniformity_penalty + region_variation_index) / 2)',
       },
 
-      score_bins: {
-        1: {
+      continuous_score_mapping: {
+        equation: 'final_score = 1 + 99 * clip(PPL, 0, 1)',
+        output_range: 'continuous number 1-100; decimals allowed',
+      },
+
+      clinical_reference_ranges: {
+        reference_1: {
           range: '<0.18',
           anchor: 'Essentially clear or only a few faint spots.',
         },
-        2: {
+        reference_2: {
           range: '0.18-0.36',
           anchor: 'Mild pigmentation; some spots or dullness in certain areas.',
         },
-        3: {
+        reference_3: {
           range: '0.36-0.58',
           anchor: 'Moderate pigmentation; uneven tone is clearly visible in daily life.',
         },
-        4: {
+        reference_4: {
           range: '0.58-0.78',
           anchor: 'Marked pigmentation; multiple obvious patches or dense clusters.',
         },
-        5: {
+        reference_5: {
           range: '>0.78',
           anchor: 'Severe, widespread pigmentation with dense signal across most regions.',
         },
@@ -1604,7 +1640,7 @@ const superficial_pigmentation_scoring = {
         '3. Compute global coverage, intensity, contrast, uniformity and woods_uv cluster support.',
         '4. Compute region variation and pigment_grid_map.',
         '5. Normalize metrics to 0-1 and compute PPL.',
-        '6. Assign final_score 1-5 based on score_bins.',
+        '6. Assign continuous final_score 1-100 using continuous_score_mapping.',
         '7. On reassessment, compute PRI using intensity, contrast, woods cluster, and coverage deltas.',
         '8. Independently compute backend indices (depth, superficial fraction, improvability, regional burden, pigment grid).',
       ],
@@ -1622,7 +1658,7 @@ const superficial_pigmentation_scoring = {
     },
 
     output_format: {
-      final_score: 'integer 1-5 representing perceived superficial pigment load (PPL category).',
+      final_score: 'continuous number 1-100 representing perceived superficial pigment load (PPL continuous).',
       backend_details: {
         PPL_continuous: 'float 0-1',
         coverage_area_percent: 'float 0-100',
@@ -1695,8 +1731,15 @@ const peri_orbital_skin_health_scoring = {
       texture_fine_lines: 0.1,
     },
 
-    severity_scale: {
-      1: {
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 0.99 * clip(global_periorbital_score, 0, 100)',
+      method:
+        'Use the existing weighted global_periorbital_score from the existing 0-100 sub-indices and parameter_weights without assigning a severity grade.',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
+    clinical_reference_ranges: {
+      reference_1: {
         label: 'Excellent Peri-orbital Health',
         clinical_features: [
           'No obvious pigmentation',
@@ -1706,7 +1749,7 @@ const peri_orbital_skin_health_scoring = {
         ],
       },
 
-      2: {
+      reference_2: {
         label: 'Mild Concerns',
         clinical_features: [
           'Mild discoloration',
@@ -1717,7 +1760,7 @@ const peri_orbital_skin_health_scoring = {
         ],
       },
 
-      3: {
+      reference_3: {
         label: 'Moderate Concerns',
         clinical_features: [
           'Visible pigmentation',
@@ -1728,7 +1771,7 @@ const peri_orbital_skin_health_scoring = {
         ],
       },
 
-      4: {
+      reference_4: {
         label: 'Significant Concerns',
         clinical_features: [
           'Marked pigmentation',
@@ -1739,7 +1782,7 @@ const peri_orbital_skin_health_scoring = {
         ],
       },
 
-      5: {
+      reference_5: {
         label: 'Severe Peri-orbital Aging / Darkness',
         clinical_features: [
           'Dense pigmentation with sharp borders',
@@ -1791,11 +1834,11 @@ const peri_orbital_skin_health_scoring = {
         '4. Compute puffiness_index from puffiness support.',
         '5. Compute texture_line_index from fine-line texture support.',
         '6. Combine all into weighted global_periorbital_score.',
-        '7. Map global_periorbital_score → discrete 1-5 severity level.',
+        '7. Map global_periorbital_score directly to continuous 1-100 using continuous_score_mapping.',
       ],
 
       output_format: {
-        final_score: 'integer (1-5)',
+        final_score: 'continuous number (1-100)',
         backend_details: {
           pigment_index: '0-100',
           vascular_index: '0-100',
@@ -1883,6 +1926,12 @@ const lip_pigmentation_scoring = {
       },
     },
 
+    continuous_score_mapping: {
+      method:
+        'Apply the same clinical interpretation of the existing primary_metrics directly on a continuous 1-100 severity scale, where 1 is minimal and 100 is severe. Do not first assign an integer grade or add a new weighting equation.',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
     polarity_metadata: {
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
@@ -1939,24 +1988,29 @@ const texture_pores_scoring = {
         'PTI = 0.30*pore_density_index + 0.25*pore_diameter_index + 0.20*(1-pore_clarity_index) + 0.15*texture_roughness_index + 0.10*blackhead_congestion_index',
     },
 
-    score_bins: {
-      1: {
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 99 * clip(PTI, 0, 1)',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
+    clinical_reference_ranges: {
+      reference_1: {
         range: '<0.18',
         label: 'Minimal Texture/Pores',
       },
-      2: {
+      reference_2: {
         range: '0.18-0.34',
         label: 'Mild Texture/Pores',
       },
-      3: {
+      reference_3: {
         range: '0.34-0.56',
         label: 'Moderate Texture/Pores',
       },
-      4: {
+      reference_4: {
         range: '0.56-0.76',
         label: 'Marked Texture/Pores',
       },
-      5: {
+      reference_5: {
         range: '>0.76',
         label: 'Severe Texture/Pores',
       },
@@ -1966,7 +2020,7 @@ const texture_pores_scoring = {
       steps: [
         '1. Read feature_packet.pores_texture and pores_texture_plus as ground truth.',
         '2. Compute PTI.',
-        '3. Map PTI to 1-5.',
+        '3. Map PTI directly to continuous 1-100 using continuous_score_mapping.',
         '4. Use white/surface_polarized only for confidence and affected-area-image support.',
       ],
     },
@@ -1983,7 +2037,7 @@ const texture_pores_scoring = {
     },
 
     output_format: {
-      final_score: '1-5',
+      final_score: 'continuous number 1-100',
       PTI_continuous: '0-1',
     },
   },
@@ -2031,24 +2085,29 @@ const superficial_wrinkles_scoring = {
         'WBI = 0.30*wrinkle_depth_index + 0.20*microline_density_index + 0.15*chronicity_uv_index + 0.15*(1-regional_uniformity_index) + 0.20*structural_vs_dehydration_index',
     },
 
-    score_bins: {
-      1: {
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 99 * clip(WBI, 0, 1)',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
+    clinical_reference_ranges: {
+      reference_1: {
         range: '<0.18',
         label: 'Minimal Wrinkles',
       },
-      2: {
+      reference_2: {
         range: '0.18-0.34',
         label: 'Mild Wrinkles',
       },
-      3: {
+      reference_3: {
         range: '0.34-0.54',
         label: 'Moderate Wrinkles',
       },
-      4: {
+      reference_4: {
         range: '0.54-0.75',
         label: 'Marked Wrinkles',
       },
-      5: {
+      reference_5: {
         range: '>0.75',
         label: 'Severe Wrinkles',
       },
@@ -2058,7 +2117,7 @@ const superficial_wrinkles_scoring = {
       steps: [
         '1. Read feature_packet.wrinkles and wrinkles_plus as ground truth.',
         '2. Compute WBI.',
-        '3. Map WBI to 1-5 score bins.',
+        '3. Map WBI directly to continuous 1-100 using continuous_score_mapping.',
         '4. Use surface_polarized/white/woods_uv only for confidence support and affected-area-image selection.',
       ],
     },
@@ -2075,7 +2134,7 @@ const superficial_wrinkles_scoring = {
     },
 
     output_format: {
-      final_score: 'integer 1-5',
+      final_score: 'continuous number 1-100',
       backend_details: {
         WBI_continuous: 'float 0-1',
         wrinkle_line_count: 'int',
@@ -2159,6 +2218,12 @@ const jawline_sagging_scoring = {
       fat_vs_laxity_component_split: 'object',
     },
 
+    continuous_score_mapping: {
+      method:
+        'Apply the same clinical interpretation of the existing primary_metrics directly on a continuous 1-100 severity scale, where 1 is minimal and 100 is severe. Do not first assign an integer grade or add a new weighting equation.',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
     polarity_metadata: {
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
@@ -2171,7 +2236,7 @@ const jawline_sagging_scoring = {
     },
 
     output_format: {
-      final_score: '1-5',
+      final_score: 'continuous number 1-100',
       backend_details: {
         mandibular_line_deflection_angle: 'float',
         pre_jowl_sulcus_depth_index: '0-1',
@@ -2265,6 +2330,11 @@ const skin_firmness_elasticity_index = {
         'FI = (0.40*micro_laxity_pattern_index) + 0.35*(1-collagen_reflectance_uniformity) + 0.25*(1-elastic_recoil_proxy_index)',
     },
 
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 99 * clip(FI, 0, 1)',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
     polarity_metadata: {
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
@@ -2277,7 +2347,7 @@ const skin_firmness_elasticity_index = {
     },
 
     output_format: {
-      final_score: '1-5',
+      final_score: 'continuous number 1-100',
       continuous_firmness_index: '0-1',
       backend_details: {
         micro_laxity_pattern_index: '0-1',
@@ -2365,6 +2435,11 @@ const textural_radiance_index = {
         'TRI = 0.40*(1-micro_clarity_index) + 0.35*(1-surface_smooth_scatter_index) + 0.25*(keratin_shadow_index)',
     },
 
+    continuous_score_mapping: {
+      equation: 'final_score = 1 + 99 * clip(TRI, 0, 1)',
+      output_range: 'continuous number 1-100; decimals allowed',
+    },
+
     polarity_metadata: {
       score_semantics: 'severity',
       score_polarity: 'higher_is_worse',
@@ -2377,7 +2452,7 @@ const textural_radiance_index = {
     },
 
     output_format: {
-      final_score: '1-5',
+      final_score: 'continuous number 1-100',
       continuous_TRI: '0-1',
       backend_details: {
         micro_clarity_index: '0-1',
@@ -2516,7 +2591,7 @@ const diagnosis_json_structure = {
         'Evaluates redness, flaking, barrier uniformity, hydration stress, and reactivity using the 5-mode system plus the feature packet.',
       client_description:
         '<A simple explanation of how calm, resilient and well-protected your skin barrier appears.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2543,7 +2618,7 @@ const diagnosis_json_structure = {
       description:
         'Assesses active acne burden, comedones, inflammatory lesions and clustering using the new 5-mode system plus the feature packet.',
       client_description: '<A simple explanation of how active your acne appears today.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<Which acne features drove the score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2570,7 +2645,7 @@ const diagnosis_json_structure = {
       description:
         'Assesses visible oiliness, shine pattern, follicular congestion, porphyrin-like support, and sebum variability using the 5-mode system plus the feature packet.',
       client_description: '<A simple explanation of how oily or balanced your skin appears.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the oil/sebum score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2597,7 +2672,7 @@ const diagnosis_json_structure = {
       description:
         'Assesses visible redness, vascular prominence, diffuse erythema and inflammatory hotspots using red-first evidence plus the feature packet.',
       client_description: '<A simple explanation of how red or reactive your skin appears.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the redness score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2624,7 +2699,7 @@ const diagnosis_json_structure = {
       description:
         'Measures plumpness, reflectance, micro-lines, dryness fluorescence and hydration support using the 5-mode system plus the feature packet.',
       client_description: '<A simple explanation of how hydrated or dehydrated your skin appears.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the hydration score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2636,7 +2711,7 @@ const diagnosis_json_structure = {
         '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
       comparison_mode: '<direct_numeric | label_mapping | target_distance>',
       target_interpretation_rule:
-        '<Higher score is better; target is progressive upward movement toward 5 while preserving clinical realism and avoiding overstating short-term gains.>',
+        '<Higher score is better; target is progressive upward movement toward 100 while preserving clinical realism and avoiding overstating short-term gains.>',
       normalized_burden_0_to_1: '<0-1>',
       data_quality: {
         is_estimated: false,
@@ -2651,7 +2726,7 @@ const diagnosis_json_structure = {
       description:
         'Assesses brightness, glow, reflectance uniformity and dullness using the 5-mode system plus the feature packet.',
       client_description: '<A simple explanation of how radiant or dull your skin appears.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the glow score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2663,7 +2738,7 @@ const diagnosis_json_structure = {
         '<higher_is_worse | higher_is_better | not_applicable | depends_on_target>',
       comparison_mode: '<direct_numeric | label_mapping | target_distance>',
       target_interpretation_rule:
-        '<Higher score is better; target is progressive upward movement toward 5 while preserving clinical realism and avoiding overstating short-term gains.>',
+        '<Higher score is better; target is progressive upward movement toward 100 while preserving clinical realism and avoiding overstating short-term gains.>',
       normalized_burden_0_to_1: '<0-1>',
       data_quality: {
         is_estimated: false,
@@ -2679,7 +2754,7 @@ const diagnosis_json_structure = {
         'Assesses visible pigment burden, intensity, contrast, distribution and depth support using the 5-mode system plus the feature packet.',
       client_description:
         '<A simple explanation of how visible your pigmentation or uneven tone appears.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the pigmentation score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2707,7 +2782,7 @@ const diagnosis_json_structure = {
         'Assesses under-eye pigment, vascularity, hollowness, puffiness and fine-line burden using the 5-mode system plus the feature packet.',
       client_description:
         '<A simple explanation of what the skin around your eyes looks like today.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the peri-orbital score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2735,7 +2810,7 @@ const diagnosis_json_structure = {
         'Assesses visible lip darkening, intrinsic melanin support and vascular congestion using the 5-mode system plus the feature packet.',
       client_description:
         '<A simple explanation of whether your lips appear naturally even or pigmented.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the lip pigmentation score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2763,7 +2838,7 @@ const diagnosis_json_structure = {
         'Assesses pore size, distribution, blackhead/congestion burden, and surface irregularity using the 5-mode system plus the feature packet.',
       client_description:
         '<A simple explanation of how smooth your skin surface is and how visible your pores appear.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<Texture and pore pattern characteristics>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2791,7 +2866,7 @@ const diagnosis_json_structure = {
         'Measures fine lines, etched lines, and early wrinkle patterns using the 5-mode system plus the feature packet.',
       client_description:
         '<A simple explanation of any fine lines or surface wrinkles detected on your skin.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<Depth, density, and visibility factors>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2819,7 +2894,7 @@ const diagnosis_json_structure = {
         'Assesses jawline definition, tissue descent, and contour smoothness using the 5-mode system plus the feature packet.',
       client_description:
         '<A simple explanation of the firmness and definition of your jawline area.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<Which structural findings determined the score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2846,7 +2921,7 @@ const diagnosis_json_structure = {
       description:
         'Assesses subtle laxity, collagen reflectance support, and firmness behavior using the 5-mode system plus the feature packet.',
       client_description: '<A simple explanation of how firm and elastic your skin appears.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the firmness score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2874,7 +2949,7 @@ const diagnosis_json_structure = {
         'Assesses surface clarity, smooth scatter, and keratin-related radiance loss using the 5-mode system plus the feature packet.',
       client_description:
         '<A simple explanation of how clean, refined and polished your skin texture appears.>',
-      score_or_label: '<Score 1-5>',
+      score_or_label: '<Continuous numeric score 1-100>',
       score_explanation: '<What drove the textural radiance score>',
       affected_area_image: '<1-5>',
       possible_causes: ['<Cause 1>', '<Cause 2>'],
@@ -2903,6 +2978,12 @@ const diagnosis_json_structure = {
 export const SYSTEM_PROMPT_DIAGNOSIS = `
 You are the diagnostic scoring engine for the AI Aesthetics 15-parameter facial assessment system.
 Return STRICT JSON only.
+
+CONTINUOUS SCORE SCALE (1-100):
+- All numeric final_score and score_or_label values are continuous numbers in [1, 100], including decimals. Skin Type remains a categorical label.
+- Use each parameter's continuous_score_mapping directly from its existing continuous index or clinical interpretation. Do not first assign a 1-5 grade, round to a grade, or multiply a discrete grade.
+- Preserve continuous indices in their original units and precision. clinical_reference_ranges retain descriptive context only; they MUST NOT quantize measurements or final scores. clinical_reference_anchors are interpolation landmarks, not buckets or an allowed-values list.
+- Keep each parameter's original score polarity. Numeric current_score, target_score, and target_single_session_score values use the same continuous 1-100 scale.
 
 GLOBAL PRINCIPLE:
 - The upstream Feature Packet is the primary source of truth whenever a field is present and usable.

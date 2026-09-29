@@ -46,7 +46,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1 | 2>',
+      patient_facing_change_points: '<continuous number 0-49.5>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -70,7 +70,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1>',
+      patient_facing_change_points: '<continuous number 0-24.75>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -94,7 +94,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1 | 2>',
+      patient_facing_change_points: '<continuous number 0-49.5>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -118,7 +118,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1>',
+      patient_facing_change_points: '<continuous number 0-24.75>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -142,7 +142,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1 | 2>',
+      patient_facing_change_points: '<continuous number 0-49.5>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -166,7 +166,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1 | 2>',
+      patient_facing_change_points: '<continuous number 0-49.5>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -190,7 +190,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1 | 2>',
+      patient_facing_change_points: '<continuous number 0-49.5>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -214,7 +214,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1>',
+      patient_facing_change_points: '<continuous number 0-24.75>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -238,7 +238,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1>',
+      patient_facing_change_points: '<continuous number 0-24.75>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -262,7 +262,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1 | 2>',
+      patient_facing_change_points: '<continuous number 0-49.5>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -286,7 +286,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1>',
+      patient_facing_change_points: '<continuous number 0-24.75>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -310,7 +310,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1>',
+      patient_facing_change_points: '<continuous number 0-24.75>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -334,7 +334,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1>',
+      patient_facing_change_points: '<continuous number 0-24.75>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -358,7 +358,7 @@ const reassessment_json_structure = {
         '<Fresh internal post-treatment score before patient-facing override>',
       raw_comparison_result_internal: '<improved or declined or stable>',
       response_strength: '<none | mild | moderate | strong>',
-      patient_facing_change_points: '<0 | 1 | 2>',
+      patient_facing_change_points: '<continuous number 0-49.5>',
       transient_reactivity_note: '<none or short note>',
       score_explanation:
         '<Short patient-facing explanation. If temporary worsening/reactivity is visible, explain it here while keeping result stable.>',
@@ -368,7 +368,7 @@ const reassessment_json_structure = {
   reassessment_policy: {
     patient_facing_no_worsening: true,
     allowed_patient_facing_results: ['improved', 'stable'],
-    max_patient_facing_improvement_points_default: 2,
+    max_patient_facing_improvement_points_default: 49.5,
     identical_image_rule:
       'if post-treatment image set is exactly identical to baseline, all parameters must remain stable and unchanged',
     report_visibility_rule:
@@ -412,6 +412,12 @@ Strictly follow the predefined JSON structure below and fill all fields:
 
 ---
 ${encode(reassessment_json_structure)}
+
+SCORE SCALE:
+- Numeric baseline, fresh internal post-treatment, and final patient-facing scores use the same continuous 1-100 scale as the initial scoring prompt; Skin Type remains a label.
+- Reuse a baseline generated with that continuous scoring prompt. Do not mix an old 1-5 baseline with a 1-100 reassessment or expand an integer baseline grade into a purported continuous measurement.
+- Keep the existing continuous indices and use the same continuous_score_mapping as baseline; do not collapse them to diagnostic grades.
+- The scale span changes from 4 to 99: an old one-point allowance becomes 24.75 points and an old two-point allowance becomes 49.5 points. These are caps, not fixed steps or required gains; fractional changes are allowed.
 
 GLOBAL RULES:
 - Output STRICT JSON only.
@@ -463,7 +469,7 @@ STEP 3 — RESPONSE STRENGTH (MANDATORY)
 Then separately judge visible treatment response relative to baseline and assign:
 response_strength = none | mild | moderate | strong
 
-This response_strength must reflect visible doctor/patient-perceived same-day change, not merely whether the post-treatment score crossed an original diagnostic bin.
+This response_strength must reflect visible doctor/patient-perceived same-day change, not merely the magnitude of the continuous post-treatment score change.
 When judging response_strength, consider relevant visual changes such as:
 - lower contrast / lighter pigment appearance
 - reduced shine or improved oil balance
@@ -494,12 +500,11 @@ If raw_comparison_result_internal = improved:
 - you may keep or amplify the patient-facing improvement if justified by visible response strength and parameter responsiveness
 
 STEP 5 — MULTI-POINT IMPROVEMENT RULE (MANDATORY)
-The final patient-facing change may be:
-- 0 points
-- 1 point
-- 2 points maximum
+The final patient-facing change may be any continuous value from 0 to 49.5 points, subject to the parameter-specific caps below.
 
-Never allow more than 2 points in same-day reassessment.
+Never allow more than 49.5 points in same-day reassessment.
+Do not round changes to whole grades or force them to 24.75-point steps.
+For numeric parameters, keep final scores within [1, 100]; patient_facing_change_points must equal abs(post_treatment_score_or_label - before_treatment_score_or_label) after applying the existing polarity, target-distance, no-worsening and response-strength rules.
 
 Use this framework:
 
@@ -509,18 +514,18 @@ A) response_strength = none
 - post_treatment_score_or_label = before_treatment_score_or_label
 
 B) response_strength = mild
-- usually 0 or 1 point improvement
-- choose 1 point only if the visible change or fresh rescoring clearly supports it
+- usually 0 to 24.75 points improvement
+- choose a positive continuous change only if the visible change or fresh rescoring clearly supports it
 
 C) response_strength = moderate
-- usually 1 point improvement
-- allow 2 points only when the parameter is highly same-day responsive and visible change is clearly stronger than a small threshold crossing
+- usually a positive continuous improvement up to 24.75 points
+- allow more than 24.75 points, up to 49.5 points, only when the parameter is highly same-day responsive and visible change is clearly stronger than a small threshold crossing
 
 D) response_strength = strong
-- allow up to 2 points improvement when clinically plausible for that parameter and comparison quality is acceptable
+- allow up to 49.5 points improvement when clinically plausible for that parameter and comparison quality is acceptable
 
 STEP 6 — PARAMETER-SPECIFIC SAME-DAY CAPS (MANDATORY)
-Allow up to 2-point improvement when strongly justified for:
+Allow up to 49.5-point improvement when strongly justified for:
 - barrier_health
 - skin_sebum_content
 - skin_hydration
@@ -529,7 +534,7 @@ Allow up to 2-point improvement when strongly justified for:
 - texture_open_pores_grading
 - textural_radiance_index
 
-Usually cap at 1-point improvement for:
+Usually cap at 24.75-point improvement for:
 - visual_acne_grading
 - vascularity_redness_profiling
 - periorbital_health
@@ -542,11 +547,11 @@ Skin type:
 - usually stable unless a clearly obvious classification shift is visible
 
 IMPORTANT:
-A 2-point improvement is allowed only if ALL are true:
+An improvement above 24.75 points, up to 49.5 points, is allowed only if ALL are true:
 - scan quality is not fail
 - no major capture mismatch makes comparison unreliable
 - the parameter is realistically same-day responsive
-- the visible change is clearly stronger than a simple one-bin shift
+- the visible change is clearly stronger than a 24.75-point change on the continuous scale
 - the improvement is visible in the most relevant lighting mode(s)
 
 STEP 7 — IDENTICAL-IMAGE GUARDRAIL (MANDATORY)
