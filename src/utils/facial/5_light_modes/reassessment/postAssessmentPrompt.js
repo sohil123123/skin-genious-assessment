@@ -422,6 +422,9 @@ ${encode(reassessment_json_structure)}
 
 SCORE SCALE:
 - Numeric baseline, fresh internal post-treatment, and final patient-facing scores use the same continuous 1-100 scale as the initial scoring prompt; Skin Type remains a label.
+- Return the original unrounded engine scores and original polarity in the existing fields; the application converts report scores, rounds them and computes displayed change points after this response.
+- Stored client-report rows may contain _facial_score_display. For all engine calculations, recover the original fields recorded in _facial_score_display.raw instead of using their rounded, higher-is-better report replacements.
+- Patient-facing prose must describe findings and visible changes without quoting internal score numbers, score directions or point differences; the application supplies the integer client scores.
 - Reuse a baseline generated with that continuous scoring prompt. Do not mix an old 1-5 baseline with a 1-100 reassessment or expand an integer baseline grade into a purported continuous measurement.
 - Keep the existing continuous indices and use the same continuous_score_mapping as baseline; do not collapse them to diagnostic grades.
 - The scale span changes from 4 to 99: an old one-point allowance becomes 24.75 points and an old two-point allowance becomes 49.5 points. These are caps, not fixed steps or required gains; fractional changes are allowed.

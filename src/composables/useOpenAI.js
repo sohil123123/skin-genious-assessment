@@ -1,6 +1,10 @@
 import { Notify, Loading } from 'quasar'
 import { api } from 'src/boot/axios'
 import config from 'src/config.js'
+import {
+  formatFacialClientScores,
+  prepareFacialEngineInput,
+} from '../utils/facial/clientScoreDisplay.js'
 
 // Existing non-pigmentation test-mode fixtures.
 import ivScore from 'src/response-examples/iv-score.json'
@@ -9,7 +13,7 @@ import treatmentPlan from 'src/response-examples/treatment-plans.json'
 import nurseRunSheet from 'src/response-examples/nurse-runsheet-single-session.json'
 import nurseRunSheetMulti from 'src/response-examples/nurse-runsheet-multi-session.json'
 
-const DEFAULT_MODEL = import.meta.env.VITE_OPENAI_MODEL || 'gpt-5.2'
+const DEFAULT_MODEL = import.meta.env.VITE_OPENAI_MODEL || 'gpt-5.4'
 const DEFAULT_TIMEOUT_MS = 600_000
 const DEFAULT_CACHE_KEY = 'ai-aesthetics-assessment-key-v2-6'
 const VALID_REASONING = new Set(['none', 'low', 'medium', 'high', 'xhigh'])
@@ -83,10 +87,109 @@ function collectOutputText(data) {
   return [...new Set(chunks)].join('\n').trim()
 }
 
-function readResponse(raw) {
+function jsonResponseError(code, message) {
+  const error = new Error(message)
+  error.code = code
+  return error
+}
+
+function decodeJsonStrings(value) {
+  // Accommodate a proxy that serializes JSON twice; never repair invalid JSON.
+  let decoded = value
+  for (let layer = 0; layer < 3 && typeof decoded === 'string'; layer++) {
+    const next = parseJsonIfPossible(decoded)
+    if (next === decoded) break
+    decoded = next
+  }
+  return decoded
+}
+
+function parseJsonObject(value) {
+  const parsed = decodeJsonStrings(value)
+  if (!isObject(parsed)) {
+    throw jsonResponseError(
+      'response_invalid_json',
+      'The AI response was not a complete JSON object. Please retry the assessment.',
+    )
+  }
+  return parsed
+}
+
+function isResponseEnvelope(value) {
+  return (
+    isObject(value) &&
+    (Array.isArray(value.output) ||
+      typeof value.output_text === 'string' ||
+      value.object === 'response')
+  )
+}
+
+function collectJsonOutputText(data) {
+  const messages = (Array.isArray(data.output) ? data.output : []).filter(
+    (item) => item?.type === 'message' && (!item.role || item.role === 'assistant'),
+  )
+  const refusal = messages
+    .flatMap((item) => (Array.isArray(item.content) ? item.content : []))
+    .find((part) => part?.type === 'refusal')
+  if (refusal) {
+    throw jsonResponseError(
+      'response_refusal',
+      'The AI declined this request; no assessment result was returned.',
+    )
+  }
+
+  // Prefer the actual final message over a flattened output_text containing preambles.
+  const finals = messages.filter((item) => item.phase === 'final_answer')
+  const candidates = finals.length ? finals : messages.filter((item) => item.phase == null)
+  if (candidates.length > 1) {
+    throw jsonResponseError(
+      'response_ambiguous_json',
+      'The AI returned multiple possible answers instead of one JSON result.',
+    )
+  }
+  if (candidates.length === 1) {
+    const message = candidates[0]
+    if (message.status && message.status !== 'completed') {
+      const error = jsonResponseError('response_incomplete', 'The AI final answer was incomplete.')
+      error.incomplete_reason = `message_${message.status}`
+      throw error
+    }
+    // Preserve content bytes and repeated chunks; do not join distinct messages.
+    return (Array.isArray(message.content) ? message.content : [])
+      .filter((part) => part?.type === 'output_text' && typeof part.text === 'string')
+      .map((part) => part.text)
+      .join('')
+      .trim()
+  }
+  if (messages.length) {
+    throw jsonResponseError(
+      'response_missing_final_answer',
+      'The AI returned an intermediate update without a final assessment.',
+    )
+  }
+  // Support a backend that returns only the final output_text and no message items.
+  return typeof data.output_text === 'string' ? data.output_text.trim() : ''
+}
+
+function readResponse(raw, expectJsonObject = false) {
+  if (expectJsonObject) {
+    raw = decodeJsonStrings(raw)
+    for (const key of ['response', 'data']) {
+      const wrapped = decodeJsonStrings(raw?.[key])
+      if (isResponseEnvelope(wrapped)) {
+        raw = wrapped
+        break
+      }
+    }
+  }
   const data = raw?.response?.output ? raw.response : raw?.data?.output ? raw.data : raw
-  if (!isObject(data) || (!Array.isArray(data.output) && typeof data.output_text !== 'string')) {
-    return parseJsonIfPossible(data)
+  if (
+    !isObject(data) ||
+    (!Array.isArray(data.output) &&
+      typeof data.output_text !== 'string' &&
+      !(expectJsonObject && data.object === 'response'))
+  ) {
+    return expectJsonObject ? parseJsonObject(data) : parseJsonIfPossible(data)
   }
 
   if (data.status === 'incomplete') {
@@ -105,6 +208,16 @@ function readResponse(raw) {
     throw new Error(`The backend returned an AI response that is still ${data.status}.`)
   }
 
+  if (expectJsonObject) {
+    try {
+      return parseJsonObject(collectJsonOutputText(data))
+    } catch (error) {
+      error.response_id = data.id || null
+      error.usage = data.usage || null
+      throw error
+    }
+  }
+
   const text = collectOutputText(data)
   if (!text) throw new Error('The AI response contained no output text.')
   return parseJsonIfPossible(text)
@@ -115,7 +228,7 @@ function buildRequestBody(convId, input, model, options) {
   const body = {
     model,
     ...(useConversation && convId ? { conversation: convId } : {}),
-    input,
+    input: prepareFacialEngineInput(input),
     prompt_cache_key: options.prompt_cache_key || DEFAULT_CACHE_KEY,
     prompt_cache_retention: options.prompt_cache_retention || '24h',
   }
@@ -128,6 +241,9 @@ function buildRequestBody(convId, input, model, options) {
 
   const verbosity = String(options.verbosity || options.text?.verbosity || '').toLowerCase()
   if (['low', 'medium', 'high'].includes(verbosity)) body.text = { verbosity }
+  if (isObject(options.text?.format)) {
+    body.text = { ...(body.text || {}), format: options.text.format }
+  }
 
   const metadata = normalizeMetadata(options.metadata)
   if (metadata) body.metadata = metadata
@@ -188,7 +304,8 @@ export function useOpenAI() {
             timeout: attemptTimeout,
             headers: { 'X-Client-Request-Id': `${requestId}-a${attempt}` },
           })
-          const result = readResponse(response.data)
+          const expectJsonObject = ['json_object', 'json_schema'].includes(body.text?.format?.type)
+          const result = formatFacialClientScores(readResponse(response.data, expectJsonObject))
           const usage = response.data?.usage || response.data?.response?.usage || null
           console.info('[useOpenAI] completed', {
             requestId,

@@ -1,3 +1,5 @@
+import { CLINIC_TREATMENT_RULES_PROMPT } from '../../treatmentClinicRules.js'
+
 import { encode } from '@toon-format/toon'
 import { available_skincare_products } from './productJson'
 
@@ -6,7 +8,7 @@ const HERO_CORRECTIVE_SELECTION_PROTOCOL = {
     purpose:
       'Force explicit ranking among all allowed corrective modalities so the plan chooses the highest expected single-session visible improvement, not merely any valid corrective option.',
     mandatory_internal_step:
-      'Before writing any treatment steps, rank all allowed corrective modalities for each PRIMARY concern and choose exactly one HERO corrective modality for that concern.',
+      'For each PRIMARY concern where corrective treatment is clinically relevant, compare the allowed relevant corrective modalities and choose one HERO for that concern. For a supportive-care concern, select the appropriate direct care without inventing an energy or peel indication.',
     required_candidate_modalities_by_bucket: {
       pigmentation_related: [
         'Q-Switch Laser',
@@ -66,7 +68,7 @@ const HERO_CORRECTIVE_SELECTION_PROTOCOL = {
     hard_selection_rule: [
       'The HERO corrective modality MUST be the allowed modality with the highest total_score for that PRIMARY concern.',
       'It is INVALID to choose a lower-efficacy modality merely because it is generic, familiar, easy to combine, or lower-risk if the higher-ranked modality is still allowed.',
-      'If the winning modality is energy-based or a peel, it must consume the largest single corrective time allocation in the session.',
+      'If the winning modality is energy-based or a peel, prioritize its corrective delivery; fixed clinic step timings take precedence over giving it the largest time allocation.',
       'If two modalities are close, prefer the one with the greater expected single-session visible delta for the PRIMARY concern.',
     ],
     mandatory_loss_explanation: [
@@ -156,11 +158,17 @@ Your job is to generate a hyper-intelligent, outcome-optimized treatment plan us
 •	The treatable_concerns_summary
 •	The patient's history & profile
 •	The selected treatment_plan_type
-Your output must be clinically accurate, customized zone-wise, and optimized for BEST POSSIBLE RESULTS in the given session or across multiple sessions.
+Your output must be clinically grounded, customized zone-wise and appropriate for the selected session.
+Optimize the client's primary concerns together with useful regional care, appropriate hydration/recovery,
+comfort and clear personalisation. Distinguish plausible immediate appearance/feel from course-level
+improvement. Do not guarantee visible change or invent score gains. Every added step must have a purpose
+beyond filling time; use the existing script and how_to_do fields to make that purpose clear.
 
 ________________________________________
 ⚙️ INPUT FORMAT YOU WILL RECEIVE
 {
+  "diagnosis_report": "<complete existing diagnosis with original raw scores and backend details>",
+  "clinic_treatment_context": "<application-computed lip indication>",
   "treatable_concerns": {
     "description": "Parameters showing deviations that can be treated or improved with appropriate interventions.",
     "parameters_with_abnormal_scores": [
@@ -257,10 +265,10 @@ Per constraints JSON:
 ⚡ There is NO fixed sequence.
 ⚡ You may use different treatments on different zones of the face.
 ⚡ You may combine modalities intelligently based on scoring outcomes.
-You must only respect two mandatory rules:
-1.	Treatment must include lymphatic drainage if possible.
-2.	Treatment must finish with Serum + Moisturizer + Sunscreen. This is ONE single combined final step, and its duration must ALWAYS be EXACTLY 4 minutes — never less, never more
-Everything else is FULLY flexible.
+Respect clinical compatibility, device/product protocols and the complete session window.
+Consider useful regional/supportive treatment before selecting any filler massage.
+Treatment must finish with Serum + Moisturizer + Sunscreen: ONE combined final step, EXACTLY 3 minutes.
+Choose a coherent sequence for the actual case; flexible ordering does not override a clinical restriction.
 ________________________________________
 3. Choose treatment strategy based on 9 scenarios
 
@@ -271,9 +279,9 @@ A) If patient selects a PRIMARY CONCERN
 
 B) If treatment_plan_type = "single":
 •	Create the most powerful, highest-impact one-time treatment, within:
-o	Default 60 minutes (±15 minutes)
-o	Expand to 75 minutes if outcomes dramatically improve
-o	Shrink to 45 minutes if extra steps have no incremental gain
+o	Complete session duration: 60–75 minutes, including any indicated lip treatment
+o	Use additional time within that window only for meaningful treatment, regional care, recovery or permitted massage
+o	No 80-minute exception; do not inflate fixed steps or add redundant treatment
 •	Use no redundancy (e.g., do NOT add a peel + peel + peel unless clinically justified).
 
 C) If treatment_plan_type = "multiple":
@@ -285,12 +293,25 @@ o	Maintenance & follow-up
 •	First session must begin immediately (today).
 
 D) If treatment_plan_type = "express":
-• Create the SAME clinical-quality treatment as a single session.
-• Total treatment time MUST be strictly limited to 30–40 minutes.
-• Prioritize highest-efficacy steps only.
-• Remove or shorten low-impact, supportive, or optional steps.
-• Never downgrade modality strength—only reduce time allocation.
-• Express sessions must not reduce clinical effectiveness—only duration.
+• Maximize justified benefit for the selected priorities within 35–45 minutes TOTAL,
+  including any indicated lip treatment.
+• Apply Rule E: prioritize the highest-ranked indicated corrective treatment at its
+  prescribed clinical dose and duration, or the documented appropriate direct-care alternative.
+• Preserve the quality and adequate delivery of retained treatments. Fit the window by
+  narrowing treatment breadth and omitting lower-value optional steps, not by weakening
+  an indicated treatment or shortening a fixed protocol.
+• Preserve necessary protection and recovery. Include additional regional or supportive
+  care when it has a distinct purpose and fits the remaining time.
+• Do not promise identical overall results to a longer session.
+
+SCORE UNIT COMPATIBILITY (MANDATORY)
+- Stored client-report rows may contain _facial_score_display. For all engine calculations, recover the original fields recorded in _facial_score_display.raw instead of using their rounded, higher-is-better report replacements.
+- current_score and target_score below mean the original unrounded continuous 1-100 engine values, with their original score_polarity and comparison_mode. Do not use rounded or inverted client values, including the sebum balance display, to select or intensify treatments.
+- If target_score is not supplied, use the existing target_single_session_score for the same parameter; do not invent a new treatment target.
+- All deviation_from_target rules below use legacy-equivalent gap units: a 24.75-point raw score difference equals 1 gap unit, and 49.5 points equals 2 gap units. Preserve the existing >= 1 and >= 2 trigger values and intensity rules.
+- Do not convert backend 0-1 indices/maps, confidence, improvability, safety thresholds, candidate-ranking scores (0-5 / 0-30), device settings, durations or session counts.
+- Outcome current_value and target_value must remain original unrounded engine scores; the application converts only their client presentation after planning.
+- Patient-facing prose must describe findings and visible changes without quoting internal score numbers, score directions or point differences; the application supplies the integer client scores.
 
 Polarity-aware Rule
   For each parameter:
@@ -298,47 +319,63 @@ Polarity-aware Rule
     • if comparison_mode = label_mapping, do not use numeric delta semantics
     • if comparison_mode = target_distance, evaluate movement relative to the target, not merely up/down
 
-E) ENERGY / PEEL NECESSITY RULE (MANDATORY — OUTCOME DOMINANCE LOGIC)
-  For EACH parameter marked as is_primary_concern = true:
+E) CORRECTIVE SELECTION AND EXISTING SCORE-GAP RULES
+  For each PRIMARY concern, assess the supplied findings using the existing clinic protocols.
+  Where a corrective treatment is indicated, allowed and feasible within the complete session
+  window while preserving required support, the session MUST include the highest-ranked
+  appropriate corrective treatment for that concern at its prescribed dose and duration.
+  This requirement applies even when deviation_from_target is below 1. A small predicted
+  single-session improvement is not, by itself, a reason to replace indicated correction
+  with supportive care.
 
-  THEN:
-  • The treatment plan MUST include at least ONE high-efficacy corrective modality
-    (e.g., peel, energy-based device, microneedling, laser, RF etc. — as permitted).
-  • Supportive-only plans (hydrafacial, massage, serums, LED, oxygen alone)
-    are INVALID for this primary concern.
-  • Time allocation MUST prioritize the corrective modality over supportive steps.
+  Supportive care may fulfil a primary concern when the documented need is best addressed
+  by hydration, barrier, comfort or recovery care, or when no corrective option is appropriate
+  and allowed. State the case-specific finding or restriction in the existing
+  modality_omission_explanation fields. Do not infer a contraindication merely from a small
+  score gap. If required care cannot fit safely, report the existing planning conflict.
+  One corrective may address several primary concerns when its role for each is explicit;
+  do not duplicate procedures solely because several concerns are selected.
 
-  1. Compute deviation_from_target as:
-    deviation_from_target = absolute_difference(current_score, target_score)
-    deviation_from_target is a distance metric only. It does not itself define improvement direction. Direction must be read from comparison_mode and score_polarity.
+  Compute the unchanged legacy-equivalent distance:
+    deviation_from_target = absolute_difference(current_score, target_score) * 4 / 99
+  This is a distance metric only; read improvement direction from comparison_mode and score_polarity.
+  Use the supplied improvability_index. Do not invent targets or re-score the diagnosis.
 
-  2. Evaluate improvability_index for this parameter.
-
-    If ALL of the following are true:
+  Retain the existing additional mandatory trigger when ALL are true:
+    • a corrective modality is clinically relevant for the concern
     • deviation_from_target >= 1
     • improvability_index >= 0.4
-    • NO explicit patient-history denial applies
-    • NO numeric / safety / timing constraint applies
+    • no explicit patient-history denial applies
+    • no numeric / safety / timing constraint applies
+  In that case include at least one appropriate allowed high-efficacy corrective modality.
+  These numeric thresholds remain unchanged; they are not prerequisites for the separate
+  indication-based corrective requirement above. Existing intensity rules remain unchanged.
+  Corrective priority describes clinical contribution, not a requirement to occupy most minutes.
 
-  3. Special rule for distance_to_target
-    For any parameter with:
-      • score_polarity = distance_to_target
-      • comparison_mode = target_distance
-    Treatment should evaluate success as:
-      • smaller absolute distance to target = improvement
-      • larger absolute distance to target = decline
+  For score_polarity = distance_to_target and comparison_mode = target_distance:
+    • smaller absolute distance to target = improvement
+    • larger absolute distance to target = decline
 
 E0) COMBINATION CORRECTIVE LOGIC (MANDATORY — STACKED OUTCOME MAXIMIZATION)
 
-  For EACH primary concern, before writing steps, decide whether the best same-session strategy is:
+  For EACH primary concern with a clinically relevant corrective indication, before writing steps, decide whether the best same-session strategy is:
 
   • SINGLE_HERO
   • HERO_PLUS_SECONDARY_CORRECTIVE
   • HERO_PLUS_SECONDARY_PLUS_TERTIARY
 
   Default decision principle:
-  • Choose the option that produces the highest expected single-session visible improvement
-    while remaining clinically coherent, non-redundant, safe, and compatible with an overall customized facial flow.
+    • Compare the best justified single corrective with the best permitted compatible
+      combination for the selected primary concerns and documented regional findings.
+    • Choose the combination when it offers meaningful additional benefit, remains safe
+      and non-redundant, and fits the complete session window with required recovery care.
+    • Do not reject an added corrective solely because the HERO ranks highest individually,
+      already addresses several concerns, or the session has reached its minimum duration.
+    • In the existing modality_omission_explanation fields, name the relevant added corrective
+      and briefly state the case-specific additional role or the reason for omitting it.
+      An explanation that the HERO alone ranks higher is not a comparison of the combination.
+    • Do not force a second corrective to fill time. Retain the existing corrective-count
+      limits, spot-salicylic exclusion and all compatibility and safety restrictions.
 
   Combination eligibility test (check in sequence):
   1. Would adding a second corrective modality produce meaningful incremental visible benefit
@@ -361,6 +398,8 @@ E0) COMBINATION CORRECTIVE LOGIC (MANDATORY — STACKED OUTCOME MAXIMIZATION)
 
   Hard rules:
   • Default maximum meaningful corrective modalities in one session = 2
+  • Lesion-directed spot salicylic is a targeted acne adjunct, NOT a corrective step. Exclude it from the corrective count and all HERO / SECONDARY / TERTIARY roles; it cannot satisfy a required corrective slot.
+  • Count its 2 minutes and irritation/barrier burden normally. Broad/full-face salicylic peels remain corrective modalities; all combination safety rules still apply.
   • A third meaningful corrective modality may be added ONLY if it provides clear non-redundant incremental visible benefit beyond the first two modalities
   • Corrective hierarchy must be:
       - HERO_CORRECTIVE
@@ -379,10 +418,10 @@ E0) COMBINATION CORRECTIVE LOGIC (MANDATORY — STACKED OUTCOME MAXIMIZATION)
 
   Valid examples of stacked logic:
   • pigment correction + pore/oil/congestion correction
-  • post-acne pigmentation + active acne lesion management
+  • post-acne pigmentation + active acne lesion management; when lesion management is spot salicylic, it is an uncounted adjunct
   • glow/resurfacing + carbon-based pore/oil refinement
-  • broad corrective modality + spot corrective lesion or hotspot modality
-  • peel + carbon + spot sali, if all three are clearly additive and safe
+  • broad corrective modality + a distinct hotspot corrective; lesion-directed spot salicylic remains an uncounted adjunct
+  • peel + carbon + spot sali, when each treatment is justified and the combination is safe: TWO counted correctives plus a spot adjunct, not three correctives
 
   Invalid stacked logic:
   • peel + peel + peel without strong non-redundant justification
@@ -427,17 +466,21 @@ E0B) INFUSION / SUPPORT / RECOVERY INTEGRATION RULE (MANDATORY)
 
 E1) PRIMARY CONCERNS = OUTCOME STACK (MANDATORY — WOW + ACCOUNTABILITY)
 
-  For EACH parameter where is_primary_concern = true, you MUST guarantee ALL of the following
+  For EACH parameter where is_primary_concern = true, satisfy the following planning requirements
   within the SAME session plan (single/express) OR within EACH session that claims to address it (multiple):
 
   1) Corrective Step Mapping (MANDATORY)
-    • The session MUST contain at least ONE step whose primary purpose is to CORRECT this concern.
-    • If Rule E triggered for this concern (deviation_from_target >= 1 AND improvability_index >= 0.4 AND no denial):
-        - The corrective step MUST be a high-efficacy modality (energy / peel / laser / RF / microneedling etc. as permitted).
-        - Supportive-only handling for this concern is INVALID.
-    • The corrective step MUST be explicitly linked to the concern in the step "script"
-      using the exact token format:
+    • For each PRIMARY concern requiring corrective treatment under Rule E, include at least
+      ONE highest-ranked appropriate corrective step at its prescribed dose and duration.
+    • Apply this requirement whether correction is required by the clinical indication or
+      by the existing numeric trigger. Supportive-only handling is INVALID in either case.
+    • If Rule E permits supportive care instead, document the case-specific reason in the
+      existing modality_omission_explanation fields and identify the direct care provided.
+    • Link the corrective step, or the justified direct-care alternative, to the concern
+      in the step "script" using the exact token format:
         "PRIMARY_CONCERN_TARGET: <parameter_name>"
+    • Lesion-directed spot salicylic remains an adjunct and cannot satisfy a required
+      corrective slot.
 
   2) Support / Protection Step (CONDITIONAL BUT STRONGLY PREFERRED)
     • If the plan includes any step that increases irritation risk (peel/energy/microneedling),
@@ -447,11 +490,16 @@ E1) PRIMARY CONCERNS = OUTCOME STACK (MANDATORY — WOW + ACCOUNTABILITY)
     • This support step must respect avoid_zones and sensitivity constraints.
 
   3) Anti-Template Guard (MANDATORY — prevents hydrafacial-style layering)
-    If Rule E triggers for ANY primary concern in a session:
-    • Generic spa steps (simple cleanse + mild exfoliation + mask + massage + hydration-only infusion)
-      cannot be the structural backbone of the session.
-    • The plan MUST clearly prioritize the corrective step(s) in time and specificity.
-    • Ensure step durations and techniques reflect this (corrective steps should NOT be token 2-minute mentions).
+    Whenever Rule E requires corrective treatment for ANY primary concern:
+    • Select the best justified corrective treatment or compatible combination before
+      allocating time to optional supportive steps or filler massage. Preserve required
+      recovery and protection throughout this selection.
+    • Generic cleansing, masking, massage or hydration-only care cannot substitute for
+      indicated corrective treatment. Lesion-directed spot salicylic does not fill that role.
+    • Corrective priority means treatment contribution and appropriate delivery, not a
+      majority of session minutes. Never lengthen a fixed step to make it look dominant.
+    • Keep all clinic-prescribed timings, including the 2-minute spot salicylic and lip
+      add-on steps. Consider useful regional care and distinct-purpose support before filler.
 
   4) If conflicts arise:
     • If constraints deny high-efficacy modalities for a primary concern, you MUST:
@@ -459,26 +507,21 @@ E1) PRIMARY CONCERNS = OUTCOME STACK (MANDATORY — WOW + ACCOUNTABILITY)
         - explicitly justify the omission in modality_omission_explanation
         - and still include KPI + evidence plan (with realistic expectations).
 
-  5) HYDRAFACIAL BACKBONE LIMIT + HERO STRUCTURE (MANDATORY — PREVENTS TEMPLATE PLANS)
-    If ANY primary concern has deviation_from_target>= 1 AND improvability_index>= 0.4:
-    • Hydrafacial steps may be used only as supportive prep/support (max 4 steps total).
-    • The plan must include:
-        - ONE distinct HERO corrective block that is NOT hydrafacial-based
-        - and MAY include ONE SECONDARY_CORRECTIVE block if E0 combination logic shows superior same-session outcome
-        - and MAY include ONE TERTIARY_CORRECTIVE block only if it adds further clear non-redundant visible benefit
-    • HERO_CORRECTIVE must be the dominant corrective contributor to the session’s visible outcome
-    • SECONDARY_CORRECTIVE must be meaningfully corrective, non-redundant, and lower in expected corrective contribution than HERO_CORRECTIVE
-    • TERTIARY_CORRECTIVE must be clearly additive, highly targeted, non-redundant, and lower in expected corrective contribution than HERO_CORRECTIVE and SECONDARY_CORRECTIVE
-    • HERO / SECONDARY / TERTIARY define corrective importance hierarchy, not mandatory step order and not strict time duration
-    • If no meaningful incremental gain exists from stacking, do NOT add extra corrective modalities
-    • Even when multiple corrective modalities are used, the session must still preserve coherent customized facial flow
-    • If hydrafacial appears in >4 steps, the plan is INVALID and must be regenerated
+  5) DISTINCT PURPOSE AND CORRECTIVE CONTRIBUTION
+    • Preserve appropriate HERO / SECONDARY / TERTIARY clinical contribution and the existing corrective-combination limits.
+    • There is no blanket maximum number of Hydrafacial probe steps. Facial infusion, under-eye infusion,
+      cooling, spray and decongestion may address distinct needs; evaluate them separately.
+    • Each selected action must have a case-specific purpose, be compatible with the other selected treatments,
+      fit its approved duration and add value beyond actions already selected.
+    • Do not duplicate delivery, ingredients or corrective mechanisms without a clear additional role.
+    • Do not add extra corrective or supportive treatments merely to increase step count or consume time.
+    • A brief corrective step may remain the principal treatment even when an appropriate mask or massage takes longer.
 
   5A) ACTIVE ACNE LESION OVERRIDE (MANDATORY — SPOT SALI RULE)
 
     If ANY active acne lesions are visible anywhere on the face
     (including papules, pustules, inflamed acne bumps, or clearly active inflammatory lesions),
-    then the session MUST include a lesion-directed spot corrective step using a salicylic peel.
+    then the session MUST include a lesion-directed spot salicylic adjunct, not a corrective step.
 
     Default lesion-directed modality:
       • use spot Sali peel on active lesions / acne hotspots
@@ -490,13 +533,13 @@ E1) PRIMARY CONCERNS = OUTCOME STACK (MANDATORY — WOW + ACCOUNTABILITY)
 
     Selection logic:
       • choose the salicylic option that best matches lesion activity, oiliness, tolerance, and safety context
-      • this spot step may coexist with the main HERO modality
+      • this spot adjunct may coexist with the HERO and any independently justified SECONDARY corrective; it occupies no HERO / SECONDARY / TERTIARY slot
       • this step is mandatory even if acne is not the top aesthetic concern, as long as active lesions are visible
 
     Zone rule:
       • apply only to lesion-bearing zones / hotspots, not full-face by default
       • avoid under-eye, lip, and any explicitly sensitive / barrier-risk / broken-skin zones
-      • if a zone_action_map exists, lesion-bearing cells must be marked as spot_corrective
+      • if a zone_action_map exists, retain the existing spot_corrective zone tag for lesion-bearing cells; for spot salicylic this is a location tag only, not a corrective classification or slot
 
     Safety override:
       • do NOT use spot Sali peel if salicylic use is explicitly blocked by patient-history rules or if barrier/sensitivity logic makes it unsafe
@@ -558,7 +601,7 @@ F) REGIONAL DIFFERENTIATION REQUIREMENT (MANDATORY)
 
   2. The plan MUST include:
     • ≥ 2 steps with explicit zone-specific differences (forehead vs cheeks vs nose vs chin vs perioral vs under-eye).
-    • ≥ 1 hotspot step: spot-treat hot_zones with increased intensity or targeted modality.
+    • If an actual hot_zone is present and treatment is indicated, include a justified targeted step; do not invent hotspots or automatically increase intensity.
     • ≥ 1 protection step: reduce intensity / avoid in avoid_zones (example: perioral/under-eye) while still treating other zones.
 
   3. If no maps exist:
@@ -580,9 +623,11 @@ H) HOTSPOT COMPILER (MANDATORY PRE-STEP)
     • modality: peel / laser / MN / etc
     • intensity_rung: 1/2/3
     • notes: “avoid heat due to redness”, “spot treat malar only”, etc.
-    • if active acne lesions are present in a zone/cell, that zone/cell must be tagged as spot_corrective unless contraindicated
+    • if active acne lesions are present in a zone/cell, retain the spot_corrective location tag unless contraindicated; spot salicylic remains an uncounted adjunct regardless of this legacy tag
 
 H1) CORRECTIVE STACK DECISION OUTPUT (MANDATORY PRE-STEP, INTERNAL ONLY)
+
+  Exclude lesion-directed spot salicylic from selected_mode and every corrective-modality role below. It remains a separate adjunct in the final steps and in total-time and combined-burden checks.
 
   Before writing treatment steps, output internally:
 
@@ -649,82 +694,34 @@ I) MULTI-SESSION ESCALATION RULE (MANDATORY)
   Also require:
     • each session must state: what changed vs last time and why (intensity, zones, modality, recovery)
 
-J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
-    All session timings must be mathematically consistent.
+J) COMPLETE SESSION TIMING CONTRACT
+    - Express: 35–45 minutes. Single and EACH multiple-plan session: 60–75 minutes.
+    - These are complete session totals INCLUDING any indicated 2-minute lip treatment.
+    - No 80-minute exception and no automatic +2 minutes beyond a ceiling.
+    - treatment_time and step_duration_total equal the sum of the actual sequential steps[].duration.
+    - Every duration is a positive JSON number in minutes, not a text range or a unit-bearing string.
+    - Include specified drying/contact time in its step; do not double-count concurrent activity.
+    - total_time describes the overall course (sessions/weeks/months), not session minutes.
+    - Keep each fixed clinic step duration, including the 3-minute combined final finish.
+    - Select useful treatments and regional/recovery care first. Then calculate permitted filler massage
+      using the authoritative clinic rules below. Do not stretch other steps or duplicate massage.
+    - Selection order does not dictate procedure order; preserve clinical sequencing and finish last.
+    - If the complete session cannot fit without inappropriate treatment, report the conflict using the response contract.
 
-    Definitions:
-    - treatment_time = exact active treatment duration for that session.
-    - treatment_time must equal the sum of all step durations.
-    - total_time = overall plan duration only, such as "1 session", "2 sessions", "n sessions ".
-    - Do not use total_time for session minutes.
-    - Do not inflate treatment_time to look like a longer session.
-
-    Hard timing rules:
-    1. Every step duration must be a number in minutes only.
-      Correct: 10
-      Incorrect: "10 minutes", "10 mins", "approx 10"
-
-    2. For every session:
-      treatment_time = sum of all steps[].duration and it should be minimum 55 minutes.
-
-    3. If the sum of step durations is lower than the selected treatment_time:
-      - Either add clinically meaningful missing steps, OR
-      - Reduce treatment_time to the actual step total.
-      - NEVER add filler steps, blank steps, or "INTENTIONALLY LEFT BLANK" steps.
-      - Once the treatment is complete (e.g., after sunscreen), STOP adding steps immediately.
-
-    4. If the sum of step durations is higher than treatment_time:
-      - Either increase treatment_time to match the actual step total, OR
-      - Remove/shorten low-priority steps.
-      - Never output mismatched timing.
-
-    5. DO NOT hallucinate extra steps to reach an arbitrary count. The steps array should contain ONLY real clinical actions.
-
-    6. The final JSON must never contain a session where treatment_time and total step duration differ.
-
-    7. REALISTIC PER-STEP DURATION (MANDATORY — NO PADDING, NO TIME-SINK STEPS)
-      • Every step's duration must reflect ONLY the realistic hands-on clinical time for that action.
-      • You must NEVER inflate, stretch, or round up any single step to help a session reach treatment_time or the minimum-minutes floor. Totals must EMERGE from realistic step durations — never the reverse. No step may act as a 'balancing variable' to absorb leftover minutes.
-      • Realistic duration ceilings for low-effort / finishing steps (hands-on application time):
-          - Cleanse: 2–6 min
-          - Serum application: 1–2 min
-          - Moisturizer application: 1–2 min
-          - Sunscreen application: 1–2 min
-          - Combined finish step (serum + moisturizer + sunscreen together): EXACTLY 4 min (fixed — always 4, never less, never more)
-          - Ice / cool-down pass: 2–5 min
-          - Post-care verbal instructions: 1–2 min
-      • FIXED DURATION: the mandatory finish (serum + moisturizer + sunscreen) is ONE combined final step with a duration of EXACTLY 4 minutes — always 4, never less and never more. Do NOT split it into separate serum/moisturizer/sunscreen steps and do NOT change this number. Any finish step that is not exactly 4 minutes is INVALID and must be corrected to 4.
-      • The bulk of session minutes must sit in the HERO / SECONDARY corrective and active-treatment blocks — NOT in cleansing, cooling, masking, or finishing.
-      • The minimum session time (treatment_time >= 55 min for single/multiple plans) is a HARD floor and stays in force.
-      • Every LYMPHATIC DRAINAGE MASSAGE step must explicitly state "Face and Neck Lymphatic Drainage Massage" in the step name.
-      • If realistic durations sum BELOW the minimum, absorb the shortfall into the LYMPHATIC DRAINAGE MASSAGE step — it is the designated time-flexible step:
-          1) Extend the mandatory lymphatic drainage massage to close the gap, up to a realistic ceiling of 15 minutes. A longer, more thorough drainage protocol (additional pathways and reps) is genuine clinical value, not padding.
-          2) ONLY if still below the floor after the massage reaches 15 min, extend a genuinely beneficial CORRECTIVE step (more passes, or a clinically justified longer infusion / mask contact time) — never a trivial, cooling, or finishing step.
-      • Slack minutes go to the lymphatic massage first, then corrective time. They must NEVER go to cleansing, cooling, masking, serum, moisturizer, or sunscreen. The finish HARD CAP (<=4 min) and the per-step ceilings above are never overridden to reach the floor.
-
-K) SESSION DURATION RANGE RULES
-
-    For treatment_plan_type = "express":
-    - treatment_time must be 30–40 minutes.
-    - Sum of step durations must also be 30–40 minutes.
-
-    For treatment_plan_type = "single":
-    - treatment_time should usually be 55-75 minutes.
-    - It may extend to 80 minutes only if clinically meaningful corrective steps require it.
-
-    For treatment_plan_type = "multiple":
-    - minimum session count should be 5 sessions.
-    - The first session MUST start at week 1 (not week 0).
-    - Subsequent sessions should be spaced out logically based on the clinical protocols.
+K) MULTIPLE-SESSION RULES (EXISTING COURSE STRUCTURE)
+    - The existing minimum session count is 5 sessions.
+    - The first session starts at week 1 (not week 0).
+    - Space subsequent sessions according to the existing clinical protocols.
+    - Each session must separately meet 60–75 minutes, with any lip treatment included.
 
 ________________________________________
 4. General Clinical Rules
 •	Respect all clinical constraints (pregnancy, photosensitivity, allergies, recent peels, etc.).
 •	Use only available machines, consumables, tools, serums, peels from constraints JSON.
-•	Avoid low-impact steps unless time allows.
+•	Evaluate relevant supportive and regional care for its actual incremental purpose before filler massage.
 •	Never duplicate modalities unless clinically required.
 •	Always choose outcome-maximizing modalities.
-•	Never exclude high-efficacy modalities just because they increase time.
+•	Evaluate high-efficacy modalities normally, then choose an appropriate combination that fits the complete session window at proper doses.
 • Ingredient-level safety must be respected when building home-care routines, including pregnancy safety, AM/PM compatibility, and post-procedure tolerance.
 • Home-care routines must use only products from available_skincare_products.
 • Home-care routines must support post-treatment recovery and must not interfere with in-clinic procedures performed the same day.
@@ -751,7 +748,7 @@ Your instructions must include:
 •	Angles of lifts
 •	Passes
 •	Contact times
-•	Energy levels
+•	Energy levels from approved device protocols; identify unspecified settings for clinician confirmation rather than inventing them
 •	Safety signals to monitor
 •	Stopping criteria
 •	Transition cues
@@ -768,7 +765,8 @@ ________________________________________
 
 FINAL PLAN VALIDATION (MANDATORY):
 
-  For each PRIMARY concern:
+  For each PRIMARY concern, apply the following checks where clinically relevant.
+  Corrective-ranking, stacking, intensity and hotspot checks may be not applicable when the documented need is supportive care; do not invent an indication or finding to satisfy a checklist.
 
   Ask:
   1. Does at least one step directly act on the root pathology?
@@ -779,7 +777,7 @@ FINAL PLAN VALIDATION (MANDATORY):
   6. If Gel Based Mandelic Peel was chosen, was there an explicit reason it beat Party Peel, Gel Based Pumpkin Peel, Fusion Peel-E, Combination Peel, salicylic-family peels, and any relevant energy options?
   7. If Q-Switch Laser or Carbon Facial was allowed for a pigmentation concern, were they explicitly considered in the ranking?
   8. If Carbon Facial was allowed for an active acne concern, was it explicitly considered in the ranking, and if it was not selected, was the loss explained as lower expected one-session efficacy for this exact case rather than generic caution?
-  9. Is the largest single corrective time block assigned to the chosen HERO modality rather than to prep/supportive steps?
+  9. Is the chosen HERO clinically prioritized while respecting the fixed clinic step timings, even when another step takes longer?
   10. Was stacked corrective logic considered before finalizing a single-HERO plan?
   11. If two corrective modalities together would likely produce greater same-session visible improvement than hero alone, was the stacked option used?
   12. If three corrective modalities together would likely produce further clear non-redundant visible improvement beyond the first two, was the tertiary option correctly considered?
@@ -845,6 +843,8 @@ FINAL PLAN VALIDATION (MANDATORY):
     • If infusion / calming / recovery was omitted despite meaningful irritation burden,
       the engine must explain why omission was acceptable.
 
+${CLINIC_TREATMENT_RULES_PROMPT}
+
 📤 OUTPUT FORMAT (STRICT JSON)
 {
   "treatment_plan": {
@@ -854,7 +854,12 @@ FINAL PLAN VALIDATION (MANDATORY):
         "session_number": <number>,
         "title": "<Session Title>",
         "script": "<description of concerns addressed in this session>",
-        "treatment_time": "<minutes>",
+        "treatment_time": "<number: complete minutes including any lip treatment, within the selected window>",
+        "lip_pigmentation_rule": {
+          "status": "included | not_triggered | not_assessable | blocked_by_existing_constraints",
+          "reason": "<brief explanation>",
+          "constraint_reference": "<actual existing condition/key if blocked; otherwise empty>"
+        },
         "week": <Week Number>,
         "preparations_checklist_for_therapist": [
           "<prep step>",
@@ -871,7 +876,12 @@ FINAL PLAN VALIDATION (MANDATORY):
           {
             "step_number": "<based position of this step in THIS session's final ordered steps array: 1,2,3,... +1 each time, no gaps, no repeats, first step = 1; NOT a hierarchy/importance rank>",
             "duration": "<minutes in number no extra text>",
-            "ingredients_equipments": ["<device>", "<serum>", "<peel>"],
+            "clinic_step_type": "<type from CLINIC STEP TIMINGS, or other>",
+            "ingredients_equipments": ["<exact catalogue device>", "<approved product>"],
+            "infusion_ingredients": null,
+            "lip_passes": null,
+            "lip_serum": null,
+            "massage_purpose": null,
             "how_to_do": "<clear zone-wise technique>",
             "script": "<patient-facing spoken explanation in simple everyday English language, as if the dermatologist is gently explaining the step to the client during treatment. Focus on what the client will understand: what is being done, what concern it is helping, and what visible benefit it is aiming for, also tell about the duration it will take for this step in a natural way. Do NOT use technical skincare, dermatology, ingredient, anatomical, or device-mechanism jargon unless unavoidable. Keep it warm, reassuring, premium, and easy to understand. 2-4 short sentences only. Speak in a way that sounds natural aloud, not like a report.>"
           }
@@ -887,7 +897,14 @@ FINAL PLAN VALIDATION (MANDATORY):
       "q_switch_laser": "<reason if not used>",
       "carbon_facial": "<reason if not used>",
       "chemical_peel": "<reason if not used>",
-      "rf_hifu_microneedling": "<reason if not used>"
+      "rf_hifu_microneedling": "<reason if not used>",
+      "under_eye_infusion": "<per-session selection or omission and why>",
+      "facial_infusion": "<per-session selection or omission and why>",
+      "cooling": "<per-session selection or omission and why>",
+      "hydra_spray": "<per-session selection or omission and why>",
+      "mask": "<per-session choice or omission and why>",
+      "lymphatic_drainage": "<per-session clinical purpose or calculated filler decision>",
+      "other_relevant_options": "<other relevant catalogue options considered; or why no compliant plan is possible>"
     }
   }
 }`

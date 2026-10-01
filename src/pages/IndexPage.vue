@@ -198,6 +198,16 @@ import { useRoute, useRouter } from 'vue-router'
 import { api } from 'src/boot/axios'
 import _ from 'lodash'
 import { getFacialPrompts } from 'src/utils/facial'
+import {
+  formatFacialClientScores,
+  prepareFacialEngineInput,
+} from 'src/utils/facial/clientScoreDisplay.js'
+import {
+  buildClinicTreatmentContext,
+  buildTreatmentPlannerInput,
+  TREATMENT_PLAN_RESPONSE_FORMAT,
+  validateClinicTreatmentPlan,
+} from 'src/utils/facial/treatmentClinicRules.js'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
 
@@ -209,6 +219,7 @@ import reassessment from 'src/info/reassessment.json'
 
 const $q = useQuasar()
 const { getOrCreateConversation, runResponse } = useOpenAI()
+const FACIAL_JSON_OPTIONS = { text: { format: { type: 'json_object' } } }
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
@@ -216,17 +227,17 @@ const { assessmentData } = storeToRefs(store)
 const route = useRoute()
 const router = useRouter()
 
-const sessionId = computed(() => route.query.session_id ? Number(route.query.session_id) : null)
+const sessionId = computed(() => (route.query.session_id ? Number(route.query.session_id) : null))
 const currentSession = computed(() => {
   if (!sessionId.value || !assessmentData.value.treatment_sessions?.treatments) return null
-  return assessmentData.value.treatment_sessions.treatments.find(t => t.id === sessionId.value)
+  return assessmentData.value.treatment_sessions.treatments.find((t) => t.id === sessionId.value)
 })
 
 function getPreviousScores() {
   if (!sessionId.value || !currentSession.value) {
     return {
       source: 'baseline',
-      scores: assessmentData.value.diagnosis
+      scores: assessmentData.value.diagnosis,
     }
   }
 
@@ -234,24 +245,24 @@ function getPreviousScores() {
   if (currentNum === 1) {
     return {
       source: 'baseline',
-      scores: assessmentData.value.diagnosis
+      scores: assessmentData.value.diagnosis,
     }
   }
 
   const prevSess = assessmentData.value.treatment_sessions?.treatments?.find(
-    t => t.session_number === currentNum - 1
+    (t) => t.session_number === currentNum - 1,
   )
 
   if (prevSess && prevSess.post_diagnosis) {
     return {
       source: `session_${currentNum - 1}`,
-      scores: prevSess.post_diagnosis
+      scores: prevSess.post_diagnosis,
     }
   }
 
   return {
     source: 'baseline',
-    scores: assessmentData.value.diagnosis
+    scores: assessmentData.value.diagnosis,
   }
 }
 const currentStep = ref(route.params.step || 'selection')
@@ -415,28 +426,94 @@ async function submit(field) {
   }
 }
 
+function scanImageMappingError(message) {
+  const error = new Error(message)
+  error.name = 'ScanImageMappingError'
+  return error
+}
+
+function orderScanImages(records, machine, { requireComplete = true, requireFileIds = true } = {}) {
+  const machineMode = String(machine || '6').charAt(0)
+  const imagesOrder = config.IMAGES_ORDER[machineMode]
+  if (!imagesOrder || !Array.isArray(records)) {
+    throw scanImageMappingError('The scan mode or image list is invalid. Please reload the assessment.')
+  }
+
+  const byMode = new Map()
+  const fileIds = new Set()
+  for (const [index, record] of records.entries()) {
+    let mode
+    try {
+      if (typeof record?.url !== 'string' || !record.url.trim()) throw new Error('Missing image URL')
+      const pathname = new URL(record.url, 'https://scan.invalid').pathname
+      const filename = decodeURIComponent(pathname.slice(pathname.lastIndexOf('/') + 1))
+      mode = filename.replace(/\.[^.]+$/, '').toLowerCase()
+    } catch {
+      throw scanImageMappingError(`Scan image ${index + 1} has an invalid filename or URL.`)
+    }
+
+    // Exact filename stems keep surface_polarized distinct from subsurface_polarized.
+    if (!imagesOrder.includes(mode)) {
+      throw scanImageMappingError(
+        `Scan image ${index + 1} has an unrecognised mode filename. Expected: ${imagesOrder.join(', ')}.`,
+      )
+    }
+    if (byMode.has(mode)) {
+      throw scanImageMappingError(`More than one image is assigned to ${mode}. Keep one image per mode.`)
+    }
+
+    const fileId = record.custom_properties?.openai_file_id
+    if (requireFileIds) {
+      if (typeof fileId !== 'string' || !fileId.trim()) {
+        throw scanImageMappingError(`The ${mode} image has no uploaded file ID. Please upload it again.`)
+      }
+      if (fileIds.has(fileId)) {
+        throw scanImageMappingError('The same uploaded image is assigned to more than one light mode.')
+      }
+      fileIds.add(fileId)
+    }
+    byMode.set(mode, { mode, record })
+  }
+
+  const missing = imagesOrder.filter((mode) => !byMode.has(mode))
+  if (requireComplete && missing.length) {
+    throw scanImageMappingError(`Missing scan image mode(s): ${missing.join(', ')}. Please upload them.`)
+  }
+  // Partial lists are allowed only for fixture previews, never for live API requests.
+  return imagesOrder.filter((mode) => byMode.has(mode)).map((mode) => byMode.get(mode))
+}
+
+function scanImageRequestContent(orderedImages) {
+  return orderedImages.flatMap(({ mode, record }, index) => [
+    {
+      type: 'input_text',
+      text: `Image ${index + 1} — ${config.IMAGE_MODE_LABELS[mode]} (mode: ${mode}).`,
+    },
+    { type: 'input_image', file_id: record.custom_properties.openai_file_id },
+  ])
+}
+
 const handleProcess = async (files) => {
-  if (isPostAssessment.value) {
-    await handlePostAssessment(files)
-  } else {
-    await handleDiagnosis(files)
+  try {
+    if (isPostAssessment.value) {
+      await handlePostAssessment(files)
+    } else {
+      await handleDiagnosis(files)
+    }
+  } catch (error) {
+    if (error?.name !== 'ScanImageMappingError') throw error
+    startProcessingStep.value = false
+    Notify.create({ type: 'negative', message: error.message, timeout: 6000 })
   }
 }
 
 async function handleDiagnosis(files) {
-  faceImages.value = assessmentData.value.images.map((img) => img.url)
-  // if (files.length > 0) {
-  //   const uploadedImages = await store.storeFaceImages(files, 'pre')
-  //   faceImages.value.push(...uploadedImages)
-  // }
-
-  const machineMode = assessmentData.value.face_scan_machine?.charAt(0) || '6'
-  const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
-  faceImages.value = imagesOrder
-    .map((name) => faceImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
-    .filter(Boolean)
-
   if (process.env.APP_TEST) {
+    faceImages.value = orderScanImages(
+      assessmentData.value.images || [],
+      assessmentData.value.face_scan_machine,
+      { requireComplete: false, requireFileIds: false },
+    ).map(({ record }) => record.url)
     startProcessingStep.value = false
     // diagnosis.value = daignosisJson // e.g., { issues: [...], summary: '...' }
     assessmentData.value.diagnosis = daignosisJson
@@ -444,7 +521,9 @@ async function handleDiagnosis(files) {
     submit(['diagnosis', 'parameters_with_abnormal_scores'])
     goNext()
   } else {
-    const apiResponse = await callApiForDiagnosis(assessmentData.value, files)
+    const apiResponse = formatFacialClientScores(
+      await callApiForDiagnosis(assessmentData.value, files),
+    )
 
     if (apiResponse.error) {
       startProcessingStep.value = false
@@ -472,31 +551,33 @@ async function handleDiagnosis(files) {
 }
 
 async function handlePostAssessment(files) {
-  if (sessionId.value && currentSession.value) {
-    postTreatmentImages.value = currentSession.value.post_images.map((img) => img.url)
-  } else {
-    postTreatmentImages.value = assessmentData.value.post_images.map((img) => img.url)
+  if (sessionId.value && !currentSession.value) {
+    throw scanImageMappingError('The treatment session could not be found. Please reload the assessment.')
   }
 
-  const machineMode = assessmentData.value.face_scan_machine?.charAt(0) || '6'
-  const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
-  postTreatmentImages.value = imagesOrder
-    .map((name) => postTreatmentImages.value.find((url) => url.toLowerCase().includes(`${name}.`)))
-    .filter(Boolean)
-
   if (process.env.APP_TEST) {
+    const previewImages = sessionId.value
+      ? currentSession.value.post_images
+      : assessmentData.value.post_images
+    postTreatmentImages.value = orderScanImages(
+      previewImages || [],
+      assessmentData.value.face_scan_machine,
+      { requireComplete: false, requireFileIds: false },
+    ).map(({ record }) => record.url)
     startProcessingStep.value = false
     if (sessionId.value) {
       currentSession.value.post_diagnosis = reassessment
       await store.saveTreatmentSessionPostAssessment(sessionId.value, {
-        post_diagnosis: reassessment
+        post_diagnosis: reassessment,
       })
     } else {
       assessmentData.value.post_diagnosis = reassessment
     }
     goNext()
   } else {
-    const apiResponse = await callApiForPostDiagnosis(assessmentData.value, files)
+    const apiResponse = formatFacialClientScores(
+      await callApiForPostDiagnosis(assessmentData.value, files),
+    )
 
     if (apiResponse.error) {
       startProcessingStep.value = false
@@ -518,7 +599,7 @@ async function handlePostAssessment(files) {
         currentSession.value.post_diagnosis = apiResponse
         await store.saveTreatmentSessionPostAssessment(sessionId.value, {
           post_feature_packet: currentSession.value.post_feature_packet,
-          post_diagnosis: apiResponse
+          post_diagnosis: apiResponse,
         })
       } else {
         assessmentData.value.post_diagnosis = apiResponse
@@ -544,7 +625,9 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
     }
     goNext()
   } else {
-    const apiResponse = await callApiForTreatmentPlan(selected, treatmentType)
+    const apiResponse = formatFacialClientScores(
+      await callApiForTreatmentPlan(selected, treatmentType),
+    )
     if (apiResponse.error) {
       Notify.create({
         type: 'negative',
@@ -646,13 +729,9 @@ async function callApiForDiagnosis(data, images) {
 
   processingMessage.value = 'Uploading images to OpenAI...'
   await uploadImageFileToOpenAI(images, 'pre')
-  // console.log(fileArrar)
-  const storedFiles = await Promise.all(
-    data.images.map((item) => ({
-      type: 'input_image',
-      file_id: item.custom_properties?.openai_file_id ?? null,
-    })),
-  )
+  const orderedImages = orderScanImages(assessmentData.value.images, data.face_scan_machine)
+  faceImages.value = orderedImages.map(({ record }) => record.url)
+  const storedFiles = scanImageRequestContent(orderedImages)
   // let finalFileIdArray = [...fileArrar, ...storedFiles]
   // console.log(finalFileIdArray)
   const prompts = await getFacialPrompts(data.face_scan_machine)
@@ -675,7 +754,9 @@ async function callApiForDiagnosis(data, images) {
   processingMessage.value = 'Processing scanned images...'
   console.log('Conv ID:', convId)
   console.log('Diagnosis Input:', input)
-  assessmentData.value.feature_packet = await runResponse(convId, input)
+  const featurePacket = await runResponse(convId, input, undefined, FACIAL_JSON_OPTIONS)
+  if (featurePacket?.error) return featurePacket
+  assessmentData.value.feature_packet = featurePacket
   submit(['feature_packet'])
   console.log('✅ Feature Packet:', assessmentData.value.feature_packet)
 
@@ -706,7 +787,7 @@ async function callApiForDiagnosis(data, images) {
   ]
 
   console.log('Diagnosis Input:', input2)
-  const result2 = await runResponse(convId, input2)
+  const result2 = await runResponse(convId, input2, undefined, FACIAL_JSON_OPTIONS)
   console.log('✅ Diagnosis:', result2)
 
   return result2
@@ -727,6 +808,17 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
 
   const convId = assessmentData.value.conversation_id
 
+  const clinicTreatmentContext = buildClinicTreatmentContext(
+    assessmentData.value.diagnosis,
+    assessmentData.value.feature_packet,
+  )
+
+  // Numeric treatment inputs; null stays missing instead of becoming "null°C".
+  const temperatureValue = value => {
+    if (!['number', 'string'].includes(typeof value) || String(value).trim() === '') return null
+    const number = Number(value)
+    return Number.isFinite(number) ? number : null
+  }
   const patientData = {
     name: assessmentData.value.name,
     age: assessmentData.value.age,
@@ -738,9 +830,9 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     allergies: assessmentData.value.allergies,
     is_pregnant: assessmentData.value.is_pregnant,
     breastfeeding: assessmentData.value.breastfeeding,
-    forehead_surface_c: assessmentData.value.skin_temp_for_head + '°C',
-    left_cheek_surface_c: assessmentData.value.left_cheek_temp + '°C',
-    right_cheek_surface_c: assessmentData.value.right_cheek_temp + '°C',
+    forehead_surface_c: temperatureValue(assessmentData.value.skin_temp_for_head),
+    left_cheek_surface_c: temperatureValue(assessmentData.value.left_cheek_temp),
+    right_cheek_surface_c: temperatureValue(assessmentData.value.right_cheek_temp),
     laser_within_last_7_days: assessmentData.value.recent_peel_or_laser,
     used_retinol_last_24_hours: assessmentData.value.retinol_used_last_night,
   }
@@ -773,23 +865,46 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
         },
         {
           type: 'input_text',
-          text: encode({
-            treatable_concerns: {
-              description:
-                'Parameters showing deviations that can be treated or improved with appropriate interventions.',
-              parameters_with_abnormal_scores: selected,
-            },
-            selected_plan_type: `${treatmentType}`, // 'single', 'express' or 'full'
-          }),
+          text: encode(buildTreatmentPlannerInput(
+            assessmentData.value.diagnosis,
+            selected,
+            treatmentType,
+            clinicTreatmentContext,
+          )),
         },
       ],
     },
   ]
   console.log('Conv ID:', convId)
   console.log('Treatment plans Input:', input)
-  const result = await runResponse(convId, input)
+  const treatmentOptions = {
+    text: { format: TREATMENT_PLAN_RESPONSE_FORMAT },
+    reasoning_effort: 'medium',
+    metadata: { stage: 'facial_treatment' },
+  }
+  const result = await runResponse(convId, input, undefined, treatmentOptions)
   console.log('🩺 Treatment plans:', result)
-  return result
+  const validated = validateClinicTreatmentPlan(result, clinicTreatmentContext, treatmentType, prompts.constraints)
+  if (validated?.error?.code !== 'facial_treatment_rule_violation') return validated
+
+  // One treatment-only correction attempt. API failures/refusals are not retried
+  // here; existing transport retry handling remains in useOpenAI unchanged.
+  const repairInput = [...input, {
+    role: 'user',
+    content: [{
+      type: 'input_text',
+      text: encode({
+        task: 'Correct this treatment draft using the same assessment, primary concerns, clinic protocols and complete session limits. Resolve the listed validation errors; do not change scores/targets, invent findings, pad fixed durations or remove clinically required care. Recheck useful supportive options before filler. If no compliant appropriate plan exists, return treatments: [] and explain why in modality_omission_explanation.other_relevant_options.',
+        previous_plan: prepareFacialEngineInput(result),
+        validation_errors: validated.error.details,
+      }),
+    }],
+  }]
+  const corrected = await runResponse(convId, repairInput, undefined, {
+    ...treatmentOptions,
+    metadata: { stage: 'facial_treatment_correction' },
+  })
+  return validateClinicTreatmentPlan(corrected, clinicTreatmentContext, treatmentType, prompts.constraints)
 }
 
 async function callApiForPostDiagnosis(data, images) {
@@ -807,20 +922,20 @@ async function callApiForPostDiagnosis(data, images) {
   processingMessage.value = 'Uploading images to OpenAI...'
   await uploadImageFileToOpenAI(images, 'post', sessionId.value)
 
-  const targetPostImages = sessionId.value && currentSession.value ? currentSession.value.post_images : data.post_images
+  const targetPostImages =
+    sessionId.value ? currentSession.value?.post_images : assessmentData.value.post_images
 
-  const storedFiles = await Promise.all(
-    targetPostImages.map((item) => ({
-      type: 'input_image',
-      file_id: item.custom_properties?.openai_file_id ?? null,
-    })),
-  )
+  const orderedImages = orderScanImages(targetPostImages, data.face_scan_machine)
+  postTreatmentImages.value = orderedImages.map(({ record }) => record.url)
+  const storedFiles = scanImageRequestContent(orderedImages)
   // let finalFileIdArray = [...fileArrar, ...storedFiles]
 
   const prompts = await getFacialPrompts(data.face_scan_machine)
 
   const prevContext = getPreviousScores()
-  const sessionLabel = currentSession.value ? `Session ${currentSession.value.session_number}` : 'Session 1'
+  const sessionLabel = currentSession.value
+    ? `Session ${currentSession.value.session_number}`
+    : 'Session 1'
 
   const input = [
     {
@@ -845,7 +960,7 @@ async function callApiForPostDiagnosis(data, images) {
           type: 'input_text',
           text: `IMPORTANT: For this reassessment, compare the patient's current post-treatment condition (provided in files above) against the following previous scores representing the patient's state before this treatment session. Use these previous values as the "before_treatment_score_or_label" values to evaluate progress:
 Reference Source: ${prevContext.source}
-Reference Scores: ${JSON.stringify(prevContext.scores)}`
+Reference Scores: ${JSON.stringify(prepareFacialEngineInput(prevContext.scores))}`,
         },
         {
           type: 'input_text',
@@ -868,7 +983,7 @@ Reference Scores: ${JSON.stringify(prevContext.scores)}`
   processingMessage.value = 'Processing scanned images...'
   console.log('Conv ID:', convId)
   console.log('Post Assessment Input:', input)
-  const result = await runResponse(convId, input)
+  const result = await runResponse(convId, input, undefined, FACIAL_JSON_OPTIONS)
   console.log('✅ Post Assessment Result:', result)
   return result
 }

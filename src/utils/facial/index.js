@@ -1,3 +1,5 @@
+export { formatFacialClientScores, prepareFacialEngineInput, facialClientScore, facialLegacyScoreGap } from './clientScoreDisplay.js'
+
 export const getFacialPrompts = async (mode) => {
   const m = mode && mode.startsWith('5') ? '5_light_modes' : '6_light_modes'
   const aiPrompts = await import(`./${m}/scoring/aiPrompts.js`)

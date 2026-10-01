@@ -2984,6 +2984,9 @@ CONTINUOUS SCORE SCALE (1-100):
 - Use each parameter's continuous_score_mapping directly from its existing continuous index or clinical interpretation. Do not first assign a 1-5 grade, round to a grade, or multiply a discrete grade.
 - Preserve continuous indices in their original units and precision. clinical_reference_ranges retain descriptive context only; they MUST NOT quantize measurements or final scores. clinical_reference_anchors are interpolation landmarks, not buckets or an allowed-values list.
 - Keep each parameter's original score polarity. Numeric current_score, target_score, and target_single_session_score values use the same continuous 1-100 scale.
+- Return the original unrounded engine scores and original polarity in the existing fields. Report rounding and higher-is-better conversion happen only in the application after this response.
+- Stored client-report rows may contain _facial_score_display. For all engine calculations, recover the original fields recorded in _facial_score_display.raw instead of using their rounded, higher-is-better report replacements.
+- Patient-facing prose must describe findings and visible changes without quoting internal score numbers, score directions or point differences; the application supplies the integer client scores.
 
 GLOBAL PRINCIPLE:
 - The upstream Feature Packet is the primary source of truth whenever a field is present and usable.
