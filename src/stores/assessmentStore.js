@@ -161,7 +161,7 @@ export const useAssessmentStore = defineStore('assessment', {
           })
         })
     },
-    async updateAssessment(payload) {
+    async updateAssessment(payload, { throwOnError = false } = {}) {
       if (!this.assessmentData.id) return
       payload.user_id = this.assessmentData.user_id
       payload._method = 'PUT'
@@ -207,6 +207,7 @@ export const useAssessmentStore = defineStore('assessment', {
         })
         .catch((e) => {
           console.log(e)
+          if (throwOnError) throw e
           // Notify.create({
           //   type: 'negative',
           //   message: e.response.data.message,

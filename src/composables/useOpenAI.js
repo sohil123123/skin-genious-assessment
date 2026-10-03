@@ -360,7 +360,7 @@ export function useOpenAI() {
         },
       }
     } finally {
-      Loading.hide()
+      if (options.hide_loading !== false) Loading.hide()
     }
   }
 

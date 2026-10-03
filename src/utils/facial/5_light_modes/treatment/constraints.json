@@ -570,10 +570,7 @@
       },
       "cooling": {
         "equipment": "Ice Probe",
-        "duration_minutes_range": [
-          2,
-          5
-        ],
+        "duration_minutes_range": [2, 5],
         "selection_guidance": "Evaluate clinically appropriate cooling/comfort/recovery support for the chosen procedures and regional findings; do not represent cooling as equivalent to pigment correction."
       },
       "facial_infusion": {
@@ -590,7 +587,7 @@
         "rule": "Every facial treatment must finish (last step of treatment) with Serum + Moisturizer + Sunscreen."
       },
       {
-        "rule": "Consider Face and Neck Lymphatic Drainage Massage after clinically useful treatment and support options. Use one 5-10-minute step for a documented clinical purpose or the smallest permitted filler duration needed to meet the complete session minimum; omit filler if the minimum is already met."
+        "rule": "Consider Face and Neck Lymphatic Drainage Massage after clinically useful treatment and support options. Use one appropriate 5-10-minute step for a documented clinical purpose or, when other steps fall below the session minimum, as filler bringing the total inside the permitted session window. Filler need not equal the exact remaining gap; explain its selected duration and do not default to 10 minutes. Omit filler if the minimum is already met. No fixed session-duration target is imposed."
       },
       {
         "rule": "There is NO fixed or recommended sequence for treatment steps. The LLM is free to design ANY sequence or use DIFFERENT treatments for different facial zones based on scoring, diagnosis, and clinical logic."

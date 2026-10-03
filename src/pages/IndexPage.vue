@@ -794,8 +794,28 @@ async function callApiForDiagnosis(data, images) {
 }
 
 async function callApiForTreatmentPlan(selected, treatmentType) {
-  // Implement ChatGPT API call here
-  // Prompt example: "Generate treatment plan based on diagnosis: [JSON.stringify(input)], constraints: [paste DOCX content]"
+  const planningStarted = performance.now()
+  // Treatment-only timings: no patient data or changes to scoring/model settings.
+  const timedTreatmentResponse = async (request, options) => {
+    const started = performance.now()
+    try {
+      return await runResponse(convId, request, undefined, options)
+    } finally {
+      console.info('[facial-treatment] request elapsed', {
+        stage: options.metadata.stage,
+        reasoning_effort: options.reasoning_effort,
+        elapsed_ms: Math.round(performance.now() - started),
+      })
+    }
+  }
+  const finishPlanning = (plan, corrected) => {
+    console.info('[facial-treatment] planning completed', {
+      corrected,
+      valid: !plan?.error,
+      elapsed_ms: Math.round(performance.now() - planningStarted),
+    })
+    return plan
+  }
 
   Loading.show({
     spinner: QSpinnerFacebook,
@@ -838,6 +858,14 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
   }
 
   const prompts = await getFacialPrompts(assessmentData.value.face_scan_machine)
+  const treatmentPlannerInput = buildTreatmentPlannerInput(
+    assessmentData.value.diagnosis,
+    selected,
+    treatmentType,
+    clinicTreatmentContext,
+    prompts.constraints,
+  )
+  const { treatment_catalogue, ...patientTreatmentInput } = treatmentPlannerInput
   const input = [
     {
       role: 'system',
@@ -849,6 +877,10 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
         {
           type: 'input_text',
           text: encode(prompts.constraints),
+        },
+        {
+          type: 'input_text',
+          text: encode({ treatment_catalogue }),
         },
       ],
     },
@@ -865,27 +897,41 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
         },
         {
           type: 'input_text',
-          text: encode(buildTreatmentPlannerInput(
-            assessmentData.value.diagnosis,
-            selected,
-            treatmentType,
-            clinicTreatmentContext,
-          )),
+          text: encode(patientTreatmentInput),
         },
       ],
     },
   ]
   console.log('Conv ID:', convId)
-  console.log('Treatment plans Input:', input)
+  // Sizes are characters, not model tokens. Version markers expose stale/partial
+  // prompt deployment without logging patient evidence or the full request.
+  const promptText = prompts.SYSTEM_TREATMENT_PLAN_PROMPT
+  const requestProfile = {
+    prompt_revision: promptText.match(/^TREATMENT PLANNER REVISION: (.+)$/m)?.[1] || 'unversioned',
+    catalogue_review_revision: promptText.match(/^CATALOGUE REVIEW REVISION: (.+)$/m)?.[1] || 'unversioned',
+    imaging_mode: assessmentData.value.face_scan_machine,
+    reasoning_effort: 'medium',
+    instruction_characters: input[0].content[0].text.length,
+    constraint_characters: input[0].content[1].text.length,
+    catalogue_characters: input[0].content[2].text.length,
+    patient_characters: input[1].content[0].text.length,
+    feature_characters: input[1].content[1].text.length,
+    diagnosis_and_selection_characters: input[1].content[2].text.length,
+  }
+  console.info('[facial-treatment] request profile', requestProfile)
   const treatmentOptions = {
     text: { format: TREATMENT_PLAN_RESPONSE_FORMAT },
     reasoning_effort: 'medium',
     metadata: { stage: 'facial_treatment' },
   }
-  const result = await runResponse(convId, input, undefined, treatmentOptions)
+  const result = await timedTreatmentResponse(input, treatmentOptions)
   console.log('🩺 Treatment plans:', result)
   const validated = validateClinicTreatmentPlan(result, clinicTreatmentContext, treatmentType, prompts.constraints)
-  if (validated?.error?.code !== 'facial_treatment_rule_violation') return validated
+  if (validated?.error?.code !== 'facial_treatment_rule_violation') return finishPlanning(validated, false)
+  console.warn('[facial-treatment] correction required', {
+    validation_error_count: validated.error.details.length,
+    validation_errors: validated.error.details,
+  })
 
   // One treatment-only correction attempt. API failures/refusals are not retried
   // here; existing transport retry handling remains in useOpenAI unchanged.
@@ -894,17 +940,24 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     content: [{
       type: 'input_text',
       text: encode({
-        task: 'Correct this treatment draft using the same assessment, primary concerns, clinic protocols and complete session limits. Resolve the listed validation errors; do not change scores/targets, invent findings, pad fixed durations or remove clinically required care. Recheck useful supportive options before filler. If no compliant appropriate plan exists, return treatments: [] and explain why in modality_omission_explanation.other_relevant_options.',
+        task: 'Correct this treatment draft using the same assessment, primary concerns, clinic protocols and complete session limits. Resolve the listed validation errors; do not change scores/targets, invent findings, pad fixed durations or remove clinically required care. Complete the catalogue coverage record consistently with the selected steps. Recheck useful permitted options before filler. Preserve case-specific adaptations and client explanations. If no compliant appropriate plan exists, return treatments: [] and explain why in modality_omission_explanation.other_relevant_options.',
         previous_plan: prepareFacialEngineInput(result),
         validation_errors: validated.error.details,
       }),
     }],
   }]
-  const corrected = await runResponse(convId, repairInput, undefined, {
+  const corrected = await timedTreatmentResponse(repairInput, {
     ...treatmentOptions,
     metadata: { stage: 'facial_treatment_correction' },
   })
-  return validateClinicTreatmentPlan(corrected, clinicTreatmentContext, treatmentType, prompts.constraints)
+  const correctedValidation = validateClinicTreatmentPlan(corrected, clinicTreatmentContext, treatmentType, prompts.constraints)
+  if (correctedValidation?.error) {
+    console.error('[facial-treatment] correction rejected', {
+      code: correctedValidation.error.code,
+      validation_errors: correctedValidation.error.details || [correctedValidation.error.message],
+    })
+  }
+  return finishPlanning(correctedValidation, true)
 }
 
 async function callApiForPostDiagnosis(data, images) {
@@ -985,7 +1038,9 @@ Reference Scores: ${JSON.stringify(prepareFacialEngineInput(prevContext.scores))
   console.log('Post Assessment Input:', input)
   const result = await runResponse(convId, input, undefined, FACIAL_JSON_OPTIONS)
   console.log('✅ Post Assessment Result:', result)
-  return result
+  // Presentation only: the same-session reference can clarify sebum's balance
+  // direction. The scoring request and all returned engine values stay intact.
+  return formatFacialClientScores(result, { sebumBaseline: prevContext.scores })
 }
 
 function finalizeAndExit() {
