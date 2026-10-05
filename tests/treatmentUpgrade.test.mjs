@@ -8,8 +8,10 @@ const moduleRoot = join(root, 'src/utils/facial/5_light_modes')
 const rules = await import(pathToFileURL(join(moduleRoot, 'treatmentClinicRules.js')))
 const pipeline = await import(pathToFileURL(join(moduleRoot, 'treatmentPipeline.js')))
 const { buildTreatmentEligibility } = await import(pathToFileURL(join(moduleRoot, 'treatmentEligibility.js')))
-const { TREATMENT_STEPS, TREATMENT_KNOWLEDGE } = await import(pathToFileURL(join(moduleRoot, 'treatmentKnowledge.js')))
+const evidenceAdapter = await import(pathToFileURL(join(moduleRoot, 'treatmentEvidence.js')))
+const { TREATMENT_STEPS, TREATMENT_KNOWLEDGE, compileTreatmentKnowledgeReference } = await import(pathToFileURL(join(moduleRoot, 'treatmentKnowledge.js')))
 const constraints = JSON.parse(await readFile(join(moduleRoot, 'treatment/constraints.json'), 'utf8'))
+const case91 = JSON.parse(await readFile(join(root, 'tests/fixtures/case91.json'), 'utf8'))
 const concern = 'Superficial Pigmentation Score'
 const diagnosis = { diagnosis_report: {
   combined_barrier_sensitivity: { parameter_name: 'Barrier Health + Sensitivity (Combined Score)',
@@ -57,6 +59,7 @@ const check = (d, ctx=input.clinic_treatment_context, type='express') => rules.v
 const invalid = (d, pattern, type='express') => { const result=check(d,input.clinic_treatment_context,type); assert.ok(result.error, 'must reject invalid plan'); assert.match(result.error.details.join('\n'),pattern) }
 const envelope = (d=draft()) => {
   const plan=clone(d.treatment_plan);delete plan.total_time
+  delete plan.modality_omission_explanation;plan.relevant_alternatives ||= []
   return {planning_result:{outcome:'success',treatment_plan:plan,failure:null}}
 }
 const singleDraft = () => {
@@ -200,12 +203,15 @@ test('temperature and existing legacy deep rules remain executable',()=>{
 })
 test('request projection retains complete patient, energy, temperature and support constraints',()=>{
   const c=pipeline.compileTreatmentConstraints(constraints)
-  for(const key of ['patient_history_rules','energy_device_policy','regional_skin_temperature_policy','supportive_treatment_protocols','active_acne_spot_treatment_rule','mother_document_compatibility']) assert.deepEqual(c.clinical_constraints[key],constraints.clinical_constraints[key])
+  for(const key of ['patient_history_rules','energy_device_policy','regional_skin_temperature_policy','active_acne_spot_treatment_rule','mother_document_compatibility']) assert.deepEqual(c.clinical_constraints[key],constraints.clinical_constraints[key])
+  for(const [key,value] of Object.entries(constraints.clinical_constraints.supportive_treatment_protocols))
+    if(key!=='selection_rule') assert.deepEqual(c.clinical_constraints.supportive_treatment_protocols[key],value)
+  assert.match(c.clinical_constraints.supportive_treatment_protocols.selection_rule,/caller derives inclusion/)
   assert.equal(c.clinical_constraints.required_candidate_comparisons,undefined)
   assert.equal(c.clinical_constraints.hero_modality_decision_policy.primary_concern_candidate_framework,undefined)
   assert.deepEqual(c.clinical_constraints.case_driven_selection_policy,constraints.clinical_constraints.case_driven_selection_policy)
   assert.equal(c.availableResources.ivInfusions,undefined)
-  assert.deepEqual(c.availableResources.chemicalPeels.map((p)=>p.key_actives),constraints.availableResources.chemicalPeels.map((p)=>p.key_actives))
+  assert.deepEqual(Object.fromEntries(c.availableResources.chemicalPeels.map((p)=>[p.name,p.key_actives])),Object.fromEntries(constraints.availableResources.chemicalPeels.map((p)=>[p.name,p.key_actives])))
   assert.equal(c.availableResources.chemicalPeels.find((p)=>p.name==='Combination Peel').clinic_depth_class,'superficial')
   assert.deepEqual(c.availableResources.jet_infusion_solutions.find((p)=>p.name==='Niacinamide').approved_delivery_routes,['under_eye_infusion','hydra_spray'])
 })
@@ -218,8 +224,10 @@ test('legacy exhaustive candidate lists cannot re-enter the model request or mut
   const emitted=JSON.parse(request.instructions.slice(request.instructions.indexOf(marker)+marker.length))
   assert.equal(emitted.clinical_constraints.required_candidate_comparisons,undefined)
   assert.equal(emitted.clinical_constraints.hero_modality_decision_policy.primary_concern_candidate_framework,undefined)
-  for(const key of ['patient_history_rules','energy_device_policy','active_acne_spot_treatment_rule','regional_skin_temperature_policy','mandatory_lymphatic_drainage','mother_document_compatibility','supportive_treatment_protocols'])
+  for(const key of ['patient_history_rules','energy_device_policy','active_acne_spot_treatment_rule','regional_skin_temperature_policy','mandatory_lymphatic_drainage','mother_document_compatibility'])
     assert.deepEqual(emitted.clinical_constraints[key],before.clinical_constraints[key])
+  for(const [key,value] of Object.entries(before.clinical_constraints.supportive_treatment_protocols))
+    if(key!=='selection_rule') assert.deepEqual(emitted.clinical_constraints.supportive_treatment_protocols[key],value)
   assert.deepEqual(emitted.clinical_constraints.hero_modality_decision_policy.hard_rules,before.clinical_constraints.hero_modality_decision_policy.hard_rules)
   assert.deepEqual(emitted.clinical_constraints.energy_vs_peel_priority_framework.hard_rules,before.clinical_constraints.energy_vs_peel_priority_framework.hard_rules)
   assert.deepEqual(legacy,before)
@@ -251,7 +259,7 @@ test('case schema binds exact concern names, primary count and registered strate
   assert.ok(strategy.items.properties.selected_step_id.enum.includes('ENERGY.CARBON.LASER'))
   assert.ok(strategy.items.properties.selected_step_id.enum.includes(null))
   const caseSteps=session.properties.steps.items.anyOf
-  for(const stepSchema of caseSteps) assert.deepEqual(stepSchema.properties.target_concerns.items.enum,input.planning_contract.allowed_concern_names)
+  for(const stepSchema of caseSteps) assert.deepEqual(stepSchema.properties.target_concerns.items.enum,[...input.planning_contract.allowed_concern_names].sort())
   assert.ok(!caseSteps[0].properties.target_concerns.items.enum.includes('PIH'))
   const unknown=envelope();unknown.planning_result.treatment_plan.treatments[0].steps[4].target_concerns=['PIH']
   assert.throws(()=>rules.unpackTreatmentPlannerResponse(unknown,'express',input),e=>e.code==='treatment_output_contract_violation')
@@ -459,9 +467,10 @@ test('documented legacy parameter input is normalised without empty primaries or
     const original=clone(selection);let calls=0
     const result=await pipeline.generateTreatmentPlan({...args,selectedConcerns:selection,callModel:async(request)=>{
       calls++
-      const sent=JSON.parse(request.input),normal=sent.treatable_concerns.parameters_with_abnormal_scores[0]
-      assert.equal(normal.parameter_name,concern);assert.equal(normal.parameter,concern)
-      assert.equal(normal.current_score,70.235);assert.equal(normal.target_score,61.917)
+      const sent=JSON.parse(request.input),normal=sent.diagnosis_report.superficial_pigmentation
+      assert.equal(normal.parameter_name,concern);assert.equal(normal.parameter,undefined)
+      assert.equal(normal.score_or_label,70.235);assert.equal(normal.target_single_session_score,61.917)
+      assert.equal(sent.treatable_concerns,undefined)
       assert.deepEqual(sent.planning_contract.required_primary_concerns,[concern])
       return envelope()
     }})
@@ -511,7 +520,7 @@ test('spot schema requires exactly one approved in-stock product in the intended
   const schema=rules.buildTreatmentGenerationResponseFormat('express',input).schema.properties.planning_result.anyOf[0].properties.treatment_plan.properties.treatments.items.properties.steps.items.anyOf
   const spot=schema.find(s=>s.properties.step_id.enum.includes('PEEL.SPOT.SALI'))
   assert.equal(spot.properties.additional_products.minItems,1);assert.equal(spot.properties.additional_products.maxItems,1)
-  assert.deepEqual(spot.properties.additional_products.items.enum,input.planning_contract.spot_sali_product_options)
+  assert.deepEqual(spot.properties.additional_products.items.enum,[...input.planning_contract.spot_sali_product_options].sort())
   const reduced=clone(constraints);reduced.availableResources.chemicalPeels=reduced.availableResources.chemicalPeels.filter(p=>p.name!=='Sali DS Peel')
   assert.ok(!rules.approvedSpotSaliProducts(reduced).includes('Sali DS Peel'))
   for(const products of [[],['Salicylic acid'],['Sali DS Peel','Salicylic Acid 30% Peel']]) {
@@ -557,7 +566,208 @@ test('legacy selection plus an explicitly named spot product completes in one ca
   assert.equal(session.steps.filter(s=>s.step_id==='COOL.ICE').length,2)
 })
 
-test('v5.5 preserves disabled application timeouts and validates a delayed successful result', async () => {
+const makeCase91Input = () => {
+  const p = case91.planner_input
+  return rules.buildTreatmentPlannerInput({diagnosis_report:p.diagnosis_report},p.treatable_concerns,'single',p.clinic_treatment_context,constraints,{
+    featurePacket:p.feature_evidence,patientProfileAndHistory:p.patient_profile_and_history,
+    historyRuleFlags:p.clinic_treatment_context.clinical_clearance.history_rule_flags,
+    temperatureReadings:p.clinic_treatment_context.clinical_clearance.temperature.readings,
+    inClinicProductNames:p.approved_product_names,
+  })
+}
+test('case 91 resolves the supplied feature proxies at their exact paths; actual BSI remains missing',()=>{
+  const p=makeCase91Input(),c=p.clinic_treatment_context.clinical_clearance
+  assert.deepEqual(c.numeric_proxy_values,{BSI_continuous:null,barrier_uniformity_index:0.7,flaking_texture_index:0.1,erythema_intensity_index:0.2,hydration_signal_index:0.55})
+  assert.deepEqual(c.missing_proxy_fields,['BSI_continuous'])
+  for(const name of ['barrier_uniformity_index','flaking_texture_index','erythema_intensity_index','hydration_signal_index'])
+    assert.equal(c.numeric_proxy_source_paths[name],`feature_evidence.proxies.combined_barrier_sensitivity.${name}`)
+  assert.equal(c.numeric_energy_status,'allowed_with_caution')
+  assert.equal(p.clinic_treatment_context.active_acne_lesions_visible,true)
+})
+test('feature-only measurements enforce existing hard denial thresholds without a diagnosis backend object',()=>{
+  for(const [name,value] of [['BSI_continuous',0.75],['barrier_uniformity_index',0.54],['flaking_texture_index',0.60],['erythema_intensity_index',0.75],['hydration_signal_index',0.29]]) {
+    const packet={proxies:{combined_barrier_sensitivity:{[name]:value}}}
+    const c=buildTreatmentEligibility({},constraints,{featurePacket:packet})
+    assert.equal(c.numeric_energy_status,'denied',name)
+    assert.ok(c.blocked_steps['ENERGY.CARBON.LASER'],name)
+    assert.ok(c.numeric_denial_reasons.some((reason)=>reason.includes(name)))
+  }
+})
+test('raw diagnosis authority is preserved; null/invalid sources cannot mask a supplied valid feature value',()=>{
+  const d=clone(diagnosis),packet={proxies:{combined_barrier_sensitivity:{erythema_intensity_index:0.2}}}
+  const original=clone({d,packet})
+  let result=evidenceAdapter.resolveTreatmentEvidence(d,packet)
+  assert.equal(result.numeric_proxy_values.erythema_intensity_index,0.1)
+  assert.equal(result.proxy_source_disagreements.length,1)
+  assert.match(result.numeric_proxy_source_paths.erythema_intensity_index,/backend_details/)
+  d.diagnosis_report.combined_barrier_sensitivity.backend_details.erythema_intensity_index=null
+  result=evidenceAdapter.resolveTreatmentEvidence(d,packet)
+  assert.equal(result.numeric_proxy_values.erythema_intensity_index,0.2)
+  d.diagnosis_report.combined_barrier_sensitivity.backend_details.erythema_intensity_index=20
+  result=evidenceAdapter.resolveTreatmentEvidence(d,packet)
+  assert.equal(result.numeric_proxy_values.erythema_intensity_index,0.2)
+  assert.equal(result.invalid_proxy_sources.length,1)
+  assert.deepEqual(packet,original.packet)
+})
+test('feature diagnosis scores, normalised burdens and numeric strings never substitute for raw BSI or proxies',()=>{
+  const d={combined_barrier_sensitivity:{parameter_name:'Barrier Health + Sensitivity (Combined Score)',score_or_label:70,normalized_burden_0_to_1:0.3}}
+  const packet={proxies:{combined_barrier_sensitivity:{hydration_signal_index:'0.55'}},diagnosis_report:{barrier_health:{score_0_1:0.35}}}
+  const result=evidenceAdapter.resolveTreatmentEvidence(d,packet)
+  assert.equal(result.numeric_proxy_values.BSI_continuous,null)
+  assert.equal(result.numeric_proxy_values.hydration_signal_index,null)
+  assert.ok(result.invalid_proxy_sources.length)
+  assert.equal(buildTreatmentEligibility(d,constraints,{featurePacket:packet}).numeric_energy_status,'allowed_with_caution')
+})
+test('zero proxies are retained, supporting-signal fallback is explicit and observation flags take precedence',()=>{
+  const result=evidenceAdapter.resolveTreatmentEvidence({}, {proxies:{combined_barrier_sensitivity:{erythema_intensity_index:0},acne:{active_lesion_visibility_bin:'mild'}},diagnosis_report:{barrier_health:{supporting_signals:{hydration_signal_index:0.55}}}})
+  assert.equal(result.numeric_proxy_values.erythema_intensity_index,0)
+  assert.equal(result.numeric_proxy_values.hydration_signal_index,0.55)
+  assert.match(result.numeric_proxy_source_paths.hydration_signal_index,/supporting_signals/)
+  assert.equal(result.active_acne_lesions_visible,true)
+  assert.equal(evidenceAdapter.resolveTreatmentEvidence({}, {proxies:{acne:{active_lesion_visibility_bin:'mild'}}},{activeAcneLesionsVisible:false}).active_acne_lesions_visible,false)
+  assert.equal(evidenceAdapter.resolveTreatmentEvidence({},{}).active_acne_lesions_visible,null)
+})
+test('stale clearance plus supplied feature measurements is an actionable input-contract error before model work',()=>{
+  assert.throws(()=>pipeline.buildTreatmentModelRequest({systemPrompt:args.systemPrompt,constraints,plannerInput:case91.planner_input}),error=>
+    error.code==='treatment_input_contract_violation' && error.details.some((reason)=>reason.includes('erythema_intensity_index')))
+  assert.doesNotThrow(()=>pipeline.buildTreatmentModelRequest({systemPrompt:args.systemPrompt,constraints,plannerInput:makeCase91Input()}))
+})
+test('case projection keeps all 15 raw diagnostic rows, exact targets and uncertainty without duplicate selection/diagnosis reports',()=>{
+  const original=makeCase91Input(),before=clone(original),compiled=rules.compileTreatmentPlannerInput(original)
+  assert.equal(Object.keys(compiled.diagnosis_report).length,15)
+  assert.equal(compiled.treatable_concerns,undefined)
+  assert.equal(compiled.feature_evidence.diagnosis_report,undefined)
+  assert.equal(compiled.feature_evidence.unmatched_feature_assessments,undefined)
+  for(const [key,row] of Object.entries(original.diagnosis_report)) {
+    const out=compiled.diagnosis_report[key]
+    assert.equal(out.score_or_label,row.score_or_label,key)
+    assert.equal(out.score_polarity,row.score_polarity,key)
+    assert.equal(out.comparison_mode,row.comparison_mode,key)
+    assert.deepEqual(out.data_quality,row.data_quality,key)
+    assert.deepEqual(out.possible_causes,row.possible_causes,key)
+    assert.ok(out.feature_assessment,key)
+    assert.equal(out.feature_assessment.score_0_1,undefined)
+  }
+  for(const selected of original.treatable_concerns.parameters_with_abnormal_scores) {
+    const row=Object.values(compiled.diagnosis_report).find((item)=>item.parameter_name===selected.parameter_name)
+    assert.equal(row.target_single_session_score,selected.target_single_session_score)
+    assert.equal(row.is_primary_concern,selected.is_primary_concern)
+  }
+  assert.equal(compiled.feature_evidence.proxies.combined_barrier_sensitivity.erythema_intensity_index,undefined)
+  assert.equal(compiled.clinic_treatment_context.clinical_clearance.numeric_proxy_values.erythema_intensity_index,0.2)
+  assert.deepEqual(original,before)
+})
+test('unique feature findings and unfamiliar diagnoses are retained rather than silently discarded',()=>{
+  const p=makeCase91Input()
+  p.feature_evidence.diagnosis_report.barrier_health.supporting_signals.unique_clinical_note='Observed feature not present in proxies.'
+  p.feature_evidence.diagnosis_report.unfamiliar_contract={finding:'Preserve this unrecognised evidence.'}
+  const c=rules.compileTreatmentPlannerInput(p)
+  assert.equal(c.diagnosis_report.barrier_health_sensitivity.feature_assessment.supporting_signals.unique_clinical_note,'Observed feature not present in proxies.')
+  assert.equal(c.feature_evidence.unmatched_feature_assessments.unfamiliar_contract.finding,'Preserve this unrecognised evidence.')
+  assert.deepEqual(c.feature_evidence.feature_findings[0].related_regions,p.feature_evidence.treatable_concerns[0].related_regions)
+  assert.equal(c.feature_evidence.feature_findings[0].priority,undefined)
+})
+test('API requests only relevant alternatives, while the finalizer preserves the frontend summary without invented omission reasons',()=>{
+  const format=rules.buildTreatmentGenerationResponseFormat('express',input).schema.properties.planning_result.anyOf[0].properties.treatment_plan
+  assert.equal(format.properties.modality_omission_explanation,undefined)
+  assert.ok(format.properties.relevant_alternatives)
+  const e=envelope();e.planning_result.treatment_plan.relevant_alternatives=[{session_number:1,step_id:'ENERGY.QS.TONING',reason:'Carbon serves the recorded congestion as well as the pigment.'}]
+  const d=rules.unpackTreatmentPlannerResponse(e,'express',input),before=clone(d)
+  const f=rules.finalizeTreatmentPlan(d,input)
+  assert.equal(f.treatment_plan.relevant_alternatives,undefined)
+  assert.match(f.treatment_plan.modality_omission_explanation.q_switch_laser,/recorded congestion/)
+  assert.match(f.treatment_plan.modality_omission_explanation.lymphatic_drainage,/5 min/)
+  assert.match(f.treatment_plan.modality_omission_explanation.hydra_spray,/no material alternative comparison reported/)
+  assert.equal(rules.validateClinicTreatmentPlan(f,input.clinic_treatment_context,'express',constraints,input).error,undefined)
+  assert.deepEqual(d,before)
+})
+test('an alternative cannot claim a selected step was omitted or refer to a nonexistent session',()=>{
+  for(const row of [{session_number:1,step_id:'ENERGY.CARBON.LASER',reason:'Wrongly omitted.'},{session_number:3,step_id:'ENERGY.QS.TONING',reason:'Unknown session.'}]) {
+    const d={treatment_plan:envelope().planning_result.treatment_plan};d.treatment_plan.relevant_alternatives=[row]
+    assert.throws(()=>rules.finalizeTreatmentPlan(d,input),error=>error.code==='treatment_output_contract_violation')
+  }
+})
+test('the captured 62-minute successful plan remains valid with corrected evidence and the new lightweight generation contract',()=>{
+  const p=makeCase91Input(),model=clone(case91.successful_model_plan)
+  const old=clone(model);delete model.modality_omission_explanation
+  model.relevant_alternatives=[{session_number:1,step_id:'PEEL.COMBO',reason:old.modality_omission_explanation.chemical_peel}]
+  const parsed=rules.unpackTreatmentPlannerResponse({planning_result:{outcome:'success',treatment_plan:model,failure:null}},'single',p)
+  const result=rules.validateClinicTreatmentPlan(rules.finalizeTreatmentPlan(parsed,p),p.clinic_treatment_context,'single',constraints,p)
+  assert.equal(result.error,undefined)
+  assert.equal(result.treatment_plan.total_time,'62 minutes')
+  assert.deepEqual(result.treatment_plan.treatments[0].steps.map((step)=>[step.step_id,step.duration,step.how_to_do]),old.treatments[0].steps.map((step)=>[step.step_id,step.duration,step.how_to_do]))
+})
+test('reference compilation keeps all supplied secondary maps and their exact original strengths and patterns',()=>{
+  const p=makeCase91Input(),r=compileTreatmentKnowledgeReference(p)
+  assert.equal(r.case_reference.concern_maps.length,15)
+  for(const row of r.case_reference.concern_maps) {
+    const {index,...source}=row;assert.deepEqual(source,TREATMENT_KNOWLEDGE.concern_maps[index])
+  }
+  const global=JSON.parse(r.stable_prefix.slice(r.stable_prefix.indexOf('\n')+1))
+  const strengthAt=global.atomic_steps.columns.indexOf('strengths')
+  const idAt=global.atomic_steps.columns.indexOf('id')
+  for(const row of global.atomic_steps.rows) assert.equal(row[strengthAt],TREATMENT_STEPS[row[idAt]].strengths)
+  assert.deepEqual(global.strength_scale,TREATMENT_KNOWLEDGE.strength_scale)
+  assert.equal(global.combination_reasoning_examples,undefined)
+})
+test('reference subsets follow supplied concerns, and unfamiliar identities retain the full reference',()=>{
+  const sparse={diagnosis_report:{superficial_pigmentation:{parameter_name:concern}},planning_contract:{allowed_concern_names:[concern]}}
+  assert.equal(compileTreatmentKnowledgeReference(sparse).case_reference.concern_maps.length,1)
+  sparse.planning_contract.allowed_concern_names.push('Unfamiliar actual diagnosis name')
+  assert.equal(compileTreatmentKnowledgeReference(sparse).case_reference.concern_maps.length,15)
+})
+test('different patients with the same schema reuse a stable prefix/group while their private input stays separate',()=>{
+  const a=makeCase91Input(),b=clone(a)
+  b.diagnosis_report.visual_acne_grading.score_or_label=31.123
+  b.treatable_concerns.parameters_with_abnormal_scores[0].current_score=31.123
+  b.patient_profile_and_history.name='Another fixture identity'
+  b.patient_profile_and_history.age=42
+  const ra=pipeline.buildTreatmentModelRequest({systemPrompt:args.systemPrompt,constraints,plannerInput:a})
+  const rb=pipeline.buildTreatmentModelRequest({systemPrompt:args.systemPrompt,constraints,plannerInput:b})
+  assert.equal(ra.instructions,rb.instructions);assert.deepEqual(ra.text.format,rb.text.format)
+  assert.equal(ra.prompt_cache_key,rb.prompt_cache_key);assert.notEqual(ra.input,rb.input)
+  assert.equal(ra.prompt_cache_retention,'24h')
+  assert.equal(ra.reasoning.effort,'medium')
+  assert.ok(!ra.instructions.includes('Another fixture identity'))
+})
+test('input order and stock order cannot accidentally fragment equivalent cache groups',()=>{
+  const a=makeCase91Input(),b=clone(a),stock=clone(constraints)
+  b.diagnosis_report=Object.fromEntries(Object.entries(b.diagnosis_report).reverse())
+  b.treatable_concerns.parameters_with_abnormal_scores.reverse()
+  b.planning_contract=rules.buildTreatmentConcernContract(b)
+  b.planning_contract.spot_sali_product_options=rules.approvedSpotSaliProducts(constraints).reverse()
+  for(const items of Object.values(stock.availableResources)) if(Array.isArray(items)) items.reverse()
+  const ra=pipeline.buildTreatmentModelRequest({systemPrompt:args.systemPrompt,constraints,plannerInput:a})
+  const rb=pipeline.buildTreatmentModelRequest({systemPrompt:args.systemPrompt,constraints:stock,plannerInput:b})
+  assert.equal(ra.instructions,rb.instructions);assert.deepEqual(ra.text.format,rb.text.format)
+  assert.equal(ra.prompt_cache_key,rb.prompt_cache_key)
+})
+test('schema and protocol changes create new cache groups without weakening case-specific primary guards',()=>{
+  const a=makeCase91Input(),b=clone(a)
+  b.treatable_concerns.parameters_with_abnormal_scores[1].is_primary_concern=false
+  b.planning_contract={...b.planning_contract,...rules.buildTreatmentConcernContract(b)}
+  const base={systemPrompt:args.systemPrompt,constraints,plannerInput:a}
+  const ra=pipeline.buildTreatmentModelRequest(base),rb=pipeline.buildTreatmentModelRequest({...base,plannerInput:b})
+  assert.notEqual(ra.prompt_cache_key,rb.prompt_cache_key)
+  const changed=pipeline.buildTreatmentModelRequest({...base,systemPrompt:args.systemPrompt+' Updated approved reference.'})
+  assert.notEqual(ra.prompt_cache_key,changed.prompt_cache_key)
+  assert.equal(rb.text.format.schema.properties.planning_result.anyOf[0].properties.treatment_plan.properties.treatments.items.properties.primary_strategy.minItems,2)
+})
+test('old coupled prompts are rejected before returning an incompatible API request',()=>{
+  assert.throws(()=>pipeline.buildTreatmentModelRequest({systemPrompt:'TREATMENT PLANNER REVISION 2026-10-05 MOTHER V1.3 V5.5 INPUT AND PRODUCT CONTRACT',constraints,plannerInput:input}),e=>e.code==='treatment_input_contract_violation')
+})
+test('cache reporting measures actual returned usage rather than assuming a hit from the cache key',async()=>{
+  let metrics
+  const result=await pipeline.generateTreatmentPlan({...args,onMetrics:value=>{metrics=value},callModel:async()=>({status:'completed',output_text:JSON.stringify(envelope()),usage:{input_tokens:10000,input_tokens_details:{cached_tokens:6000},output_tokens:4000,output_tokens_details:{reasoning_tokens:2500}}})})
+  assert.equal(result.error,undefined);assert.equal(metrics.calls,1)
+  assert.equal(metrics.call_metrics[0].cached_input_tokens,6000)
+  assert.equal(metrics.call_metrics[0].cache_hit_ratio,0.6)
+  assert.equal(metrics.call_metrics[0].reasoning_tokens,2500)
+  assert.ok(metrics.call_metrics[0].elapsed_ms>=0)
+  assert.equal(pipeline.summarizeTreatmentModelUsage({input_tokens:10000,input_tokens_details:{cached_tokens:0}}).cache_hit_ratio,0)
+})
+
+test('v5.6 preserves disabled application timeouts and validates a delayed successful result', async () => {
   assert.equal(pipeline.TREATMENT_RUNTIME_CONFIG.deadlineMs, 0)
   assert.equal(pipeline.TREATMENT_RUNTIME_CONFIG.initialCallMs, 0)
   const result = await pipeline.generateTreatmentPlan({ ...args, callModel: async (_, controls) => {

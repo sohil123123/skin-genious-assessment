@@ -1,4 +1,5 @@
 // Compiled from the supplied mother document v1.3. Strength ratings are retained.
+import { treatmentConcernFamily } from './treatmentEvidence.js'
 export const TREATMENT_KNOWLEDGE_REVISION = "2026-10-03-mother-v1.3-v5"
 export const TREATMENT_STEPS = {
   "PREP.CLEANSE": {
@@ -1774,3 +1775,39 @@ export const TREATMENT_KNOWLEDGE = {
 
 export const TREATMENT_KNOWLEDGE_PROMPT = `MOTHER DOCUMENT REFERENCE KNOWLEDGE
 ${JSON.stringify({steps: Object.values(TREATMENT_STEPS).map(({id, name, clinic_step_type, clinic_class, mechanism, burden, strengths, actives, reference_minutes, notes}) => ({id, name, clinic_step_type, clinic_class, mechanism, burden, strengths, actives, reference_minutes, notes})), ...TREATMENT_KNOWLEDGE})}`
+
+// Keep the complete ratified source above. This is a non-destructive request
+// projection: compact stable tables, plus full maps for every supplied concern.
+export function compileTreatmentKnowledgeReference(plannerInput = {}) {
+  const { concern_maps, ...globalReference } = TREATMENT_KNOWLEDGE
+  delete globalReference.combination_reasoning_examples
+  const columns = ['id', 'name', 'clinic_step_type', 'clinic_class', 'mechanism', 'burden',
+    'strengths', 'actives', 'reference_minutes', 'notes']
+  const global = {
+    ...globalReference,
+    atomic_steps: { columns, rows: Object.values(TREATMENT_STEPS).map((step) => columns.map((name) => step[name] ?? null)) },
+    concern_map_index: concern_maps.map((map, index) => [index, map.concern]),
+    reference_scope: 'Use the case maps for supplied concerns, including secondary concerns. This table is reference, not an audit checklist. The complete source retains worked examples; recipes are not required model input. Applicable constraints and dose/sequence protocols remain binding.',
+  }
+  const indices = new Set()
+  let unknown = false
+  const report = plannerInput.diagnosis_report || {}
+  for (const [key, row] of Object.entries(report)) {
+    const family = treatmentConcernFamily(row?.parameter_name ?? row?.parameter, key)
+    if (family) indices.add(family.mother_map_index)
+    else unknown = true
+  }
+  for (const name of plannerInput.planning_contract?.allowed_concern_names || []) {
+    const family = treatmentConcernFamily(name)
+    if (family) indices.add(family.mother_map_index)
+    else unknown = true
+  }
+  // Preserve all guidance when an unfamiliar adapter name cannot be mapped.
+  if (unknown || !indices.size) concern_maps.forEach((_, index) => indices.add(index))
+  return {
+    stable_prefix: `MOTHER DOCUMENT REFERENCE KNOWLEDGE — STABLE TABLES\n${JSON.stringify(global)}`,
+    case_reference: { mother_document_version: TREATMENT_KNOWLEDGE.mother_document_version,
+      concern_maps: [...indices].sort((a, b) => a - b).map((index) => ({ index, ...concern_maps[index] })),
+      scope: 'Complete source maps for all supplied concerns; not limited to selected primaries, low scores or high-confidence rows. The unchanged 0-5 strengths are retained. Select relevant contenders once; do not assess every row.' },
+  }
+}

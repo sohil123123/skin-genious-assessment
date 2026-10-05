@@ -1,15 +1,38 @@
 import {
   buildTreatmentPlannerInput, finalizeTreatmentPlan, validateClinicTreatmentPlan,
   buildTreatmentGenerationResponseFormat, unpackTreatmentPlannerResponse,
+  compileTreatmentPlannerInput,
 } from './treatmentClinicRules.js'
+import { TREATMENT_KNOWLEDGE_PROMPT, compileTreatmentKnowledgeReference } from './treatmentKnowledge.js'
 
 export const TREATMENT_RUNTIME_CONFIG = Object.freeze({
   model: 'gpt-5.4', reasoningEffort: 'medium', serviceTier: 'auto',
   // User-requested application override: zero disables automatic timeouts.
   deadlineMs: 0, initialCallMs: 0, minRepairBudgetMs: 15000,
   maxRepairs: 1, maxOutputTokensSingle: 14000, maxOutputTokensMultiple: 22000,
-  promptCacheKey: 'ai-aesthetics-treatment-mother-v1.3-v5.5-input-product-contract',
+  promptCacheKey: 'ai-aesthetics-treatment-v5.6', promptCacheRetention: '24h',
 })
+
+// Object-property order is irrelevant to these JSON contracts. Array order,
+// especially treatment order and ranked source tables, remains unchanged.
+export function stableTreatmentJson(value) {
+  const ordered = (item) => Array.isArray(item) ? item.map(ordered)
+    : item !== null && typeof item === 'object' ? Object.fromEntries(Object.keys(item).sort().map((name) => [name, ordered(item[name])])) : item
+  return JSON.stringify(ordered(value))
+}
+function cacheFingerprint(text) {
+  let hash = 2166136261
+  for (let i = 0; i < text.length; i++) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 16777619) }
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+export function summarizeTreatmentModelUsage(usage = {}) {
+  const input = usage.input_tokens ?? 0
+  const cached = usage.input_tokens_details?.cached_tokens ?? 0
+  return { input_tokens: input, cached_input_tokens: cached,
+    cache_hit_ratio: input > 0 ? cached / input : 0,
+    output_tokens: usage.output_tokens ?? 0,
+    reasoning_tokens: usage.output_tokens_details?.reasoning_tokens ?? 0 }
+}
 
 // Keep the authoritative disk file complete. Remove repeated comparison tables
 // only from the model request, retaining all safety gates and the case selection
@@ -25,6 +48,8 @@ export function compileTreatmentConstraints(constraints) {
   // The mother reference already provides the corrected phenotype examples.
   // The same-session superiority, count, hierarchy, burden and safety rules stay.
   if (clinical.combination_superiority_framework) delete clinical.combination_superiority_framework.examples_of_valid_combination_logic
+  if (clinical.supportive_treatment_protocols) clinical.supportive_treatment_protocols.selection_rule =
+    'Reserve mandatory care including at least five minutes of lymphatic drainage; select support for a distinct case-specific contribution. Individual ingredient approval does not approve mixtures or redundant delivery. The model explains only material losing contenders in relevant_alternatives; the caller derives inclusion and legacy display summaries from actual selected steps.'
   if (result.availableResources) {
     delete result.availableResources.ivInfusions
     result.availableResources.machines = (result.availableResources.machines || [])
@@ -35,6 +60,7 @@ export function compileTreatmentConstraints(constraints) {
     for (const [family, items] of Object.entries(result.availableResources)) {
       if (Array.isArray(items)) result.availableResources[family] = items.map((item) =>
         Object.fromEntries(Object.entries(item).filter(([name]) => inventoryFields.has(name))))
+        .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'en'))
     }
   }
   return result
@@ -43,16 +69,32 @@ export function compileTreatmentConstraints(constraints) {
 export function buildTreatmentModelRequest({ systemPrompt, constraints, plannerInput, config = {} }) {
   const settings = { ...TREATMENT_RUNTIME_CONFIG, ...config }
   if (typeof systemPrompt !== 'string' || !systemPrompt.trim()) throw new Error('The replacement SYSTEM_TREATMENT_PLAN_PROMPT is required.')
-  return {
+  if (/TREATMENT PLANNER REVISION[^\n]*V5\.[1-5]\b/.test(systemPrompt))
+    throw Object.assign(new Error('Use treatmentPrompt.js v5.6 together with the v5.6 pipeline and rules; the older prompt requests a different output contract.'), { code: 'treatment_input_contract_violation' })
+  const reference = compileTreatmentKnowledgeReference(plannerInput)
+  const prefix = systemPrompt.includes(TREATMENT_KNOWLEDGE_PROMPT)
+    ? systemPrompt.replace(TREATMENT_KNOWLEDGE_PROMPT, reference.stable_prefix)
+    : `${systemPrompt}\n\n${reference.stable_prefix}`
+  const instructions = `${prefix}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${stableTreatmentJson(compileTreatmentConstraints(constraints))}`
+  const responseFormat = buildTreatmentGenerationResponseFormat(plannerInput.treatment_plan_type, plannerInput)
+  // Preserve case-specific schema guards. Different primary sets form different
+  // reusable cache groups; patient identity, scores and map values are excluded.
+  const fingerprint = cacheFingerprint(`${settings.model}\0${settings.reasoningEffort}\0${instructions}\0${stableTreatmentJson(responseFormat)}`)
+  const request = {
     model: settings.model,
-    instructions: `${systemPrompt}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${JSON.stringify(compileTreatmentConstraints(constraints))}`,
-    input: JSON.stringify(plannerInput),
+    instructions,
+    input: stableTreatmentJson({ ...compileTreatmentPlannerInput(plannerInput), mother_case_reference: reference.case_reference }),
     reasoning: { effort: settings.reasoningEffort },
-    text: { verbosity: 'low', format: buildTreatmentGenerationResponseFormat(plannerInput.treatment_plan_type, plannerInput) },
+    text: { verbosity: 'low', format: responseFormat },
     max_output_tokens: plannerInput.treatment_plan_type === 'multiple' ? settings.maxOutputTokensMultiple : settings.maxOutputTokensSingle,
     service_tier: settings.serviceTier,
-    prompt_cache_key: settings.promptCacheKey,
+    prompt_cache_key: `${settings.promptCacheKey}:${fingerprint}`,
   }
+  if (settings.promptCacheRetention != null) {
+    if (!['in_memory', '24h'].includes(settings.promptCacheRetention)) throw new Error('promptCacheRetention must be in_memory, 24h or null.')
+    request.prompt_cache_retention = settings.promptCacheRetention
+  }
+  return request
 }
 
 function parseModelResponse(response) {
@@ -128,6 +170,22 @@ export async function generateTreatmentPlan({
     request = buildTreatmentModelRequest({ systemPrompt, constraints, plannerInput, config: settings })
     metrics.instruction_characters = request.instructions.length
     metrics.patient_input_characters = request.input.length
+    metrics.prompt_cache_key = request.prompt_cache_key
+    metrics.prompt_cache_retention = request.prompt_cache_retention ?? 'default'
+    metrics.call_metrics = []
+    const recordedCall = async (modelRequest, timeout, kind) => {
+      const began = Date.now()
+      try {
+        const response = await timedCall(callModel, modelRequest, timeout)
+        metrics.usage.push(response?.usage || null)
+        metrics.call_metrics.push({ kind, elapsed_ms: Date.now() - began,
+          status: response?.status || 'returned', ...summarizeTreatmentModelUsage(response?.usage) })
+        return response
+      } catch (error) {
+        metrics.call_metrics.push({ kind, elapsed_ms: Date.now() - began, status: error.code || 'failed' })
+        throw error
+      }
+    }
     const check = async (plan) => {
       let result = validateClinicTreatmentPlan(finalizeTreatmentPlan(plan, plannerInput), plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput)
       if (!result.error && existingClinicalValidator) {
@@ -144,15 +202,14 @@ export async function generateTreatmentPlan({
     }
     phase = 'model_request'
     metrics.calls += 1
-    const response = await timedCall(callModel, request, initialTimeout)
-    metrics.usage.push(response?.usage || null)
+    const response = await recordedCall(request, initialTimeout, 'initial')
     phase = 'output_contract'
     const draft = unpackTreatmentPlannerResponse(parseModelResponse(response), treatmentType, plannerInput)
     candidate = finalizeTreatmentPlan(draft, plannerInput)
     phase = 'initial_validation'
     let checked = await check(candidate)
     initialValidationError = checked.error
-    if (checked.error) console.error('[facial-treatment-v5.5] initial validation failed', checked.error)
+    if (checked.error) console.error('[facial-treatment-v5.6] initial validation failed', checked.error)
     const remaining = deadline - Date.now()
     // Exactly one targeted content repair, only for a complete parseable plan and
     // within an explicitly configured budget, if any. Never retry a timeout/truncated response.
@@ -162,19 +219,18 @@ export async function generateTreatmentPlan({
       const { treatment_plan: draftRoot } = draft
       const repairRequest = {
         ...request,
-        input: JSON.stringify({ patient_input: plannerInput, invalid_draft: { treatment_plan: draftRoot },
+        input: stableTreatmentJson({ patient_input: JSON.parse(request.input), invalid_draft: { treatment_plan: draftRoot },
           validation_errors: checked.error.details || [checked.error.message],
-          task: 'Correct EVERY listed violation and its dependent safety/time/sequence decisions. Use planning_contract.required_primary_concerns: each must have its own strategy linked to an actual selected step with that exact target_concerns name. Do not rename concerns to phenotypes or aliases. ENERGY.CARBON.APPLY is PREP; its laser carries correction. PEEL.SPOT.SALI is an uncounted ADJUNCT: choose one product from planning_contract.spot_sali_product_options and put its exact name in additional_products; no generic label, prose-only product or assumed concentration. It does not require cooling after it or between it and Carbon/Q-switch. Do not add cooling merely because the spot adjunct is present. Preserve independently required immediate post-energy cooling, actual broad-peel-plus-Carbon preparation/cooling, carbon film/drying, valid decisions and original supplied scores. Recalculate any changed session sequence inside its window, retaining one 5-10-minute mandatory lymphatic drainage step. Return the same planning_result schema. Never return an empty success plan. No additional ranking report.' }),
+          task: 'Correct EVERY listed violation and dependent safety/time/sequence decisions. Preserve valid decisions, case evidence, original scores, named primaries with actual step-target linkage, approved spot product, carbon drying, required energy/broad-peel cooling and one 5-10-minute mandatory drainage step. Spot salicylic remains a two-minute ADJUNCT with no cooling caused by its presence. Return the same planning_result schema: concise decisions, generated procedure instructions, relevant_alternatives only; no eleven-category audit, invented findings, settings or empty success.' }),
       }
       phase = 'repair_request'
-      const repair = await timedCall(callModel, repairRequest, remainingTimeout())
-      metrics.usage.push(repair?.usage || null)
+      const repair = await recordedCall(repairRequest, remainingTimeout(), 'repair')
       phase = 'repair_output_contract'
       candidate = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(parseModelResponse(repair), treatmentType, plannerInput), plannerInput)
       phase = 'repair_validation'
       checked = await check(candidate)
       if (checked.error) {
-        console.error('[facial-treatment-v5.5] repair validation failed', checked.error)
+        console.error('[facial-treatment-v5.6] repair validation failed', checked.error)
         const repairError = checked.error
         checked = { error: { ...repairError,
           message: `${initialValidationError.message} Repair failed: ${repairError.message}`,
@@ -200,7 +256,7 @@ export async function generateTreatmentPlan({
         ...(Array.isArray(error.details) ? error.details : [error.message]).map(detail => `Repair draft: ${detail}`),
       ]
     }
-    console.error('[facial-treatment-v5.5] generation failed', failure)
+    console.error('[facial-treatment-v5.6] generation failed', failure)
     return { error: failure }
   } finally {
     metrics.elapsed_ms = Date.now() - start

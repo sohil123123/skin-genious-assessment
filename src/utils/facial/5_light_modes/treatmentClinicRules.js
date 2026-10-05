@@ -1,6 +1,7 @@
 import { facialClientScore, prepareFacialEngineInput } from '../clientScoreDisplay.js'
 import { TREATMENT_STEPS } from './treatmentKnowledge.js'
 import { buildTreatmentEligibility } from './treatmentEligibility.js'
+import { resolveTreatmentEvidence, treatmentConcernFamily, TREATMENT_PROXY_FIELDS } from './treatmentEvidence.js'
 
 // Treatment-only replacement. Existing scoring and client-display functions are reused.
 export const CLINIC_SESSION_WINDOWS = { express: [35, 45], single: [60, 75], multiple: [60, 75] }
@@ -107,16 +108,16 @@ export function buildTreatmentGenerationResponseFormat(treatmentType = null, pla
   const hasCaseData = plannerInput && (Object.hasOwn(plannerInput, 'diagnosis_report') || Object.hasOwn(plannerInput, 'treatable_concerns'))
   const contract = hasCaseData ? buildTreatmentConcernContract(plannerInput) : null
   const concernSchema = contract?.allowed_concern_names.length
-    ? { type: 'string', enum: contract.allowed_concern_names } : str
+    ? { type: 'string', enum: [...contract.allowed_concern_names].sort() } : str
   const primarySchema = contract?.required_primary_concerns.length
-    ? { type: 'string', enum: contract.required_primary_concerns } : concernSchema
+    ? { type: 'string', enum: [...contract.required_primary_concerns].sort() } : concernSchema
   const caseStepProperties = { ...draftStepProperties,
     target_concerns: array(concernSchema, contract && !contract.allowed_concern_names.length ? { maxItems: 0 } : {}) }
   const spotProducts = plannerInput?.planning_contract?.spot_sali_product_options
   const caseStepSchema = hasCaseData && Array.isArray(spotProducts)
     ? spotProducts.length ? { anyOf: [
       object({ ...caseStepProperties, step_id: { type: 'string', enum: ['PEEL.SPOT.SALI'] },
-        additional_products: array({ type: 'string', enum: spotProducts }, { minItems: 1, maxItems: 1 }) }),
+        additional_products: array({ type: 'string', enum: [...spotProducts].sort() }, { minItems: 1, maxItems: 1 }) }),
       object({ ...caseStepProperties, step_id: { type: 'string', enum: Object.keys(TREATMENT_STEPS).filter((id) => id !== 'PEEL.SPOT.SALI') } }),
     ] } : object({ ...caseStepProperties, step_id: { type: 'string', enum: Object.keys(TREATMENT_STEPS).filter((id) => id !== 'PEEL.SPOT.SALI') } })
     : object(caseStepProperties)
@@ -134,7 +135,12 @@ export function buildTreatmentGenerationResponseFormat(treatmentType = null, pla
   }
   // Arithmetic is performed locally; the model cannot assert an unsupported total.
   delete draftProperties.total_time
-  return { type: 'json_schema', name: 'facial_treatment_result_v5_5', strict: true,
+  // The model explains only material losing alternatives. The legacy 11-key
+  // presentation object is assembled from actual steps locally, after generation.
+  delete draftProperties.modality_omission_explanation
+  draftProperties.relevant_alternatives = array(object({ session_number: int,
+    step_id: { type: 'string', enum: Object.keys(TREATMENT_STEPS) }, reason: str }))
+  return { type: 'json_schema', name: 'facial_treatment_result_v5_6', strict: true,
     schema: object({ planning_result: { anyOf: [
       object({ outcome: { type: 'string', enum: ['success'] },
         treatment_plan: object(draftProperties), failure: { type: 'null' } }),
@@ -424,18 +430,14 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
   const rows = Array.isArray(summary) ? summary : Array.isArray(summary?.parameters_with_abnormal_scores) ? summary.parameters_with_abnormal_scores : []
   const canonicalRows = normalizeTreatmentConcernRows(prepareFacialEngineInput(rows), report)
   const context = clinicContext || buildClinicTreatmentContext(diagnosis, options.featurePacket || {})
-  const acne = Object.values(report).find((row) => row && typeof row === 'object' && normalize(row.parameter_name).includes('acne'))
-  const explicitVisible = options.activeAcneLesionsVisible ?? acne?.active_lesions_visible ?? acne?.backend_details?.active_lesions_visible
-  const observedCounts = acne?.backend_details?.lesion_counts || acne?.lesion_counts || {}
-  const positiveInflammatoryCount = ['papules','pustules','nodules','inflammatory'].some((name) =>
-    typeof observedCounts[name] === 'number' && observedCounts[name] > 0)
-  const visible = isTrue(explicitVisible) ? true : isFalse(explicitVisible) ? false : positiveInflammatoryCount ? true : null
+  const evidence = resolveTreatmentEvidence(report, options.featurePacket, options)
   const input = {
     diagnosis_report: report,
     treatable_concerns: { description: summary?.description || 'Client-selected primary priorities.', parameters_with_abnormal_scores: canonicalRows },
     treatment_plan_type: normalizeTreatmentPlanType(treatmentType),
-    clinic_treatment_context: { ...context, active_acne_lesions_visible: visible,
-      clinical_clearance: buildTreatmentEligibility(report, constraints, options) },
+    clinic_treatment_context: { ...context, active_acne_lesions_visible: evidence.active_acne_lesions_visible,
+      active_acne_evidence_source: evidence.active_acne_evidence_source,
+      clinical_clearance: buildTreatmentEligibility(report, constraints, { ...options, resolvedEvidence: evidence }) },
     patient_profile_and_history: options.patientProfileAndHistory ?? null,
     feature_evidence: options.featurePacket ?? null,
     prior_visit: options.priorVisit ?? null,
@@ -448,13 +450,141 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
     spot_sali_product_rule: 'For PEEL.SPOT.SALI, choose exactly one approved named product from spot_sali_product_options and put it in additional_products. Do not select a default concentration or name the product only in prose.',
     primary_strategy_rule: 'Exactly one strategy per required primary in every detailed session. Copy its exact concern name into the strategy and selected step target_concerns. A corrective Carbon strategy selects ENERGY.CARBON.LASER; never its PREP application or PEEL.SPOT.SALI. Do not invent aliases or findings.',
     spot_salicylic_cooling_rule: 'PEEL.SPOT.SALI does not require cooling after it or between it and Carbon/Q-switch, including a lip pass. Keep independently required immediate post-energy cooling and actual broad-peel-plus-Carbon preparation/cooling. The spot adjunct is not a broad/full-face peel.',
+    evidence_contract: 'treatment-evidence-v1: canonical raw safety proxies and their source paths are in clinic_treatment_context.clinical_clearance. Supplied feature proxies fill missing diagnosis backend_details. No displayed score, normalized burden or feature diagnosis score substitutes for a raw measurement. Selected primary names remain exactly those in required_primary_concerns.',
   }
   return input
+}
+
+// A request projection, not a change to the stored diagnosis, scoring or targets.
+// The full local input remains available to finalisation and all validators.
+export function compileTreatmentPlannerInput(plannerInput) {
+  const input = JSON.parse(JSON.stringify(plannerInput))
+  input.planning_contract ||= buildTreatmentConcernContract(plannerInput)
+  const clearance = plannerInput.clinic_treatment_context?.clinical_clearance
+  if (clearance) {
+    const evidence = resolveTreatmentEvidence(plannerInput.diagnosis_report, plannerInput.feature_evidence)
+    const disagreements = TREATMENT_PROXY_FIELDS.filter((name) =>
+      (clearance.numeric_proxy_values?.[name] ?? null) !== evidence.numeric_proxy_values[name])
+    if (disagreements.length) throw Object.assign(new Error('Treatment clearance is stale or inconsistent with the supplied raw evidence.'),
+      { code: 'treatment_input_contract_violation', details: disagreements.map((name) =>
+        `${name}: rebuild with buildTreatmentPlannerInput and pass featurePacket before requesting the model; the clearance summary must use the same resolved raw value as the evidence.`) })
+  }
+  const rows = targetRows(plannerInput)
+  const feature = input.feature_evidence || {}
+  const featureDiagnosis = feature.diagnosis_report || {}
+  const consumed = new Set()
+  const report = {}
+  for (const [key, original] of Object.entries(input.diagnosis_report || {})) {
+    if (!original || typeof original !== 'object' || Array.isArray(original)) { report[key] = original; continue }
+    const merged = rows.get(normalize(original.parameter_name ?? original.parameter)) || original
+    const row = { ...merged }
+    // Client summaries and interpretation rules repeat the retained finding,
+    // polarity and comparison_mode. Keep causes, backend maps and uncertainty.
+    if (nonempty(row.score_explanation)) row.finding = row.score_explanation
+    else if (nonempty(row.client_description)) row.finding = row.client_description
+    for (const name of ['description', 'client_description', 'score_explanation', 'short_description',
+      'target_interpretation_rule', 'parameter', 'parameter_name_alias']) delete row[name]
+    if (Object.hasOwn(row, 'current_score') && row.current_score === row.score_or_label) delete row.current_score
+    if (!Object.hasOwn(row, 'target_single_session_score')) {
+      if (Object.hasOwn(row, 'target_score')) row.target_single_session_score = row.target_score
+      else if (Object.hasOwn(row, 'target_value')) row.target_single_session_score = row.target_value
+    }
+    if (row.target_score === row.target_single_session_score) delete row.target_score
+    if (row.target_value === row.target_single_session_score) delete row.target_value
+    const family = treatmentConcernFamily(row.parameter_name, key)
+    for (const featureKey of family?.feature_diagnosis_keys || []) {
+      const assessment = featureDiagnosis[featureKey]
+      if (!assessment || typeof assessment !== 'object') continue
+      const retained = { ...assessment }
+      const signals = { ...assessment.supporting_signals }
+      for (const [name, value] of Object.entries(signals)) {
+        if ((family.proxy_keys || []).some((proxyKey) =>
+          Object.hasOwn(feature.proxies?.[proxyKey] || {}, name) && JSON.stringify(feature.proxies[proxyKey][name]) === JSON.stringify(value))) delete signals[name]
+      }
+      if (Object.keys(signals).length) retained.supporting_signals = signals
+      else delete retained.supporting_signals
+      // The feature diagnosis is a second interpretive score, not a raw index.
+      delete retained.score_0_1
+      row.feature_assessment = retained
+      consumed.add(featureKey)
+    }
+    // Raw safety measurements have one canonical location and source paths.
+    if (family?.mother_map_index === 1) {
+      for (const name of TREATMENT_PROXY_FIELDS) {
+        delete row[name]
+        if (row.backend_details && Object.hasOwn(row.backend_details, name)) {
+          row.backend_details = { ...row.backend_details }; delete row.backend_details[name]
+        }
+      }
+    }
+    report[key] = row
+  }
+  // Named selection rows absent from a report remain available and named.
+  for (const row of selectedConcernRows(plannerInput)) {
+    if (!row?.parameter_name || Object.values(report).some((item) => normalize(item?.parameter_name) === normalize(row.parameter_name))) continue
+    report[row.parameter_name] = { ...row }
+  }
+  const unmatched = Object.fromEntries(Object.entries(featureDiagnosis).filter(([name]) => !consumed.has(name)))
+  delete feature.diagnosis_report
+  if (Object.keys(unmatched).length) feature.unmatched_feature_assessments = unmatched
+  if (feature.proxies?.combined_barrier_sensitivity) {
+    for (const name of TREATMENT_PROXY_FIELDS) delete feature.proxies.combined_barrier_sensitivity[name]
+  }
+  if (feature.treatable_concerns) {
+    // These are scan observations, not a second client-priority selection.
+    feature.feature_findings = feature.treatable_concerns.map((row) => {
+      const finding = { ...row }; delete finding.priority
+      return finding
+    })
+    delete feature.treatable_concerns
+  }
+  input.diagnosis_report = report
+  delete input.treatable_concerns
+  input.planning_contract.input_contract_version = 'treatment-case-v1'
+  return input
+}
+
+const decisionGroup = (id) => id === 'ENERGY.QS.LIP' || id.startsWith('ENERGY.QS.') ? 'q_switch_laser'
+  : id.startsWith('ENERGY.CARBON.') ? 'carbon_facial'
+    : id.startsWith('PEEL.') ? 'chemical_peel'
+      : /^ENERGY\.(RF|HIFU|MNRF|NEEDLE)/.test(id) ? 'rf_hifu_microneedling'
+        : id === 'EYE.INFUSE' ? 'under_eye_infusion'
+          : id.startsWith('INFUSE.') ? 'facial_infusion'
+            : id.startsWith('COOL.') ? 'cooling'
+              : id === 'SPRAY.HYDRA' ? 'hydra_spray'
+                : id.startsWith('MASK.') ? 'mask'
+                  : id === 'MASSAGE.LYMPH' ? 'lymphatic_drainage' : 'other_relevant_options'
+
+function finalizeDecisionSummary(root) {
+  if (!Object.hasOwn(root, 'relevant_alternatives')) return
+  const alternatives = root.relevant_alternatives
+  const fail = (reason) => { throw Object.assign(new Error('Treatment generation returned an invalid alternatives contract.'),
+    { code: 'treatment_output_contract_violation', details: [reason] }) }
+  if (!Array.isArray(alternatives)) fail('relevant_alternatives must be an array; [] is allowed when there is no material losing contender.')
+  const sessions = root.treatments || []
+  for (const row of alternatives) {
+    const session = sessions.find((item) => item.session_number === row?.session_number)
+    if (!session || !TREATMENT_STEPS[row.step_id] || !nonempty(row.reason)) fail('Each relevant alternative needs an actual session_number, registered step_id and case-specific reason.')
+    if (session.steps.some((step) => step.step_id === row.step_id)) fail(`Session ${row.session_number}: ${row.step_id} is selected and cannot also be reported as omitted.`)
+  }
+  root.modality_omission_explanation = Object.fromEntries(['q_switch_laser','carbon_facial','chemical_peel','rf_hifu_microneedling',...SUPPORTIVE_REVIEW_KEYS].map((group) => {
+    const descriptions = []
+    for (const session of sessions) {
+      const selected = session.steps.filter((step) => decisionGroup(step.step_id) === group)
+      if (selected.length) descriptions.push(`Session ${session.session_number}: included ${selected.map((step) => `${TREATMENT_STEPS[step.step_id]?.name || step.step_id} (${step.duration} min)`).join('; ')}.`)
+      const omitted = alternatives.filter((row) => row.session_number === session.session_number && decisionGroup(row.step_id) === group)
+      for (const row of omitted) descriptions.push(`Session ${session.session_number}: ${TREATMENT_STEPS[row.step_id].name} omitted. ${row.reason}`)
+      if (!selected.length && !omitted.length) descriptions.push(`Session ${session.session_number}: not selected; no material alternative comparison reported for this category.`)
+    }
+    return [group, descriptions.join(' ')]
+  }))
+  delete root.relevant_alternatives
 }
 
 export function finalizeTreatmentPlan(draft, plannerInput = null) {
   if (!draft || typeof draft !== 'object' || draft.error) return draft
   const plan = JSON.parse(JSON.stringify(draft))
+  if (plan.treatment_plan) finalizeDecisionSummary(plan.treatment_plan)
   for (const session of plan.treatment_plan?.treatments || []) {
     const steps = session.steps || []
     steps.forEach((step, index) => {

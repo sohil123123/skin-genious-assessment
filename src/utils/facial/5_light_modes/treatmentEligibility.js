@@ -1,8 +1,7 @@
 import { TREATMENT_STEPS } from './treatmentKnowledge.js'
+import { resolveTreatmentEvidence } from './treatmentEvidence.js'
 
-const key = (value) => String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 const finite = (value) => typeof value === 'number' && Number.isFinite(value)
-const proxy = (value) => finite(value) && value >= 0 && value <= 1 ? value : null
 const truth = (value) => value === true || value === 'true'
 const energyIds = Object.keys(TREATMENT_STEPS).filter((id) =>
   id.startsWith('ENERGY.') && id !== 'ENERGY.CARBON.APPLY' || id.startsWith('LED.'))
@@ -12,19 +11,11 @@ const qSwitchIds = ['ENERGY.CARBON.LASER', 'ENERGY.QS.TONING', 'ENERGY.QS.532', 
 // Missing answers stay missing. This module never interprets free-text history.
 export function buildTreatmentEligibility(diagnosis, constraints, {
   historyRuleFlags = {}, temperatureReadings = null, evaluatedClinicalBlocks = {},
+  featurePacket = null, resolvedEvidence = null,
 } = {}) {
   const clinical = constraints?.clinical_constraints || {}
-  const report = diagnosis?.diagnosis_report ?? diagnosis ?? {}
-  const barrier = report.combined_barrier_sensitivity || Object.values(report).find((row) =>
-    row && typeof row === 'object' && key(row.parameter_name).includes('barrier')) || {}
-  const details = barrier.backend_details || {}
-  const values = {
-    BSI_continuous: proxy(barrier.BSI_continuous),
-    barrier_uniformity_index: proxy(details.barrier_uniformity_index),
-    flaking_texture_index: proxy(details.flaking_texture_index),
-    erythema_intensity_index: proxy(details.erythema_intensity_index),
-    hydration_signal_index: proxy(details.hydration_signal_index),
-  }
+  const evidence = resolvedEvidence ?? resolveTreatmentEvidence(diagnosis, featurePacket)
+  const values = evidence.numeric_proxy_values
   const { BSI_continuous: b, barrier_uniformity_index: u, flaking_texture_index: f,
     erythema_intensity_index: e, hydration_signal_index: h } = values
   const numericDenials = []
@@ -37,7 +28,9 @@ export function buildTreatmentEligibility(diagnosis, constraints, {
     e !== null && e >= 0.62 && e < 0.75 ||
     h !== null && h >= 0.30 && h < 0.40 &&
     (b !== null && b >= 0.40 || e !== null && e >= 0.55)
-  const missingProxyFields = ['BSI_continuous', 'erythema_intensity_index', 'hydration_signal_index']
+  // Preserve the existing required-proxy caution trigger. Optional raw gates
+  // still apply whenever their actual values are supplied.
+  const missingRequiredProxyFields = ['BSI_continuous', 'erythema_intensity_index', 'hydration_signal_index']
     .filter((name) => values[name] === null)
   const allowedConditions = new Set((clinical.patient_history_rules || []).map((r) => r.condition))
   const flags = Object.fromEntries(Object.entries(historyRuleFlags).filter(([name]) => allowedConditions.has(name)))
@@ -101,8 +94,12 @@ export function buildTreatmentEligibility(diagnosis, constraints, {
     }
   }
   return {
-    numeric_energy_status: numericDenials.length ? 'denied' : numericCaution || missingProxyFields.length ? 'allowed_with_caution' : 'allowed',
-    numeric_proxy_values: values, missing_proxy_fields: missingProxyFields,
+    evidence_contract_version: evidence.version,
+    numeric_energy_status: numericDenials.length ? 'denied' : numericCaution || missingRequiredProxyFields.length ? 'allowed_with_caution' : 'allowed',
+    numeric_proxy_values: values, missing_proxy_fields: evidence.missing_proxy_fields,
+    numeric_proxy_source_paths: evidence.numeric_proxy_source_paths,
+    invalid_proxy_sources: evidence.invalid_proxy_sources,
+    proxy_source_disagreements: evidence.proxy_source_disagreements,
     numeric_denial_reasons: numericDenials,
     history_rule_flags: flags,
     missing_history_conditions: [...allowedConditions].filter((name) => !Object.hasOwn(flags, name)),
