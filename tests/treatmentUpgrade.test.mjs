@@ -94,6 +94,7 @@ test('medium peel cannot be combined with Carbon, standalone toning or lip laser
 test('superficial plus Carbon requires neutralisation, prior cooling and conservative settings',()=>{
   const a=draft();a.treatment_plan.treatments[0].steps[1].how_to_do='Apply and proceed.';invalid(a,/superficial peel plus Carbon/)
   const b=draft();b.treatment_plan.treatments[0].steps[4].settings_note=null;invalid(b,/superficial peel plus Carbon/)
+  const c=draft();c.treatment_plan.treatments[0].steps.splice(2,1);invalid(c,/superficial peel plus Carbon/)
 })
 test('microdermabrasion plus Carbon is allowed; medium peel plus microdermabrasion is rejected',()=>{
   const a=draft();a.treatment_plan.treatments[0].steps.splice(1,0,step('EXFO.MICRO.DIAMOND',8));
@@ -110,7 +111,16 @@ test('standalone needling and HIFU cannot be smuggled into a detailed facial',()
   }
 })
 test('spot salicylic never fills a corrective slot or counts as a hero',()=>{
-  const d=draft();d.treatment_plan.treatments[0].steps.splice(1,0,step('PEEL.SPOT.SALI',2,'HERO_CORRECTIVE',{zones:['chin'],additional_products:['Sali DS Peel']}));invalid(d,/cannot be a counted corrective|lesion-only ADJUNCT/)
+  const d=draft();d.treatment_plan.treatments[0].steps.splice(1,0,step('PEEL.SPOT.SALI',2,'HERO_CORRECTIVE',{zones:['chin'],additional_products:['Sali DS Peel']}))
+  const fixed=check(d);assert.equal(fixed.error,undefined)
+  assert.equal(fixed.treatment_plan.treatments[0].steps[1].role,'ADJUNCT')
+  assert.equal(fixed.treatment_plan.treatments[0].steps[1].intensity_rung,null)
+  d.treatment_plan.treatments[0].primary_strategy[0].selected_step_id='PEEL.SPOT.SALI'
+  invalid(d,/required corrective slot cannot be filled/)
+  const bypass=rules.finalizeTreatmentPlan(draft(),input)
+  bypass.treatment_plan.treatments[0].steps.splice(1,0,{
+    ...fixed.treatment_plan.treatments[0].steps[1],role:'HERO_CORRECTIVE'})
+  assert.match(rules.validateClinicTreatmentPlan(bypass,input.clinic_treatment_context,'express',constraints,input).error.details.join('\n'),/cannot be a counted corrective|lesion-only ADJUNCT/)
 })
 test('visible active lesions require the adjunct, and actual server-evaluated salicylic blocks prevail',()=>{
   const ctx=clone(input.clinic_treatment_context);ctx.active_acne_lesions_visible=true
@@ -215,6 +225,123 @@ test('legacy exhaustive candidate lists cannot re-enter the model request or mut
   assert.deepEqual(legacy,before)
 })
 const args = {systemPrompt:'Offline fixture prompt; no clinical model call.',constraints,diagnosis,selectedConcerns:selected,treatmentType:'express',options}
+test('fixed step roles are canonicalised without another call or changing treatment doses',async()=>{
+  const wrong=draft();const session=wrong.treatment_plan.treatments[0]
+  for(const s of session.steps) if(rules.FIXED_TREATMENT_STEP_ROLES[s.step_id]) {
+    s.role='HERO_CORRECTIVE';s.intensity_rung=3
+  }
+  const original=clone(wrong);let calls=0
+  const result=await pipeline.generateTreatmentPlan({...args,callModel:async()=>{calls++;return envelope(wrong)}})
+  assert.equal(result.error,undefined);assert.equal(calls,1)
+  for(const s of result.treatment_plan.treatments[0].steps) {
+    if(rules.FIXED_TREATMENT_STEP_ROLES[s.step_id]) {
+      assert.equal(s.role,rules.FIXED_TREATMENT_STEP_ROLES[s.step_id]);assert.equal(s.intensity_rung,null)
+    }
+  }
+  assert.equal(result.treatment_plan.treatments[0].steps.find(s=>s.step_id==='ENERGY.CARBON.LASER').role,'HERO_CORRECTIVE')
+  assert.deepEqual(result.treatment_plan.treatments[0].steps.map(s=>[s.step_id,s.duration,s.zones]),session.steps.map(s=>[s.step_id,s.duration,s.zones]))
+  assert.deepEqual(wrong,original);assert.equal(result.treatment_plan.total_time,'43 minutes')
+})
+test('case schema binds exact concern names, primary count and registered strategy step IDs',()=>{
+  const request=pipeline.buildTreatmentModelRequest({systemPrompt:args.systemPrompt,constraints,plannerInput:input})
+  const session=request.text.format.schema.properties.planning_result.anyOf[0].properties.treatment_plan.properties.treatments.items
+  const strategy=session.properties.primary_strategy
+  assert.equal(strategy.minItems,1);assert.equal(strategy.maxItems,1)
+  assert.deepEqual(strategy.items.properties.concern.enum,[concern])
+  assert.ok(strategy.items.properties.selected_step_id.enum.includes('ENERGY.CARBON.LASER'))
+  assert.ok(strategy.items.properties.selected_step_id.enum.includes(null))
+  assert.deepEqual(session.properties.steps.items.properties.target_concerns.items.enum,input.planning_contract.allowed_concern_names)
+  assert.ok(!session.properties.steps.items.properties.target_concerns.items.enum.includes('PIH'))
+  const unknown=envelope();unknown.planning_result.treatment_plan.treatments[0].steps[4].target_concerns=['PIH']
+  assert.throws(()=>rules.unpackTreatmentPlannerResponse(unknown,'express',input),e=>e.code==='treatment_output_contract_violation')
+  const missing=envelope();missing.planning_result.treatment_plan.treatments[0].primary_strategy=[]
+  assert.throws(()=>rules.unpackTreatmentPlannerResponse(missing,'express',input),e=>e.code==='treatment_output_contract_violation')
+  const unselected=clone(input);unselected.treatable_concerns.parameters_with_abnormal_scores[0].is_primary_concern=false
+  const noPrimary=rules.buildTreatmentGenerationResponseFormat('express',unselected).schema.properties.planning_result.anyOf[0].properties.treatment_plan.properties.treatments.items.properties.primary_strategy
+  assert.equal(noPrimary.minItems,0);assert.equal(noPrimary.maxItems,0)
+})
+test('each primary gets one strategy, with diagnostic names and actual step-target linkage',()=>{
+  const missing=draft();missing.treatment_plan.treatments[0].primary_strategy=[]
+  const failure=check(missing)
+  assert.match(failure.error.details.join('\n'),new RegExp('selected primary concern "'+concern+'" has no strategy'))
+  const duplicate=draft();duplicate.treatment_plan.treatments[0].primary_strategy.push(clone(duplicate.treatment_plan.treatments[0].primary_strategy[0]))
+  invalid(duplicate,/must have exactly one strategy/)
+  const wrongStep=draft();wrongStep.treatment_plan.treatments[0].primary_strategy[0].selected_step_id='ENERGY.CARBON.APPLY'
+  invalid(wrongStep,/required corrective slot cannot be filled/)
+  const noLink=draft();noLink.treatment_plan.treatments[0].steps[4].target_concerns=[]
+  invalid(noLink,/primary strategy .* actual step and its target concern/)
+})
+function spotLipFixture(correctOrder) {
+  const d=draft();const s=d.treatment_plan.treatments[0]
+  s.steps=s.steps.filter(p=>p.step_id!=='INFUSE.TRX')
+  const spot=step('PEEL.SPOT.SALI',2,'ADJUNCT',{zones:['chin'],additional_products:['Sali DS Peel']})
+  s.steps.splice(correctOrder?1:s.steps.length-1,0,spot)
+  s.steps.splice(-1,0,step('ENERGY.QS.LIP',2,'ADJUNCT',{zones:['lips'],target_concerns:['Lip Pigmentation Score'],settings_note:'Use the existing approved lip protocol; confirm missing settings without inventing them.'}))
+  s.lip_pigmentation_rule={status:'included',reason:'Supplied assessable client lip score is 65.',constraint_reference:''}
+  s.signature_moment.step_number=s.steps.findIndex(p=>p.step_id==='MASK.BRIGHTEN')+1
+  return d
+}
+const spotLipDiagnosis=clone(diagnosis);spotLipDiagnosis.diagnosis_report.lip_pigmentation.score_or_label=65
+const spotLipInput=rules.buildTreatmentPlannerInput(spotLipDiagnosis,selected,'express',null,constraints,options)
+test('spot immediately before the lip pass needs no extra cooling and causes no repair call',async()=>{
+  const d=spotLipFixture(false);const original=clone(d);let calls=0
+  const result=await pipeline.generateTreatmentPlan({...args,diagnosis:spotLipDiagnosis,callModel:async()=>{calls++;return envelope(d)}})
+  assert.equal(result.error,undefined);assert.equal(calls,1)
+  assert.equal(result.treatment_plan.total_time,'44 minutes')
+  const session=result.treatment_plan.treatments[0]
+  const at=session.steps.findIndex(s=>s.step_id==='PEEL.SPOT.SALI')
+  assert.equal(session.steps[at+1].step_id,'ENERGY.QS.LIP')
+  assert.equal(session.steps.filter(s=>s.step_id==='COOL.ICE').length,2)
+  assert.deepEqual(d,original)
+})
+test('spot does not require intervening cooling before any Q-switch type',()=>{
+  for(const id of ['ENERGY.CARBON.LASER','ENERGY.QS.TONING','ENERGY.QS.532','ENERGY.QS.LIP']) {
+    const d=draft();const s=d.treatment_plan.treatments[0]
+    if(id==='ENERGY.QS.LIP') {
+      const p=rules.finalizeTreatmentPlan(spotLipFixture(false),spotLipInput)
+      assert.equal(rules.validateClinicTreatmentPlan(p,spotLipInput.clinic_treatment_context,'express',constraints,spotLipInput).error,undefined)
+      continue
+    }
+    const spot=step('PEEL.SPOT.SALI',2,'ADJUNCT',{zones:['chin'],additional_products:['Sali DS Peel']})
+    if(id==='ENERGY.CARBON.LASER') s.steps.splice(3,0,spot)
+    else {
+      s.steps=s.steps.filter(p=>!['ENERGY.CARBON.APPLY','ENERGY.CARBON.LASER'].includes(p.step_id))
+      s.steps.splice(3,0,spot,step(id,4,'HERO_CORRECTIVE',{settings_note:'Use the approved clinician preset.'}))
+      s.primary_strategy[0].selected_step_id=id
+    }
+    const result=check(d)
+    assert.equal(result.error,undefined,id)
+    const steps=result.treatment_plan.treatments[0].steps
+    const lo=steps.findIndex(p=>p.step_id==='PEEL.SPOT.SALI'),hi=steps.findIndex(p=>p.step_id===id)
+    assert.ok(!steps.slice(lo+1,hi).some(p=>p.step_id==='COOL.ICE'))
+  }
+})
+test('repair fixes the missing primary strategy without adding spot-specific cooling',async()=>{
+  const bad=spotLipFixture(false)
+  const s=bad.treatment_plan.treatments[0];s.primary_strategy=[]
+  s.steps.find(p=>p.step_id==='ENERGY.CARBON.APPLY').role='SECONDARY_CORRECTIVE'
+  let calls=0
+  const result=await pipeline.generateTreatmentPlan({...args,diagnosis:spotLipDiagnosis,callModel:async(request)=>{
+    calls++
+    if(calls===1) return bad // A legacy gateway supplies an unwrapped draft.
+    const repair=JSON.parse(request.input)
+    assert.deepEqual(repair.patient_input.planning_contract.required_primary_concerns,[concern])
+    assert.ok(!repair.validation_errors.some(e=>e.includes('cool between spot')))
+    assert.ok(repair.validation_errors.some(e=>e.includes('"'+concern+'" has no strategy')))
+    assert.ok(!repair.validation_errors.some(e=>e.includes('carbon application is PREP')))
+    return envelope(spotLipFixture(false))
+  }})
+  assert.equal(result.error,undefined);assert.equal(calls,2)
+  assert.equal(result.treatment_plan.total_time,'44 minutes')
+})
+test('spot creates no cooling requirement but cannot displace immediate post-Carbon cooling',()=>{
+  const d=draft();d.treatment_plan.treatments[0].steps.splice(5,0,step('PEEL.SPOT.SALI',2,'ADJUNCT',{zones:['chin'],additional_products:['Sali DS Peel']}))
+  invalid(d,/Ice Probe cooling must immediately follow this energy step/)
+  const modelInput=JSON.parse(pipeline.buildTreatmentModelRequest({systemPrompt:args.systemPrompt,constraints,plannerInput:input}).input)
+  assert.equal(modelInput.planning_contract.spot_q_switch_sequence_rule,undefined)
+  assert.match(modelInput.planning_contract.spot_salicylic_cooling_rule,/does not require cooling/)
+  assert.match(constraints.clinical_constraints.mother_document_compatibility.spot_salicylic_cooling_policy,/no mandatory cooling/)
+})
 test('request uses exact session counts and nonempty steps for success, with a separate blocked branch',()=>{
   for(const [type,count] of [['express',1],['single',1],['multiple',2],['full',2]]) {
     const request=pipeline.buildTreatmentModelRequest({systemPrompt:args.systemPrompt,constraints,plannerInput:{treatment_plan_type:type}})
@@ -324,7 +451,7 @@ test('under-eye and spray approvals do not extend niacinamide to facial ultrasou
   invalid(d,/ingredient is not approved for this route/)
 })
 
-test('v5.2 preserves disabled application timeouts and validates a delayed successful result', async () => {
+test('v5.4 preserves disabled application timeouts and validates a delayed successful result', async () => {
   assert.equal(pipeline.TREATMENT_RUNTIME_CONFIG.deadlineMs, 0)
   assert.equal(pipeline.TREATMENT_RUNTIME_CONFIG.initialCallMs, 0)
   const result = await pipeline.generateTreatmentPlan({ ...args, callModel: async (_, controls) => {
@@ -360,4 +487,23 @@ test('an empty repair preserves the original populated plan validation failure',
   assert.equal(result.error.code, 'treatment_output_contract_violation')
   assert.match(result.error.message, /must take 3/)
   assert.ok(result.error.initial_validation)
+})
+
+test('external validator results are finalised before the second clinic check', async () => {
+  let calls = 0
+  const result = await pipeline.generateTreatmentPlan({ ...args,
+    callModel: async () => { calls++; return envelope() },
+    existingClinicalValidator: async (plan) => {
+      const changed = clone(plan)
+      const steps = changed.treatment_plan.treatments[0].steps
+      steps.find(step => step.step_id === 'ENERGY.CARBON.APPLY').role = 'HERO_CORRECTIVE'
+      steps.find(step => step.step_id === 'FINISH.SMS').role = 'SUPPORT'
+      return changed
+    },
+  })
+  assert.equal(result.error, undefined)
+  assert.equal(calls, 1)
+  const steps = result.treatment_plan.treatments[0].steps
+  assert.equal(steps.find(step => step.step_id === 'ENERGY.CARBON.APPLY').role, 'PREP')
+  assert.equal(steps.find(step => step.step_id === 'FINISH.SMS').role, 'FINISH')
 })

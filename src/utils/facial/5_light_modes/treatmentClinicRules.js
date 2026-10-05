@@ -13,14 +13,23 @@ export const CLINIC_STEP_TIMINGS = {
   chemical_peel: [3, 4], lymphatic_drainage: [5, 10], lip_pigmentation_add_on: [2, 2],
 }
 export const SUPPORTIVE_REVIEW_KEYS = ['under_eye_infusion', 'facial_infusion', 'cooling', 'hydra_spray', 'mask', 'lymphatic_drainage', 'other_relevant_options']
+// These roles are properties of the registered step, not model decisions.
+export const FIXED_TREATMENT_STEP_ROLES = Object.freeze({
+  'PREP.CLEANSE': 'PREP',
+  'ENERGY.CARBON.APPLY': 'PREP',
+  'PEEL.SPOT.SALI': 'ADJUNCT',
+  'MASSAGE.LYMPH': 'SUPPORT',
+  'FINISH.SMS': 'FINISH',
+})
 export const CLINIC_TREATMENT_RULES_PROMPT = `CLINIC DOSE AND TIMING CONTRACT
 Complete windows including lip treatment: express 35-45 minutes; single and each detailed multiple-plan facial 60-75. No exact target and no 80-minute or +2 exception.
 ${Object.entries(CLINIC_STEP_TIMINGS).map(([type, [min,max]]) => `${type}: ${min === max ? min : `${min}-${max}`} minutes${type === 'infusion' ? ' PER DISTINCT FACIAL INGREDIENT' : ''}`).join('\n')}
-Carbon is TWO atomic steps: ENERGY.CARBON.APPLY (3), then ENERGY.CARBON.LASER (4). Together they are one corrective modality. Preserve the carbon film and completed drying before its laser pass; cool immediately after the laser.
+Carbon is TWO atomic steps: ENERGY.CARBON.APPLY (3, always PREP), then ENERGY.CARBON.LASER (4, carries the chosen corrective role). Together they are one corrective modality. A corrective primary_strategy must reference ENERGY.CARBON.LASER, never ENERGY.CARBON.APPLY. Preserve the carbon film and completed drying before its laser pass; cool immediately after the laser.
 Facial infusion: list distinct actual infusion_ingredients; duration is 3 per ingredient. Use separate steps for different ingredients so each has an exact INFUSE.* ID. Do not count aliases twice. Under-eye infusion and spray have their own WHOLE-STEP durations, not the facial multiplier.
 Under-eye: Ocular Ultrasound Infusion Probe, one 2-minute step, additional to facial infusion. HA, niacinamide, TRX A, PDRN, exosomes or Vitamin C only. Spray: Oxygen Injection (Hydra spray), one 3-minute step; Vitamin C, TRX A, HA or niacinamide only. Individual approval is not approval to mix all ingredients. Niacinamide is not approved for full-face ultrasound infusion by this resource list.
 Other registered steps use clinic_step_type "other" with a positive stated duration and a case-specific duration_rationale. Their mother-document reference ranges are guidance, not newly ratified hard doses. Never use "other" to bypass an existing fixed timing.
 Spot salicylic: PEEL.SPOT.SALI, exactly 2 minutes, role ADJUNCT; mandatory for visible active lesions unless an actual salicylic contraindication applies. Lesion zones only; no lips, under-eye or broken skin. It never counts as a corrective or fills a corrective slot, but time and burden count.
+Spot salicylic creates NO mandatory cooling step after it or between it and Carbon/Q-switch, including a lip pass. It is a lesion-only ADJUNCT, not a broad/full-face peel. Preserve independently required post-energy cooling and the actual broad-peel-plus-Carbon preparation/cooling rules; do not add cooling merely because PEEL.SPOT.SALI is present.
 Massage: exactly one MASSAGE.LYMPH in EVERY detailed facial, 5-10 minutes, massage_purpose "mandatory". Reserve at least 5 minutes before selecting optional additions. Include it even when puffiness is minimal or all other steps already meet the session minimum. It is required session care, not optional filler or a corrective substitute. Use the existing clinician-approved technique and applicable zone precautions; do not invent a new diagnosis-wide exclusion from reference notes. An actual evaluated clinical hard stop requires an explicit blocked response, never a successful session without massage. No duplicate massage, automatic 10-minute duration or padding fixed steps. Selection order does not fix procedure order.
 Lip: reuse clinic_treatment_context.lip_pigmentation. Its trigger is the rounded higher-is-better CLIENT score <70, never the raw severity or target. If assessable, triggered and not blocked, include ENERGY.QS.LIP: two Q-switch passes with HA, exactly 2 minutes before finish, lip_passes 2, lip_serum "Hyaluronic Acid". Use existing contraindications, proxy and temperature rules. Blocked status needs the actual existing constraint key and case evidence. Cosmetic occlusion wins over a fallback score. No invented lip wavelength, energy or serum sequence.
 Finish: exactly one FINISH.SMS, serum + moisturiser + sunscreen together, exactly 3 minutes, last. All times are actual sequential minutes; do not double-count concurrent activity or drying/contact time.
@@ -92,17 +101,31 @@ export function buildTreatmentPlanResponseFormat(treatmentType = null) {
     treatments: array(finalSession, sessionLimits(treatmentType)) })
 }
 
-export function buildTreatmentGenerationResponseFormat(treatmentType = null) {
+export function buildTreatmentGenerationResponseFormat(treatmentType = null, plannerInput = null) {
   const multiple = normalizeTreatmentPlanType(treatmentType) === 'multiple'
+  const hasCaseData = plannerInput && (Object.hasOwn(plannerInput, 'diagnosis_report') || Object.hasOwn(plannerInput, 'treatable_concerns'))
+  const contract = hasCaseData ? buildTreatmentConcernContract(plannerInput) : null
+  const concernSchema = contract?.allowed_concern_names.length
+    ? { type: 'string', enum: contract.allowed_concern_names } : str
+  const primarySchema = contract?.required_primary_concerns.length
+    ? { type: 'string', enum: contract.required_primary_concerns } : concernSchema
+  const caseStepProperties = { ...draftStepProperties,
+    target_concerns: array(concernSchema, contract && !contract.allowed_concern_names.length ? { maxItems: 0 } : {}) }
+  const caseStrategy = object({ ...sessionProperties.primary_strategy.items.properties,
+    concern: primarySchema,
+    selected_step_id: { type: ['string','null'], enum: [...Object.keys(TREATMENT_STEPS), null] } })
+  const caseSessionProperties = { ...draftSessionProperties,
+    primary_strategy: array(caseStrategy, contract
+      ? { minItems: contract.required_primary_concerns.length, maxItems: contract.required_primary_concerns.length } : {}),
+    steps: array(object(caseStepProperties), { minItems: 1 }) }
   const draftProperties = { ...planProperties,
-    treatments: array(object({ ...draftSessionProperties,
-      steps: array(object(draftStepProperties), { minItems: 1 }) }), sessionLimits(treatmentType)),
+    treatments: array(object(caseSessionProperties), sessionLimits(treatmentType)),
     course_outline: { ...planProperties.course_outline,
       ...(treatmentType == null ? {} : multiple ? { minItems: 5, maxItems: 8 } : { maxItems: 0 }) },
   }
   // Arithmetic is performed locally; the model cannot assert an unsupported total.
   delete draftProperties.total_time
-  return { type: 'json_schema', name: 'facial_treatment_result_v5_1', strict: true,
+  return { type: 'json_schema', name: 'facial_treatment_result_v5_3', strict: true,
     schema: object({ planning_result: { anyOf: [
       object({ outcome: { type: 'string', enum: ['success'] },
         treatment_plan: object(draftProperties), failure: { type: 'null' } }),
@@ -284,11 +307,11 @@ function schemaErrors(value, schema, path = 'plan', errors = []) {
   return errors
 }
 
-export function unpackTreatmentPlannerResponse(parsed, treatmentType) {
+export function unpackTreatmentPlannerResponse(parsed, treatmentType, plannerInput = null) {
   const contractError = (details) => Object.assign(new Error('Treatment generation returned an invalid output contract.'),
     { code: 'treatment_output_contract_violation', details })
   if (parsed && Object.hasOwn(parsed, 'planning_result')) {
-    const errors = schemaErrors(parsed, buildTreatmentGenerationResponseFormat(treatmentType).schema)
+    const errors = schemaErrors(parsed, buildTreatmentGenerationResponseFormat(treatmentType, plannerInput).schema)
     if (errors.length) throw contractError(errors)
     const result = parsed.planning_result
     if (result.outcome === 'blocked') {
@@ -323,6 +346,17 @@ const ingredientKey = (value) => {
 }
 
 
+export function buildTreatmentConcernContract(plannerInput) {
+  const rows = targetRows(plannerInput)
+  const required = (plannerInput?.treatable_concerns?.parameters_with_abnormal_scores || [])
+    .filter((row) => isTrue(row.is_primary_concern) && nonempty(row.parameter_name))
+    .map((row) => rows.get(normalize(row.parameter_name))?.parameter_name || row.parameter_name)
+  return {
+    allowed_concern_names: [...rows.values()].map((row) => row.parameter_name),
+    required_primary_concerns: [...new Set(required)],
+  }
+}
+
 export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, clinicContext, constraints = {}, options = {}) {
   const restored = prepareFacialEngineInput(diagnosis)
   const report = compactTreatmentDiagnosis(restored?.diagnosis_report ?? restored ?? {})
@@ -335,7 +369,7 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
   const positiveInflammatoryCount = ['papules','pustules','nodules','inflammatory'].some((name) =>
     typeof observedCounts[name] === 'number' && observedCounts[name] > 0)
   const visible = isTrue(explicitVisible) ? true : isFalse(explicitVisible) ? false : positiveInflammatoryCount ? true : null
-  return {
+  const input = {
     diagnosis_report: report,
     treatable_concerns: { description: summary?.description || 'Client-selected primary priorities.', parameters_with_abnormal_scores: prepareFacialEngineInput(rows) },
     treatment_plan_type: normalizeTreatmentPlanType(treatmentType),
@@ -347,6 +381,12 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
     approved_device_protocols: options.approvedDeviceProtocols ?? null,
     approved_product_names: options.inClinicProductNames ?? [],
   }
+  input.planning_contract = { ...buildTreatmentConcernContract(input),
+    fixed_step_roles: FIXED_TREATMENT_STEP_ROLES,
+    primary_strategy_rule: 'Exactly one strategy per required primary in every detailed session. Copy its exact concern name into the strategy and selected step target_concerns. A corrective Carbon strategy selects ENERGY.CARBON.LASER; never its PREP application or PEEL.SPOT.SALI. Do not invent aliases or findings.',
+    spot_salicylic_cooling_rule: 'PEEL.SPOT.SALI does not require cooling after it or between it and Carbon/Q-switch, including a lip pass. Keep independently required immediate post-energy cooling and actual broad-peel-plus-Carbon preparation/cooling. The spot adjunct is not a broad/full-face peel.',
+  }
+  return input
 }
 
 export function finalizeTreatmentPlan(draft, plannerInput = null) {
@@ -360,6 +400,8 @@ export function finalizeTreatmentPlan(draft, plannerInput = null) {
       step.catalogue_option_ids = [step.step_id]
       step.additional_products ||= []
       if (ref) {
+        const fixedRole = FIXED_TREATMENT_STEP_ROLES[step.step_id]
+        if (fixedRole) { step.role = fixedRole; step.intensity_rung = null }
         step.clinic_step_type ??= ref.clinic_step_type
         if (ref.infusion_ingredient && step.infusion_ingredients === null) step.infusion_ingredients = [ref.infusion_ingredient]
         step.ingredients_equipments ??= [...new Set([...(ref.inventory_required || []), ...step.additional_products, ...(step.infusion_ingredients || [])])]
@@ -546,10 +588,6 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
     }
     const spot = idSteps('PEEL.SPOT.SALI')[0]
     if (context?.active_acne_lesions_visible === true && !spot && !clearance.blocked_steps?.['PEEL.SPOT.SALI']?.length) errors.push(`${label}: visible active acne requires the approved spot-salicylic adjunct unless an evaluated existing contraindication blocks it.`)
-    if (spot && qSwitch.length) for (const laser of qSwitch) {
-      const lo = Math.min(steps.indexOf(spot), steps.indexOf(laser)), hi = Math.max(steps.indexOf(spot), steps.indexOf(laser))
-      if (!steps.slice(lo + 1, hi).some((s) => s.step_id === 'COOL.ICE')) errors.push(`${label}: cool between spot salicylic and any Q-switch pass.`)
-    }
     const roleGroups = Object.fromEntries([...countedRoles].map((role) => [role, new Set(steps.filter((s) => s.role === role).map((s) => TREATMENT_STEPS[s.step_id]?.modality_id))]))
     if (Object.values(roleGroups).some((ids) => ids.size > 1)) errors.push(`${label}: each corrective role names only one modality.`)
     const correctiveCount = new Set(steps.filter((s) => countedRoles.has(s.role)).map((s) => TREATMENT_STEPS[s.step_id]?.modality_id)).size
@@ -559,11 +597,16 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
     if (session.personalisation_evidence?.length !== 3 || session.personalisation_evidence?.some((s) => !nonempty(s))) errors.push(`${label}: three actual scan-to-treatment links are required.`)
     if (session.signature_moment?.step_number < 1 || session.signature_moment?.step_number > steps.length || !nonempty(session.signature_moment?.clinical_role)) errors.push(`${label}: signature moment must identify an existing justified step.`)
     const strategies = session.primary_strategy || []
-    for (const concern of primary) if (!strategies.some((s) => normalize(s.concern) === concern)) errors.push(`${label}: selected primary concern has no strategy.`)
+    for (const concern of primary) {
+      const name = rows.get(concern)?.parameter_name || concern
+      const matches = strategies.filter((s) => normalize(s.concern) === concern)
+      if (!matches.length) errors.push(`${label}: selected primary concern "${name}" has no strategy. Add its own primary_strategy entry and link it to an actual step whose target_concerns contains that exact name.`)
+      if (matches.length > 1) errors.push(`${label}: selected primary concern "${name}" must have exactly one strategy, not ${matches.length}.`)
+    }
     for (const strategy of strategies) {
       if (!nonempty(strategy.dominant_driver) || !nonempty(strategy.why_this_wins)) errors.push(`${label}: primary strategy must state driver and case-specific selection reason.`)
       const selected = steps.find((s) => s.step_id === strategy.selected_step_id)
-      if (strategy.care_type !== 'blocked' && (!selected || !selected.target_concerns?.some((name) => normalize(name) === normalize(strategy.concern)))) errors.push(`${label}: primary strategy must map to an actual step and its target concern.`)
+      if (strategy.care_type !== 'blocked' && (!selected || !selected.target_concerns?.some((name) => normalize(name) === normalize(strategy.concern)))) errors.push(`${label}: primary strategy "${strategy.concern}" must map to an actual step and its target concern; selected_step_id "${strategy.selected_step_id}" must exist and include this exact concern in target_concerns.`)
       if (strategy.care_type === 'corrective' && (!countedRoles.has(selected?.role) || noCorrective.has(selected?.step_id))) errors.push(`${label}: a required corrective slot cannot be filled by prep/support/spot salicylic.`)
       if (strategy.care_type !== 'corrective' && !nonempty(strategy.exception_reason)) errors.push(`${label}: direct-support/blocked strategy needs the actual finding or restriction.`)
       if (normalize(strategy.concern).includes('acne') && ['ENERGY.QS.TONING','ENERGY.QS.532'].includes(selected?.step_id)) errors.push(`${label}: standalone Q-switch cannot be the acne hero.`)
@@ -571,7 +614,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
     for (const outcome of session.concerns_addressed || []) {
       const row = rows.get(normalize(outcome.concern))
       if (!plannerInput) continue
-      if (!row) { errors.push(`${label}: outcome concern is not present in supplied diagnosis/selection.`); continue }
+      if (!row) { errors.push(`${label}: outcome concern "${outcome.concern}" is not present in supplied diagnosis/selection. Use the supplied parameter_name; do not substitute a phenotype or invented alias.`); continue }
       const current = row.score_or_label ?? row.current_score ?? row.current_value ?? row.final_score ?? null
       const target = row.target_single_session_score ?? row.target_score ?? row.target_value ?? null
       if (outcome.current_value !== current || outcome.target_value !== target) errors.push(`${label}: preserve supplied raw current/target values without rounding, inversion or invented gains.`)

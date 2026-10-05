@@ -2,7 +2,7 @@
 
 This package uses the supplied **Mother Document v1.3** as runtime knowledge, with binding permissions/timings in constraints and local code. It does not merely tell GPT-5.4 that a mother document exists. The system prompt includes the compiled knowledge on each planning request.
 
-In v5.2 the model uses these maps to select leading case-relevant choices instead of performing an exhaustive modality audit. All reference content remains available. The selection factors guide that decision without a per-modality score matrix or repetitive rejection report; selected steps still undergo local rule validation.
+In v5.4 the model continues to use these maps to select leading case-relevant choices instead of performing an exhaustive modality audit. All reference content remains available. The selection factors guide that decision without a per-modality score matrix or repetitive rejection report; selected steps still undergo local rule validation. Intrinsic step roles are derived locally and concern names/counts are bounded to the actual case. The user-confirmed 5 October 2026 correction supersedes the earlier spot-to-Q-switch cooling requirement: the lesion-only spot adjunct creates no mandatory cooling after it or between it and Carbon/Q-switch. Independently required post-energy and actual broad-peel-plus-Carbon cooling remain. Source effect ratings, other modality permissions and fixed clinical doses are unchanged.
 
 | Mother-document content | Runtime location and treatment use |
 |---|---|

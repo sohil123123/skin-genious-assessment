@@ -665,7 +665,8 @@
         "microdermabrasion_plus_q_switch": "Permitted, including microdermabrasion plus Carbon Facial, subject to the existing patient-specific constraints, compatibility rules and timing rules. No pairing-specific prohibition is imposed.",
         "combination_peel_plus_carbon": "Permitted by constraints.json for suitable mixed acne-pigmentation cases. PEEL.COMBO is superficial; apply the existing patient-specific restrictions, superficial-peel sequencing condition in R2 and timing rules. The depth-classification study did not test this pairing."
       },
-      "superficial_peel_plus_carbon": "The superficial peel precedes Carbon; complete neutralisation or product-protocol removal and Ice Probe cooling before Carbon. Use conservative approved Carbon settings. Spot salicylic is a local adjunct, not a full-face peel; cool between it and any Q-switch pass.",
+      "superficial_peel_plus_carbon": "The superficial broad/full-face peel precedes Carbon; complete neutralisation or product-protocol removal and Ice Probe cooling before Carbon. Use conservative approved Carbon settings. This rule does not apply to the lesion-only spot-salicylic adjunct.",
+      "spot_salicylic_cooling_policy": "Clinic correction 2026-10-05: PEEL.SPOT.SALI is an uncounted lesion-only ADJUNCT. It creates no mandatory cooling after it or between it and Carbon/Q-switch, including a lip pass. Independently required post-energy cooling and actual broad-peel-plus-Carbon preparation/cooling remain in force. Do not add cooling solely because the spot adjunct is selected.",
       "other_step_minutes_status": "The mother document reference ranges are advisory until specifically ratified as hard timings; require a stated duration rationale for other steps. Existing fixed timings remain authoritative."
     },
     "mandatory_lymphatic_drainage": {
@@ -1220,5 +1221,5 @@
       }
     ]
   },
-  "revision": "2026-10-04-mother-v1.3-v5.2-focused-selection"
+  "revision": "2026-10-05-mother-v1.3-v5.4-spot-cooling-correction"
 }

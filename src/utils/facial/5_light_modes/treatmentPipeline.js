@@ -8,7 +8,7 @@ export const TREATMENT_RUNTIME_CONFIG = Object.freeze({
   // User-requested application override: zero disables automatic timeouts.
   deadlineMs: 0, initialCallMs: 0, minRepairBudgetMs: 15000,
   maxRepairs: 1, maxOutputTokensSingle: 14000, maxOutputTokensMultiple: 22000,
-  promptCacheKey: 'ai-aesthetics-treatment-mother-v1.3-v5.2-focused-selection',
+  promptCacheKey: 'ai-aesthetics-treatment-mother-v1.3-v5.4-spot-cooling-correction',
 })
 
 // Keep the authoritative disk file complete. Remove repeated comparison tables
@@ -48,7 +48,7 @@ export function buildTreatmentModelRequest({ systemPrompt, constraints, plannerI
     instructions: `${systemPrompt}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${JSON.stringify(compileTreatmentConstraints(constraints))}`,
     input: JSON.stringify(plannerInput),
     reasoning: { effort: settings.reasoningEffort },
-    text: { verbosity: 'low', format: buildTreatmentGenerationResponseFormat(plannerInput.treatment_plan_type) },
+    text: { verbosity: 'low', format: buildTreatmentGenerationResponseFormat(plannerInput.treatment_plan_type, plannerInput) },
     max_output_tokens: plannerInput.treatment_plan_type === 'multiple' ? settings.maxOutputTokensMultiple : settings.maxOutputTokensSingle,
     service_tier: settings.serviceTier,
     prompt_cache_key: settings.promptCacheKey,
@@ -114,12 +114,12 @@ export async function generateTreatmentPlan({
   let initialValidationError
   let phase = 'preparation'
   try {
-  if (typeof callModel !== 'function') throw new Error('Provide the existing server-side model caller as callModel.')
-  if (settings.model !== 'gpt-5.4') throw new Error('This package preserves the requested gpt-5.4 model.')
-  for (const name of ['deadlineMs', 'initialCallMs']) {
-    if (!Number.isFinite(settings[name]) || settings[name] < 0) throw new Error(`${name} must be non-negative; zero disables the timeout.`)
-  }
-  if (![0,1].includes(settings.maxRepairs)) throw new Error('maxRepairs may only be 0 or 1.')
+    if (typeof callModel !== 'function') throw new Error('Provide the existing server-side model caller as callModel.')
+    if (settings.model !== 'gpt-5.4') throw new Error('This package preserves the requested gpt-5.4 model.')
+    for (const name of ['deadlineMs', 'initialCallMs']) {
+      if (!Number.isFinite(settings[name]) || settings[name] < 0) throw new Error(`${name} must be non-negative; zero disables the timeout.`)
+    }
+    if (![0,1].includes(settings.maxRepairs)) throw new Error('maxRepairs may only be 0 or 1.')
 
     plannerInput = buildTreatmentPlannerInput(diagnosis, selectedConcerns, treatmentType, clinicContext, constraints, options)
     const massageBlocks = plannerInput.clinic_treatment_context.clinical_clearance.blocked_steps?.['MASSAGE.LYMPH'] || []
@@ -129,14 +129,14 @@ export async function generateTreatmentPlan({
     metrics.instruction_characters = request.instructions.length
     metrics.patient_input_characters = request.input.length
     const check = async (plan) => {
-      let result = validateClinicTreatmentPlan(plan, plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput)
+      let result = validateClinicTreatmentPlan(finalizeTreatmentPlan(plan, plannerInput), plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput)
       if (!result.error && existingClinicalValidator) {
         result = await timedCall(
           async (_, controls) => existingClinicalValidator(result, { plannerInput, constraints, signal: controls.signal }),
           null, remainingTimeout())
         if (!result?.error) {
           // A gateway/validator must not turn a complete plan into an empty success.
-          unpackTreatmentPlannerResponse(result, treatmentType)
+          result = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(result, treatmentType, plannerInput), plannerInput)
           result = validateClinicTreatmentPlan(result, plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput)
         }
       }
@@ -147,12 +147,12 @@ export async function generateTreatmentPlan({
     const response = await timedCall(callModel, request, initialTimeout)
     metrics.usage.push(response?.usage || null)
     phase = 'output_contract'
-    const draft = unpackTreatmentPlannerResponse(parseModelResponse(response), treatmentType)
+    const draft = unpackTreatmentPlannerResponse(parseModelResponse(response), treatmentType, plannerInput)
     candidate = finalizeTreatmentPlan(draft, plannerInput)
     phase = 'initial_validation'
     let checked = await check(candidate)
     initialValidationError = checked.error
-    if (checked.error) console.error('[facial-treatment-v5.2] initial validation failed', checked.error)
+    if (checked.error) console.error('[facial-treatment-v5.4] initial validation failed', checked.error)
     const remaining = deadline - Date.now()
     // Exactly one targeted content repair, only for a complete parseable plan and
     // within an explicitly configured budget, if any. Never retry a timeout/truncated response.
@@ -164,17 +164,17 @@ export async function generateTreatmentPlan({
         ...request,
         input: JSON.stringify({ patient_input: plannerInput, invalid_draft: { treatment_plan: draftRoot },
           validation_errors: checked.error.details || [checked.error.message],
-          task: 'Correct only the stated violations and their dependent safety/time/sequence decisions. Preserve valid decisions and original supplied scores. Every detailed session requires one 5-10-minute mandatory lymphatic drainage step. Return the same planning_result schema. Never return an empty success plan. No additional ranking report.' }),
+          task: 'Correct EVERY listed violation and its dependent safety/time/sequence decisions. Use planning_contract.required_primary_concerns: each must have its own strategy linked to an actual selected step with that exact target_concerns name. Do not rename concerns to phenotypes or aliases. ENERGY.CARBON.APPLY is PREP; its laser carries correction. PEEL.SPOT.SALI is an uncounted ADJUNCT and does not require cooling after it or between it and Carbon/Q-switch. Do not add cooling merely because the spot adjunct is present. Preserve independently required immediate post-energy cooling, actual broad-peel-plus-Carbon preparation/cooling, carbon film/drying, valid decisions and original supplied scores. Recalculate any changed session sequence inside its window, retaining one 5-10-minute mandatory lymphatic drainage step. Return the same planning_result schema. Never return an empty success plan. No additional ranking report.' }),
       }
       phase = 'repair_request'
       const repair = await timedCall(callModel, repairRequest, remainingTimeout())
       metrics.usage.push(repair?.usage || null)
       phase = 'repair_output_contract'
-      candidate = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(parseModelResponse(repair), treatmentType), plannerInput)
+      candidate = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(parseModelResponse(repair), treatmentType, plannerInput), plannerInput)
       phase = 'repair_validation'
       checked = await check(candidate)
       if (checked.error) {
-        console.error('[facial-treatment-v5.2] repair validation failed', checked.error)
+        console.error('[facial-treatment-v5.4] repair validation failed', checked.error)
         const repairError = checked.error
         checked = { error: { ...repairError,
           message: `${initialValidationError.message} Repair failed: ${repairError.message}`,
@@ -200,7 +200,7 @@ export async function generateTreatmentPlan({
         ...(Array.isArray(error.details) ? error.details : [error.message]).map(detail => `Repair draft: ${detail}`),
       ]
     }
-    console.error('[facial-treatment-v5.2] generation failed', failure)
+    console.error('[facial-treatment-v5.4] generation failed', failure)
     return { error: failure }
   } finally {
     metrics.elapsed_ms = Date.now() - start
