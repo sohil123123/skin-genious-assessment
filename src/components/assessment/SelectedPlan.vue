@@ -10,7 +10,7 @@
         </div> -->
         <div class="text-caption text-grey-7 q-mt-xs">
           Total Duration: {{ treatmentPlan?.total_time }} •
-          {{ treatmentPlan?.treatments?.length }} sessions
+          {{ treatmentPlan?.course_outline?.length || treatmentPlan?.treatments?.length }} planned sessions
         </div>
       </div>
 
@@ -55,6 +55,18 @@
     </div>
   </q-card>
 
+  <q-card v-if="treatmentPlan?.course_outline?.length" flat bordered class="q-pa-md q-mb-md">
+    <div class="text-subtitle1">Course outline</div>
+    <div v-for="slot in treatmentPlan.course_outline" :key="slot.session_number" class="q-mt-sm">
+      <strong>Session {{ slot.session_number }} · Week {{ slot.week }}</strong>
+      <div>{{ slot.clinical_goal }}</div>
+      <div v-if="slot.session_number >= 3 || slot.reassessment_required" class="text-caption text-grey-7">
+        Provisional — reassessment required before treatment.
+      </div>
+      <div v-if="slot.escalation_condition" class="text-caption">{{ slot.escalation_condition }}</div>
+    </div>
+  </q-card>
+
   <!-- Sessions -->
   <div
     v-for="(session, index) in treatmentPlan?.treatments"
@@ -73,6 +85,33 @@
           :default-opened="index == 0"
         >
           <q-card flat class="q-pa-md bg-white">
+            <div v-if="session.why_today" class="q-mb-md">{{ session.why_today }}</div>
+            <div v-if="session.primary_strategy?.length" class="q-mb-md">
+              <div v-for="strategy in session.primary_strategy" :key="strategy.concern" class="q-mb-sm">
+                <strong>{{ strategy.concern }}</strong>: {{ strategy.dominant_driver }}
+                <div>{{ strategy.why_this_wins }}</div>
+                <div v-if="strategy.exception_reason">{{ strategy.exception_reason }}</div>
+              </div>
+              <div>{{ session.stack_comparison }}</div>
+            </div>
+            <ul v-if="session.personalisation_evidence?.length" class="q-mb-md">
+              <li v-for="finding in session.personalisation_evidence" :key="finding">{{ finding }}</li>
+            </ul>
+            <q-card v-if="session.expectation_card" flat bordered class="q-pa-md q-mb-md">
+              <div class="text-subtitle2">What to expect</div>
+              <div>Tonight: {{ session.expectation_card.tonight }}</div>
+              <div>By day 3: {{ session.expectation_card.by_day_3 }}</div>
+              <div>By week 2: {{ session.expectation_card.by_week_2 }}</div>
+              <div>{{ session.expectation_card.what_this_session_does_not_change }}</div>
+            </q-card>
+            <div v-if="session.continuity" class="q-mb-md">
+              <div>{{ session.continuity.what_changed_since_last_visit }}</div>
+              <div>{{ session.continuity.what_we_are_building_toward }}</div>
+            </div>
+            <div v-if="session.signature_moment" class="q-mb-md">
+              <strong>Step {{ session.signature_moment.step_number }}:</strong> {{ session.signature_moment.what }}
+              <div>{{ session.signature_moment.clinical_role }}</div>
+            </div>
             <div class="grid">
               <!-- Left Panel -->
               <div class="panel q-pa-md">
@@ -104,8 +143,8 @@
                     >
                       <div class="text-caption">
                         <strong class="text-amber-8">{{ c.concern }}</strong> — <em>Current:</em>
-                        {{ c.current_value }} → <strong>Target:</strong>
-                        {{ c.target_value }}
+                        {{ c.current_value ?? 'Unavailable' }} → <strong>Target:</strong>
+                        {{ c.target_value ?? 'Unavailable' }}
                       </div>
                     </div>
                   </div>

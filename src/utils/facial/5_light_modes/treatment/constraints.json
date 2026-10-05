@@ -133,18 +133,16 @@
         "For active acne lesions, Carbon Facial remains a valid energy-based hero modality if otherwise allowed.",
         "If added corrective modalities would meaningfully improve the single-session visible outcome without unacceptable burden and without collapsing session-flow coherence, the engine may and should create a stacked plan instead of forcing an either-or choice."
       ],
-      "ranking_axes": [
-        "dominant_pathology_fit",
-        "single_session_visible_delta",
-        "regional_precision",
-        "safety_clearance",
-        "downtime_context_fit",
-        "backend_signal_support"
-      ],
       "tie_break_rule": "If two modalities are close, prefer the one with greater expected single-session visible delta for the primary concern.",
       "primary_concern_candidate_framework": {
         "superficial_pigmentation": {
-          "must_compare_candidates": [
+          "selection_guidance": [
+            "If Q-Switch Laser or Carbon Facial is allowed and expected to produce greater one-session visible pigment correction than peels, they should outrank peels.",
+            "Party Peel and Gel Based Pumpkin Peel should be strongly considered when the visible goal is immediate glow, polish, and brightness rather than deeper pigment correction.",
+            "Fusion Peel-E, Whitening Peel, Glyco Peel 35, or Combination Peel should outrank Gel Based Mandelic Peel when pigment correction is more pathology-directed and they are clinically appropriate.",
+            "Gel Based Mandelic Peel should win only when a gentler broad-spectrum corrective is more appropriate than stronger or more targeted options."
+          ],
+          "reference_candidates": [
             "Q-Switch Laser",
             "Carbon Facial",
             "Party Peel",
@@ -155,22 +153,9 @@
             "Combination Peel",
             "Gel Based Mandelic Peel"
           ],
-          "selection_guidance": [
-            "If Q-Switch Laser or Carbon Facial is allowed and expected to produce greater one-session visible pigment correction than peels, they should outrank peels.",
-            "Party Peel and Gel Based Pumpkin Peel should be strongly considered when the visible goal is immediate glow, polish, and brightness rather than deeper pigment correction.",
-            "Fusion Peel-E, Whitening Peel, Glyco Peel 35, or Combination Peel should outrank Gel Based Mandelic Peel when pigment correction is more pathology-directed and they are clinically appropriate.",
-            "Gel Based Mandelic Peel should win only when a gentler broad-spectrum corrective is more appropriate than stronger or more targeted options."
-          ]
+          "scope": "Reference alternatives only. The mother-document phenotype map and actual case clearance determine which leading contenders warrant comparison; this is not an exhaustive checklist."
         },
         "active_acne_lesions": {
-          "must_compare_candidates": [
-            "Carbon Facial",
-            "Sali DS Peel",
-            "Salicylic Acid 30% Peel",
-            "20% Salicylic Acid Peel",
-            "Combination Peel",
-            "Gel Based Mandelic Peel"
-          ],
           "explicit_exclusions": [
             "Q-Switch Laser must not be considered as a standalone hero corrective modality for active acne lesions, whether low-fluence or any other fluence."
           ],
@@ -179,10 +164,8 @@
             "Acne-directed salicylic peels should be strongly prioritized when lesion activity, oiliness, congestion, or comedonal burden are visible.",
             "Combination Peel should be strongly considered when active acne and hyperpigmentation coexist, especially in darker skin tones.",
             "Gel Based Mandelic Peel should only win if acne burden is mild and stronger acne-directed options do not rank higher after safety and tolerance adjustment."
-          ]
-        },
-        "comedonal_acne_oil_congestion": {
-          "must_compare_candidates": [
+          ],
+          "reference_candidates": [
             "Carbon Facial",
             "Sali DS Peel",
             "Salicylic Acid 30% Peel",
@@ -190,15 +173,33 @@
             "Combination Peel",
             "Gel Based Mandelic Peel"
           ],
+          "scope": "Reference alternatives only. The mother-document phenotype map and actual case clearance determine which leading contenders warrant comparison; this is not an exhaustive checklist."
+        },
+        "comedonal_acne_oil_congestion": {
           "selection_guidance": [
             "For oily, congested, comedonal acne, Carbon Facial or salicylic-family peels should usually outrank Gel Based Mandelic Peel when safe.",
             "20% Salicylic Acid Peel should be strongly considered when blackheads and clogged pores are a significant visible issue.",
             "Salicylic Acid 30% Peel should be considered when acne/oil burden is stronger and salicylic use is safe.",
             "Combination Peel should outrank plain Mandelic when both acne and pigmentation are treatment-relevant."
-          ]
+          ],
+          "reference_candidates": [
+            "Carbon Facial",
+            "Sali DS Peel",
+            "Salicylic Acid 30% Peel",
+            "20% Salicylic Acid Peel",
+            "Combination Peel",
+            "Gel Based Mandelic Peel"
+          ],
+          "scope": "Reference alternatives only. The mother-document phenotype map and actual case clearance determine which leading contenders warrant comparison; this is not an exhaustive checklist."
         },
         "post_acne_pigmentation": {
-          "must_compare_candidates": [
+          "selection_guidance": [
+            "Fusion Peel-E should be strongly favored when post-acne pigmentation is a major visible concern, because its composition is more directly aligned to resurfacing plus PIH correction than Gel Based Mandelic Peel.",
+            "Combination Peel should be strongly considered when PIH coexists with active acne or acne-prone tendency.",
+            "Whitening Peel may be preferred when the visible goal is tone-evening and brightness with mild pigmentation emphasis.",
+            "Gel Based Mandelic Peel should not beat Fusion Peel-E or Combination Peel unless safety, tolerance, or context clearly favor a gentler corrective route."
+          ],
+          "reference_candidates": [
             "Carbon Facial",
             "Fusion Peel-E",
             "Combination Peel",
@@ -206,42 +207,39 @@
             "Glyco Peel 35",
             "Gel Based Mandelic Peel"
           ],
-          "selection_guidance": [
-            "Fusion Peel-E should be strongly favored when post-acne pigmentation is a major visible concern, because its composition is more directly aligned to resurfacing plus PIH correction than Gel Based Mandelic Peel.",
-            "Combination Peel should be strongly considered when PIH coexists with active acne or acne-prone tendency.",
-            "Whitening Peel may be preferred when the visible goal is tone-evening and brightness with mild pigmentation emphasis.",
-            "Gel Based Mandelic Peel should not beat Fusion Peel-E or Combination Peel unless safety, tolerance, or context clearly favor a gentler corrective route."
-          ]
+          "scope": "Reference alternatives only. The mother-document phenotype map and actual case clearance determine which leading contenders warrant comparison; this is not an exhaustive checklist."
         },
         "texture_roughness_rejuvenation": {
-          "must_compare_candidates": [
+          "selection_guidance": [
+            "Glyco Peel 35 should be strongly considered when texture, roughness, rejuvenation, fine lines, or surface renewal are dominant goals.",
+            "Carbon Facial should be strongly considered when texture is linked with pores, oiliness, or congestion.",
+            "Party Peel or Gel Based Pumpkin Peel may win when the practical one-session goal is immediate visible glow and cosmetic polish rather than deeper resurfacing.",
+            "Gel Based Mandelic Peel should not be the default texture choice if Glyco Peel 35, Carbon Facial, Party Peel, or Pumpkin Peel are more result-oriented for the case."
+          ],
+          "reference_candidates": [
             "Carbon Facial",
             "Glyco Peel 35",
             "Gel Based Pumpkin Peel",
             "Party Peel",
             "Gel Based Mandelic Peel"
           ],
-          "selection_guidance": [
-            "Glyco Peel 35 should be strongly considered when texture, roughness, rejuvenation, fine lines, or surface renewal are dominant goals.",
-            "Carbon Facial should be strongly considered when texture is linked with pores, oiliness, or congestion.",
-            "Party Peel or Gel Based Pumpkin Peel may win when the practical one-session goal is immediate visible glow and cosmetic polish rather than deeper resurfacing.",
-            "Gel Based Mandelic Peel should not be the default texture choice if Glyco Peel 35, Carbon Facial, Party Peel, or Pumpkin Peel are more result-oriented for the case."
-          ]
+          "scope": "Reference alternatives only. The mother-document phenotype map and actual case clearance determine which leading contenders warrant comparison; this is not an exhaustive checklist."
         },
         "instant_glow_brightness_event_readiness": {
-          "must_compare_candidates": [
+          "selection_guidance": [
+            "Party Peel should be strongly considered when the key goal is immediate visible radiance, brightness, and polished glow.",
+            "Gel Based Pumpkin Peel should be strongly considered when the goal is glow plus gentle resurfacing with better tolerability.",
+            "Whitening Peel may be preferred when brightness and tone-evening are more central than pure glow.",
+            "Gel Based Mandelic Peel should not outrank Party Peel or Pumpkin Peel for glow/event-readiness unless tolerance or safety context clearly makes them less suitable."
+          ],
+          "reference_candidates": [
             "Party Peel",
             "Gel Based Pumpkin Peel",
             "Whitening Peel",
             "Carbon Facial",
             "Gel Based Mandelic Peel"
           ],
-          "selection_guidance": [
-            "Party Peel should be strongly considered when the key goal is immediate visible radiance, brightness, and polished glow.",
-            "Gel Based Pumpkin Peel should be strongly considered when the goal is glow plus gentle resurfacing with better tolerability.",
-            "Whitening Peel may be preferred when brightness and tone-evening are more central than pure glow.",
-            "Gel Based Mandelic Peel should not outrank Party Peel or Pumpkin Peel for glow/event-readiness unless tolerance or safety context clearly makes them less suitable."
-          ]
+          "scope": "Reference alternatives only. The mother-document phenotype map and actual case clearance determine which leading contenders warrant comparison; this is not an exhaustive checklist."
         }
       },
       "ingredient_informed_reasoning_rules": {
@@ -256,22 +254,31 @@
         ]
       },
       "mandelic_anti_default_rule": {
-        "rule": "Gel Based Mandelic Peel may be selected only when it clearly outranks all other clinically relevant named peels and relevant energy options after safety, downtime, and pathology-fit adjustment.",
+        "rule": "Gel Based Mandelic Peel may be selected only for an actual pathology, tolerance, downtime or regional advantage over the leading stronger relevant permitted choices. Generic caution, ease of combination and familiarity do not justify it. One concise case-specific reason is sufficient; no catalogue-wide peel rejection list is required.",
         "invalid_reasons_for_selecting_mandelic": [
           "generic_peel_choice",
           "safe_default",
           "easy_to_pair_with_supportive_steps",
-          "no_explicit_named_peel_comparison_done"
+          "no_case_specific_advantage_over_leading_relevant_options"
         ]
       },
       "mandatory_omission_logic": [
         "If Q-Switch Laser is not chosen for pigmentation-related concerns, the engine should explain whether it was blocked by safety/history context or whether another modality was expected to produce a better one-session result.",
         "If Carbon Facial is not chosen for active acne, oily congestion, acne-plus-pigment, or texture-plus-pore cases, the engine should explain why it lost to the selected modality.",
-        "If Gel Based Mandelic Peel is chosen, the engine must explicitly justify why Party Peel, Gel Based Pumpkin Peel, Fusion Peel-E, Combination Peel, salicylic-family peels, Whitening Peel, Glyco Peel 35, and any relevant energy-based modality did not rank higher."
-      ]
+        "If Gel Based Mandelic Peel is chosen, briefly state its actual advantage over the leading stronger relevant choice. Do not enumerate every named peel or justify unrelated omissions."
+      ],
+      "selection_factors": [
+        "dominant_pathology_fit",
+        "single_session_visible_delta",
+        "regional_precision",
+        "safety_clearance",
+        "downtime_context_fit",
+        "backend_signal_support"
+      ],
+      "selection_method": "Use the matching mother-document phenotype and zone maps to shortlist credible high-impact permitted choices and select the best case-specific result. Apply the listed factors qualitatively to the leading relevant alternatives; do not grade every stocked modality or require an exhaustive rejection ledger. A modality that serves several concerns is assessed once and reused in the session strategy."
     },
     "energy_vs_peel_priority_framework": {
-      "purpose": "Force explicit comparison between energy modalities and named peels so the system does not drift toward peels merely because they are easier or safer-looking.",
+      "purpose": "Preserve result-oriented energy-versus-peel selection where those options are genuine case-relevant contenders. Use the mother-document phenotype maps and actual clearance; do not force comparison with unrelated energy or peel options.",
       "hard_rules": [
         "If an energy-based modality is allowed and is expected to produce greater single-session visible improvement than any peel for the primary concern, it should outrank peels.",
         "Energy-based modalities must not be omitted solely due to generic conservatism when constraints classify them as allowed.",
@@ -280,7 +287,10 @@
       ],
       "comparison_by_concern": {
         "superficial_pigmentation": {
-          "energy_modalities": ["Q-Switch Laser", "Carbon Facial"],
+          "energy_modalities": [
+            "Q-Switch Laser",
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Party Peel",
             "Whitening Peel",
@@ -293,7 +303,9 @@
           "decision_rule": "If Q-Switch Laser or Carbon Facial is allowed and expected to produce better visible pigment correction in one session than the competing peels, the better energy modality should win."
         },
         "active_acne_lesions": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Sali DS Peel",
             "Salicylic Acid 30% Peel",
@@ -304,7 +316,9 @@
           "decision_rule": "For active acne lesions, Carbon Facial should compete against acne-directed salicylic peels and Combination Peel. Standalone Q-Switch must not be considered."
         },
         "comedonal_acne_oil_congestion": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Sali DS Peel",
             "Salicylic Acid 30% Peel",
@@ -315,7 +329,9 @@
           "decision_rule": "If Carbon Facial is allowed and expected to produce stronger visible oil, congestion, pore, or comedonal correction in one session, it should outrank peels."
         },
         "post_acne_pigmentation": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Fusion Peel-E",
             "Combination Peel",
@@ -326,7 +342,9 @@
           "decision_rule": "Carbon Facial should be compared against Fusion Peel-E, Combination Peel, Whitening Peel, Glyco Peel 35, and Mandelic. The modality with the stronger expected one-session visible PIH improvement should win."
         },
         "texture_roughness_rejuvenation": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Glyco Peel 35",
             "Gel Based Pumpkin Peel",
@@ -336,7 +354,9 @@
           "decision_rule": "For texture, pore, and surface-renewal goals, Carbon Facial should be compared against the relevant peels. The modality with the best visible one-session corrective effect should win."
         },
         "instant_glow_brightness_event_readiness": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Party Peel",
             "Whitening Peel",
@@ -396,7 +416,7 @@
     },
     "combination_superiority_framework": {
       "purpose": "Force the engine to compare hero-alone against stacked options instead of assuming an either-or choice.",
-      "comparison_rule": "For each primary concern, compare the expected one-session visible improvement of HERO alone versus HERO plus one clinically relevant SECONDARY_CORRECTIVE, and where relevant versus HERO plus SECONDARY plus TERTIARY. If the larger stack is meaningfully better and remains safe and coherent, it should be preferred.",
+      "comparison_rule": "At the selected-session level, compare the proposed useful corrective combination against fewer modalities once. Prefer the larger permitted stack only when its added visible benefit justifies burden and preserves coherent regional/recovery care. Reuse that decision across concerns; do not repeat a full stack comparison for every concern or every available secondary/tertiary modality.",
       "examples_of_valid_combination_logic": {
         "superficial_pigmentation_plus_oil_pores": [
           "Carbon Facial + pigment-supportive named peel",
@@ -446,13 +466,11 @@
     },
     "regional_skin_temperature_policy": {
       "measurement_mode": "surface",
-
       "inputs": {
         "forehead_surface_c": "number",
         "left_cheek_surface_c": "number",
         "right_cheek_surface_c": "number"
       },
-
       "derived_metrics": {
         "avg_facial_surface_temp_c": {
           "formula": "(forehead_surface_c + left_cheek_surface_c + right_cheek_surface_c) / 3"
@@ -467,7 +485,6 @@
           "formula": "forehead_surface_c - avg_cheek_surface_temp_c"
         }
       },
-
       "global_session_modifiers": {
         "deny_aggressive": {
           "condition": "avg_facial_surface_temp_c >= 36.9",
@@ -479,7 +496,6 @@
           ],
           "reason": "Surface facial temperature extremely elevated, indicating active inflammation or high reactivity risk"
         },
-
         "caution": {
           "condition": "avg_facial_surface_temp_c >= 36.4 AND avg_facial_surface_temp_c < 36.9",
           "actions": [
@@ -491,7 +507,6 @@
           "reason": "Surface facial temperature elevated, suggesting increased inflammatory reactivity"
         }
       },
-
       "regional_modifiers": {
         "cheek_asymmetry": {
           "condition": "left_right_delta_c >= 0.4",
@@ -502,7 +517,6 @@
           ],
           "reason": "Significant unilateral surface temperature difference suggests localized irritation or inflammation"
         },
-
         "cheek_moderate_asymmetry": {
           "condition": "left_right_delta_c >= 0.3 AND left_right_delta_c < 0.4",
           "actions": [
@@ -511,7 +525,6 @@
           ],
           "reason": "Moderate unilateral temperature difference indicating early localized reactivity"
         },
-
         "tzone_relative_heat": {
           "condition": "forehead_minus_avg_cheek_delta_c >= 0.4",
           "actions": [
@@ -520,7 +533,6 @@
           ],
           "reason": "Forehead significantly hotter than cheeks, suggesting sebaceous congestion or metabolic heat"
         },
-
         "cheek_relative_heat": {
           "condition": "forehead_minus_avg_cheek_delta_c <= -0.4",
           "actions": [
@@ -530,7 +542,6 @@
           "reason": "Cheeks hotter than forehead, indicating inflammatory or rosacea-prone behavior"
         }
       },
-
       "operational_notes": [
         "All temperatures must be measured using surface mode only",
         "Measurements should be taken after 5 minutes seated indoors",
@@ -539,7 +550,7 @@
       ]
     },
     "supportive_treatment_protocols": {
-      "selection_rule": "Evaluate relevant support after selecting appropriate corrective care and before filler massage. Select only for a case-specific incremental purpose; document inclusion or omission in the existing treatment explanation fields. Individual ingredient approval is not approval to mix all ingredients or repeat them without added value.",
+      "selection_rule": "Reserve all required care, including at least five minutes of mandatory lymphatic drainage, then evaluate relevant support for a case-specific incremental purpose. Document inclusion or omission of optional support in the existing treatment explanation fields; lymphatic drainage is required. Individual ingredient approval is not approval to mix all ingredients or repeat them without added value.",
       "under_eye_infusion": {
         "equipment": "Ocular Ultrasound Infusion Probe",
         "approved_ingredients": [
@@ -570,7 +581,10 @@
       },
       "cooling": {
         "equipment": "Ice Probe",
-        "duration_minutes_range": [2, 5],
+        "duration_minutes_range": [
+          2,
+          5
+        ],
         "selection_guidance": "Evaluate clinically appropriate cooling/comfort/recovery support for the chosen procedures and regional findings; do not represent cooling as equivalent to pigment correction."
       },
       "facial_infusion": {
@@ -587,12 +601,100 @@
         "rule": "Every facial treatment must finish (last step of treatment) with Serum + Moisturizer + Sunscreen."
       },
       {
-        "rule": "Consider Face and Neck Lymphatic Drainage Massage after clinically useful treatment and support options. Use one appropriate 5-10-minute step for a documented clinical purpose or, when other steps fall below the session minimum, as filler bringing the total inside the permitted session window. Filler need not equal the exact remaining gap; explain its selected duration and do not default to 10 minutes. Omit filler if the minimum is already met. No fixed session-duration target is imposed."
+        "rule": "Every detailed facial session, including express, single and each detailed multiple-plan session, must contain exactly one Face and Neck Lymphatic Drainage Massage step lasting 5-10 minutes. Reserve at least 5 minutes inside the complete session window. It is mandatory session care, not optional filler, and remains required when other steps already meet the minimum or puffiness is minimal. Use existing clinician-approved technique and zone precautions. An actual evaluated clinical hard stop prevents a successful session and requires an explicit blocked result; never silently omit the required step. No fixed total-duration target is imposed."
       },
       {
-        "rule": "There is NO fixed or recommended sequence for treatment steps. The LLM is free to design ANY sequence or use DIFFERENT treatments for different facial zones based on scoring, diagnosis, and clinical logic."
+        "rule": "There is NO fixed or recommended sequence for treatment steps. The LLM is free to design ANY sequence or use DIFFERENT treatments for different facial zones based on scoring, diagnosis, and clinical logic. Only the explicit modality compatibility and sequencing rules limit this freedom."
       }
-    ]
+    ],
+    "mother_document_compatibility": {
+      "source_version": "1.3",
+      "peel_depth_classes": {
+        "superficial": [
+          "Gel Based Pumpkin Peel",
+          "Party Peel",
+          "Gel Based Mandelic Peel",
+          "Whitening Peel",
+          "20 % Salicylic Acid Peel",
+          "Combination Peel"
+        ],
+        "medium": [
+          "Salicylic Acid 30 % Peel",
+          "Sali DS Peel",
+          "Fusion Peel-E",
+          "Glyco Peel 35"
+        ],
+        "deep": []
+      },
+      "legacy_deep_peel_rule_classes": [
+        "medium",
+        "deep"
+      ],
+      "legacy_deep_peel_rule_basis": "Mother document section 1.3: no stocked peel is dermatologically deep; legacy deep-peel exclusions refer to the strongest clinic class. relative_strength is corrective potency, not peel depth.",
+      "non_negotiables": {
+        "R1": "EXTR.MANUAL (and ENERGY.HF after it) before any full-face acid, laser or RF; never after",
+        "R2": "medium_peel never with ENERGY.CARBON or ENERGY.QS.TONING in one session; superficial_peel may precede CARBON only after neutralisation + COOL.ICE, conservative settings",
+        "R3": "one full-face medium_peel per session",
+        "R4": "EXFO.MICRO.* never with medium_peel",
+        "R5": "HIFU, MNRF, NEEDLE.* are standalone sessions (PDRN/EXO infusion after needling is the only companion)",
+        "R6": "COOL.ICE immediately after every energy step",
+        "R7": "FINISH.SMS last"
+      },
+      "energy_steps_requiring_immediate_cooling": [
+        "ENERGY.CARBON.LASER",
+        "ENERGY.QS.TONING",
+        "ENERGY.QS.532",
+        "ENERGY.RF.LIFT",
+        "ENERGY.RF.MACHINE"
+      ],
+      "lip_protocol_cooling": "ENERGY.QS.LIP remains the fixed 2-minute approved lip protocol; no extra mandatory ocular/lip cooling protocol is invented.",
+      "standalone_session_modalities": [
+        "ENERGY.HIFU",
+        "ENERGY.MNRF",
+        "ENERGY.NEEDLE.PEN",
+        "ENERGY.NEEDLE.ROLLER"
+      ],
+      "standalone_planning_scope": "Do not place these in a detailed facial session. They may be recommended as separately assessed clinician sessions in the course outline.",
+      "redundant_pairs": [
+        [
+          "ENERGY.CARBON",
+          "ENERGY.QS.TONING"
+        ]
+      ],
+      "explicit_pairing_permission": {
+        "microdermabrasion_plus_q_switch": "Permitted, including microdermabrasion plus Carbon Facial, subject to the existing patient-specific constraints, compatibility rules and timing rules. No pairing-specific prohibition is imposed.",
+        "combination_peel_plus_carbon": "Permitted by constraints.json for suitable mixed acne-pigmentation cases. PEEL.COMBO is superficial; apply the existing patient-specific restrictions, superficial-peel sequencing condition in R2 and timing rules. The depth-classification study did not test this pairing."
+      },
+      "superficial_peel_plus_carbon": "The superficial peel precedes Carbon; complete neutralisation or product-protocol removal and Ice Probe cooling before Carbon. Use conservative approved Carbon settings. Spot salicylic is a local adjunct, not a full-face peel; cool between it and any Q-switch pass.",
+      "other_step_minutes_status": "The mother document reference ranges are advisory until specifically ratified as hard timings; require a stated duration rationale for other steps. Existing fixed timings remain authoritative."
+    },
+    "mandatory_lymphatic_drainage": {
+      "step_id": "MASSAGE.LYMPH",
+      "required_in_every_detailed_facial": true,
+      "steps_per_session": 1,
+      "duration_minutes_range": [
+        5,
+        10
+      ],
+      "massage_purpose": "mandatory",
+      "timing_basis": "Sequential minutes inside the complete session window, including lip treatment and finish.",
+      "authority": "User clarification on 2026-10-03: every session must have a minimum five-minute lymphatic drainage massage; retains the existing ten-minute maximum.",
+      "reference_precedence": "This confirmed requirement supersedes optional/filler wording and blanket massage-omission advice in the older reference. Existing actual evaluated clinical hard stops remain binding."
+    },
+    "case_driven_selection_policy": {
+      "knowledge_source": "Mother Document v1.3, all 15 concern maps and unchanged 0-5 effect strengths.",
+      "method": "Form one case-specific shortlist from dominant phenotype, zones, client priorities, relevant secondary findings, expected benefit, downtime and evaluated clearance. Select among leading relevant contenders, then design the session.",
+      "retain_ambition": "Retain credible high-impact options and non-redundant regional/support/recovery care; do not impose a numerical shortlist cap or let generic conservatism select a weaker option.",
+      "reference_scope": "Candidate lists and selection factors are reference guidance, not an obligation to check, score or write a rejection for every modality.",
+      "comparison_scope": "One reusable session-level combination decision; brief reasons for materially relevant omissions only.",
+      "validation_scope": "Existing hard clinical, inventory, route, zone, sequence, timing and required-step rules remain binding. Local code provides evaluated hard eligibility and validates the selected plan.",
+      "prohibited_extra_work": [
+        "Catalogue-wide grading matrix",
+        "Peel-by-peel loss justification for unrelated options",
+        "Separate model call for catalogue review or eligibility arithmetic",
+        "Repeated per-concern stack ranking when one modality serves several concerns"
+      ]
+    }
   },
   "availableResources": {
     "machines": [
@@ -652,7 +754,11 @@
       },
       {
         "name": "LED Light Therapy Machine",
-        "modes": ["Blue", "Red", "Green"]
+        "modes": [
+          "Blue",
+          "Red",
+          "Green"
+        ]
       },
       {
         "name": "IV Infusion Kit",
@@ -678,44 +784,111 @@
       {
         "name": "Microdermabrasion Machine",
         "configurations": {
-          "tips_available": ["Diamond Tip", "Crystal Tip"]
+          "tips_available": [
+            "Diamond Tip",
+            "Crystal Tip"
+          ]
         }
       },
       {
         "name": "High-Frequency Machine",
         "type": "acne_inflammation_management",
-        "uses": ["post-extraction sanitation", "reduce inflammation", "drying active acne"]
+        "uses": [
+          "post-extraction sanitation",
+          "reduce inflammation",
+          "drying active acne"
+        ]
       }
     ],
     "jet_infusion_solutions": [
       {
         "name": "Niacinamide",
         "use": "Clinic-approved option for under-eye infusion and Oxygen/Hydra spray when clinically appropriate.",
-        "approved_delivery_routes": ["under_eye_infusion", "hydra_spray"]
+        "approved_delivery_routes": [
+          "under_eye_infusion",
+          "hydra_spray"
+        ]
       },
-      { "name": "Hyaluronic Acid", "use": "Hydration and skin plumping" },
-      { "name": "Vitamin C", "use": "Brightening and antioxidant" },
-      { "name": "TRX A (Tranexamic Acid)", "use": "Pigmentation reduction" },
-      { "name": "PDRN", "use": "Repair, regeneration, hydration" },
-      { "name": "Exosomes", "use": "Advanced regeneration + rejuvenation" },
-      { "name": "Lifting", "use": "Firming and anti-aging" },
-      { "name": "Glutathione", "use": "Skin lightening and detoxification" },
-      { "name": "Hydrafacial Serum AS1", "use": "Cleanse & Exfoliate (Normal Skin)" },
-      { "name": "Hydrafacial Serum SA2", "use": "Oil Control (Oily Skin)" },
-      { "name": "Hydrafacial Serum A03", "use": "Hydration (Dry Skin)" }
+      {
+        "name": "Hyaluronic Acid",
+        "use": "Hydration and skin plumping"
+      },
+      {
+        "name": "Vitamin C",
+        "use": "Brightening and antioxidant"
+      },
+      {
+        "name": "TRX A (Tranexamic Acid)",
+        "use": "Pigmentation reduction"
+      },
+      {
+        "name": "PDRN",
+        "use": "Repair, regeneration, hydration"
+      },
+      {
+        "name": "Exosomes",
+        "use": "Advanced regeneration + rejuvenation"
+      },
+      {
+        "name": "Lifting",
+        "use": "Firming and anti-aging"
+      },
+      {
+        "name": "Glutathione",
+        "use": "Skin lightening and detoxification"
+      },
+      {
+        "name": "Hydrafacial Serum AS1",
+        "use": "Cleanse & Exfoliate (Normal Skin)"
+      },
+      {
+        "name": "Hydrafacial Serum SA2",
+        "use": "Oil Control (Oily Skin)"
+      },
+      {
+        "name": "Hydrafacial Serum A03",
+        "use": "Hydration (Dry Skin)"
+      }
     ],
     "peelOffMasks": [
-      { "name": "Charcoal", "use": "Oil control and detox" },
-      { "name": "Calming", "use": "Reduce redness and irritation" },
-      { "name": "Brighten", "use": "Improve tone and radiance" },
-      { "name": "Hydrate", "use": "Deep moisturization" },
-      { "name": "Lift", "use": "Tightening and firming" }
+      {
+        "name": "Charcoal",
+        "use": "Oil control and detox"
+      },
+      {
+        "name": "Calming",
+        "use": "Reduce redness and irritation"
+      },
+      {
+        "name": "Brighten",
+        "use": "Improve tone and radiance"
+      },
+      {
+        "name": "Hydrate",
+        "use": "Deep moisturization"
+      },
+      {
+        "name": "Lift",
+        "use": "Tightening and firming"
+      }
     ],
     "ivInfusions": [
-      { "name": "Glutathione", "use": "Detox and brightening" },
-      { "name": "Vitamin B12", "use": "Energy and cellular metabolism" },
-      { "name": "N-Acetyl Cysteine (NAC)", "use": "Liver support, antioxidant" },
-      { "name": "Vitamin C", "use": "Immunity and skin glow" }
+      {
+        "name": "Glutathione",
+        "use": "Detox and brightening"
+      },
+      {
+        "name": "Vitamin B12",
+        "use": "Energy and cellular metabolism"
+      },
+      {
+        "name": "N-Acetyl Cysteine (NAC)",
+        "use": "Liver support, antioxidant"
+      },
+      {
+        "name": "Vitamin C",
+        "use": "Immunity and skin glow"
+      }
     ],
     "chemicalPeels": [
       {
@@ -735,13 +908,24 @@
           "Arbutin": "20%",
           "Niacinamide": "10%"
         },
-        "mechanistic_bias": ["brightening", "radiance", "surface rejuvenation", "tone support"],
-        "decision_note": "Prefer in clients where the single-session goal is immediate glow, polish, and visible radiance."
+        "mechanistic_bias": [
+          "brightening",
+          "radiance",
+          "surface rejuvenation",
+          "tone support"
+        ],
+        "decision_note": "Prefer in clients where the single-session goal is immediate glow, polish, and visible radiance.",
+        "clinic_depth_class": "superficial"
       },
       {
         "name": "Whitening Peel",
         "use": "Lightening and tone improvement",
-        "best_for": ["tone correction", "brightness", "mild pigmentation", "dullness"],
+        "best_for": [
+          "tone correction",
+          "brightness",
+          "mild pigmentation",
+          "dullness"
+        ],
         "relative_strength": "medium",
         "default_rank_bucket": "pigment_brightening",
         "key_actives": {
@@ -752,13 +936,24 @@
           "Licorice Extract": "3%",
           "Bright Light": "2%"
         },
-        "mechanistic_bias": ["brightening", "pigment support", "tone evening", "surface renewal"],
-        "decision_note": "Prefer when brightness and tone-evening are more important than acne control."
+        "mechanistic_bias": [
+          "brightening",
+          "pigment support",
+          "tone evening",
+          "surface renewal"
+        ],
+        "decision_note": "Prefer when brightness and tone-evening are more important than acne control.",
+        "clinic_depth_class": "superficial"
       },
       {
         "name": "Sali DS Peel",
         "use": "Anti-acne and deep exfoliation",
-        "best_for": ["active acne", "oily skin", "comedonal burden", "inflamed acne hotspots"],
+        "best_for": [
+          "active acne",
+          "oily skin",
+          "comedonal burden",
+          "inflamed acne hotspots"
+        ],
         "relative_strength": "medium_to_high",
         "default_rank_bucket": "acne",
         "key_actives": {
@@ -774,19 +969,30 @@
           "keratolytic action",
           "spot lesion treatment"
         ],
-        "decision_note": "Strong candidate for lesion-directed acne treatment and acne-heavy sessions."
+        "decision_note": "Strong candidate for lesion-directed acne treatment and acne-heavy sessions.",
+        "clinic_depth_class": "medium"
       },
       {
         "name": "Salicylic Acid 30% Peel",
         "use": "Acne control and oil regulation",
-        "best_for": ["active acne", "high oiliness", "congestion", "comedones"],
+        "best_for": [
+          "active acne",
+          "high oiliness",
+          "congestion",
+          "comedones"
+        ],
         "relative_strength": "high",
         "default_rank_bucket": "acne",
         "key_actives": {
           "Salicylic Acid": "30%"
         },
-        "mechanistic_bias": ["strong acne correction", "oil control", "comedolysis"],
-        "decision_note": "Prefer when acne/oil/congestion burden is high and salicylic use is safe."
+        "mechanistic_bias": [
+          "strong acne correction",
+          "oil control",
+          "comedolysis"
+        ],
+        "decision_note": "Prefer when acne/oil/congestion burden is high and salicylic use is safe.",
+        "clinic_depth_class": "superficial"
       },
       {
         "name": "Gel Based Pumpkin Peel",
@@ -816,12 +1022,17 @@
           "brightness",
           "better tolerability"
         ],
-        "decision_note": "Often better than Mandelic when the goal is visible glow with gentler resurfacing and better cosmetic elegance."
+        "decision_note": "Often better than Mandelic when the goal is visible glow with gentler resurfacing and better cosmetic elegance.",
+        "clinic_depth_class": "superficial"
       },
       {
         "name": "Gel Based Mandelic Peel",
         "use": "Exfoliation and brightening",
-        "best_for": ["gentle broad-spectrum exfoliation", "mild acne", "mild brightening"],
+        "best_for": [
+          "gentle broad-spectrum exfoliation",
+          "mild acne",
+          "mild brightening"
+        ],
         "relative_strength": "low_to_medium",
         "default_rank_bucket": "gentle_generalist",
         "key_actives": {
@@ -844,7 +1055,8 @@
           "broad but less aggressive correction"
         ],
         "anti_default_rule": "Do not select unless it outranks all other clinically relevant named peels and relevant energy options for the current case.",
-        "decision_note": "Use only when a gentler broad-spectrum corrective is truly more suitable than Party, Pumpkin, Fusion, Combination, or acne-directed salicylic options."
+        "decision_note": "Use only when a gentler broad-spectrum corrective is truly more suitable than Party, Pumpkin, Fusion, Combination, or acne-directed salicylic options.",
+        "clinic_depth_class": "superficial"
       },
       {
         "name": "Fusion Peel-E",
@@ -868,7 +1080,8 @@
           "resurfacing",
           "mixed acne-pigment correction"
         ],
-        "decision_note": "Usually a stronger and more pathology-directed option than Mandelic for post-acne pigmentation."
+        "decision_note": "Usually a stronger and more pathology-directed option than Mandelic for post-acne pigmentation.",
+        "clinic_depth_class": "medium"
       },
       {
         "name": "Glyco Peel 35",
@@ -892,7 +1105,8 @@
           "surface renewal",
           "pigment support"
         ],
-        "decision_note": "Prefer when texture/rejuvenation is more central than acne control."
+        "decision_note": "Prefer when texture/rejuvenation is more central than acne control.",
+        "clinic_depth_class": "medium"
       },
       {
         "name": "Combination Peel",
@@ -913,7 +1127,15 @@
           "oil/congestion support",
           "safer mixed corrective profile for darker skin"
         ],
-        "decision_note": "Should often outrank plain Mandelic when both acne and pigmentation are active goals."
+        "decision_note": "Should often outrank plain Mandelic when both acne and pigmentation are active goals.",
+        "clinic_depth_class": "superficial",
+        "depth_classification_basis": {
+          "formulation": "20% salicylic acid + 20% mandelic acid",
+          "depth": "superficial under a superficial-peel protocol",
+          "strength_ratings": "unchanged",
+          "source": "https://pubmed.ncbi.nlm.nih.gov/34980959/",
+          "authority": "published evidence correction; not recorded as Dr. Aakriti ratification"
+        }
       },
       {
         "name": "20% Salicylic Acid Peel",
@@ -929,32 +1151,74 @@
         "key_actives": {
           "Salicylic Acid": "20%"
         },
-        "mechanistic_bias": ["comedolysis", "oil control", "pore congestion correction"],
-        "decision_note": "Prefer when blackheads/clogged pores are a meaningful visible component."
+        "mechanistic_bias": [
+          "comedolysis",
+          "oil control",
+          "pore congestion correction"
+        ],
+        "decision_note": "Prefer when blackheads/clogged pores are a meaningful visible component.",
+        "clinic_depth_class": "superficial"
       }
     ],
     "Special_ingredients_for_facials_type": [
-      { "name": "Liquid Charcoal (Carbon Facial)", "use": "Anti-acne, Oil control, Brightening" },
-      { "name": "Carbon Lotion", "use": "For Q-switch carbon facial protocol" }
+      {
+        "name": "Liquid Charcoal (Carbon Facial)",
+        "use": "Anti-acne, Oil control, Brightening"
+      },
+      {
+        "name": "Carbon Lotion",
+        "use": "For Q-switch carbon facial protocol"
+      }
     ],
     "consumables": [
-      { "name": "Gauze Pads" },
-      { "name": "Cotton Pads" },
-      { "name": "Alcohol Swabs" },
-      { "name": "pH Neutral Gel (for RF, Ultrasound)" },
-      { "name": "Hydrating Gel Base" },
-      { "name": "Distilled Water" },
-      { "name": "Cleansing Towels" },
-      { "name": "Extraction Tools (Comedone Extractor, Loop Extractor)" },
-      { "name": "Disposable Headbands" },
-      { "name": "Disposable Brushes" }
+      {
+        "name": "Gauze Pads"
+      },
+      {
+        "name": "Cotton Pads"
+      },
+      {
+        "name": "Alcohol Swabs"
+      },
+      {
+        "name": "pH Neutral Gel (for RF, Ultrasound)"
+      },
+      {
+        "name": "Hydrating Gel Base"
+      },
+      {
+        "name": "Distilled Water"
+      },
+      {
+        "name": "Cleansing Towels"
+      },
+      {
+        "name": "Extraction Tools (Comedone Extractor, Loop Extractor)"
+      },
+      {
+        "name": "Disposable Headbands"
+      },
+      {
+        "name": "Disposable Brushes"
+      }
     ],
     "treatment_tools": [
-      { "name": "Manual Comedone Extractor" },
-      { "name": "Loop Extractor" },
-      { "name": "Fan Brush (for peel application)" },
-      { "name": "Mask Applicator Brush" },
-      { "name": "Spatula (non-scrubber, for product application)" }
+      {
+        "name": "Manual Comedone Extractor"
+      },
+      {
+        "name": "Loop Extractor"
+      },
+      {
+        "name": "Fan Brush (for peel application)"
+      },
+      {
+        "name": "Mask Applicator Brush"
+      },
+      {
+        "name": "Spatula (non-scrubber, for product application)"
+      }
     ]
-  }
+  },
+  "revision": "2026-10-04-mother-v1.3-v5.2-focused-selection"
 }

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { Loading, Notify, LocalStorage } from 'quasar'
 import { api } from 'src/boot/axios'
 import { serialize } from 'object-to-formdata'
+import { requireSavedTreatmentSessions } from 'src/utils/facial/treatmentPersistence.js'
 import { useCommonStore } from './commonStore'
 
 // let user_id = LocalStorage.getItem('user_id') ? LocalStorage.getItem('user_id') : null
@@ -162,7 +163,10 @@ export const useAssessmentStore = defineStore('assessment', {
         })
     },
     async updateAssessment(payload, { throwOnError = false } = {}) {
-      if (!this.assessmentData.id) return
+      if (!this.assessmentData.id) {
+        if (payload.treatment_plans || throwOnError) throw new Error('Assessment ID is missing; the plan cannot be saved.')
+        return
+      }
       payload.user_id = this.assessmentData.user_id
       payload._method = 'PUT'
       const config = {
@@ -185,15 +189,19 @@ export const useAssessmentStore = defineStore('assessment', {
         }
       })
 
-      const formData = serialize(payload, config)
+      // JSON preserves nulls, numbers, booleans and the entire nested plan,
+      // without PHP's multipart max_input_vars limit. Other updates retain uploads.
+      const savingTreatment = Boolean(payload.treatment_plans)
+      const formData = savingTreatment ? payload : serialize(payload, config)
 
-      await api
+      return await api
         .post(`assessments/${this.assessmentData.id}`, formData, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            'Content-Type': savingTreatment ? 'application/json' : 'multipart/form-data',
           },
         })
         .then(async (response) => {
+          if (savingTreatment) requireSavedTreatmentSessions(response.data.results, payload.treatment_plans)
           this.assessmentData.images = response.data.results.images
           this.assessmentData.post_images = response.data.results.post_images
           this.assessmentData.conversation_id = response.data.results.conversation_id
@@ -204,10 +212,11 @@ export const useAssessmentStore = defineStore('assessment', {
             this.treatment_session_id = response.data.results.treatment_sessions.treatments[0].id
             this.assessmentData.treatment_sessions = response.data.results.treatment_sessions
           }
+          return response.data.results
         })
         .catch((e) => {
           console.log(e)
-          if (throwOnError) throw e
+          if (throwOnError || savingTreatment) throw e
           // Notify.create({
           //   type: 'negative',
           //   message: e.response.data.message,

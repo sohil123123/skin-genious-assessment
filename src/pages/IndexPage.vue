@@ -208,6 +208,7 @@ import {
   TREATMENT_PLAN_RESPONSE_FORMAT,
   validateClinicTreatmentPlan,
 } from 'src/utils/facial/treatmentClinicRules.js'
+import { treatmentHistoryFlags, inClinicProductRecords } from 'src/utils/facial/5_light_modes/treatmentIntegration.js'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
 
@@ -629,6 +630,7 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
       await callApiForTreatmentPlan(selected, treatmentType),
     )
     if (apiResponse.error) {
+      console.error('[facial-treatment] generation rejected', apiResponse.error)
       Notify.create({
         type: 'negative',
         message: apiResponse.error.message,
@@ -646,11 +648,23 @@ const handleGenerateTreatment = async (selected, treatmentType) => {
       await updateTreatmentDurations(apiResponse)
 
       assessmentData.value.treatment_plans = apiResponse
-      assessmentData.value.treatment_sessions = apiResponse.treatment_plan
-      await submit(['treatment_plans'])
-      if (route.params.appointment_id)
-        await store.updateTreatmentSessionId(route.params.appointment_id)
-      goNext()
+      try {
+        await store.updateAssessment({
+          treatment_plans: _.cloneDeep(apiResponse),
+          selected_plan_type: treatmentType === 'full' ? 'multiple' : treatmentType,
+        }, { throwOnError: true })
+        if (route.params.appointment_id)
+          await store.updateTreatmentSessionId(route.params.appointment_id)
+        goNext()
+      } catch (error) {
+        console.error('[facial-treatment] save failed', { message: error.message, status: error.response?.status, errors: error.response?.data?.errors })
+        Notify.create({
+          type: 'negative',
+          message: error.response?.data?.message || error.message || 'The treatment plan could not be saved.',
+          timeout: 0,
+          actions: [{ icon: 'close', color: 'white', round: true }],
+        })
+      }
     }
   }
 }
@@ -858,6 +872,49 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
   }
 
   const prompts = await getFacialPrompts(assessmentData.value.face_scan_machine)
+  if (prompts.generateTreatmentPlan) {
+    const products = inClinicProductRecords(prompts.available_skincare_products)
+    try {
+      const plan = await prompts.generateTreatmentPlan({
+        callModel: async (request, controls) => {
+          let response
+          try {
+            response = await api.post('ai/responses', {
+            ...request,
+            // The authenticated gateway accepts Responses message arrays.
+            input: [{ role: 'user', content: [{ type: 'input_text', text: request.input }] }],
+            timeout_ms: controls.timeoutMs,
+            metadata: { stage: 'facial_treatment_v5' },
+          }, { signal: controls.signal, timeout: controls.timeoutMs })
+          } catch (error) {
+            throw Object.assign(new Error(error.response?.data?.error?.message || error.response?.data?.message || error.message), { code: error.code, status: error.response?.status, details: error.response?.data?.error?.details || error.response?.data?.errors || [], response_id: error.response?.data?.error?.response_id })
+          }
+          return response.data
+        },
+        systemPrompt: prompts.buildTreatmentSystemPrompt(products),
+        constraints: prompts.constraints,
+        diagnosis: assessmentData.value.diagnosis,
+        selectedConcerns: selected,
+        treatmentType,
+        clinicContext: clinicTreatmentContext,
+        options: {
+          patientProfileAndHistory: patientData,
+          historyRuleFlags: treatmentHistoryFlags(assessmentData.value),
+          temperatureReadings: {
+            forehead_surface_c: patientData.forehead_surface_c,
+            left_cheek_surface_c: patientData.left_cheek_surface_c,
+            right_cheek_surface_c: patientData.right_cheek_surface_c,
+          },
+          featurePacket: assessmentData.value.feature_packet,
+          inClinicProductNames: products.map(product => product.name),
+        },
+        // The former validator is the shared catalogue-ledger contract. V5's
+        // local validator replaces it; no additional server evaluator exists here.
+        onMetrics: metrics => console.info('[facial-treatment-v5]', metrics),
+      })
+      return plan
+    } finally { Loading.hide() }
+  }
   const treatmentPlannerInput = buildTreatmentPlannerInput(
     assessmentData.value.diagnosis,
     selected,
