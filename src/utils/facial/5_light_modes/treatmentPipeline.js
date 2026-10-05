@@ -8,7 +8,7 @@ export const TREATMENT_RUNTIME_CONFIG = Object.freeze({
   // User-requested application override: zero disables automatic timeouts.
   deadlineMs: 0, initialCallMs: 0, minRepairBudgetMs: 15000,
   maxRepairs: 1, maxOutputTokensSingle: 14000, maxOutputTokensMultiple: 22000,
-  promptCacheKey: 'ai-aesthetics-treatment-mother-v1.3-v5.4-spot-cooling-correction',
+  promptCacheKey: 'ai-aesthetics-treatment-mother-v1.3-v5.5-input-product-contract',
 })
 
 // Keep the authoritative disk file complete. Remove repeated comparison tables
@@ -152,11 +152,11 @@ export async function generateTreatmentPlan({
     phase = 'initial_validation'
     let checked = await check(candidate)
     initialValidationError = checked.error
-    if (checked.error) console.error('[facial-treatment-v5.4] initial validation failed', checked.error)
+    if (checked.error) console.error('[facial-treatment-v5.5] initial validation failed', checked.error)
     const remaining = deadline - Date.now()
     // Exactly one targeted content repair, only for a complete parseable plan and
     // within an explicitly configured budget, if any. Never retry a timeout/truncated response.
-    if (checked.error && settings.maxRepairs === 1 && remaining >= settings.minRepairBudgetMs) {
+    if (checked.error && checked.error.code !== 'treatment_input_contract_violation' && settings.maxRepairs === 1 && remaining >= settings.minRepairBudgetMs) {
       metrics.calls += 1
       metrics.repaired = true
       const { treatment_plan: draftRoot } = draft
@@ -164,7 +164,7 @@ export async function generateTreatmentPlan({
         ...request,
         input: JSON.stringify({ patient_input: plannerInput, invalid_draft: { treatment_plan: draftRoot },
           validation_errors: checked.error.details || [checked.error.message],
-          task: 'Correct EVERY listed violation and its dependent safety/time/sequence decisions. Use planning_contract.required_primary_concerns: each must have its own strategy linked to an actual selected step with that exact target_concerns name. Do not rename concerns to phenotypes or aliases. ENERGY.CARBON.APPLY is PREP; its laser carries correction. PEEL.SPOT.SALI is an uncounted ADJUNCT and does not require cooling after it or between it and Carbon/Q-switch. Do not add cooling merely because the spot adjunct is present. Preserve independently required immediate post-energy cooling, actual broad-peel-plus-Carbon preparation/cooling, carbon film/drying, valid decisions and original supplied scores. Recalculate any changed session sequence inside its window, retaining one 5-10-minute mandatory lymphatic drainage step. Return the same planning_result schema. Never return an empty success plan. No additional ranking report.' }),
+          task: 'Correct EVERY listed violation and its dependent safety/time/sequence decisions. Use planning_contract.required_primary_concerns: each must have its own strategy linked to an actual selected step with that exact target_concerns name. Do not rename concerns to phenotypes or aliases. ENERGY.CARBON.APPLY is PREP; its laser carries correction. PEEL.SPOT.SALI is an uncounted ADJUNCT: choose one product from planning_contract.spot_sali_product_options and put its exact name in additional_products; no generic label, prose-only product or assumed concentration. It does not require cooling after it or between it and Carbon/Q-switch. Do not add cooling merely because the spot adjunct is present. Preserve independently required immediate post-energy cooling, actual broad-peel-plus-Carbon preparation/cooling, carbon film/drying, valid decisions and original supplied scores. Recalculate any changed session sequence inside its window, retaining one 5-10-minute mandatory lymphatic drainage step. Return the same planning_result schema. Never return an empty success plan. No additional ranking report.' }),
       }
       phase = 'repair_request'
       const repair = await timedCall(callModel, repairRequest, remainingTimeout())
@@ -174,7 +174,7 @@ export async function generateTreatmentPlan({
       phase = 'repair_validation'
       checked = await check(candidate)
       if (checked.error) {
-        console.error('[facial-treatment-v5.4] repair validation failed', checked.error)
+        console.error('[facial-treatment-v5.5] repair validation failed', checked.error)
         const repairError = checked.error
         checked = { error: { ...repairError,
           message: `${initialValidationError.message} Repair failed: ${repairError.message}`,
@@ -200,7 +200,7 @@ export async function generateTreatmentPlan({
         ...(Array.isArray(error.details) ? error.details : [error.message]).map(detail => `Repair draft: ${detail}`),
       ]
     }
-    console.error('[facial-treatment-v5.4] generation failed', failure)
+    console.error('[facial-treatment-v5.5] generation failed', failure)
     return { error: failure }
   } finally {
     metrics.elapsed_ms = Date.now() - start

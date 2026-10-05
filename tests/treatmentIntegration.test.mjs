@@ -37,3 +37,28 @@ test('clinic product prefix includes complete cleanser/finish records and exclud
   assert.ok(records.some(record => record.name.includes('Sunscreen')))
   assert.ok(records.every(record => !/Retinol|Hair Growth/.test(record.name)))
 })
+
+test('legacy selected concerns restore exact engine scores before canonical naming', () => {
+  const name = 'Superficial Pigmentation Score'
+  const diagnosisRow = { parameter_name: name, score_or_label: 70.235,
+    target_single_session_score: 61.917, score_polarity: 'higher_is_worse' }
+  const legacy = { parameter: 'superficial_pigmentation', current_score: 70.235,
+    target_score: 61.917, score_polarity: 'higher_is_worse',
+    comparison_mode: 'direct_numeric', is_primary_concern: true }
+  const displayedDiagnosis = formatFacialClientScores({ diagnosis_report: { superficial_pigmentation: diagnosisRow } })
+  const displayedSelection = formatFacialClientScores([legacy])
+  const snapshot = structuredClone(displayedSelection)
+  assert.notEqual(displayedSelection[0].current_score, legacy.current_score)
+  const input = buildTreatmentPlannerInput(displayedDiagnosis, { treatable_concerns: {
+    parameters_with_abnormal_scores: displayedSelection,
+  } }, 'single')
+  const row = input.treatable_concerns.parameters_with_abnormal_scores[0]
+  assert.equal(row.parameter_name, name)
+  assert.equal(row.parameter, legacy.parameter)
+  assert.equal(row.current_score, 70.235)
+  assert.equal(row.target_score, 61.917)
+  assert.equal(row.comparison_mode, 'direct_numeric')
+  assert.equal(row.is_primary_concern, true)
+  assert.deepEqual(input.planning_contract.required_primary_concerns, [name])
+  assert.deepEqual(displayedSelection, snapshot)
+})

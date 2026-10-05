@@ -29,6 +29,7 @@ Facial infusion: list distinct actual infusion_ingredients; duration is 3 per in
 Under-eye: Ocular Ultrasound Infusion Probe, one 2-minute step, additional to facial infusion. HA, niacinamide, TRX A, PDRN, exosomes or Vitamin C only. Spray: Oxygen Injection (Hydra spray), one 3-minute step; Vitamin C, TRX A, HA or niacinamide only. Individual approval is not approval to mix all ingredients. Niacinamide is not approved for full-face ultrasound infusion by this resource list.
 Other registered steps use clinic_step_type "other" with a positive stated duration and a case-specific duration_rationale. Their mother-document reference ranges are guidance, not newly ratified hard doses. Never use "other" to bypass an existing fixed timing.
 Spot salicylic: PEEL.SPOT.SALI, exactly 2 minutes, role ADJUNCT; mandatory for visible active lesions unless an actual salicylic contraindication applies. Lesion zones only; no lips, under-eye or broken skin. It never counts as a corrective or fills a corrective slot, but time and burden count.
+For PEEL.SPOT.SALI, additional_products must contain exactly ONE named product from planning_contract.spot_sali_product_options. Choose the appropriate approved product for this case; do not assume a default concentration. A generic "salicylic acid" or a product mentioned only in prose does not identify the executable product. No other step requires this spot-product choice.
 Spot salicylic creates NO mandatory cooling step after it or between it and Carbon/Q-switch, including a lip pass. It is a lesion-only ADJUNCT, not a broad/full-face peel. Preserve independently required post-energy cooling and the actual broad-peel-plus-Carbon preparation/cooling rules; do not add cooling merely because PEEL.SPOT.SALI is present.
 Massage: exactly one MASSAGE.LYMPH in EVERY detailed facial, 5-10 minutes, massage_purpose "mandatory". Reserve at least 5 minutes before selecting optional additions. Include it even when puffiness is minimal or all other steps already meet the session minimum. It is required session care, not optional filler or a corrective substitute. Use the existing clinician-approved technique and applicable zone precautions; do not invent a new diagnosis-wide exclusion from reference notes. An actual evaluated clinical hard stop requires an explicit blocked response, never a successful session without massage. No duplicate massage, automatic 10-minute duration or padding fixed steps. Selection order does not fix procedure order.
 Lip: reuse clinic_treatment_context.lip_pigmentation. Its trigger is the rounded higher-is-better CLIENT score <70, never the raw severity or target. If assessable, triggered and not blocked, include ENERGY.QS.LIP: two Q-switch passes with HA, exactly 2 minutes before finish, lip_passes 2, lip_serum "Hyaluronic Acid". Use existing contraindications, proxy and temperature rules. Blocked status needs the actual existing constraint key and case evidence. Cosmetic occlusion wins over a fallback score. No invented lip wavelength, energy or serum sequence.
@@ -111,13 +112,21 @@ export function buildTreatmentGenerationResponseFormat(treatmentType = null, pla
     ? { type: 'string', enum: contract.required_primary_concerns } : concernSchema
   const caseStepProperties = { ...draftStepProperties,
     target_concerns: array(concernSchema, contract && !contract.allowed_concern_names.length ? { maxItems: 0 } : {}) }
+  const spotProducts = plannerInput?.planning_contract?.spot_sali_product_options
+  const caseStepSchema = hasCaseData && Array.isArray(spotProducts)
+    ? spotProducts.length ? { anyOf: [
+      object({ ...caseStepProperties, step_id: { type: 'string', enum: ['PEEL.SPOT.SALI'] },
+        additional_products: array({ type: 'string', enum: spotProducts }, { minItems: 1, maxItems: 1 }) }),
+      object({ ...caseStepProperties, step_id: { type: 'string', enum: Object.keys(TREATMENT_STEPS).filter((id) => id !== 'PEEL.SPOT.SALI') } }),
+    ] } : object({ ...caseStepProperties, step_id: { type: 'string', enum: Object.keys(TREATMENT_STEPS).filter((id) => id !== 'PEEL.SPOT.SALI') } })
+    : object(caseStepProperties)
   const caseStrategy = object({ ...sessionProperties.primary_strategy.items.properties,
     concern: primarySchema,
     selected_step_id: { type: ['string','null'], enum: [...Object.keys(TREATMENT_STEPS), null] } })
   const caseSessionProperties = { ...draftSessionProperties,
     primary_strategy: array(caseStrategy, contract
       ? { minItems: contract.required_primary_concerns.length, maxItems: contract.required_primary_concerns.length } : {}),
-    steps: array(object(caseStepProperties), { minItems: 1 }) }
+    steps: array(caseStepSchema, { minItems: 1 }) }
   const draftProperties = { ...planProperties,
     treatments: array(object(caseSessionProperties), sessionLimits(treatmentType)),
     course_outline: { ...planProperties.course_outline,
@@ -125,7 +134,7 @@ export function buildTreatmentGenerationResponseFormat(treatmentType = null, pla
   }
   // Arithmetic is performed locally; the model cannot assert an unsupported total.
   delete draftProperties.total_time
-  return { type: 'json_schema', name: 'facial_treatment_result_v5_3', strict: true,
+  return { type: 'json_schema', name: 'facial_treatment_result_v5_5', strict: true,
     schema: object({ planning_result: { anyOf: [
       object({ outcome: { type: 'string', enum: ['success'] },
         treatment_plan: object(draftProperties), failure: { type: 'null' } }),
@@ -346,10 +355,61 @@ const ingredientKey = (value) => {
 }
 
 
+const suppliedConcernName = (row) => nonempty(row?.parameter_name) ? row.parameter_name.trim()
+  : nonempty(row?.parameter) ? row.parameter.trim() : null
+
+// The supplied live input contract uses `parameter`; diagnosis rows usually use
+// `parameter_name`. Resolve both once, without inferring a concern from scores.
+export function normalizeTreatmentConcernRows(rows, diagnosisReport = {}) {
+  const identities = new Map()
+  for (const [key, row] of Object.entries(diagnosisReport || {})) {
+    const name = suppliedConcernName(row)
+    if (!name) continue
+    for (const alias of [key, row.parameter_name, row.parameter]) {
+      if (!nonempty(alias) || !normalize(alias)) continue
+      const token = normalize(alias)
+      if (!identities.has(token)) identities.set(token, new Set())
+      identities.get(token).add(name)
+    }
+  }
+  return (Array.isArray(rows) ? rows : []).map((row, index) => {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) return row
+    const supplied = suppliedConcernName(row)
+    const fail = (reason) => { throw Object.assign(new Error(`Selected concern input is invalid. ${reason}`),
+      { code: 'treatment_input_contract_violation', details: [reason] }) }
+    if (!supplied || !normalize(supplied)) {
+      if (isTrue(row.is_primary_concern)) fail(`parameters_with_abnormal_scores[${index}] is primary but has no non-empty parameter_name or parameter. Fix the caller input before planning; a model repair cannot identify an unnamed primary.`)
+      return { ...row }
+    }
+    const matches = identities.get(normalize(supplied))
+    let canonical = supplied
+    if (matches?.has(supplied)) canonical = supplied
+    else if (matches?.size === 1) canonical = [...matches][0]
+    else if (matches?.size > 1) fail(`parameters_with_abnormal_scores[${index}] name "${supplied}" identifies multiple diagnosis rows. Supply the exact parameter name; no score-based or fuzzy match is used.`)
+    return { ...row, parameter_name: canonical }
+  })
+}
+
+export function approvedSpotSaliProducts(constraints = {}) {
+  const allowed = constraints?.clinical_constraints?.active_acne_spot_treatment_rule?.allowed_spot_sali_options || []
+  const stock = constraints?.availableResources?.chemicalPeels
+  const names = []
+  for (const name of allowed) {
+    if (!nonempty(name)) continue
+    const exact = Array.isArray(stock) ? stock.find((item) => normalize(item?.name) === normalize(name))?.name : name
+    if (nonempty(exact) && !names.some((item) => normalize(item) === normalize(exact))) names.push(exact)
+  }
+  return names
+}
+
+function selectedConcernRows(input) {
+  return normalizeTreatmentConcernRows(input?.treatable_concerns?.parameters_with_abnormal_scores || [], input?.diagnosis_report || {})
+}
+
 export function buildTreatmentConcernContract(plannerInput) {
   const rows = targetRows(plannerInput)
-  const required = (plannerInput?.treatable_concerns?.parameters_with_abnormal_scores || [])
-    .filter((row) => isTrue(row.is_primary_concern) && nonempty(row.parameter_name))
+  const required = selectedConcernRows(plannerInput)
+    .filter((row) => isTrue(row?.is_primary_concern) && nonempty(row?.parameter_name))
     .map((row) => rows.get(normalize(row.parameter_name))?.parameter_name || row.parameter_name)
   return {
     allowed_concern_names: [...rows.values()].map((row) => row.parameter_name),
@@ -360,8 +420,9 @@ export function buildTreatmentConcernContract(plannerInput) {
 export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, clinicContext, constraints = {}, options = {}) {
   const restored = prepareFacialEngineInput(diagnosis)
   const report = compactTreatmentDiagnosis(restored?.diagnosis_report ?? restored ?? {})
-  const summary = selected?.treatable_concerns_summary ?? selected
+  const summary = selected?.treatable_concerns_summary ?? selected?.treatable_concerns ?? selected
   const rows = Array.isArray(summary) ? summary : Array.isArray(summary?.parameters_with_abnormal_scores) ? summary.parameters_with_abnormal_scores : []
+  const canonicalRows = normalizeTreatmentConcernRows(prepareFacialEngineInput(rows), report)
   const context = clinicContext || buildClinicTreatmentContext(diagnosis, options.featurePacket || {})
   const acne = Object.values(report).find((row) => row && typeof row === 'object' && normalize(row.parameter_name).includes('acne'))
   const explicitVisible = options.activeAcneLesionsVisible ?? acne?.active_lesions_visible ?? acne?.backend_details?.active_lesions_visible
@@ -371,7 +432,7 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
   const visible = isTrue(explicitVisible) ? true : isFalse(explicitVisible) ? false : positiveInflammatoryCount ? true : null
   const input = {
     diagnosis_report: report,
-    treatable_concerns: { description: summary?.description || 'Client-selected primary priorities.', parameters_with_abnormal_scores: prepareFacialEngineInput(rows) },
+    treatable_concerns: { description: summary?.description || 'Client-selected primary priorities.', parameters_with_abnormal_scores: canonicalRows },
     treatment_plan_type: normalizeTreatmentPlanType(treatmentType),
     clinic_treatment_context: { ...context, active_acne_lesions_visible: visible,
       clinical_clearance: buildTreatmentEligibility(report, constraints, options) },
@@ -383,6 +444,8 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
   }
   input.planning_contract = { ...buildTreatmentConcernContract(input),
     fixed_step_roles: FIXED_TREATMENT_STEP_ROLES,
+    spot_sali_product_options: approvedSpotSaliProducts(constraints),
+    spot_sali_product_rule: 'For PEEL.SPOT.SALI, choose exactly one approved named product from spot_sali_product_options and put it in additional_products. Do not select a default concentration or name the product only in prose.',
     primary_strategy_rule: 'Exactly one strategy per required primary in every detailed session. Copy its exact concern name into the strategy and selected step target_concerns. A corrective Carbon strategy selects ENERGY.CARBON.LASER; never its PREP application or PEEL.SPOT.SALI. Do not invent aliases or findings.',
     spot_salicylic_cooling_rule: 'PEEL.SPOT.SALI does not require cooling after it or between it and Carbon/Q-switch, including a lip pass. Keep independently required immediate post-energy cooling and actual broad-peel-plus-Carbon preparation/cooling. The spot adjunct is not a broad/full-face peel.',
   }
@@ -399,12 +462,22 @@ export function finalizeTreatmentPlan(draft, plannerInput = null) {
       step.step_number = index + 1
       step.catalogue_option_ids = [step.step_id]
       step.additional_products ||= []
+      if (step.step_id === 'PEEL.SPOT.SALI') {
+        const options = plannerInput?.planning_contract?.spot_sali_product_options || []
+        const match = (name) => options.find((item) => normalize(item) === normalize(name))
+        const existing = step.additional_products.filter((name) => match(name))
+        const equipmentProducts = [...new Set((step.ingredients_equipments || []).map(match).filter(Boolean))]
+        // Recover an explicitly named approved product from a legacy structured
+        // equipment field. Never choose a concentration or parse prose to guess.
+        if (!existing.length && equipmentProducts.length === 1) step.additional_products.push(equipmentProducts[0])
+      }
       if (ref) {
         const fixedRole = FIXED_TREATMENT_STEP_ROLES[step.step_id]
         if (fixedRole) { step.role = fixedRole; step.intensity_rung = null }
         step.clinic_step_type ??= ref.clinic_step_type
         if (ref.infusion_ingredient && step.infusion_ingredients === null) step.infusion_ingredients = [ref.infusion_ingredient]
         step.ingredients_equipments ??= [...new Set([...(ref.inventory_required || []), ...step.additional_products, ...(step.infusion_ingredients || [])])]
+        if (step.step_id === 'PEEL.SPOT.SALI') step.ingredients_equipments = [...new Set([...step.ingredients_equipments, ...step.additional_products])]
       }
       step.lip_passes ??= step.step_id === 'ENERGY.QS.LIP' ? 2 : null
       step.lip_serum ??= step.step_id === 'ENERGY.QS.LIP' ? 'Hyaluronic Acid' : null
@@ -447,10 +520,10 @@ function inventoryNames(constraints) {
 
 function targetRows(input) {
   const report = input?.diagnosis_report || {}
-  const selected = input?.treatable_concerns?.parameters_with_abnormal_scores || []
+  const selected = selectedConcernRows(input)
   const rows = new Map()
-  for (const row of [...Object.values(report), ...selected]) {
-    if (row && typeof row === 'object' && row.parameter_name) {
+  for (const row of [...normalizeTreatmentConcernRows(Object.values(report), report), ...selected]) {
+    if (row && typeof row === 'object' && nonempty(row.parameter_name)) {
       const name = normalize(row.parameter_name)
       rows.set(name, { ...rows.get(name), ...row })
     }
@@ -476,9 +549,14 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   const lip = context?.lip_pigmentation
   const clearance = context?.clinical_clearance || {}
   const knownNames = inventoryNames(constraints)
-  const rows = targetRows(plannerInput)
-  const primary = (plannerInput?.treatable_concerns?.parameters_with_abnormal_scores || [])
-    .filter((row) => isTrue(row.is_primary_concern)).map((row) => normalize(row.parameter_name))
+  let rows, primary
+  try {
+    rows = targetRows(plannerInput)
+    primary = buildTreatmentConcernContract(plannerInput).required_primary_concerns.map(normalize)
+  } catch (error) {
+    if (error.code !== 'treatment_input_contract_violation') throw error
+    return { error: { code: error.code, message: error.message, details: error.details } }
+  }
   if (!window) errors.push('Unknown treatment plan type.')
   if (!lip) errors.push('Lip-rule context is missing.')
   if (!sessions.length) errors.push('No compliant detailed treatment sessions returned.')
@@ -525,8 +603,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
       if (step.step_id === 'ENERGY.QS.LIP' && (step.zones?.length !== 1 || step.zones[0] !== 'lips')) errors.push(`${stepLabel}: the lip protocol is confined to lips.`)
       if (noCorrective.has(step.step_id) && countedRoles.has(step.role)) errors.push(`${stepLabel}: this step cannot be a counted corrective.`)
       if (step.step_id === 'PEEL.SPOT.SALI' && (step.role !== 'ADJUNCT' || step.zones?.some((z) => ['full_face','under_eye','lips'].includes(z)))) errors.push(`${stepLabel}: spot salicylic must be a lesion-only ADJUNCT outside lip/under-eye zones.`)
-      if (step.step_id === 'PEEL.SPOT.SALI' && !(step.additional_products || []).some((name) =>
-        (constraints?.clinical_constraints?.active_acne_spot_treatment_rule?.allowed_spot_sali_options || []).map(normalize).includes(normalize(name)))) errors.push(`${stepLabel}: spot salicylic must specify one approved named salicylic product.`)
+      if (step.step_id === 'PEEL.SPOT.SALI' && (step.additional_products || []).filter((name) => approvedSpotSaliProducts(constraints).map(normalize).includes(normalize(name))).length !== 1) errors.push(`${stepLabel}: spot salicylic must specify one approved named salicylic product in additional_products. Choose exactly one of: ${approvedSpotSaliProducts(constraints).join('; ') || 'no approved product available in the supplied stock'}. Do not use a generic salicylic label or put the product only in prose.`)
       if (step.step_id === 'ENERGY.CARBON.APPLY' && step.role !== 'PREP') errors.push(`${stepLabel}: carbon application is PREP; its laser carries the corrective role.`)
       if (step.clinic_step_type === 'other' && !nonempty(step.duration_rationale)) errors.push(`${stepLabel}: other-step duration requires a rationale.`)
       if (clearance.blocked_steps?.[step.step_id]?.length) errors.push(`${stepLabel}: blocked by ${clearance.blocked_steps[step.step_id].map((r) => r.condition).join(', ')}.`)

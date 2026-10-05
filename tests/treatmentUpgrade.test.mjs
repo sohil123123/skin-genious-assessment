@@ -250,8 +250,9 @@ test('case schema binds exact concern names, primary count and registered strate
   assert.deepEqual(strategy.items.properties.concern.enum,[concern])
   assert.ok(strategy.items.properties.selected_step_id.enum.includes('ENERGY.CARBON.LASER'))
   assert.ok(strategy.items.properties.selected_step_id.enum.includes(null))
-  assert.deepEqual(session.properties.steps.items.properties.target_concerns.items.enum,input.planning_contract.allowed_concern_names)
-  assert.ok(!session.properties.steps.items.properties.target_concerns.items.enum.includes('PIH'))
+  const caseSteps=session.properties.steps.items.anyOf
+  for(const stepSchema of caseSteps) assert.deepEqual(stepSchema.properties.target_concerns.items.enum,input.planning_contract.allowed_concern_names)
+  assert.ok(!caseSteps[0].properties.target_concerns.items.enum.includes('PIH'))
   const unknown=envelope();unknown.planning_result.treatment_plan.treatments[0].steps[4].target_concerns=['PIH']
   assert.throws(()=>rules.unpackTreatmentPlannerResponse(unknown,'express',input),e=>e.code==='treatment_output_contract_violation')
   const missing=envelope();missing.planning_result.treatment_plan.treatments[0].primary_strategy=[]
@@ -451,7 +452,112 @@ test('under-eye and spray approvals do not extend niacinamide to facial ultrasou
   invalid(d,/ingredient is not approved for this route/)
 })
 
-test('v5.4 preserves disabled application timeouts and validates a delayed successful result', async () => {
+test('documented legacy parameter input is normalised without empty primaries or score changes',async()=>{
+  const row={parameter:concern,current_score:70.235,target_score:61.917,score_polarity:'higher_is_worse',comparison_mode:'direct_numeric',is_primary_concern:'true'}
+  const shapes=[[row],{parameters_with_abnormal_scores:[row]},{treatable_concerns_summary:{parameters_with_abnormal_scores:[row]}},{treatable_concerns:{parameters_with_abnormal_scores:[row]}}]
+  for(const selection of shapes) {
+    const original=clone(selection);let calls=0
+    const result=await pipeline.generateTreatmentPlan({...args,selectedConcerns:selection,callModel:async(request)=>{
+      calls++
+      const sent=JSON.parse(request.input),normal=sent.treatable_concerns.parameters_with_abnormal_scores[0]
+      assert.equal(normal.parameter_name,concern);assert.equal(normal.parameter,concern)
+      assert.equal(normal.current_score,70.235);assert.equal(normal.target_score,61.917)
+      assert.deepEqual(sent.planning_contract.required_primary_concerns,[concern])
+      return envelope()
+    }})
+    assert.equal(result.error,undefined);assert.equal(calls,1)
+    assert.deepEqual(selection,original)
+    assert.equal(result.treatment_plan.treatments[0].concerns_addressed[0].current_value,70.235)
+  }
+})
+test('schema and validator share alias/key resolution and never derive a concern from its score',()=>{
+  for(const row of [
+    {parameter:concern,is_primary_concern:true},
+    {parameter_name:' ',parameter:concern,is_primary_concern:true},
+    {parameter_name:null,parameter:'superficial_pigmentation',is_primary_concern:true},
+  ]) {
+    const raw={...clone(input),treatable_concerns:{parameters_with_abnormal_scores:[null,{parameter_name:'',is_primary_concern:false},row]}}
+    assert.deepEqual(rules.buildTreatmentConcernContract(raw).required_primary_concerns,[concern])
+    const format=rules.buildTreatmentGenerationResponseFormat('express',raw)
+    assert.deepEqual(format.schema.properties.planning_result.anyOf[0].properties.treatment_plan.properties.treatments.items.properties.primary_strategy.items.properties.concern.enum,[concern])
+    const result=rules.validateClinicTreatmentPlan(rules.finalizeTreatmentPlan(draft(),raw),raw.clinic_treatment_context,'express',constraints,raw)
+    assert.equal(result.error,undefined)
+  }
+  const named=rules.normalizeTreatmentConcernRows([{parameter:'Explicit source concern',current_score:70.235,is_primary_concern:true}],diagnosis.diagnosis_report)
+  assert.equal(named[0].parameter_name,'Explicit source concern')
+})
+test('an actually unnamed primary is a caller-input error before API work, never silently dropped or repaired',async()=>{
+  for(const row of [
+    {is_primary_concern:true,current_score:70.235},
+    {parameter_name:'',is_primary_concern:true},
+    {parameter:'   ',is_primary_concern:'true'},
+  ]) {
+    let calls=0
+    const result=await pipeline.generateTreatmentPlan({...args,selectedConcerns:[row],callModel:async()=>{calls++;return envelope()}})
+    assert.equal(result.error.code,'treatment_input_contract_violation');assert.equal(calls,0)
+    assert.match(result.error.details[0],/parameters_with_abnormal_scores\[0\]/)
+    assert.ok(!result.error.message.includes('selected primary concern "" has no strategy'))
+    const raw={...clone(input),treatable_concerns:{parameters_with_abnormal_scores:[row]}}
+    const validated=rules.validateClinicTreatmentPlan(rules.finalizeTreatmentPlan(draft(),input),raw.clinic_treatment_context,'express',constraints,raw)
+    assert.equal(validated.error.code,'treatment_input_contract_violation')
+  }
+})
+function productDraft(products=[],equipment=null) {
+  const d=draft()
+  d.treatment_plan.treatments[0].steps.splice(1,0,step('PEEL.SPOT.SALI',2,'ADJUNCT',{zones:['chin'],additional_products:products,...(equipment===null?{}:{ingredients_equipments:equipment})}))
+  return d
+}
+test('spot schema requires exactly one approved in-stock product in the intended field',()=>{
+  const schema=rules.buildTreatmentGenerationResponseFormat('express',input).schema.properties.planning_result.anyOf[0].properties.treatment_plan.properties.treatments.items.properties.steps.items.anyOf
+  const spot=schema.find(s=>s.properties.step_id.enum.includes('PEEL.SPOT.SALI'))
+  assert.equal(spot.properties.additional_products.minItems,1);assert.equal(spot.properties.additional_products.maxItems,1)
+  assert.deepEqual(spot.properties.additional_products.items.enum,input.planning_contract.spot_sali_product_options)
+  const reduced=clone(constraints);reduced.availableResources.chemicalPeels=reduced.availableResources.chemicalPeels.filter(p=>p.name!=='Sali DS Peel')
+  assert.ok(!rules.approvedSpotSaliProducts(reduced).includes('Sali DS Peel'))
+  for(const products of [[],['Salicylic acid'],['Sali DS Peel','Salicylic Acid 30% Peel']]) {
+    assert.throws(()=>rules.unpackTreatmentPlannerResponse(envelope(productDraft(products)),'express',input),e=>e.code==='treatment_output_contract_violation')
+  }
+  assert.doesNotThrow(()=>rules.unpackTreatmentPlannerResponse(envelope(productDraft(['Sali DS Peel'])),'express',input))
+})
+test('explicit approved product in legacy equipment is copied, with no strength or prose guessing',()=>{
+  const legacy=productDraft([],['Sali DS Peel']),original=clone(legacy)
+  const result=check(legacy);assert.equal(result.error,undefined)
+  assert.deepEqual(result.treatment_plan.treatments[0].steps[1].additional_products,['Sali DS Peel'])
+  assert.equal(result.treatment_plan.total_time,'45 minutes');assert.deepEqual(legacy,original)
+  for(const equipment of [[],['Salicylic acid'],['Sali DS Peel','Salicylic Acid 30% Peel']]) {
+    const d=productDraft([],equipment);d.treatment_plan.treatments[0].steps[1].how_to_do='Use Sali DS Peel under its approved protocol.'
+    const final=rules.finalizeTreatmentPlan(d,input)
+    assert.deepEqual(final.treatment_plan.treatments[0].steps[1].additional_products,[])
+    assert.match(rules.validateClinicTreatmentPlan(final,input.clinic_treatment_context,'express',constraints,input).error.details.join('\n'),/in additional_products.*Choose exactly one/)
+  }
+})
+test('reported product-plus-empty-primary failure becomes one product repair with the legacy input shape',async()=>{
+  const legacySelection=[{parameter:concern,current_score:70.235,target_score:61.917,is_primary_concern:true}]
+  let calls=0
+  const result=await pipeline.generateTreatmentPlan({...args,selectedConcerns:legacySelection,callModel:async(request)=>{
+    calls++
+    if(calls===1)return productDraft() // Actual integrations may unwrap the model draft.
+    const repair=JSON.parse(request.input)
+    assert.deepEqual(repair.patient_input.planning_contract.required_primary_concerns,[concern])
+    assert.ok(repair.validation_errors.every(e=>!e.includes('primary concern ""')))
+    assert.ok(repair.validation_errors.some(e=>e.includes('in additional_products')))
+    assert.ok(repair.patient_input.planning_contract.spot_sali_product_options.includes('Sali DS Peel'))
+    return envelope(productDraft(['Sali DS Peel']))
+  }})
+  assert.equal(result.error,undefined);assert.equal(calls,2)
+  assert.equal(result.treatment_plan.total_time,'45 minutes')
+})
+test('legacy selection plus an explicitly named spot product completes in one call',async()=>{
+  let calls=0
+  const result=await pipeline.generateTreatmentPlan({...args,selectedConcerns:[{parameter:concern,is_primary_concern:true}],callModel:async()=>{calls++;return envelope(productDraft(['Sali DS Peel']))}})
+  assert.equal(result.error,undefined);assert.equal(calls,1)
+  const session=result.treatment_plan.treatments[0]
+  assert.equal(session.steps[1].role,'ADJUNCT')
+  assert.equal(session.steps.filter(s=>s.step_id==='MASSAGE.LYMPH').length,1)
+  assert.equal(session.steps.filter(s=>s.step_id==='COOL.ICE').length,2)
+})
+
+test('v5.5 preserves disabled application timeouts and validates a delayed successful result', async () => {
   assert.equal(pipeline.TREATMENT_RUNTIME_CONFIG.deadlineMs, 0)
   assert.equal(pipeline.TREATMENT_RUNTIME_CONFIG.initialCallMs, 0)
   const result = await pipeline.generateTreatmentPlan({ ...args, callModel: async (_, controls) => {
