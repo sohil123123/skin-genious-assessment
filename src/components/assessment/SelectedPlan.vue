@@ -10,7 +10,7 @@
         </div> -->
         <div class="text-caption text-grey-7 q-mt-xs">
           Total Duration: {{ treatmentPlan?.total_time }} •
-          {{ treatmentPlan?.course_outline?.length || treatmentPlan?.treatments?.length }} planned sessions
+          {{ assessmentData?.face_scan_machine?.startsWith('5') ? treatmentPlan?.treatments?.length : treatmentPlan?.course_outline?.length || treatmentPlan?.treatments?.length }} planned sessions
         </div>
       </div>
 
@@ -55,7 +55,7 @@
     </div>
   </q-card>
 
-  <q-card v-if="treatmentPlan?.course_outline?.length" flat bordered class="q-pa-md q-mb-md">
+  <q-card v-if="!assessmentData?.face_scan_machine?.startsWith('5') && treatmentPlan?.course_outline?.length" flat bordered class="q-pa-md q-mb-md">
     <div class="text-subtitle1">Course outline</div>
     <div v-for="slot in treatmentPlan.course_outline" :key="slot.session_number" class="q-mt-sm">
       <strong>Session {{ slot.session_number }} · Week {{ slot.week }}</strong>
@@ -85,6 +85,7 @@
           :default-opened="index == 0"
         >
           <q-card flat class="q-pa-md bg-white">
+            <template v-if="!assessmentData?.face_scan_machine?.startsWith('5')">
             <div v-if="session.why_today" class="q-mb-md">{{ session.why_today }}</div>
             <div v-if="session.primary_strategy?.length" class="q-mb-md">
               <div v-for="strategy in session.primary_strategy" :key="strategy.concern" class="q-mb-sm">
@@ -112,6 +113,7 @@
               <strong>Step {{ session.signature_moment.step_number }}:</strong> {{ session.signature_moment.what }}
               <div>{{ session.signature_moment.clinical_role }}</div>
             </div>
+            </template>
             <div class="grid">
               <!-- Left Panel -->
               <div class="panel q-pa-md">

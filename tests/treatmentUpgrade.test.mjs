@@ -10,7 +10,9 @@ const pipeline = await import(pathToFileURL(join(moduleRoot, 'treatmentPipeline.
 const { buildTreatmentEligibility } = await import(pathToFileURL(join(moduleRoot, 'treatmentEligibility.js')))
 const evidenceAdapter = await import(pathToFileURL(join(moduleRoot, 'treatmentEvidence.js')))
 const { TREATMENT_STEPS, TREATMENT_KNOWLEDGE, compileTreatmentKnowledgeReference } = await import(pathToFileURL(join(moduleRoot, 'treatmentKnowledge.js')))
-const constraints = JSON.parse(await readFile(join(moduleRoot, 'treatment/constraints.json'), 'utf8'))
+// Historical v5.6 engine coverage uses its retired constraints; the active
+// original live flow is tested separately in treatmentLiveFlow.test.mjs.
+const constraints = JSON.parse(await readFile(join(root, 'tests/fixtures/v5_6_constraints.json'), 'utf8'))
 const case91 = JSON.parse(await readFile(join(root, 'tests/fixtures/case91.json'), 'utf8'))
 const concern = 'Superficial Pigmentation Score'
 const diagnosis = { diagnosis_report: {

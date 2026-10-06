@@ -23,16 +23,16 @@ export const FIXED_TREATMENT_STEP_ROLES = Object.freeze({
   'FINISH.SMS': 'FINISH',
 })
 export const CLINIC_TREATMENT_RULES_PROMPT = `CLINIC DOSE AND TIMING CONTRACT
-Complete windows including lip treatment: express 35-45 minutes; single and each detailed multiple-plan facial 60-75. No exact target and no 80-minute or +2 exception.
+Complete windows including lip/ocular treatment: express 35-45 minutes (target 40); single and each detailed multiple-plan facial 60-75 (target 65). Targets are aims within the windows, never an exact-time requirement or permission to pad doses. No 80-minute or +2 exception.
 ${Object.entries(CLINIC_STEP_TIMINGS).map(([type, [min,max]]) => `${type}: ${min === max ? min : `${min}-${max}`} minutes${type === 'infusion' ? ' PER DISTINCT FACIAL INGREDIENT' : ''}`).join('\n')}
 Carbon is TWO atomic steps: ENERGY.CARBON.APPLY (3, always PREP), then ENERGY.CARBON.LASER (4, carries the chosen corrective role). Together they are one corrective modality. A corrective primary_strategy must reference ENERGY.CARBON.LASER, never ENERGY.CARBON.APPLY. Preserve the carbon film and completed drying before its laser pass; cool immediately after the laser.
 Facial infusion: list distinct actual infusion_ingredients; duration is 3 per ingredient. Use separate steps for different ingredients so each has an exact INFUSE.* ID. Do not count aliases twice. Under-eye infusion and spray have their own WHOLE-STEP durations, not the facial multiplier.
-Under-eye: Ocular Ultrasound Infusion Probe, one 2-minute step, additional to facial infusion. HA, niacinamide, TRX A, PDRN, exosomes or Vitamin C only. Spray: Oxygen Injection (Hydra spray), one 3-minute step; Vitamin C, TRX A, HA or niacinamide only. Individual approval is not approval to mix all ingredients. Niacinamide is not approved for full-face ultrasound infusion by this resource list.
+Under-eye: customer-facing higher-is-better periocular score <=70 requires Ocular Ultrasound Infusion Probe, one 2-minute step, additional to facial infusion, irrespective of primary selection; no separate B16 assessability/finding gate. Missing scores do not trigger it. Existing product/history blocks still apply. HA, niacinamide, TRX A, PDRN, exosomes or Vitamin C only. Spray: Oxygen Injection (Hydra spray), one 3-minute step; Vitamin C, TRX A, HA or niacinamide only. Individual approval is not approval to mix all ingredients. Niacinamide is not approved for full-face ultrasound infusion by this resource list.
 Other registered steps use clinic_step_type "other" with a positive stated duration and a case-specific duration_rationale. Their mother-document reference ranges are guidance, not newly ratified hard doses. Never use "other" to bypass an existing fixed timing.
 Spot salicylic: PEEL.SPOT.SALI, exactly 2 minutes, role ADJUNCT; mandatory for visible active lesions unless an actual salicylic contraindication applies. Lesion zones only; no lips, under-eye or broken skin. It never counts as a corrective or fills a corrective slot, but time and burden count.
 For PEEL.SPOT.SALI, additional_products must contain exactly ONE named product from planning_contract.spot_sali_product_options. Choose the appropriate approved product for this case; do not assume a default concentration. A generic "salicylic acid" or a product mentioned only in prose does not identify the executable product. No other step requires this spot-product choice.
 Spot salicylic creates NO mandatory cooling step after it or between it and Carbon/Q-switch, including a lip pass. It is a lesion-only ADJUNCT, not a broad/full-face peel. Preserve independently required post-energy cooling and the actual broad-peel-plus-Carbon preparation/cooling rules; do not add cooling merely because PEEL.SPOT.SALI is present.
-Massage: exactly one MASSAGE.LYMPH in EVERY detailed facial, 5-10 minutes, massage_purpose "mandatory". Reserve at least 5 minutes before selecting optional additions. Include it even when puffiness is minimal or all other steps already meet the session minimum. It is required session care, not optional filler or a corrective substitute. Use the existing clinician-approved technique and applicable zone precautions; do not invent a new diagnosis-wide exclusion from reference notes. An actual evaluated clinical hard stop requires an explicit blocked response, never a successful session without massage. No duplicate massage, automatic 10-minute duration or padding fixed steps. Selection order does not fix procedure order.
+Massage: name it Face and Neck Lymphatic Drainage Massage; exactly one MASSAGE.LYMPH in EVERY detailed facial, 5-10 minutes, massage_purpose "mandatory". Reserve at least 5 minutes before selecting optional additions. Include it even when puffiness is minimal or all other steps already meet the session minimum. It is required session care, not optional filler or a corrective substitute. Use the existing clinician-approved technique and applicable zone precautions; do not invent a new diagnosis-wide exclusion from reference notes. An actual evaluated clinical hard stop requires an explicit blocked response, never a successful session without massage. No duplicate massage, automatic 10-minute duration or padding fixed steps. Selection order does not fix procedure order.
 Lip: reuse clinic_treatment_context.lip_pigmentation. Its trigger is the rounded higher-is-better CLIENT score <70, never the raw severity or target. If assessable, triggered and not blocked, include ENERGY.QS.LIP: two Q-switch passes with HA, exactly 2 minutes before finish, lip_passes 2, lip_serum "Hyaluronic Acid". Use existing contraindications, proxy and temperature rules. Blocked status needs the actual existing constraint key and case evidence. Cosmetic occlusion wins over a fallback score. No invented lip wavelength, energy or serum sequence.
 Finish: exactly one FINISH.SMS, serum + moisturiser + sunscreen together, exactly 3 minutes, last. All times are actual sequential minutes; do not double-count concurrent activity or drying/contact time.
 No protocol settings may be invented from an equipment range. Use a supplied approved preset/protocol, or flag missing settings in preparations_checklist_for_therapist and settings_note for clinician completion before treatment.
@@ -203,11 +203,33 @@ function lipRow(diagnosis) {
   return matches.length === 1 ? matches[0][1] : null
 }
 
+// The periocular rule uses the existing application's higher-is-better display
+// mapping. A supplied score is sufficient; no extra B16 assessability gate.
+export function buildUnderEyeTreatmentContext(diagnosis) {
+  const report = diagnosis?.diagnosis_report ?? diagnosis ?? {}
+  const aliases = new Set(['periorbitalhealth', 'periorbitalhealthscore', 'periocularhealth', 'periocularhealthscore', 'periocularscore'])
+  const rows = Object.entries(report).filter(([key, row]) => row && typeof row === 'object' &&
+    [key, row.parameter_name, row.parameter].some(name => aliases.has(normalize(name))))
+  const row = rows.length === 1 ? rows[0][1] : null
+  const explicit = numeric(row?.client_display_score ?? row?.customer_facing_score ?? row?.customer_display_score)
+  const value = numeric(row?.score_or_label ?? row?.final_score ?? row?.current_score)
+  let display = explicit !== null && explicit >= 1 && explicit <= 100 ? Math.round(explicit) : null
+  if (display === null && value !== null && value >= 1 && value <= 100) {
+    const health = row._facial_score_display?.version === 'facial-health-integer-v1' ||
+      row.score_polarity === 'higher_is_better' || row.score_semantics === 'health'
+    display = facialClientScore(value, health ? 'health' : 'severity')
+  }
+  return { client_display_score: display, threshold_inclusive: 70,
+    trigger: display !== null && display <= 70,
+    reason: display === null ? 'No unique valid customer-facing periocular score.' : 'Compared the customer-facing score with inclusive 70.' }
+}
+
 export function buildClinicTreatmentContext(diagnosis, featurePacket = {}) {
   const row = lipRow(diagnosis)
   const value = numeric(row?.score_or_label ?? row?.final_score ?? row?.current_score)
-  let display = null
-  if (value !== null && value >= 1 && value <= 100) {
+  const explicit = numeric(row?.client_display_score ?? row?.customer_facing_score ?? row?.customer_display_score)
+  let display = explicit !== null && explicit >= 1 && explicit <= 100 ? Math.round(explicit) : null
+  if (display === null && value !== null && value >= 1 && value <= 100) {
     const metadata = row._facial_score_display
     if (
       metadata?.version === 'facial-health-integer-v1' ||
@@ -260,6 +282,7 @@ export function buildClinicTreatmentContext(diagnosis, featurePacket = {}) {
   const assessable = display !== null && !obscured
   return {
     version: 'clinic-treatment-v1',
+    under_eye_infusion: buildUnderEyeTreatmentContext(diagnosis),
     lip_pigmentation: {
       client_display_score: display,
       threshold_exclusive: 70,
@@ -435,7 +458,7 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
     diagnosis_report: report,
     treatable_concerns: { description: summary?.description || 'Client-selected primary priorities.', parameters_with_abnormal_scores: canonicalRows },
     treatment_plan_type: normalizeTreatmentPlanType(treatmentType),
-    clinic_treatment_context: { ...context, active_acne_lesions_visible: evidence.active_acne_lesions_visible,
+    clinic_treatment_context: { ...context, under_eye_infusion: buildUnderEyeTreatmentContext(diagnosis), active_acne_lesions_visible: evidence.active_acne_lesions_visible,
       active_acne_evidence_source: evidence.active_acne_evidence_source,
       clinical_clearance: buildTreatmentEligibility(report, constraints, { ...options, resolvedEvidence: evidence }) },
     patient_profile_and_history: options.patientProfileAndHistory ?? null,
@@ -763,6 +786,10 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
       if (step.step_id !== 'ENERGY.QS.LIP' && (step.lip_passes !== null || step.lip_serum !== null)) errors.push(`${stepLabel}: lip metadata must be null outside the lip step.`)
       if (step.step_id !== 'MASSAGE.LYMPH' && step.massage_purpose !== null) errors.push(`${stepLabel}: massage_purpose must be null outside massage.`)
     }
+    const ocular = typeSteps('under_eye_infusion')
+    if (context?.under_eye_infusion?.trigger && !clearance.blocked_steps?.['EYE.INFUSE']?.length &&
+      knownNames.has(normalize('Ocular Ultrasound Infusion Probe')) && ocular.length !== 1)
+      errors.push(`${label}: customer-facing periocular score <=70 requires exactly one 2-minute ocular infusion, additional to indicated facial infusion.`)
     const finish = typeSteps('finishing')
     if (finish.length !== 1 || steps.at(-1) !== finish[0] || finish[0]?.role !== 'FINISH') errors.push(`${label}: one combined 3-minute FINISH.SMS must be last.`)
     for (const type of ['under_eye_infusion','hydra_spray','lymphatic_drainage','spot_salicylic','lip_pigmentation_add_on']) if (typeSteps(type).length > 1) errors.push(`${label}: do not duplicate ${type}.`)

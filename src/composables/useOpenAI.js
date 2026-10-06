@@ -248,6 +248,10 @@ function buildRequestBody(convId, input, model, options) {
   const metadata = normalizeMetadata(options.metadata)
   if (metadata) body.metadata = metadata
 
+  // Preserve an explicitly disabled treatment timeout through the gateway.
+  if (options.timeout_ms != null && Number.isFinite(Number(options.timeout_ms)) && Number(options.timeout_ms) >= 0)
+    body.timeout_ms = Number(options.timeout_ms)
+
   // Temperature is deliberately not sent for GPT-5 reasoning calls.
   if (!/^gpt-5(?:\.|-|$)/i.test(model) && Number.isFinite(Number(options.temperature))) {
     body.temperature = Number(options.temperature)
@@ -286,7 +290,9 @@ export function useOpenAI() {
     const requestId = createRequestId()
     const body = buildRequestBody(convId, input, MODEL, options)
     const maxRetries = Number(options.max_retries ?? 1)
-    const timeoutMs = Number(options.timeout_ms) || DEFAULT_TIMEOUT_MS
+    const suppliedTimeout = Number(options.timeout_ms)
+    const timeoutMs = options.timeout_ms != null && Number.isFinite(suppliedTimeout) && suppliedTimeout >= 0
+      ? suppliedTimeout : DEFAULT_TIMEOUT_MS
 
     const isRetryable = (error) => {
       if (error?.code === 'ECONNABORTED' || error?.code === 'ERR_CANCELED') return true
@@ -298,8 +304,8 @@ export function useOpenAI() {
       let lastError = null
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const attemptTimeout =
-            attempt === 0 ? timeoutMs : Math.min(timeoutMs * 1.5, DEFAULT_TIMEOUT_MS)
+          const attemptTimeout = timeoutMs === 0 ? 0
+            : attempt === 0 ? timeoutMs : Math.min(timeoutMs * 1.5, DEFAULT_TIMEOUT_MS)
           const response = await api.post('ai/responses', body, {
             timeout: attemptTimeout,
             headers: { 'X-Client-Request-Id': `${requestId}-a${attempt}` },

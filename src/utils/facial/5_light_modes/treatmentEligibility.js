@@ -11,7 +11,7 @@ const qSwitchIds = ['ENERGY.CARBON.LASER', 'ENERGY.QS.TONING', 'ENERGY.QS.532', 
 // Missing answers stay missing. This module never interprets free-text history.
 export function buildTreatmentEligibility(diagnosis, constraints, {
   historyRuleFlags = {}, temperatureReadings = null, evaluatedClinicalBlocks = {},
-  featurePacket = null, resolvedEvidence = null,
+  featurePacket = null, resolvedEvidence = null, patientProfileAndHistory = null,
 } = {}) {
   const clinical = constraints?.clinical_constraints || {}
   const evidence = resolvedEvidence ?? resolveTreatmentEvidence(diagnosis, featurePacket)
@@ -41,8 +41,20 @@ export function buildTreatmentEligibility(diagnosis, constraints, {
       blockedSteps[id].push({ condition, reason })
     }
   }
-  if (numericDenials.length) block(energyIds, 'energy_device_policy', numericDenials.join('; '))
+  const selectedRules = clinical.mother_document_selected_clinical_rules
+  const redRecoveryAllowed = selectedRules?.additional_case_rules?.some(rule => rule.startsWith('B18:'))
+  if (numericDenials.length) block(energyIds.filter(id => !redRecoveryAllowed || id !== 'LED.RED'), 'energy_device_policy', numericDenials.join('; '))
   const medium = Object.values(TREATMENT_STEPS).filter((s) => s.clinic_class === 'medium').map((s) => s.id)
+  if (selectedRules) {
+    if (h !== null && h < 0.40) block(medium, 'mother_document_selected_clinical_rules', 'B6: hydration signal <0.40 excludes medium peels.')
+    if (u !== null && u < 0.55) block([
+      ...Object.values(TREATMENT_STEPS).filter(step => step.clinic_step_type === 'chemical_peel' && step.id !== 'PEEL.PUMPKIN').map(step => step.id),
+      'EXFO.MICRO.DIAMOND',
+    ], 'mother_document_selected_clinical_rules', 'B7: structural barrier uniformity <0.55 excludes abrasion and peels except Pumpkin.')
+    const age = patientProfileAndHistory?.age
+    if (typeof age === 'number' && Number.isFinite(age) && age >= 13 && age < 20)
+      block(medium, 'mother_document_selected_clinical_rules', 'B13: no medium peels for teens.')
+  }
   const strongForDeepRule = clinical.mother_document_compatibility?.legacy_deep_peel_rule_classes || []
   const legacyDeep = Object.values(TREATMENT_STEPS)
     .filter((s) => strongForDeepRule.includes(s.clinic_class)).map((s) => s.id)

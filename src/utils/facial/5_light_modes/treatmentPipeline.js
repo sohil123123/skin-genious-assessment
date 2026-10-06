@@ -1,3 +1,5 @@
+// Legacy v5.6 pipeline: retained for historical tests, no longer imported by
+// the active five-light flow. See LIVE_FLOW_RESTORE.md and IndexPage.vue.
 import {
   buildTreatmentPlannerInput, finalizeTreatmentPlan, validateClinicTreatmentPlan,
   buildTreatmentGenerationResponseFormat, unpackTreatmentPlannerResponse,
@@ -10,7 +12,7 @@ export const TREATMENT_RUNTIME_CONFIG = Object.freeze({
   // User-requested application override: zero disables automatic timeouts.
   deadlineMs: 0, initialCallMs: 0, minRepairBudgetMs: 15000,
   maxRepairs: 1, maxOutputTokensSingle: 14000, maxOutputTokensMultiple: 22000,
-  promptCacheKey: 'ai-aesthetics-treatment-v5.6', promptCacheRetention: '24h',
+  promptCacheKey: 'ai-aesthetics-treatment-v5.6-live-mother-2026-10-06', promptCacheRetention: '24h',
 })
 
 // Object-property order is irrelevant to these JSON contracts. Array order,
