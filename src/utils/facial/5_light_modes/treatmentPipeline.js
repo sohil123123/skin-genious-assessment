@@ -1,17 +1,24 @@
-// Legacy v5.6 pipeline: retained for historical tests, no longer imported by
-// the active five-light flow. See LIVE_FLOW_RESTORE.md and IndexPage.vue.
+// Active five-light validation and targeted repair. The supplied live prompt
+// and constraints stay unchanged; the runtime adapter provides executable metadata.
 import {
   buildTreatmentPlannerInput, finalizeTreatmentPlan, validateClinicTreatmentPlan,
   buildTreatmentGenerationResponseFormat, unpackTreatmentPlannerResponse,
-  compileTreatmentPlannerInput,
+  compileTreatmentPlannerInput, CLINIC_TREATMENT_RULES_PROMPT,
 } from './treatmentClinicRules.js'
-import { TREATMENT_KNOWLEDGE_PROMPT, compileTreatmentKnowledgeReference } from './treatmentKnowledge.js'
+import { TREATMENT_STEPS, TREATMENT_KNOWLEDGE_PROMPT, compileTreatmentKnowledgeReference } from './treatmentKnowledge.js'
+
+
+const LIVE_MOTHER_VALIDATION_ADAPTER = `LIVE MOTHER RESPONSE ADAPTER
+Keep the supplied live clinical selection, ranking, patient evidence, inventory and timing policies. The API's strict planning_result schema replaces only the illustrative output layout in the live prompt. Return outcome success with complete treatment_plan or outcome blocked with actual constraint references and evidence; never an empty success. Single/express has one detailed session; multiple/full has AT LEAST FIVE detailed sessions starting week 1. No two-session course or reassessment-only outline replaces this live requirement.
+Use registered step_id values, actual zones and exact target_concerns names from planning_contract. Preserve raw engine scores/targets, not client display inversions. primary_strategy links each required primary to a selected corrective step or an evidence-based direct-support/blocked exception. Carbon application is PREP and its laser carries the corrective role. Spot salicylic is an uncounted lesion-only ADJUNCT with one approved named product in additional_products; it causes no cooling requirement. Cool independently after energy or for a broad-peel stack. Use the supplied clinical_clearance history/proxy/temperature decisions; do not invent missing measurements or settings.
+Keep actionable how_to_do and real procedure doses. Provide concise why_today, stack_comparison, three genuine personalisation_evidence links, expectation_card, continuity, signature_moment, scripts and order_reason as requested by the schema. Each facial has exactly one mandatory 5-10-minute drainage and a final 3-minute finish. Facial INFUSE.* uses one actual ingredient per step at 3 minutes; EYE.INFUSE uses 2 minutes for the whole ocular step. Named registered products do not authorize incompatible mixtures. Unknown history stays unknown.
+Return relevant_alternatives only for material losing contenders, not a catalogue-wide ledger. The caller derives step numbers, equipment, actual totals, concern values, lip metadata and legacy omission summaries. Return all model-required fields from the schema. Preserve the supplied mother reference and clinical constraints; these annotations make the selected plan verifiable rather than change its clinical objective.`
 
 export const TREATMENT_RUNTIME_CONFIG = Object.freeze({
-  model: 'gpt-5.4', reasoningEffort: 'medium', serviceTier: 'auto',
+  outputContract: 'v5_6', model: 'gpt-5.4', reasoningEffort: 'medium', serviceTier: 'auto',
   // User-requested application override: zero disables automatic timeouts.
   deadlineMs: 0, initialCallMs: 0, minRepairBudgetMs: 15000,
-  maxRepairs: 1, maxOutputTokensSingle: 14000, maxOutputTokensMultiple: 22000,
+  maxRepairs: 1, maxOutputTokensSingle: 14000, maxOutputTokensMultiple: 22000, maxOutputTokensLiveMultiple: 40000,
   promptCacheKey: 'ai-aesthetics-treatment-v5.6-live-mother-2026-10-06', promptCacheRetention: '24h',
 })
 
@@ -73,22 +80,31 @@ export function buildTreatmentModelRequest({ systemPrompt, constraints, plannerI
   if (typeof systemPrompt !== 'string' || !systemPrompt.trim()) throw new Error('The replacement SYSTEM_TREATMENT_PLAN_PROMPT is required.')
   if (/TREATMENT PLANNER REVISION[^\n]*V5\.[1-5]\b/.test(systemPrompt))
     throw Object.assign(new Error('Use treatmentPrompt.js v5.6 together with the v5.6 pipeline and rules; the older prompt requests a different output contract.'), { code: 'treatment_input_contract_violation' })
-  const reference = compileTreatmentKnowledgeReference(plannerInput)
-  const prefix = systemPrompt.includes(TREATMENT_KNOWLEDGE_PROMPT)
+  const liveMother = settings.outputContract === 'live_mother'
+  if (!['v5_6', 'live_mother'].includes(settings.outputContract)) throw new Error('Unknown treatment output contract.')
+  // The supplied live prompt already embeds all 33 mother sections. Never append
+  // a second copy of the mother document or an exhaustive catalogue review.
+  const reference = liveMother ? null : compileTreatmentKnowledgeReference(plannerInput)
+  const prefix = liveMother ? systemPrompt : systemPrompt.includes(TREATMENT_KNOWLEDGE_PROMPT)
     ? systemPrompt.replace(TREATMENT_KNOWLEDGE_PROMPT, reference.stable_prefix)
     : `${systemPrompt}\n\n${reference.stable_prefix}`
-  const instructions = `${prefix}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${stableTreatmentJson(compileTreatmentConstraints(constraints))}`
-  const responseFormat = buildTreatmentGenerationResponseFormat(plannerInput.treatment_plan_type, plannerInput)
+  const instructions = liveMother
+    ? `${prefix}\n\n${LIVE_MOTHER_VALIDATION_ADAPTER}\n${CLINIC_TREATMENT_RULES_PROMPT}\nREGISTERED EXECUTABLE STEPS\n${stableTreatmentJson(Object.values(TREATMENT_STEPS).map(({ id, name, clinic_step_type, inventory_required, infusion_ingredient }) => ({ id, name, clinic_step_type, inventory_required, infusion_ingredient: infusion_ingredient ?? null })))}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${stableTreatmentJson(constraints)}`
+    : `${prefix}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${stableTreatmentJson(compileTreatmentConstraints(constraints))}`
+  const responseFormat = buildTreatmentGenerationResponseFormat(plannerInput.treatment_plan_type, plannerInput, settings.outputContract)
   // Preserve case-specific schema guards. Different primary sets form different
   // reusable cache groups; patient identity, scores and map values are excluded.
   const fingerprint = cacheFingerprint(`${settings.model}\0${settings.reasoningEffort}\0${instructions}\0${stableTreatmentJson(responseFormat)}`)
   const request = {
     model: settings.model,
     instructions,
-    input: stableTreatmentJson({ ...compileTreatmentPlannerInput(plannerInput), mother_case_reference: reference.case_reference }),
+    input: stableTreatmentJson(liveMother ? compileTreatmentPlannerInput(plannerInput)
+      : { ...compileTreatmentPlannerInput(plannerInput), mother_case_reference: reference.case_reference }),
     reasoning: { effort: settings.reasoningEffort },
     text: { verbosity: 'low', format: responseFormat },
-    max_output_tokens: plannerInput.treatment_plan_type === 'multiple' ? settings.maxOutputTokensMultiple : settings.maxOutputTokensSingle,
+    max_output_tokens: plannerInput.treatment_plan_type === 'multiple'
+      ? liveMother ? settings.maxOutputTokensLiveMultiple : settings.maxOutputTokensMultiple
+      : settings.maxOutputTokensSingle,
     service_tier: settings.serviceTier,
     prompt_cache_key: `${settings.promptCacheKey}:${fingerprint}`,
   }
@@ -151,7 +167,7 @@ export async function generateTreatmentPlan({
   const initialTimeout = settings.initialCallMs === 0 ? remainingTimeout()
     : Math.min(settings.initialCallMs, remainingTimeout() || Infinity)
   const metrics = { revision: settings.promptCacheKey, model: settings.model, calls: 0,
-    repaired: false, usage: [], elapsed_ms: 0, status: 'started' }
+    repaired: false, usage: [], elapsed_ms: 0, preparation_ms: 0, validation_ms: 0, status: 'started' }
   let plannerInput
   let request
   let candidate
@@ -174,6 +190,8 @@ export async function generateTreatmentPlan({
     metrics.patient_input_characters = request.input.length
     metrics.prompt_cache_key = request.prompt_cache_key
     metrics.prompt_cache_retention = request.prompt_cache_retention ?? 'default'
+    metrics.output_contract = settings.outputContract
+    metrics.preparation_ms = Date.now() - start
     metrics.call_metrics = []
     const recordedCall = async (modelRequest, timeout, kind) => {
       const began = Date.now()
@@ -188,25 +206,29 @@ export async function generateTreatmentPlan({
         throw error
       }
     }
-    const check = async (plan) => {
-      let result = validateClinicTreatmentPlan(finalizeTreatmentPlan(plan, plannerInput), plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput)
+    const checkPlan = async (plan) => {
+      let result = validateClinicTreatmentPlan(finalizeTreatmentPlan(plan, plannerInput), plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput, settings.outputContract)
       if (!result.error && existingClinicalValidator) {
         result = await timedCall(
           async (_, controls) => existingClinicalValidator(result, { plannerInput, constraints, signal: controls.signal }),
           null, remainingTimeout())
         if (!result?.error) {
           // A gateway/validator must not turn a complete plan into an empty success.
-          result = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(result, treatmentType, plannerInput), plannerInput)
-          result = validateClinicTreatmentPlan(result, plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput)
+          result = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(result, treatmentType, plannerInput, settings.outputContract), plannerInput)
+          result = validateClinicTreatmentPlan(result, plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput, settings.outputContract)
         }
       }
       return result
+    }
+    const check = async (plan) => {
+      const began = Date.now()
+      try { return await checkPlan(plan) } finally { metrics.validation_ms += Date.now() - began }
     }
     phase = 'model_request'
     metrics.calls += 1
     const response = await recordedCall(request, initialTimeout, 'initial')
     phase = 'output_contract'
-    const draft = unpackTreatmentPlannerResponse(parseModelResponse(response), treatmentType, plannerInput)
+    const draft = unpackTreatmentPlannerResponse(parseModelResponse(response), treatmentType, plannerInput, settings.outputContract)
     candidate = finalizeTreatmentPlan(draft, plannerInput)
     phase = 'initial_validation'
     let checked = await check(candidate)
@@ -228,7 +250,7 @@ export async function generateTreatmentPlan({
       phase = 'repair_request'
       const repair = await recordedCall(repairRequest, remainingTimeout(), 'repair')
       phase = 'repair_output_contract'
-      candidate = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(parseModelResponse(repair), treatmentType, plannerInput), plannerInput)
+      candidate = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(parseModelResponse(repair), treatmentType, plannerInput, settings.outputContract), plannerInput)
       phase = 'repair_validation'
       checked = await check(candidate)
       if (checked.error) {
@@ -262,6 +284,8 @@ export async function generateTreatmentPlan({
     return { error: failure }
   } finally {
     metrics.elapsed_ms = Date.now() - start
+    metrics.model_ms = (metrics.call_metrics || []).reduce((sum, row) => sum + row.elapsed_ms, 0)
+    metrics.local_overhead_ms = Math.max(0, metrics.elapsed_ms - metrics.model_ms)
     // Metrics contain sizes/usage/status only, never patient text or plan content.
     if (onMetrics) { try { onMetrics(metrics) } catch { /* Logging must not fail clinical generation. */ } }
   }

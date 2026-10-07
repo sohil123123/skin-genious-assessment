@@ -85,7 +85,6 @@
           :default-opened="index == 0"
         >
           <q-card flat class="q-pa-md bg-white">
-            <template v-if="!assessmentData?.face_scan_machine?.startsWith('5')">
             <div v-if="session.why_today" class="q-mb-md">{{ session.why_today }}</div>
             <div v-if="session.primary_strategy?.length" class="q-mb-md">
               <div v-for="strategy in session.primary_strategy" :key="strategy.concern" class="q-mb-sm">
@@ -113,7 +112,6 @@
               <strong>Step {{ session.signature_moment.step_number }}:</strong> {{ session.signature_moment.what }}
               <div>{{ session.signature_moment.clinical_role }}</div>
             </div>
-            </template>
             <div class="grid">
               <!-- Left Panel -->
               <div class="panel q-pa-md">

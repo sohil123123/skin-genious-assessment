@@ -201,7 +201,6 @@ import { getFacialPrompts } from 'src/utils/facial'
 import {
   formatFacialClientScores,
   prepareFacialEngineInput,
-  facialClientScore,
 } from 'src/utils/facial/clientScoreDisplay.js'
 import {
   buildClinicTreatmentContext,
@@ -209,6 +208,7 @@ import {
   TREATMENT_PLAN_RESPONSE_FORMAT,
   validateClinicTreatmentPlan,
 } from 'src/utils/facial/treatmentClinicRules.js'
+import { treatmentHistoryFlags, inClinicProductRecords } from 'src/utils/facial/5_light_modes/treatmentIntegration.js'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
 
@@ -867,92 +867,53 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
   }
 
   const prompts = await getFacialPrompts(assessmentData.value.face_scan_machine)
-  if (assessmentData.value.face_scan_machine?.startsWith('5')) {
-    const started = performance.now()
-    let phase = 'preparation'
-    try {
-      const rawDiagnosis = prepareFacialEngineInput(assessmentData.value.diagnosis)
-      const report = rawDiagnosis?.diagnosis_report ?? rawDiagnosis ?? {}
-      const numericScore = value => {
-        if (!['number', 'string'].includes(typeof value) || String(value).trim() === '') return null
-        const number = Number(value)
-        return Number.isFinite(number) && number >= 1 && number <= 100 ? number : null
-      }
-      // Supply genuine application display scores for the new lip/periocular
-      // rules, retaining the original raw diagnosis and targets for planning.
-      const displayScoreParameters = new Set(['lippigmentation', 'lippigmentationscore',
-        'periorbitalhealth', 'periorbitalhealthscore', 'periocularhealth', 'periocularhealthscore', 'periocularscore'])
-      for (const [key, row] of Object.entries(report)) {
-        if (!row || typeof row !== 'object' || ![key, row.parameter_name, row.parameter]
-          .some(name => displayScoreParameters.has(String(name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')))) continue
-        const explicit = numericScore(row.client_display_score ?? row.customer_facing_score ?? row.customer_display_score)
-        const alreadyHealth = row.score_polarity === 'higher_is_better' || row.score_semantics === 'health'
-        const raw = numericScore(row.score_or_label ?? row.final_score ?? row.current_score)
-        const display = explicit ?? (raw === null ? null : facialClientScore(raw, alreadyHealth ? 'health' : 'severity'))
-        if (display !== null) row.client_display_score = Math.round(display)
-      }
-      const summary = selected?.treatable_concerns_summary ?? selected?.treatable_concerns ?? selected
-      const rows = Array.isArray(summary) ? summary : summary?.parameters_with_abnormal_scores ?? []
-      const planType = treatmentType === 'full' ? 'multiple' : treatmentType
-      const input = [
-        { role: 'system', content: [
-          { type: 'input_text', text: prompts.SYSTEM_TREATMENT_PLAN_PROMPT },
-          { type: 'input_text', text: encode(prompts.constraints) },
-        ] },
-        { role: 'user', content: [
-          { type: 'input_text', text: encode(patientData) },
-          { type: 'input_text', text: encode(prepareFacialEngineInput(assessmentData.value.feature_packet)) },
-          { type: 'input_text', text: encode({
-            diagnosis_report: report,
-            treatable_concerns: {
-              description: summary?.description || 'Parameters showing deviations that can be treated or improved with appropriate interventions.',
-              parameters_with_abnormal_scores: prepareFacialEngineInput(rows),
-            },
-            selected_plan_type: planType,
-            treatment_plan_type: planType,
-          }) },
-        ] },
-      ]
-      phase = 'model_request'
-      const result = await runResponse(convId, input, import.meta.env.VITE_OPENAI_MODEL || 'gpt-5.2', {
-        ...FACIAL_JSON_OPTIONS,
-        max_retries: 0,
-        timeout_ms: 0,
-        hide_loading: false,
-        // Retain the gateway's established timeout-free facial treatment stage.
-        metadata: { stage: 'facial_treatment_v5', pipeline_version: 'facial_live_mother_2026_10_06' },
-      })
-      phase = 'response_structure'
-      if (result?.error) {
-        console.error('[facial-treatment-live] generation failed', result.error)
-        return result
-      }
-      const sessions = result?.treatment_plan?.treatments
-      if (!Array.isArray(sessions) || !sessions.length ||
-        (['single', 'express'].includes(planType) && sessions.length !== 1) || sessions.some(session =>
-        !session || !Number.isInteger(Number(session.session_number)) || Number(session.session_number) < 1 ||
-        typeof session.title !== 'string' || !Array.isArray(session.preparations_checklist_for_therapist) ||
-        !Array.isArray(session.concerns_addressed) || !Array.isArray(session.steps) || !session.steps.length ||
-        session.steps.some(step => !step || !['number', 'string'].includes(typeof step.duration) ||
-          !Number.isFinite(Number(step.duration)) || Number(step.duration) <= 0 ||
-          typeof step.how_to_do !== 'string' || typeof step.script !== 'string' || !Array.isArray(step.ingredients_equipments))))
-        throw Object.assign(new Error('The treatment response is missing complete sessions or valid steps.'),
-          { code: 'treatment_output_contract_violation', details: ['The original live treatment_plan.treatments response is required; an empty or malformed plan cannot be saved.'] })
-      return result
-    } catch (error) {
-      const failure = { code: error.code || 'treatment_generation_failed', message: error.message,
-        details: error.details || [], phase, stack: error.stack }
-      console.error('[facial-treatment-live] generation failed', failure)
-      return { error: failure }
-    } finally {
-      console.info('[facial-treatment-live] request elapsed', { elapsed_ms: Math.round(performance.now() - started) })
-      Loading.hide()
-    }
-  }
   const clinicTreatmentContext = buildClinicTreatmentContext(
     assessmentData.value.diagnosis,
     assessmentData.value.feature_packet,
   )
+  if (prompts.generateTreatmentPlan) {
+    const products = inClinicProductRecords(prompts.available_skincare_products)
+    try {
+      const plan = await prompts.generateTreatmentPlan({
+        callModel: async (request, controls) => {
+          let response
+          try {
+            response = await api.post('ai/responses', {
+              ...request,
+              // The authenticated gateway accepts Responses message arrays.
+              input: [{ role: 'user', content: [{ type: 'input_text', text: request.input }] }],
+              timeout_ms: controls.timeoutMs,
+              metadata: { stage: 'facial_treatment_v5', pipeline_version: 'live_mother_validated' },
+            }, { signal: controls.signal, timeout: controls.timeoutMs })
+          } catch (error) {
+            throw Object.assign(new Error(error.response?.data?.error?.message || error.response?.data?.message || error.message), { code: error.response?.data?.error?.code || error.code, status: error.response?.status, details: error.response?.data?.error?.details || error.response?.data?.errors || [], response_id: error.response?.data?.error?.response_id })
+          }
+          return response.data
+        },
+        systemPrompt: `${prompts.SYSTEM_TREATMENT_PLAN_PROMPT}\nAPPROVED IN-CLINIC CLEANSING AND FINISHING PRODUCTS\n${encode(products)}\nHome-care is a separate request.`,
+        constraints: prompts.constraints,
+        diagnosis: assessmentData.value.diagnosis,
+        selectedConcerns: selected,
+        treatmentType,
+        clinicContext: clinicTreatmentContext,
+        options: {
+          patientProfileAndHistory: patientData,
+          historyRuleFlags: treatmentHistoryFlags(assessmentData.value),
+          temperatureReadings: {
+            forehead_surface_c: patientData.forehead_surface_c,
+            left_cheek_surface_c: patientData.left_cheek_surface_c,
+            right_cheek_surface_c: patientData.right_cheek_surface_c,
+          },
+          featurePacket: assessmentData.value.feature_packet,
+          inClinicProductNames: products.map(product => product.name),
+        },
+        // The former validator is the shared catalogue-ledger contract. V5's
+        // local validator replaces it; no additional server evaluator exists here.
+        onMetrics: metrics => console.info('[facial-treatment-v5]', metrics),
+      })
+      return plan
+    } finally { Loading.hide() }
+  }
   const treatmentPlannerInput = buildTreatmentPlannerInput(
     assessmentData.value.diagnosis,
     selected,

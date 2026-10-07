@@ -93,17 +93,19 @@ const finalStep = object({ step_number: int, ...stepProperties, catalogue_option
 const finalSession = object({ ...sessionProperties, steps: array(finalStep, { minItems: 1 }), treatment_time: num,
   step_duration_total: num, timing_validation: object({ calculated_from_steps: num, matches_treatment_time: { type: 'boolean' } }) })
 export const normalizeTreatmentPlanType = (value) => value === 'full' ? 'multiple' : value
-const sessionLimits = (treatmentType) => treatmentType == null ? { minItems: 1, maxItems: 2 }
+const sessionLimits = (treatmentType, outputContract = 'v5_6') => treatmentType == null
+  ? outputContract === 'live_mother' ? { minItems: 1 } : { minItems: 1, maxItems: 2 }
   : ['single','express'].includes(normalizeTreatmentPlanType(treatmentType)) ? { minItems: 1, maxItems: 1 }
-  : normalizeTreatmentPlanType(treatmentType) === 'multiple' ? { minItems: 2, maxItems: 2 }
+  : normalizeTreatmentPlanType(treatmentType) === 'multiple'
+    ? outputContract === 'live_mother' ? { minItems: 5 } : { minItems: 2, maxItems: 2 }
   : (() => { throw new Error('Unknown treatment plan type.'); })()
 
-export function buildTreatmentPlanResponseFormat(treatmentType = null) {
+export function buildTreatmentPlanResponseFormat(treatmentType = null, outputContract = 'v5_6') {
   return format('facial_treatment_plan_v5_1', { ...planProperties,
-    treatments: array(finalSession, sessionLimits(treatmentType)) })
+    treatments: array(finalSession, sessionLimits(treatmentType, outputContract)) })
 }
 
-export function buildTreatmentGenerationResponseFormat(treatmentType = null, plannerInput = null) {
+export function buildTreatmentGenerationResponseFormat(treatmentType = null, plannerInput = null, outputContract = 'v5_6') {
   const multiple = normalizeTreatmentPlanType(treatmentType) === 'multiple'
   const hasCaseData = plannerInput && (Object.hasOwn(plannerInput, 'diagnosis_report') || Object.hasOwn(plannerInput, 'treatable_concerns'))
   const contract = hasCaseData ? buildTreatmentConcernContract(plannerInput) : null
@@ -129,10 +131,11 @@ export function buildTreatmentGenerationResponseFormat(treatmentType = null, pla
       ? { minItems: contract.required_primary_concerns.length, maxItems: contract.required_primary_concerns.length } : {}),
     steps: array(caseStepSchema, { minItems: 1 }) }
   const draftProperties = { ...planProperties,
-    treatments: array(object(caseSessionProperties), sessionLimits(treatmentType)),
+    treatments: array(object(caseSessionProperties), sessionLimits(treatmentType, outputContract)),
     course_outline: { ...planProperties.course_outline,
       ...(treatmentType == null ? {} : multiple ? { minItems: 5, maxItems: 8 } : { maxItems: 0 }) },
   }
+  if (outputContract === 'live_mother') delete draftProperties.course_outline
   // Arithmetic is performed locally; the model cannot assert an unsupported total.
   delete draftProperties.total_time
   // The model explains only material losing alternatives. The legacy 11-key
@@ -345,11 +348,11 @@ function schemaErrors(value, schema, path = 'plan', errors = []) {
   return errors
 }
 
-export function unpackTreatmentPlannerResponse(parsed, treatmentType, plannerInput = null) {
+export function unpackTreatmentPlannerResponse(parsed, treatmentType, plannerInput = null, outputContract = 'v5_6') {
   const contractError = (details) => Object.assign(new Error('Treatment generation returned an invalid output contract.'),
     { code: 'treatment_output_contract_violation', details })
   if (parsed && Object.hasOwn(parsed, 'planning_result')) {
-    const errors = schemaErrors(parsed, buildTreatmentGenerationResponseFormat(treatmentType, plannerInput).schema)
+    const errors = schemaErrors(parsed, buildTreatmentGenerationResponseFormat(treatmentType, plannerInput, outputContract).schema)
     if (errors.length) throw contractError(errors)
     const result = parsed.planning_result
     if (result.outcome === 'blocked') {
@@ -365,8 +368,8 @@ export function unpackTreatmentPlannerResponse(parsed, treatmentType, plannerInp
   // Existing server gateways may already return the unwrapped draft/final plan.
   // They must still supply the selected number of sessions and actual steps.
   const sessions = parsed?.treatment_plan?.treatments
-  const limits = sessionLimits(treatmentType)
-  if (!Array.isArray(sessions) || sessions.length < limits.minItems || sessions.length > limits.maxItems ||
+  const limits = sessionLimits(treatmentType, outputContract)
+  if (!Array.isArray(sessions) || sessions.length < limits.minItems || (limits.maxItems != null && sessions.length > limits.maxItems) ||
       sessions.some((session) => !Array.isArray(session?.steps) || !session.steps.length))
     throw contractError(['A successful result requires the selected number of detailed sessions and non-empty steps; an empty treatment array is not a clinical blockage.'])
   return parsed
@@ -607,7 +610,10 @@ function finalizeDecisionSummary(root) {
 export function finalizeTreatmentPlan(draft, plannerInput = null) {
   if (!draft || typeof draft !== 'object' || draft.error) return draft
   const plan = JSON.parse(JSON.stringify(draft))
-  if (plan.treatment_plan) finalizeDecisionSummary(plan.treatment_plan)
+  if (plan.treatment_plan) {
+    finalizeDecisionSummary(plan.treatment_plan)
+    plan.treatment_plan.course_outline ||= []
+  }
   for (const session of plan.treatment_plan?.treatments || []) {
     const steps = session.steps || []
     steps.forEach((step, index) => {
@@ -691,10 +697,10 @@ const noCorrective = new Set(['PREP.CLEANSE','ENERGY.CARBON.APPLY','PEEL.SPOT.SA
 
 // This validator checks executable contracts, not whether a clinician agrees with
 // the model's expected benefit. Keep the existing clinical validator at the caller.
-export function validateClinicTreatmentPlan(plan, context, treatmentType, constraints = {}, plannerInput = null) {
+export function validateClinicTreatmentPlan(plan, context, treatmentType, constraints = {}, plannerInput = null, outputContract = 'v5_6') {
   if (plan?.error) return plan
   const enginePlan = prepareFacialEngineInput(plan)
-  const errors = schemaErrors(enginePlan, buildTreatmentPlanResponseFormat().schema)
+  const errors = schemaErrors(enginePlan, buildTreatmentPlanResponseFormat(null, outputContract).schema)
   const root = enginePlan?.treatment_plan
   const sessions = Array.isArray(root?.treatments) ? root.treatments : []
   const normalizedType = normalizeTreatmentPlanType(treatmentType)
@@ -714,7 +720,9 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   if (!lip) errors.push('Lip-rule context is missing.')
   if (!sessions.length) errors.push('No compliant detailed treatment sessions returned.')
   if (['single','express'].includes(normalizedType) && sessions.length !== 1) errors.push('Single/Express requires exactly one detailed session.')
-  if (normalizedType === 'multiple') {
+  if (normalizedType === 'multiple' && outputContract === 'live_mother') {
+    if (sessions.length < 5) errors.push('The supplied live mother course requires at least five detailed sessions.')
+  } else if (normalizedType === 'multiple') {
     if (sessions.length !== 2) errors.push('Multiple requires only sessions 1 and 2 in detail; later sessions require reassessment.')
     const outline = root?.course_outline || []
     if (outline.length < 5 || outline.length > 8) errors.push('The course outline requires 5-8 sessions.')
@@ -775,7 +783,22 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
         const actual = step.infusion_ingredients
         const actualKeys = Array.isArray(actual) ? actual.map(ingredientKey) : []
         if (!actualKeys.length || new Set(actualKeys).size !== actualKeys.length || actual.some((v) => !nonempty(v))) errors.push(`${stepLabel}: distinct actual ingredients are required.`)
-        const allowed = step.clinic_step_type === 'infusion' ? ingredients.filter((item) => !item.approved_delivery_routes || item.approved_delivery_routes.includes('infusion')).map((item) => ingredientKey(item.name)) : (protocols[step.clinic_step_type]?.approved_ingredients || []).map(ingredientKey)
+        // The supplied live file stores ocular approvals in its score rule and
+        // facial approvals in the confirmed timing entry. Older v5.6 files use
+        // supportive_treatment_protocols. An explicit empty approval list stays
+        // empty; never replace a supplied restriction with a fallback.
+        const approved = step.clinic_step_type === 'infusion'
+          ? constraints.clinical_constraints?.clinic_step_timings_minutes?.facial_infusion?.solutions
+            ?? ingredients.filter(item => !item.approved_delivery_routes || item.approved_delivery_routes.includes('infusion')).map(item => item.name)
+          : protocols[step.clinic_step_type]?.approved_ingredients
+            ?? (step.clinic_step_type === 'under_eye_infusion'
+              ? constraints.clinical_constraints?.under_eye_infusion_score_rule?.approved_serums
+              : null)
+            // These exact ingredient names/aliases are in the registered mother
+            // equipment reference (e.g. Vitamin C / TRX / HA / Niacinamide).
+            ?? ref.equipment_reference?.split(';')[1]?.trim().split(/\s*\/\s*/)
+            ?? []
+        const allowed = approved.map(ingredientKey)
         if (actualKeys.some((name) => !allowed.includes(name))) errors.push(`${stepLabel}: ingredient is not approved for this route.`)
         if (ref.infusion_ingredient && (actualKeys.length !== 1 || actualKeys[0] !== ingredientKey(ref.infusion_ingredient))) errors.push(`${stepLabel}: facial INFUSE.* ID must match one exact ingredient.`)
         if (step.clinic_step_type === 'infusion') limits = [3 * actualKeys.length, 3 * actualKeys.length]

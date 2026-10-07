@@ -3,189 +3,224 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
-import { formatFacialClientScores, prepareFacialEngineInput, facialClientScore } from '../src/utils/facial/clientScoreDisplay.js'
+import { encode } from '@toon-format/toon'
+import { formatFacialClientScores, prepareFacialEngineInput } from '../src/utils/facial/clientScoreDisplay.js'
 import { requireSavedTreatmentSessions } from '../src/utils/facial/treatmentPersistence.js'
+import { generateTreatmentPlan } from '../src/utils/facial/5_light_modes/treatmentPipeline.js'
+import { buildClinicTreatmentContext as sharedContext } from '../src/utils/facial/treatmentClinicRules.js'
+import { treatmentHistoryFlags, inClinicProductRecords } from '../src/utils/facial/5_light_modes/treatmentIntegration.js'
+import { available_skincare_products } from '../src/utils/facial/5_light_modes/treatment/productJson.js'
 
 const read = path => readFile(new URL('../' + path, import.meta.url), 'utf8')
 const page = await read('src/pages/IndexPage.vue')
 const functionSource = page.slice(page.indexOf('async function callApiForTreatmentPlan('), page.indexOf('async function callApiForPostDiagnosis('))
-const transportSource = await read('src/composables/useOpenAI.js')
 const fixture = JSON.parse(await read('tests/fixtures/case91.json'))
 const constraints = JSON.parse(await read('src/utils/facial/5_light_modes/treatment/constraints.json'))
 const promptSource = await read('src/utils/facial/5_light_modes/treatment/treatmentPrompt.js')
+const systemPrompt = new Function('encode', 'available_skincare_products', promptSource.replace(/^import .*\r?\n/gm, '')
+  .replaceAll('export const ', 'const ') + '\nreturn SYSTEM_TREATMENT_PLAN_PROMPT;')(encode, available_skincare_products)
 const clone = value => structuredClone(value)
-function livePlan(count = 1) {
-  return { treatment_plan: { total_time: 'Original live course duration', treatments: Array.from({ length: count }, (_, index) => ({
-    session_number: index + 1, title: 'Synthetic software session', week: index + 1,
-    script: 'Synthetic offline fixture.', treatment_time: 4,
-    preparations_checklist_for_therapist: ['Synthetic screening.'],
-    concerns_addressed: [{ concern: 'Peri-Orbital Health Score', current_value: 31.25, target_value: 25.123 }],
-    steps: [{ step_number: 1, duration: 4, ingredients_equipments: ['Synthetic stocked finish'],
-      how_to_do: 'Synthetic clinician instruction.', script: 'Synthetic patient explanation.' }],
-    step_duration_total: 4, timing_validation: { calculated_from_steps: 4, matches_treatment_time: true },
-  })), modality_omission_explanation: { q_switch_laser: 'Synthetic reason.', carbon_facial: 'Synthetic reason.',
-    chemical_peel: 'Synthetic reason.', rf_hifu_microneedling: 'Synthetic reason.' } } }
+function success(count = 1) {
+  const plan = clone(fixture.successful_model_plan)
+  delete plan.total_time
+  delete plan.modality_omission_explanation
+  delete plan.course_outline
+  plan.relevant_alternatives = []
+  const first = plan.treatments[0]
+  for (const key of ['concerns_addressed', 'treatment_time', 'step_duration_total', 'timing_validation']) delete first[key]
+  for (const step of first.steps) {
+    for (const key of ['step_number', 'clinic_step_type', 'ingredients_equipments', 'catalogue_option_ids', 'lip_passes', 'lip_serum']) delete step[key]
+  }
+  plan.treatments = Array.from({ length: count }, (_, index) => ({ ...clone(first), session_number: index + 1, week: 1 + index * 2 }))
+  return { planning_result: { outcome: 'success', treatment_plan: plan, failure: null } }
 }
-function harness({ response = livePlan(), environment = {}, transport = null, mode = '5 lights', diagnosis = fixture.planner_input.diagnosis_report } = {}) {
+function harness({ response = success(), transport = null, mode = '5 lights' } = {}) {
   const state = { face_scan_machine: mode, conversation_id: 'fixture-conversation',
-    diagnosis: formatFacialClientScores({ diagnosis_report: clone(diagnosis) }),
-    feature_packet: clone(fixture.planner_input.feature_evidence), age: 32, is_pregnant: false,
+    diagnosis: formatFacialClientScores({ diagnosis_report: clone(fixture.planner_input.diagnosis_report) }),
+    feature_packet: clone(fixture.planner_input.feature_evidence), age: 32,
+    daily_sun_exposure_hours: 'Less than 1 hour', medical_history: ['None'], allergies: ['None'],
+    is_pregnant: false, breastfeeding: false, social_event: false, upcoming_travel: false,
+    recent_peel_or_laser: false, retinol_used_last_night: false,
     skin_temp_for_head: null, left_cheek_temp: '35.7', right_cheek_temp: '' }
-  const calls = [], logs = [], clinicCalls = []
+  const calls = [], logs = [], clinicCalls = [], legacyCalls = []
   let hides = 0
   const scope = {
-    environment, assessmentData: { value: state }, performance,
+    assessmentData: { value: state }, performance,
     console: { info: (...args) => logs.push(args), error: (...args) => logs.push(args), log: () => {}, warn: () => {} },
     Loading: { show: () => {}, hide: () => { hides++ } }, QSpinnerFacebook: {},
-    getFacialPrompts: async () => ({ SYSTEM_TREATMENT_PLAN_PROMPT: 'Supplied live system prompt fixture.', constraints }),
-    prepareFacialEngineInput, formatFacialClientScores, facialClientScore, encode: JSON.stringify,
-    FACIAL_JSON_OPTIONS: { text: { format: { type: 'json_object' } } },
-    runResponse: async (...args) => { calls.push(args); return transport ? transport(...args) : clone(response) },
-    buildClinicTreatmentContext: () => { clinicCalls.push('context'); return {} },
+    getFacialPrompts: async () => ({ SYSTEM_TREATMENT_PLAN_PROMPT: systemPrompt, constraints, available_skincare_products,
+      ...(mode.startsWith('5') ? { generateTreatmentPlan: options => generateTreatmentPlan({ ...options, config: { outputContract: 'live_mother' } }) } : {}) }),
+    prepareFacialEngineInput, formatFacialClientScores, encode, treatmentHistoryFlags, inClinicProductRecords,
+    api: { post: async (...args) => { calls.push(args); return transport ? transport(...args) : { data: clone(response) } } },
+    runResponse: async (...args) => { legacyCalls.push(args); return { treatment_plan: { treatments: [] } } },
+    buildClinicTreatmentContext: (...args) => { clinicCalls.push('context'); return sharedContext(...args) },
     buildTreatmentPlannerInput: () => { clinicCalls.push('input'); return { treatment_catalogue: [], treatment_plan_type: 'single' } },
     TREATMENT_PLAN_RESPONSE_FORMAT: { type: 'json_schema' },
     validateClinicTreatmentPlan: value => { clinicCalls.push('validation'); return value },
   }
-  const call = new Function(...Object.keys(scope), functionSource.replaceAll('import.meta.env', 'environment') + '\nreturn callApiForTreatmentPlan;')(...Object.values(scope))
-  return { call, state, calls, logs, clinicCalls, hides: () => hides }
+  const call = new Function(...Object.keys(scope), functionSource + '\nreturn callApiForTreatmentPlan;')(...Object.values(scope))
+  return { call, state, calls, logs, clinicCalls, legacyCalls, hides: () => hides }
 }
 
-test('active prompt and constraints exactly match the supplied live package', async () => {
+test('supplied live prompt and constraints remain identical apart from checkout line endings', async () => {
   for (const [path, expected] of [
-    ['src/utils/facial/5_light_modes/treatment/treatmentPrompt.js', 'a00d990a00ca226bc7ffecb4908036fa7f45bbeb77f81d5c8df28db2f392dad4'],
+    ['src/utils/facial/5_light_modes/treatment/treatmentPrompt.js', 'b4b76824e062b6292c296a923af6ce07a1288d4f52a37210a28f4f54d50d1e5e'],
     ['src/utils/facial/5_light_modes/treatment/constraints.json', '4bad4baaa6be72d96bfcfd4957c1ecbc2d5945f17874e1a45912659d1958b3dc'],
-  ]) {
-    const bytes = await readFile(new URL('../' + path, import.meta.url))
-    assert.equal(createHash('sha256').update(bytes).digest('hex'), expected)
-  }
-  assert.ok(!/primary_strategy|expectation_card|personalisation_evidence|planning_result/.test(promptSource))
+  ]) assert.equal(createHash('sha256').update((await read(path)).replaceAll('\r\n', '\n')).digest('hex'), expected)
+  const loader = await read('src/utils/facial/index.js')
+  assert.match(loader, /await import\('\.\/5_light_modes\/treatmentPipeline.js'\)/)
+  assert.match(loader, /outputContract: 'live_mother'/)
 })
 
-test('five-light caller makes one original-format request without clinic helpers or forced reasoning', async () => {
+test('actual five-light caller validates and saves a complete draft through one gateway request', async () => {
   const h = harness()
-  const result = await h.call([], 'single')
-  assert.equal(result.error, undefined)
-  assert.equal(h.calls.length, 1)
-  const [conversation, input, model, options] = h.calls[0]
-  assert.equal(conversation, 'fixture-conversation')
-  assert.equal(model, 'gpt-5.2')
-  assert.deepEqual(input.map(item => item.role), ['system', 'user'])
-  assert.equal(input[0].content.length, 2)
-  assert.deepEqual(JSON.parse(input[0].content[1].text), constraints)
-  assert.equal(input[1].content.length, 3)
-  assert.deepEqual(options.text.format, { type: 'json_object' })
-  assert.equal(options.reasoning_effort, undefined)
-  assert.equal(options.max_output_tokens, undefined)
-  assert.equal(options.max_retries, 0)
-  assert.equal(options.timeout_ms, 0)
-  assert.deepEqual(h.clinicCalls, [])
-  assert.equal(h.hides(), 1)
-  assert.equal(result.planning_result, undefined)
-})
-
-test('original-format input preserves raw targets and client scores without mutating assessment data', async () => {
-  const diagnosis = { periorbital_health: { parameter_name: 'Peri-Orbital Health Score', score_or_label: 31.25, target_single_session_score: 25.123 },
-    lip_pigmentation: { parameter_name: 'Lip Pigmentation Score', score_or_label: 40.4, target_single_session_score: 35.678 } }
-  const h = harness({ diagnosis })
   const before = clone(h.state)
-  const selected = [{ parameter: 'Peri-Orbital Health Score', current_score: 31.25, target_score: 25.123, is_primary_concern: true }]
-  await h.call(formatFacialClientScores(selected), 'single')
-  const input = JSON.parse(h.calls[0][1][1].content[2].text)
-  assert.equal(input.diagnosis_report.periorbital_health.score_or_label, 31.25)
-  assert.equal(input.diagnosis_report.periorbital_health.client_display_score, 70)
-  assert.equal(input.diagnosis_report.lip_pigmentation.client_display_score, 61)
-  assert.equal(input.diagnosis_report.periorbital_health.target_single_session_score, 25.123)
-  assert.equal(input.treatable_concerns.parameters_with_abnormal_scores[0].current_score, 31.25)
-  assert.equal(input.treatable_concerns.parameters_with_abnormal_scores[0].target_score, 25.123)
+  const result = await h.call(fixture.planner_input.treatable_concerns, 'single')
+  assert.equal(result.error, undefined, JSON.stringify(result.error))
+  assert.equal(result.treatment_plan.total_time, '62 minutes')
+  assert.equal(h.calls.length, 1)
+  assert.equal(h.legacyCalls.length, 0)
+  const [route, body, controls] = h.calls[0]
+  assert.equal(route, 'ai/responses')
+  assert.equal(body.model, 'gpt-5.4')
+  assert.equal(body.reasoning.effort, 'medium')
+  assert.equal(body.text.format.type, 'json_schema')
+  assert.equal(body.text.format.strict, true)
+  assert.equal(body.timeout_ms, 0)
+  assert.equal(controls.timeout, 0)
+  assert.equal(controls.signal.aborted, false)
+  assert.equal(body.metadata.stage, 'facial_treatment_v5')
+  assert.equal(body.prompt_cache_retention, '24h')
+  assert.ok(body.instructions.startsWith(systemPrompt))
+  assert.equal(body.instructions.includes('MOTHER DOCUMENT REFERENCE KNOWLEDGE — STABLE TABLES'), false)
+  assert.equal(body.instructions.includes('REGISTERED EXECUTABLE STEPS'), true)
+  const input = JSON.parse(body.input[0].content[0].text)
+  assert.equal(input.mother_case_reference, undefined)
+  assert.equal(input.patient_profile_and_history.forehead_surface_c, null)
+  assert.equal(input.patient_profile_and_history.left_cheek_surface_c, 35.7)
+  assert.equal(input.patient_profile_and_history.right_cheek_surface_c, null)
   assert.deepEqual(h.state, before)
-  const patient = JSON.parse(h.calls[0][1][1].content[0].text)
-  assert.equal(patient.forehead_surface_c, null)
-  assert.equal(patient.left_cheek_surface_c, 35.7)
-  assert.equal(patient.right_cheek_surface_c, null)
-})
-
-test('full courses use multiple and accept all original-format detailed sessions', async () => {
-  const h = harness({ response: livePlan(5), environment: { VITE_OPENAI_MODEL: 'configured-model-fixture' } })
-  const result = await h.call({ treatable_concerns: { parameters_with_abnormal_scores: [] } }, 'full')
-  assert.equal(result.treatment_plan.treatments.length, 5)
-  assert.equal(h.calls[0][2], 'configured-model-fixture')
-  const input = JSON.parse(h.calls[0][1][1].content[2].text)
-  assert.equal(input.selected_plan_type, 'multiple')
-  assert.equal(input.treatment_plan_type, 'multiple')
+  assert.equal(h.hides(), 1)
   assert.throws(() => requireSavedTreatmentSessions({ treatment_sessions: { treatments: [] } }, result), /did not confirm/)
-  const saved = result.treatment_plan.treatments.map(row => ({ session_number: row.session_number, id: 100 + row.session_number }))
+  const saved = [{ id: 100, session_number: 1 }]
   assert.equal(requireSavedTreatmentSessions({ treatment_sessions: { treatments: saved } }, result), saved)
 })
 
-test('empty or malformed original-format responses fail without another model request', async () => {
-  const empty = livePlan(); empty.treatment_plan.treatments = []
-  const noSteps = livePlan(); noSteps.treatment_plan.treatments[0].steps = []
-  const badTime = livePlan(); badTime.treatment_plan.treatments[0].steps[0].duration = 'invalid'
-  for (const response of [empty, noSteps, badTime, { planning_result: {} }, livePlan(2)]) {
+test('one correction request receives the invalid draft and all errors, then passes clinical validation', async () => {
+  const invalid = success()
+  invalid.planning_result.treatment_plan.treatments[0].steps.find(step => step.step_id === 'FINISH.SMS').duration = 4
+  let attempts = 0
+  const h = harness({ transport: async (_, body) => {
+    attempts++
+    if (attempts === 1) return { data: invalid }
+    const input = JSON.parse(body.input[0].content[0].text)
+    assert.ok(input.validation_errors.some(detail => /must take/.test(detail)))
+    assert.equal(input.invalid_draft.treatment_plan.treatments[0].steps.find(step => step.step_id === 'FINISH.SMS').duration, 4)
+    return { data: success() }
+  } })
+  assert.equal((await h.call(fixture.planner_input.treatable_concerns, 'single')).error, undefined)
+  assert.equal(attempts, 2)
+  const metrics = h.logs.find(row => row[0] === '[facial-treatment-v5]')[1]
+  assert.equal(metrics.repaired, true)
+  assert.deepEqual(metrics.call_metrics.map(row => row.kind), ['initial', 'repair'])
+  assert.ok(metrics.validation_ms >= 0)
+  assert.equal(metrics.model_ms, metrics.call_metrics.reduce((sum, row) => sum + row.elapsed_ms, 0))
+})
+
+test('an invalid repair returns combined diagnostics and never an accepted treatment plan', async () => {
+  const invalid = success()
+  invalid.planning_result.treatment_plan.treatments[0].steps.find(step => step.step_id === 'FINISH.SMS').duration = 4
+  const h = harness({ response: invalid })
+  const result = await h.call(fixture.planner_input.treatable_concerns, 'single')
+  assert.ok(result.error)
+  assert.equal(result.treatment_plan, undefined)
+  assert.equal(h.calls.length, 2)
+  assert.ok(result.error.details.some(detail => detail.startsWith('Initial draft:')))
+  assert.ok(result.error.details.some(detail => detail.startsWith('Repair draft:')))
+})
+
+test('live courses keep five detailed sessions and confirm every persisted ID', async () => {
+  const h = harness({ response: success(5) })
+  const result = await h.call(fixture.planner_input.treatable_concerns, 'full')
+  assert.equal(result.error, undefined, JSON.stringify(result.error))
+  assert.equal(result.treatment_plan.treatments.length, 5)
+  assert.equal(h.calls.length, 1)
+  const schema = h.calls[0][1].text.format.schema.properties.planning_result.anyOf[0].properties.treatment_plan
+  assert.equal(schema.properties.treatments.minItems, 5)
+  assert.equal(schema.properties.treatments.maxItems, undefined)
+  assert.equal(schema.properties.course_outline, undefined)
+  const saved = result.treatment_plan.treatments.map(row => ({ id: 100 + row.session_number, session_number: row.session_number }))
+  assert.throws(() => requireSavedTreatmentSessions({ treatment_sessions: { treatments: saved.slice(0, 2) } }, result), /did not confirm/)
+  assert.equal(requireSavedTreatmentSessions({ treatment_sessions: { treatments: saved } }, result), saved)
+})
+
+test('clinical history gates still reject selected prohibited energy rather than accepting a timed plan', async () => {
+  const h = harness()
+  h.state.is_pregnant = true
+  const result = await h.call(fixture.planner_input.treatable_concerns, 'single')
+  assert.ok(result.error)
+  assert.ok(result.error.details.some(detail => /pregnant/.test(detail)))
+  assert.equal(h.calls.length, 2)
+})
+
+test('the active live constraints require ocular care at display 70 and repair a missing ocular step', async () => {
+  const corrected = success()
+  const session = corrected.planning_result.treatment_plan.treatments[0]
+  const ocular = clone(session.steps.find(step => step.step_id === 'INFUSE.HA'))
+  Object.assign(ocular, { step_id: 'EYE.INFUSE', duration: 2, zones: ['under_eye'],
+    target_concerns: ['Peri-Orbital Health Score'], role: 'SUPPORT', intensity_rung: null })
+  session.steps.splice(-1, 0, ocular)
+  let attempts = 0
+  const h = harness({ transport: async (_, body) => {
+    attempts++
+    if (attempts === 1) return { data: success() }
+    const input = JSON.parse(body.input[0].content[0].text)
+    assert.ok(input.validation_errors.some(detail => /periocular score <=70/.test(detail)))
+    return { data: corrected }
+  } })
+  h.state.diagnosis.diagnosis_report.periorbital_health.client_display_score = 70
+  const result = await h.call(fixture.planner_input.treatable_concerns, 'single')
+  assert.equal(result.error, undefined, JSON.stringify(result.error))
+  assert.equal(attempts, 2)
+  assert.equal(result.treatment_plan.treatments[0].steps.find(step => step.step_id === 'EYE.INFUSE').duration, 2)
+})
+
+test('active live validation detects missing carbon cooling even when the session stays within its time window', async () => {
+  const invalid = success()
+  const steps = invalid.planning_result.treatment_plan.treatments[0].steps
+  const laser = steps.findIndex(step => step.step_id === 'ENERGY.CARBON.LASER')
+  assert.equal(steps[laser + 1].step_id, 'COOL.ICE')
+  steps.splice(laser + 1, 1)
+  const h = harness({ response: invalid })
+  const result = await h.call(fixture.planner_input.treatable_concerns, 'single')
+  assert.ok(result.error.details.some(detail => /cooling must immediately follow/.test(detail)))
+  assert.equal(h.calls.length, 2)
+})
+
+test('empty/truncated output and HTTP failures do not trigger a blind retry', async () => {
+  for (const response of [{ status: 'completed', output_text: '' }, { status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } }]) {
     const h = harness({ response })
-    const result = await h.call([], 'single')
-    assert.equal(result.error.code, 'treatment_output_contract_violation')
+    assert.ok((await h.call(fixture.planner_input.treatable_concerns, 'single')).error)
     assert.equal(h.calls.length, 1)
     assert.equal(h.hides(), 1)
-    assert.ok(h.logs.some(log => log[0].includes('generation failed')))
   }
-})
-
-test('transport failures retain exact details and do not trigger content repair', async () => {
-  const error = { code: 'fixture_gateway_error', message: 'Original gateway failure.', details: ['Original detail.'] }
-  const h = harness({ response: { error } })
-  assert.deepEqual((await h.call([], 'single')).error, error)
+  const h = harness({ transport: async () => { throw Object.assign(new Error('HTTP fixture'), { response: {
+    status: 502, data: { error: { code: 'exact_gateway_code', message: 'Exact gateway diagnostic', details: ['Exact detail'], response_id: 'fixture-response' } },
+  } }) } })
+  const result = await h.call(fixture.planner_input.treatable_concerns, 'single')
+  assert.equal(result.error.code, 'exact_gateway_code')
+  assert.equal(result.error.message, 'Exact gateway diagnostic')
+  assert.deepEqual(result.error.details, ['Exact detail'])
+  assert.equal(result.error.status, 502)
+  assert.equal(result.error.response_id, 'fixture-response')
   assert.equal(h.calls.length, 1)
-  const thrown = harness({ transport: async () => { throw Object.assign(new Error('Fixture transport exception.'), { code: 'fixture_exception' }) } })
-  assert.equal((await thrown.call([], 'single')).error.code, 'fixture_exception')
-  assert.equal(thrown.calls.length, 1)
-  assert.equal(thrown.hides(), 1)
 })
 
-test('six-light caller keeps its existing shared validator and medium reasoning', async () => {
+test('six-light caller retains the existing shared validator and transport', async () => {
   const h = harness({ mode: '6 lights' })
   assert.equal((await h.call([], 'single')).error, undefined)
   assert.deepEqual(h.clinicCalls, ['context', 'input', 'validation'])
-  assert.equal(h.calls[0][2], undefined)
-  assert.equal(h.calls[0][3].reasoning_effort, 'medium')
-})
-
-function openAIHarness(post) {
-  const calls = [], notifications = []
-  const source = transportSource.replace(/^import[\s\S]*?from ['"][^'"]+['"]\r?\n/gm, '')
-    .replace('export function useOpenAI', 'function useOpenAI').replaceAll('import.meta.env', 'environment')
-  const scope = { environment: {}, config: { is_test_mode: false },
-    api: { post: async (...args) => { calls.push(args); return post(...args) } },
-    Loading: { hide: () => {} }, Notify: { create: value => notifications.push(value) },
-    formatFacialClientScores, prepareFacialEngineInput,
-    console: { info: () => {}, warn: () => {}, error: () => {} },
-  }
-  const client = new Function(...Object.keys(scope), source + '\nreturn useOpenAI();')(...Object.values(scope))
-  return { ...client, calls, notifications }
-}
-
-test('real transport preserves zero timeout, parses the live JSON, and keeps other calls defaults', async () => {
-  const client = openAIHarness(async () => ({ data: { status: 'completed', output_text: JSON.stringify(livePlan()) } }))
-  const h = harness({ transport: client.runResponse })
-  assert.equal((await h.call([], 'single')).error, undefined)
-  assert.equal(client.calls.length, 1)
-  assert.equal(client.calls[0][1].model, 'gpt-5.2')
-  assert.equal(client.calls[0][1].timeout_ms, 0)
-  assert.equal(client.calls[0][2].timeout, 0)
-  assert.equal(client.calls[0][1].reasoning, undefined)
-  assert.equal(client.calls[0][1].conversation, undefined)
-  await client.runResponse(null, [{ role: 'user', content: 'Unchanged other-call fixture.' }])
-  assert.equal(client.calls[1][1].model, 'gpt-5.4')
-  assert.equal(client.calls[1][1].timeout_ms, undefined)
-  assert.equal(client.calls[1][2].timeout, 600000)
-})
-
-test('real transport does not retry treatment HTTP errors or accept incomplete responses', async () => {
-  const client = openAIHarness(async () => { throw Object.assign(new Error('Synthetic HTTP failure.'), { response: { status: 502, data: { message: 'Synthetic gateway failure.' } } }) })
-  const h = harness({ transport: client.runResponse })
-  assert.equal((await h.call([], 'single')).error.status, 502)
-  assert.equal(client.calls.length, 1)
-  const incomplete = openAIHarness(async () => ({ data: { status: 'incomplete', object: 'response', incomplete_details: { reason: 'max_output_tokens' } } }))
-  assert.equal((await harness({ transport: incomplete.runResponse }).call([], 'single')).error.code, 'response_incomplete')
-  assert.equal(incomplete.calls.length, 1)
+  assert.equal(h.calls.length, 0)
+  assert.equal(h.legacyCalls.length, 1)
+  assert.equal(h.legacyCalls[0][3].reasoning_effort, 'medium')
 })
