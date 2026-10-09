@@ -5,8 +5,8 @@ import { resolveTreatmentEvidence, treatmentConcernFamily, TREATMENT_PROXY_FIELD
 
 // Treatment-only replacement. Existing scoring and client-display functions are reused.
 export const CLINIC_SESSION_WINDOWS = { express: [35, 45], single: [60, 75], multiple: [60, 75] }
-// No exact preferred target. A useful session anywhere in the window is valid.
-export const CLINIC_SESSION_TARGETS = { express: null, single: null, multiple: null }
+// Soft planning targets; realistic doses and clinically justified session windows govern.
+export const CLINIC_SESSION_TARGETS = { express: 40, single: 65, multiple: 65 }
 export const CLINIC_STEP_TIMINGS = {
   cleansing: [2, 2], suction: [2, 4], carbon_application_drying: [3, 3], carbon_laser: [4, 4],
   infusion: [3, 3], under_eye_infusion: [2, 2], hydra_spray: [3, 3], cooling: [2, 5],
@@ -22,8 +22,41 @@ export const FIXED_TREATMENT_STEP_ROLES = Object.freeze({
   'MASSAGE.LYMPH': 'SUPPORT',
   'FINISH.SMS': 'FINISH',
 })
+// One executable contract is supplied BEFORE generation and reused locally.
+// The clinical JSON still owns history, numeric clearance and product permissions.
+export const TREATMENT_EXECUTION_RULES = Object.freeze({
+  corrective_roles: ['HERO_CORRECTIVE', 'SECONDARY_CORRECTIVE', 'TERTIARY_CORRECTIVE'],
+  routine_corrective_limit: 2,
+  exceptional_corrective_limit: 3,
+  immediate_cooling_step_ids: ['ENERGY.CARBON.LASER', 'ENERGY.QS.TONING', 'ENERGY.QS.532', 'ENERGY.RF.LIFT', 'ENERGY.RF.MACHINE'],
+  q_switch_step_ids: ['ENERGY.CARBON.LASER', 'ENERGY.QS.TONING', 'ENERGY.QS.532', 'ENERGY.QS.LIP'],
+  non_corrective_step_ids: ['PREP.CLEANSE', 'ENERGY.CARBON.APPLY', 'PEEL.SPOT.SALI', 'ENERGY.HF', 'LED.GREEN', 'FINISH.SMS'],
+  single_occurrence_step_types: ['under_eye_infusion', 'hydra_spray', 'lymphatic_drainage', 'spot_salicylic', 'lip_pigmentation_add_on'],
+})
+
+export function buildTreatmentExecutionContract() {
+  return {
+    ...TREATMENT_EXECUTION_RULES,
+    session_windows_minutes: CLINIC_SESSION_WINDOWS,
+    preferred_session_minutes: CLINIC_SESSION_TARGETS,
+    session_target_policy: 'Plan toward the preferred duration for every detailed session, including each session in a course. Do not default to the lower bound. Consider useful indicated care and realistic adjustable durations within their approved ranges; never stretch fixed doses, duplicate care or add filler. A clinically justified total elsewhere inside the allowed window remains valid.',
+    step_timings_minutes: CLINIC_STEP_TIMINGS,
+    fixed_step_roles: FIXED_TREATMENT_STEP_ROLES,
+    corrective_hierarchy: 'Exactly one HERO when correction is selected; SECONDARY is optional; TERTIARY requires a SECONDARY and a distinct useful contribution beyond the first two. Assess that contribution internally; no separate narrative or specific word is required. Roles are contribution, not order; do not promote support merely because it is a separate step.',
+    sequence_and_pairing: [
+      'One Carbon application precedes one Carbon laser; extraction and its high-frequency support precede broad peel/Q-switch/RF.',
+      'Immediately follow the listed energy steps with COOL.ICE. Spot salicylic creates no cooling requirement.',
+      'No medium peel with any listed Q-switch step or diamond microdermabrasion; at most one full-face medium peel. No Carbon plus full-face toning.',
+      'A superficial peel before Carbon requires documented protocol-appropriate removal/neutralisation, intervening cooling and conservative approved Carbon settings.',
+      'Exactly one 5-10-minute mandatory drainage; exactly one three-minute FINISH.SMS last. Include indicated regional care in the actual session sum.',
+    ],
+    case_rules: 'Use clinical_clearance.blocked_steps and route/product approvals; preserve selected primary names and link each strategy to its actual step and target_concerns. No standalone-only procedure in a detailed facial. Reserve triggered lip/ocular care; do not invent a missing score or finding.',
+    local_derivation: 'The caller derives step numbering, registered equipment/type, fixed roles and timing totals. It never changes selected treatments, doses, zones or clinician settings to make a plan pass.',
+    review_policy: 'Safety, dose, pairing, actual primary linkage and executable structure are binding. Treatment instruction wording and presentation preferences are advisory; they do not cause another generation call. Do not generate session-level rationale, expectations, continuity or signature narratives.',
+  }
+}
 export const CLINIC_TREATMENT_RULES_PROMPT = `CLINIC DOSE AND TIMING CONTRACT
-Complete windows including lip treatment: express 35-45 minutes; single and each detailed multiple-plan facial 60-75. No exact target and no 80-minute or +2 exception.
+Complete windows including lip treatment: express 35-45 minutes; single and each detailed multiple-plan facial 60-75. Aim for 40 minutes for express and 65 for single/multiple using meaningful indicated care. Targets are preferences, not exact requirements; never pad fixed doses or add token steps. No 80-minute or +2 exception.
 ${Object.entries(CLINIC_STEP_TIMINGS).map(([type, [min,max]]) => `${type}: ${min === max ? min : `${min}-${max}`} minutes${type === 'infusion' ? ' PER DISTINCT FACIAL INGREDIENT' : ''}`).join('\n')}
 Carbon is TWO atomic steps: ENERGY.CARBON.APPLY (3, always PREP), then ENERGY.CARBON.LASER (4, carries the chosen corrective role). Together they are one corrective modality. A corrective primary_strategy must reference ENERGY.CARBON.LASER, never ENERGY.CARBON.APPLY. Preserve the carbon film and completed drying before its laser pass; cool immediately after the laser.
 Facial infusion: list distinct actual infusion_ingredients; duration is 3 per ingredient. Use separate steps for different ingredients so each has an exact INFUSE.* ID. Do not count aliases twice. Under-eye infusion and spray have their own WHOLE-STEP durations, not the facial multiplier.
@@ -60,17 +93,12 @@ const stepProperties = {
   massage_purpose: { type: ['string','null'], enum: ['mandatory',null] },
 }
 const sessionProperties = {
-  session_number: int, title: str, why_today: str, script: str, week: num,
+  session_number: int, title: str, week: num,
   preparations_checklist_for_therapist: array(str),
-  primary_strategy: array(object({ concern: str, dominant_driver: str, selected_step_id: nullableStr,
+  primary_strategy: array(object({ concern: str, selected_step_id: nullableStr,
     care_type: { type: 'string', enum: ['corrective','direct_support','blocked'] },
-    why_this_wins: str, exception_reason: nullableStr })),
-  stack_comparison: str,
+    exception_reason: nullableStr })),
   concerns_addressed: array(object({ concern: str, current_value: { type: ['number','string','null'] }, target_value: { type: ['number','string','null'] } })),
-  personalisation_evidence: array(str),
-  signature_moment: object({ step_number: int, what: str, clinical_role: str }),
-  expectation_card: object({ tonight: str, by_day_3: str, by_week_2: str, what_this_session_does_not_change: str }),
-  continuity: object({ what_changed_since_last_visit: str, what_we_are_building_toward: str }),
   lip_pigmentation_rule: object({ status: { type: 'string', enum: ['included','not_triggered','not_assessable','blocked_by_existing_constraints'] }, reason: str, constraint_reference: str }),
   steps: array(object(stepProperties), { minItems: 1 }),
 }
@@ -581,9 +609,26 @@ function finalizeDecisionSummary(root) {
   delete root.relevant_alternatives
 }
 
+// Remove retired presentation fields from saved plans and unwrapped legacy
+// gateway responses. New generation still follows the strict, smaller schema.
+function removeLegacySessionNarratives(plan) {
+  const sessions = plan?.treatment_plan?.treatments
+  for (const session of Array.isArray(sessions) ? sessions : []) {
+    if (!session || typeof session !== 'object') continue
+    for (const field of ['why_today', 'script', 'stack_comparison', 'personalisation_evidence',
+      'signature_moment', 'expectation_card', 'continuity']) delete session[field]
+    for (const strategy of Array.isArray(session.primary_strategy) ? session.primary_strategy : []) {
+      if (!strategy || typeof strategy !== 'object') continue
+      delete strategy.dominant_driver
+      delete strategy.why_this_wins
+    }
+  }
+}
+
 export function finalizeTreatmentPlan(draft, plannerInput = null) {
   if (!draft || typeof draft !== 'object' || draft.error) return draft
   const plan = JSON.parse(JSON.stringify(draft))
+  removeLegacySessionNarratives(plan)
   if (plan.treatment_plan) finalizeDecisionSummary(plan.treatment_plan)
   for (const session of plan.treatment_plan?.treatments || []) {
     const steps = session.steps || []
@@ -604,13 +649,19 @@ export function finalizeTreatmentPlan(draft, plannerInput = null) {
       if (ref) {
         const fixedRole = FIXED_TREATMENT_STEP_ROLES[step.step_id]
         if (fixedRole) { step.role = fixedRole; step.intensity_rung = null }
-        step.clinic_step_type ??= ref.clinic_step_type
+        // Registered IDs determine these fields; normalise metadata without
+        // changing treatment choices, clinical instructions or actual doses.
+        step.clinic_step_type = ref.clinic_step_type
         if (ref.infusion_ingredient && step.infusion_ingredients === null) step.infusion_ingredients = [ref.infusion_ingredient]
-        step.ingredients_equipments ??= [...new Set([...(ref.inventory_required || []), ...step.additional_products, ...(step.infusion_ingredients || [])])]
+        step.ingredients_equipments = [...new Set([...(step.ingredients_equipments || []), ...(ref.inventory_required || []), ...step.additional_products, ...(step.infusion_ingredients || [])])]
         if (step.step_id === 'PEEL.SPOT.SALI') step.ingredients_equipments = [...new Set([...step.ingredients_equipments, ...step.additional_products])]
       }
       step.lip_passes ??= step.step_id === 'ENERGY.QS.LIP' ? 2 : null
       step.lip_serum ??= step.step_id === 'ENERGY.QS.LIP' ? 'Hyaluronic Acid' : null
+      if (step.step_id !== 'ENERGY.QS.LIP') { step.lip_passes = null; step.lip_serum = null }
+      if (step.step_id === 'MASSAGE.LYMPH') step.massage_purpose = 'mandatory'
+      else step.massage_purpose = null
+      if (!['infusion', 'under_eye_infusion', 'hydra_spray'].includes(ref?.clinic_step_type)) step.infusion_ingredients = null
     })
     if (!Object.hasOwn(session, 'concerns_addressed') && plannerInput) {
       const rows = targetRows(plannerInput)
@@ -661,16 +712,17 @@ function targetRows(input) {
   return rows
 }
 
-const countedRoles = new Set(['HERO_CORRECTIVE','SECONDARY_CORRECTIVE','TERTIARY_CORRECTIVE'])
-const immediatelyCooled = new Set(['ENERGY.CARBON.LASER','ENERGY.QS.TONING','ENERGY.QS.532','ENERGY.RF.LIFT','ENERGY.RF.MACHINE'])
+const countedRoles = new Set(TREATMENT_EXECUTION_RULES.corrective_roles)
+const immediatelyCooled = new Set(TREATMENT_EXECUTION_RULES.immediate_cooling_step_ids)
 const isBroad = (step) => step.zones?.includes('full_face')
-const noCorrective = new Set(['PREP.CLEANSE','ENERGY.CARBON.APPLY','PEEL.SPOT.SALI','ENERGY.HF','LED.GREEN','FINISH.SMS'])
+const noCorrective = new Set(TREATMENT_EXECUTION_RULES.non_corrective_step_ids)
 
 // This validator checks executable contracts, not whether a clinician agrees with
 // the model's expected benefit. Keep the existing clinical validator at the caller.
-export function validateClinicTreatmentPlan(plan, context, treatmentType, constraints = {}, plannerInput = null) {
+export function validateClinicTreatmentPlan(plan, context, treatmentType, constraints = {}, plannerInput = null, onWarnings = null) {
   if (plan?.error) return plan
   const enginePlan = prepareFacialEngineInput(plan)
+  removeLegacySessionNarratives(enginePlan)
   const errors = schemaErrors(enginePlan, buildTreatmentPlanResponseFormat().schema)
   const root = enginePlan?.treatment_plan
   const sessions = Array.isArray(root?.treatments) ? root.treatments : []
@@ -679,6 +731,8 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   const lip = context?.lip_pigmentation
   const clearance = context?.clinical_clearance || {}
   const knownNames = inventoryNames(constraints)
+  const warnings = []
+  const advisory = (code, session, step = null) => warnings.push({ code, session_number: session, step_number: step })
   let rows, primary
   try {
     rows = targetRows(plannerInput)
@@ -727,7 +781,8 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
       if (step.clinic_step_type !== ref.clinic_step_type) errors.push(`${stepLabel}: step_id requires clinic_step_type ${ref.clinic_step_type}.`)
       if (typeof step.duration !== 'number' || !Number.isFinite(step.duration) || step.duration <= 0) errors.push(`${stepLabel}: duration must be a positive number.`)
       else sum += step.duration
-      for (const field of ['how_to_do','script','order_reason']) if (!nonempty(step[field])) errors.push(`${stepLabel}: ${field} is missing.`)
+      if (!nonempty(step.how_to_do)) errors.push(`${stepLabel}: how_to_do is missing.`)
+      for (const field of ['script','order_reason']) if (!nonempty(step[field])) advisory(`missing_${field}`, index + 1, i + 1)
       if (!step.zones?.length) errors.push(`${stepLabel}: target zones are required.`)
       if (step.step_id === 'EYE.INFUSE' && (step.zones?.length !== 1 || step.zones[0] !== 'under_eye')) errors.push(`${stepLabel}: ocular infusion is confined to under_eye.`)
       if (step.step_id === 'ENERGY.QS.LIP' && (step.zones?.length !== 1 || step.zones[0] !== 'lips')) errors.push(`${stepLabel}: the lip protocol is confined to lips.`)
@@ -735,7 +790,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
       if (step.step_id === 'PEEL.SPOT.SALI' && (step.role !== 'ADJUNCT' || step.zones?.some((z) => ['full_face','under_eye','lips'].includes(z)))) errors.push(`${stepLabel}: spot salicylic must be a lesion-only ADJUNCT outside lip/under-eye zones.`)
       if (step.step_id === 'PEEL.SPOT.SALI' && (step.additional_products || []).filter((name) => approvedSpotSaliProducts(constraints).map(normalize).includes(normalize(name))).length !== 1) errors.push(`${stepLabel}: spot salicylic must specify one approved named salicylic product in additional_products. Choose exactly one of: ${approvedSpotSaliProducts(constraints).join('; ') || 'no approved product available in the supplied stock'}. Do not use a generic salicylic label or put the product only in prose.`)
       if (step.step_id === 'ENERGY.CARBON.APPLY' && step.role !== 'PREP') errors.push(`${stepLabel}: carbon application is PREP; its laser carries the corrective role.`)
-      if (step.clinic_step_type === 'other' && !nonempty(step.duration_rationale)) errors.push(`${stepLabel}: other-step duration requires a rationale.`)
+      if (step.clinic_step_type === 'other' && !nonempty(step.duration_rationale)) advisory('missing_duration_rationale', index + 1, i + 1)
       if (clearance.blocked_steps?.[step.step_id]?.length) errors.push(`${stepLabel}: blocked by ${clearance.blocked_steps[step.step_id].map((r) => r.condition).join(', ')}.`)
       if (step.step_id === 'ENERGY.CARBON.APPLY' && clearance.blocked_steps?.['ENERGY.CARBON.LASER']?.length) errors.push(`${stepLabel}: carbon preparation cannot be selected when its laser is blocked.`)
       if ((step.step_id.startsWith('ENERGY.') && step.step_id !== 'ENERGY.CARBON.APPLY' || step.step_id.startsWith('LED.')) && clearance.numeric_energy_status === 'allowed_with_caution' && !nonempty(step.settings_note)) errors.push(`${stepLabel}: energy caution needs the actual approved reduced-settings note.`)
@@ -765,7 +820,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
     }
     const finish = typeSteps('finishing')
     if (finish.length !== 1 || steps.at(-1) !== finish[0] || finish[0]?.role !== 'FINISH') errors.push(`${label}: one combined 3-minute FINISH.SMS must be last.`)
-    for (const type of ['under_eye_infusion','hydra_spray','lymphatic_drainage','spot_salicylic','lip_pigmentation_add_on']) if (typeSteps(type).length > 1) errors.push(`${label}: do not duplicate ${type}.`)
+    for (const type of TREATMENT_EXECUTION_RULES.single_occurrence_step_types) if (typeSteps(type).length > 1) errors.push(`${label}: do not duplicate ${type}.`)
     const massages = idSteps('MASSAGE.LYMPH')
     if (massages.length !== 1) errors.push(`${label}: exactly one mandatory 5-10-minute lymphatic drainage massage is required.`)
     for (const massage of massages) {
@@ -778,7 +833,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
     const carbon = idSteps('ENERGY.CARBON.LASER')
     if (app.length || carbon.length) if (app.length !== 1 || carbon.length !== 1 || steps.indexOf(carbon[0]) <= steps.indexOf(app[0])) errors.push(`${label}: Carbon requires one 3-minute application before its one 4-minute laser step.`)
     const mediumPeels = steps.filter((s) => TREATMENT_STEPS[s.step_id]?.clinic_class === 'medium')
-    const qSwitch = steps.filter((s) => ['ENERGY.CARBON.LASER','ENERGY.QS.TONING','ENERGY.QS.532','ENERGY.QS.LIP'].includes(s.step_id))
+    const qSwitch = steps.filter((s) => TREATMENT_EXECUTION_RULES.q_switch_step_ids.includes(s.step_id))
     if (mediumPeels.length && qSwitch.length) errors.push(`${label}: a medium peel cannot share a session with any Q-switch pass, including a lip pass.`)
     if (mediumPeels.filter(isBroad).length > 1) errors.push(`${label}: at most one full-face medium peel.`)
     if (mediumPeels.length && idSteps('EXFO.MICRO.DIAMOND').length) errors.push(`${label}: microdermabrasion cannot share a session with a medium peel.`)
@@ -791,18 +846,15 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
     }
     if (carbon.length) for (const peel of steps.filter((s) => s.clinic_step_type === 'chemical_peel')) {
       const peelAt = steps.indexOf(peel), appAt = steps.indexOf(app[0])
-      if (peelAt >= appAt || !steps.slice(peelAt + 1, appAt).some((s) => s.step_id === 'COOL.ICE') || !/neutrali[sz]|protocol removal/i.test(peel.how_to_do) || !nonempty(carbon[0].settings_note)) errors.push(`${label}: superficial peel plus Carbon needs peel first, neutralisation/protocol removal, intervening cooling and approved conservative Carbon settings.`)
+      if (peelAt >= appAt || !steps.slice(peelAt + 1, appAt).some((s) => s.step_id === 'COOL.ICE') || !/neutrali[sz]|protocol removal|remov|rins|wash\s*off/i.test(peel.how_to_do) || !nonempty(carbon[0].settings_note)) errors.push(`${label}: superficial peel plus Carbon needs peel first, neutralisation/protocol removal, intervening cooling and approved conservative Carbon settings.`)
     }
     const spot = idSteps('PEEL.SPOT.SALI')[0]
     if (context?.active_acne_lesions_visible === true && !spot && !clearance.blocked_steps?.['PEEL.SPOT.SALI']?.length) errors.push(`${label}: visible active acne requires the approved spot-salicylic adjunct unless an evaluated existing contraindication blocks it.`)
     const roleGroups = Object.fromEntries([...countedRoles].map((role) => [role, new Set(steps.filter((s) => s.role === role).map((s) => TREATMENT_STEPS[s.step_id]?.modality_id))]))
     if (Object.values(roleGroups).some((ids) => ids.size > 1)) errors.push(`${label}: each corrective role names only one modality.`)
     const correctiveCount = new Set(steps.filter((s) => countedRoles.has(s.role)).map((s) => TREATMENT_STEPS[s.step_id]?.modality_id)).size
-    if (correctiveCount > 3 || correctiveCount && roleGroups.HERO_CORRECTIVE.size !== 1) errors.push(`${label}: one hero; at most two routine correctives or three exceptionally justified.`)
-    if (correctiveCount >= 2 && !nonempty(session.stack_comparison)) errors.push(`${label}: added correction needs a superiority/nonredundancy comparison.`)
-    if (roleGroups.TERTIARY_CORRECTIVE.size && (!roleGroups.SECONDARY_CORRECTIVE.size || !/incremental|additive|additional|beyond/i.test(session.stack_comparison || ''))) errors.push(`${label}: tertiary requires a secondary and explicit incremental-benefit justification.`)
-    if (session.personalisation_evidence?.length !== 3 || session.personalisation_evidence?.some((s) => !nonempty(s))) errors.push(`${label}: three actual scan-to-treatment links are required.`)
-    if (session.signature_moment?.step_number < 1 || session.signature_moment?.step_number > steps.length || !nonempty(session.signature_moment?.clinical_role)) errors.push(`${label}: signature moment must identify an existing justified step.`)
+    if (correctiveCount > TREATMENT_EXECUTION_RULES.exceptional_corrective_limit || correctiveCount && roleGroups.HERO_CORRECTIVE.size !== 1) errors.push(`${label}: one hero; at most two routine correctives or three exceptionally justified.`)
+    if (roleGroups.TERTIARY_CORRECTIVE.size && !roleGroups.SECONDARY_CORRECTIVE.size) errors.push(`${label}: tertiary requires a secondary corrective.`)
     const strategies = session.primary_strategy || []
     for (const concern of primary) {
       const name = rows.get(concern)?.parameter_name || concern
@@ -811,7 +863,6 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
       if (matches.length > 1) errors.push(`${label}: selected primary concern "${name}" must have exactly one strategy, not ${matches.length}.`)
     }
     for (const strategy of strategies) {
-      if (!nonempty(strategy.dominant_driver) || !nonempty(strategy.why_this_wins)) errors.push(`${label}: primary strategy must state driver and case-specific selection reason.`)
       const selected = steps.find((s) => s.step_id === strategy.selected_step_id)
       if (strategy.care_type !== 'blocked' && (!selected || !selected.target_concerns?.some((name) => normalize(name) === normalize(strategy.concern)))) errors.push(`${label}: primary strategy "${strategy.concern}" must map to an actual step and its target concern; selected_step_id "${strategy.selected_step_id}" must exist and include this exact concern in target_concerns.`)
       if (strategy.care_type === 'corrective' && (!countedRoles.has(selected?.role) || noCorrective.has(selected?.step_id))) errors.push(`${label}: a required corrective slot cannot be filled by prep/support/spot salicylic.`)
@@ -845,6 +896,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
       if (decision?.status !== expected || addons.length) errors.push(`${label}: lip protocol must not trigger in this score/visibility state.`)
     }
   }
+  if (onWarnings) onWarnings(warnings)
   if (errors.length) return { error: { code: 'facial_treatment_rule_violation', message: `Treatment plan does not meet clinic rules. ${errors[0]}`, details: [...new Set(errors)] } }
   return plan
 }

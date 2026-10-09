@@ -1,6 +1,6 @@
 {
   "defined_by": "Dr.Aakriti Mehra",
-  "description": "Clinical , Products & machine constraints for AI Aesthetics skincare and facial treatment plan generation. All treatment plans must comply with these rules. No procedure, product, or device beyond the listed items should be suggested. The treatment engine has FULL FREEDOM to choose ANY sequence of steps or customize different steps for different facial zones, while respecting clinical compatibility, the complete session window and the mandatory final finishing step.",
+  "description": "Clinical , Products & machine constraints for AI Aesthetics skincare and facial treatment plan generation. All treatment plans must comply with these rules. No procedure, product, or device beyond the listed items should be suggested. The treatment engine has FULL FREEDOM to choose ANY sequence of steps or customize different steps for different facial zones, as long as the two mandatory finishing requirements are met.",
   "version": "1.1",
   "clinical_constraints": {
     "patient_history_rules": [
@@ -280,7 +280,10 @@
       ],
       "comparison_by_concern": {
         "superficial_pigmentation": {
-          "energy_modalities": ["Q-Switch Laser", "Carbon Facial"],
+          "energy_modalities": [
+            "Q-Switch Laser",
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Party Peel",
             "Whitening Peel",
@@ -293,7 +296,9 @@
           "decision_rule": "If Q-Switch Laser or Carbon Facial is allowed and expected to produce better visible pigment correction in one session than the competing peels, the better energy modality should win."
         },
         "active_acne_lesions": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Sali DS Peel",
             "Salicylic Acid 30% Peel",
@@ -304,7 +309,9 @@
           "decision_rule": "For active acne lesions, Carbon Facial should compete against acne-directed salicylic peels and Combination Peel. Standalone Q-Switch must not be considered."
         },
         "comedonal_acne_oil_congestion": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Sali DS Peel",
             "Salicylic Acid 30% Peel",
@@ -315,7 +322,9 @@
           "decision_rule": "If Carbon Facial is allowed and expected to produce stronger visible oil, congestion, pore, or comedonal correction in one session, it should outrank peels."
         },
         "post_acne_pigmentation": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Fusion Peel-E",
             "Combination Peel",
@@ -326,7 +335,9 @@
           "decision_rule": "Carbon Facial should be compared against Fusion Peel-E, Combination Peel, Whitening Peel, Glyco Peel 35, and Mandelic. The modality with the stronger expected one-session visible PIH improvement should win."
         },
         "texture_roughness_rejuvenation": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Glyco Peel 35",
             "Gel Based Pumpkin Peel",
@@ -336,7 +347,9 @@
           "decision_rule": "For texture, pore, and surface-renewal goals, Carbon Facial should be compared against the relevant peels. The modality with the best visible one-session corrective effect should win."
         },
         "instant_glow_brightness_event_readiness": {
-          "energy_modalities": ["Carbon Facial"],
+          "energy_modalities": [
+            "Carbon Facial"
+          ],
           "named_peel_competitors": [
             "Party Peel",
             "Whitening Peel",
@@ -356,7 +369,7 @@
       "purpose": "Allow stacked corrective treatments when they provide greater single-session visible improvement than fewer modalities, while preserving overall facial-flow coherence.",
       "selection_principle": "A session may include one HERO_CORRECTIVE, one SECONDARY_CORRECTIVE, and in exceptional cases one TERTIARY_CORRECTIVE if the combination is clinically coherent, non-redundant, safe, and expected to outperform hero-alone or hero-plus-secondary for one-session visible outcome.",
       "hard_rules": [
-        "Default maximum meaningful corrective modalities in one session = 2. Lesion-directed spot salicylic is a targeted acne adjunct, NOT a corrective step: exclude it from the count, all HERO / SECONDARY / TERTIARY roles and any required corrective slot. Its time and irritation/barrier burden still count. Broad/full-face salicylic peels remain corrective modalities.",
+        "Default maximum meaningful corrective modalities in one session = 2.",
         "A third meaningful corrective modality may be added only if it provides clear non-redundant incremental visible benefit beyond the first two modalities.",
         "Exactly one modality must be designated HERO_CORRECTIVE.",
         "A second modality may be designated SECONDARY_CORRECTIVE only when it adds meaningful non-redundant visible benefit.",
@@ -382,7 +395,7 @@
       "allowed_structures": [
         "one full-face hero corrective plus one zone-based secondary corrective",
         "one pigment/glow corrective plus one carbon/oil/pore corrective",
-        "one main modality plus one lesion-directed or hotspot-directed secondary modality, excluding spot salicylic, which is an uncounted adjunct",
+        "one main modality plus one lesion-directed or hotspot-directed secondary modality",
         "one broad corrective modality plus one targeted refinement modality",
         "hero + secondary + tertiary only when the tertiary is the least dominant and most targeted corrective layer"
       ],
@@ -403,7 +416,7 @@
           "named peel + Carbon Facial"
         ],
         "post_acne_pigmentation_plus_active_lesions": [
-          "Fusion Peel-E or Combination Peel + spot salicylic lesion treatment: ONE corrective plus an uncounted adjunct"
+          "Fusion Peel-E or Combination Peel + spot salicylic lesion treatment"
         ],
         "glow_plus_pore_refinement": [
           "Party Peel + Carbon Facial",
@@ -411,10 +424,10 @@
         ],
         "mixed_acne_plus_pigmentation": [
           "Combination Peel + Carbon Facial",
-          "Combination Peel + spot salicylic lesion treatment: ONE corrective plus an uncounted adjunct"
+          "Combination Peel + spot salicylic lesion treatment"
         ],
         "triple_stack_example_when_truly_superior": [
-          "Pigment/glow peel + Carbon Facial + spot salicylic lesion treatment: TWO correctives plus an uncounted adjunct, NOT a tertiary corrective stack despite this legacy example-key name"
+          "Pigment/glow peel + Carbon Facial + spot salicylic lesion treatment"
         ]
       },
       "mandatory_nonredundancy_rule": "Each added modality must add a different mechanism, zone emphasis, or visible corrective contribution. If not, do not stack.",
@@ -425,7 +438,7 @@
       "purpose": "Force lesion-directed treatment whenever active acne lesions are visible.",
       "trigger": "If any active acne lesions are visible on the face.",
       "mandatory_action": [
-        "Include a spot salicylic peel step targeted only to lesion-bearing zones unless explicitly contraindicated. Classify it as a non-corrective targeted acne adjunct, excluded from corrective counts and HERO / SECONDARY / TERTIARY slots; retain its 2-minute duration, contraindications and contribution to combined irritation/barrier burden.",
+        "Include a spot salicylic peel step targeted only to lesion-bearing zones unless explicitly contraindicated.",
         "This rule applies even if acne is not the top primary concern."
       ],
       "allowed_spot_sali_options": [
@@ -434,7 +447,7 @@
         "20% Salicylic Acid Peel"
       ],
       "zone_behavior": [
-        "Retain the existing spot_corrective tag for lesion-bearing zones; for spot salicylic it is a location tag only and does not make the adjunct a corrective modality.",
+        "Treat lesion-bearing zones as spot_corrective zones.",
         "Do not default to full-face salicylic application unless the broader acne plan independently justifies it.",
         "Avoid under-eye, lips, broken skin, and explicitly flagged high-risk sensitive zones."
       ],
@@ -446,13 +459,11 @@
     },
     "regional_skin_temperature_policy": {
       "measurement_mode": "surface",
-
       "inputs": {
         "forehead_surface_c": "number",
         "left_cheek_surface_c": "number",
         "right_cheek_surface_c": "number"
       },
-
       "derived_metrics": {
         "avg_facial_surface_temp_c": {
           "formula": "(forehead_surface_c + left_cheek_surface_c + right_cheek_surface_c) / 3"
@@ -467,7 +478,6 @@
           "formula": "forehead_surface_c - avg_cheek_surface_temp_c"
         }
       },
-
       "global_session_modifiers": {
         "deny_aggressive": {
           "condition": "avg_facial_surface_temp_c >= 36.9",
@@ -479,7 +489,6 @@
           ],
           "reason": "Surface facial temperature extremely elevated, indicating active inflammation or high reactivity risk"
         },
-
         "caution": {
           "condition": "avg_facial_surface_temp_c >= 36.4 AND avg_facial_surface_temp_c < 36.9",
           "actions": [
@@ -491,7 +500,6 @@
           "reason": "Surface facial temperature elevated, suggesting increased inflammatory reactivity"
         }
       },
-
       "regional_modifiers": {
         "cheek_asymmetry": {
           "condition": "left_right_delta_c >= 0.4",
@@ -502,7 +510,6 @@
           ],
           "reason": "Significant unilateral surface temperature difference suggests localized irritation or inflammation"
         },
-
         "cheek_moderate_asymmetry": {
           "condition": "left_right_delta_c >= 0.3 AND left_right_delta_c < 0.4",
           "actions": [
@@ -511,7 +518,6 @@
           ],
           "reason": "Moderate unilateral temperature difference indicating early localized reactivity"
         },
-
         "tzone_relative_heat": {
           "condition": "forehead_minus_avg_cheek_delta_c >= 0.4",
           "actions": [
@@ -520,7 +526,6 @@
           ],
           "reason": "Forehead significantly hotter than cheeks, suggesting sebaceous congestion or metabolic heat"
         },
-
         "cheek_relative_heat": {
           "condition": "forehead_minus_avg_cheek_delta_c <= -0.4",
           "actions": [
@@ -530,7 +535,6 @@
           "reason": "Cheeks hotter than forehead, indicating inflammatory or rosacea-prone behavior"
         }
       },
-
       "operational_notes": [
         "All temperatures must be measured using surface mode only",
         "Measurements should be taken after 5 minutes seated indoors",
@@ -538,64 +542,371 @@
         "Use median of two readings per point if possible"
       ]
     },
-    "supportive_treatment_protocols": {
-      "selection_rule": "Evaluate relevant support after selecting appropriate corrective care and before filler massage. Select only for a case-specific incremental purpose; document inclusion or omission in the existing treatment explanation fields. Individual ingredient approval is not approval to mix all ingredients or repeat them without added value.",
-      "under_eye_infusion": {
-        "equipment": "Ocular Ultrasound Infusion Probe",
-        "approved_ingredients": [
-          "Hyaluronic Acid",
-          "Niacinamide",
-          "TRX A (Tranexamic Acid)",
-          "PDRN",
-          "Exosomes",
-          "Vitamin C"
-        ],
-        "duration_minutes": 2,
-        "timing_basis": "Entire under-eye step, additional to facial infusion; not per ingredient.",
-        "selection_guidance": "Evaluate assessable peri-orbital findings and a relevant clinician-supported treatment purpose. Do not assume all dark circles or structural hollows respond to infusion. Do not borrow facial infusion time or infer ocular approval for an unlisted ingredient.",
-        "protocol_boundary": "Use the listed ocular probe and clinic-approved products. Existing clinical exclusions apply. Do not invent concentrations, device parameters or product combinations; identify missing device-specific details for clinician confirmation."
-      },
-      "hydra_spray": {
-        "equipment": "Oxygen Injection (Hydra spray)",
-        "approved_ingredients": [
-          "Vitamin C",
-          "TRX A (Tranexamic Acid)",
-          "Hyaluronic Acid",
-          "Niacinamide"
-        ],
-        "duration_minutes": 3,
-        "timing_basis": "Entire spray step; not per ingredient.",
-        "sequencing": "No clinic-specific fixed sequencing restriction. Existing clinical/device/product compatibility rules and the final finishing requirement still apply.",
-        "selection_guidance": "Evaluate a distinct hydration/comfort or other clinic-supported purpose and incremental value beyond infusion and mask. Do not include merely to fill time or duplicate the same delivery without justification."
-      },
-      "cooling": {
-        "equipment": "Ice Probe",
-        "duration_minutes_range": [
-          2,
-          5
-        ],
-        "selection_guidance": "Evaluate clinically appropriate cooling/comfort/recovery support for the chosen procedures and regional findings; do not represent cooling as equivalent to pigment correction."
-      },
-      "facial_infusion": {
-        "timing_basis": "3 minutes per distinct facially infused ingredient. Separate fixed under-eye and spray timings take precedence for those delivery methods.",
-        "selection_guidance": "Select relevant listed solutions and explain their added role. Existing ocular/spray-only approval does not extend to full-face ultrasound infusion."
-      },
-      "mask_selection": {
-        "timing_basis": "A selected peel-off mask remains 15 minutes.",
-        "selection_guidance": "Choose the available mask that fits documented skin findings, previous procedures and recovery needs; do not always default to the same mask or add one only to fill time."
-      }
-    },
     "general_treatment_rules": [
       {
         "rule": "Every facial treatment must finish (last step of treatment) with Serum + Moisturizer + Sunscreen."
       },
       {
-        "rule": "Consider Face and Neck Lymphatic Drainage Massage after clinically useful treatment and support options. Use one 5-10-minute step for a documented clinical purpose or the smallest permitted filler duration needed to meet the complete session minimum; omit filler if the minimum is already met."
+        "rule": "Every facial session must include exactly one Face and Neck Lymphatic Drainage Massage lasting 5-10 minutes, with a mandatory minimum of 5 minutes. Placement remains case-specific. Use gentle non-lesion pathways and avoid direct pressure on active lesions; do not omit massage because puffiness is minimal, active acne exists, or other steps already fill the time."
       },
       {
         "rule": "There is NO fixed or recommended sequence for treatment steps. The LLM is free to design ANY sequence or use DIFFERENT treatments for different facial zones based on scoring, diagnosis, and clinical logic."
       }
-    ]
+    ],
+    "clinic_step_timings_minutes": {
+      "cleansing": {
+        "min_minutes": 2,
+        "max_minutes": 2,
+        "basis": "therapist_confirmed"
+      },
+      "hydradermabrasion_suction": {
+        "min_minutes": 2,
+        "max_minutes": 4,
+        "basis": "therapist_confirmed",
+        "resources": [
+          "Hydrafacial Machine / Suction Probe / Bubble Pen",
+          "Hydrafacial Serum AS1",
+          "Hydrafacial Serum SA2",
+          "Hydrafacial Serum A03"
+        ]
+      },
+      "teenage_line": {
+        "min_minutes": 2,
+        "max_minutes": 4,
+        "basis": "therapist_confirmed"
+      },
+      "cutin_removal_spatula": {
+        "min_minutes": 3,
+        "max_minutes": 5,
+        "basis": "mother_reference_estimate"
+      },
+      "manual_extraction": {
+        "min_minutes": 3,
+        "max_minutes": 8,
+        "basis": "mother_reference_estimate"
+      },
+      "high_frequency": {
+        "min_minutes": 2,
+        "max_minutes": 4,
+        "basis": "mother_reference_estimate"
+      },
+      "microdermabrasion_diamond": {
+        "min_minutes": 8,
+        "max_minutes": 12,
+        "basis": "mother_reference_estimate"
+      },
+      "microdermabrasion_crystal": {
+        "min_minutes": 8,
+        "max_minutes": 12,
+        "basis": "mother_reference_estimate",
+        "scope": "body_or_neck; not facial skin"
+      },
+      "carbon_application_drying": {
+        "min_minutes": 3,
+        "max_minutes": 3,
+        "basis": "therapist_confirmed"
+      },
+      "carbon_q_switch_laser": {
+        "min_minutes": 4,
+        "max_minutes": 4,
+        "basis": "therapist_confirmed"
+      },
+      "q_switch_toning": {
+        "min_minutes": 8,
+        "max_minutes": 12,
+        "basis": "mother_reference_estimate"
+      },
+      "q_switch_532_spot": {
+        "min_minutes": 3,
+        "max_minutes": 8,
+        "basis": "mother_reference_estimate"
+      },
+      "lip_q_switch_hyaluronic": {
+        "min_minutes": 2,
+        "max_minutes": 2,
+        "basis": "therapist_confirmed",
+        "passes": 2,
+        "includes": "both passes and hyaluronic serum; not two minutes per pass"
+      },
+      "rf_lifting_probe": {
+        "min_minutes": 6,
+        "max_minutes": 10,
+        "basis": "mother_reference_estimate"
+      },
+      "radio_frequency_machine": {
+        "min_minutes": 10,
+        "max_minutes": 15,
+        "basis": "mother_reference_estimate"
+      },
+      "hifu": {
+        "min_minutes": 45,
+        "max_minutes": 90,
+        "basis": "mother_reference_estimate",
+        "scope": "standalone assessed corrective session"
+      },
+      "microneedling_rf": {
+        "min_minutes": 20,
+        "max_minutes": 30,
+        "basis": "mother_reference_estimate",
+        "scope": "standalone assessed corrective session"
+      },
+      "microneedling_machine": {
+        "min_minutes": 15,
+        "max_minutes": 25,
+        "basis": "mother_reference_estimate",
+        "scope": "standalone assessed corrective session"
+      },
+      "dermapen": {
+        "min_minutes": 15,
+        "max_minutes": 25,
+        "basis": "mother_reference_estimate",
+        "scope": "standalone assessed corrective session"
+      },
+      "dermaroller": {
+        "min_minutes": 15,
+        "max_minutes": 25,
+        "basis": "mother_reference_estimate",
+        "scope": "standalone assessed corrective session"
+      },
+      "led_blue": {
+        "min_minutes": 8,
+        "max_minutes": 12,
+        "basis": "mother_reference_estimate"
+      },
+      "led_red": {
+        "min_minutes": 8,
+        "max_minutes": 12,
+        "basis": "mother_reference_estimate"
+      },
+      "led_green": {
+        "min_minutes": 8,
+        "max_minutes": 10,
+        "basis": "mother_reference_estimate"
+      },
+      "chemical_peel": {
+        "min_minutes": 3,
+        "max_minutes": 4,
+        "basis": "therapist_confirmed",
+        "applies_to": [
+          "Party Peel",
+          "Whitening Peel",
+          "Sali DS Peel",
+          "Salicylic Acid 30% Peel",
+          "Gel Based Pumpkin Peel",
+          "Gel Based Mandelic Peel",
+          "Fusion Peel-E",
+          "Glyco Peel 35",
+          "Combination Peel",
+          "20% Salicylic Acid Peel"
+        ]
+      },
+      "spot_salicylic": {
+        "min_minutes": 2,
+        "max_minutes": 2,
+        "basis": "therapist_confirmed"
+      },
+      "facial_infusion": {
+        "min_minutes": 3,
+        "max_minutes": 3,
+        "basis": "therapist_confirmed",
+        "per": "distinct ingredient",
+        "solutions": [
+          "Hyaluronic Acid",
+          "Vitamin C",
+          "TRX A (Tranexamic Acid)",
+          "PDRN",
+          "Exosomes",
+          "Lifting",
+          "Glutathione"
+        ]
+      },
+      "under_eye_infusion": {
+        "min_minutes": 2,
+        "max_minutes": 2,
+        "basis": "therapist_confirmed",
+        "per": "whole ocular infusion step"
+      },
+      "oxygen_hydra_spray": {
+        "min_minutes": 3,
+        "max_minutes": 3,
+        "basis": "therapist_confirmed",
+        "per": "whole spray step"
+      },
+      "cooling": {
+        "min_minutes": 2,
+        "max_minutes": 5,
+        "basis": "therapist_confirmed"
+      },
+      "peel_off_mask": {
+        "min_minutes": 15,
+        "max_minutes": 15,
+        "basis": "therapist_confirmed",
+        "applies_to": [
+          "Charcoal",
+          "Calming",
+          "Brighten",
+          "Hydrate",
+          "Lift"
+        ]
+      },
+      "face_and_neck_lymphatic_drainage": {
+        "min_minutes": 5,
+        "max_minutes": 10,
+        "basis": "therapist_confirmed",
+        "mandatory": true,
+        "occurrences_per_facial_session": 1
+      },
+      "serum_moisturizer_sunscreen_finish": {
+        "min_minutes": 3,
+        "max_minutes": 3,
+        "basis": "therapist_confirmed",
+        "placement": "one combined final step"
+      }
+    },
+    "session_timing_policy": {
+      "single": {
+        "min_minutes": 60,
+        "max_minutes": 75,
+        "target_minutes": 65
+      },
+      "multiple_each_facial_session": {
+        "min_minutes": 60,
+        "max_minutes": 75,
+        "target_minutes": 65
+      },
+      "express": {
+        "min_minutes": 35,
+        "max_minutes": 45,
+        "target_minutes": 40
+      },
+      "arithmetic": "Sum actual numeric steps[].duration. treatment_time, step_duration_total and timing_validation.calculated_from_steps must equal that sum. Preserve the existing JSON shape.",
+      "target_behavior": "Plan toward 65 minutes in a single facial and EVERY detailed course facial, and 40 minutes in express. Do not default to the lower bound. Consider meaningful indicated care and realistic adjustable durations within approved ranges. A clinically justified shorter or longer total inside the allowed window remains valid; never inflate a fixed dose, repeat care or add filler to reach a target.",
+      "estimated_dose_behavior": "Reference ranges are estimates for the planned zones and coverage, not newly therapist-ratified fixed doses. Select a realistic duration inside the estimate; do not automatically select its maximum.",
+      "standalone_behavior": "HIFU/needling reference ranges describe their assessed corrective procedures. The total of any detailed facial session in this output still obeys its selected facial session window. Standalone means no incompatible additional corrective; user-mandatory drainage and finish remain required in every facial."
+    },
+    "lip_pigmentation_add_on_rule": {
+      "score_basis": "Customer-facing current score on the application's higher-is-better 1-100 scale. Prefer an explicitly supplied client_display_score/customer-facing score or the application's supplied display mapping. Never compare a raw higher-is-worse severity score, a 0-1 proxy or confidence directly with 70; do not invent a missing display value.",
+      "operator": "<",
+      "threshold": 70,
+      "trigger": "Assessable customer-facing Lip Pigmentation Score < 70, irrespective of primary selection.",
+      "action": "Include two Q-switch passes with hyaluronic serum, two minutes TOTAL, before the combined finish. Retain independently indicated steps; include the add-on in the actual session sum.",
+      "safety": "Apply existing patient-history, numeric energy, temperature and product contraindications. Record an actual blocking reason in the existing checklist/omission fields; no new output field.",
+      "missing_score": "A missing or unassessable lip score is not a score below 70."
+    },
+    "under_eye_infusion_score_rule": {
+      "score_basis": "Customer-facing current score on the application's higher-is-better 1-100 scale. Prefer an explicitly supplied client_display_score/customer-facing score or the application's supplied display mapping. Never compare a raw higher-is-worse severity score, a 0-1 proxy or confidence directly with 70; do not invent a missing display value.",
+      "operator": "<=",
+      "threshold": 70,
+      "trigger": "Customer-facing Peri-Orbital/Periocular Health Score <= 70, irrespective of primary selection.",
+      "action": "Include one two-minute under-eye infusion with the Ocular Ultrasound Infusion Probe. This is additional to, not a substitute for, any separately indicated facial infusion.",
+      "approved_serums": [
+        "Hyaluronic Acid",
+        "Niacinamide",
+        "TRX A (Tranexamic Acid)",
+        "PDRN",
+        "Exosomes",
+        "Vitamin C"
+      ],
+      "selection": "Choose the approved serum using available periocular findings. If detailed sub-indices are absent, use an appropriate hydration/comfort option; do not invent findings or claim hollow correction. The score trigger is not conditional on a separate assessability/finding gate from Mother B16.",
+      "safety": "Respect existing patient-history, allergy and product rules. Retain the original spot-salicylic exclusions for under-eye/lips. No additional B16 gate is imported.",
+      "missing_score": "Do not treat a missing customer-facing score as <= 70."
+    },
+    "active_acne_restriction_scope": {
+      "rule": "Every restriction due to an active acne lesion (papule, pustule, inflamed bump, nodule, or other active lesion) is local to that lesion and its immediately affected footprint. Do not deny the modality on the remaining uninvolved face merely because active acne is present elsewhere.",
+      "allowed_rest_of_face": "Use the best indicated modality on unaffected facial zones when independent history, allergy, numeric barrier/energy, temperature, pairing and dose rules permit. This does not override those independent rules.",
+      "execution": "Identify lesion locations; avoid the restricted pass/product directly on those lesions. State the lesion avoidance and the treated unaffected zones in the existing how_to_do and script fields.",
+      "acne_hero": "Standalone Q-switch remains ineligible as an acne HERO under the unchanged live rules; it may address another permitted concern on uninvolved zones. Carbon remains a valid acne hero where permitted.",
+      "massage": "Always include one 5-10 minute face-and-neck drainage step. Use gentle non-lesion pathways and avoid direct pressure on active lesions; acne does not create a massage-omission option."
+    },
+    "spot_salicylic_operational_rule": {
+      "role": "Uncounted lesion-directed adjunct; not HERO/SECONDARY/TERTIARY and not a substitute for the main acne corrective.",
+      "cooling": "Spot salicylic does not itself require a subsequent cooling step.",
+      "sequence": "Placement is case-specific. This rule does not prescribe the next treatment, a spot-salicylic-plus-Carbon pairing, or any fixed order.",
+      "independent_cooling": "Retain cooling required by an actual full-face peel/energy procedure; the spot rule does not waive another procedure's own recovery requirements."
+    },
+    "mother_document_selected_clinical_rules": {
+      "sequencing_and_pairing": [
+        "A1: Extraction and any high-frequency work following it precede full-face acids, laser or RF; never place extraction after those steps.",
+        "A2: Medium-class peels (SA30, Sali DS, Fusion-E, Glyco 35) never share a session with any Q-switch pass, including Carbon and a triggered lip pass. Lesion-only spot salicylic is an uncounted adjunct, not a full-face medium peel.",
+        "A3: If a superficial full-face peel precedes Carbon, complete protocol-appropriate neutralisation/removal and Ice Probe cooling before Carbon; use conservative Carbon settings. This does not apply a cooling requirement to spot salicylic.",
+        "A4: One full-face medium peel maximum per session.",
+        "A5: Microdermabrasion never shares a session with a medium peel. Microdermabrasion plus Q-switch/Carbon has no pairing-specific prohibition.",
+        "A6: HIFU is an assessed standalone corrective; do not stack it with another peel, abrasion, laser, extraction or corrective modality in that session. Mandatory drainage/finishing are not additional corrective modalities.",
+        "A7: MNRF, Dermapen/Dermaroller and needling are assessed standalone correctives. Their companions are PDRN/exosome delivery, cooling, red LED and finishing; the user-mandatory drainage remains, gently away from treated/lesion areas.",
+        "A8: Ice Probe cooling immediately follows energy steps, including Carbon, Q-switch toning/lip and RF.",
+        "A9: Carbon plus full-face Q-switch toning is a redundant combination. This does not prohibit the separate triggered lip add-on.",
+        "A10: Diamond microdermabrasion for facial skin; crystal is a body/neck procedure.",
+        "A11: Diode hair removal is a separate service, not a facial-engine step.",
+        "A12: High frequency is support, never a hero. Green LED is soothing, never a pigment corrective. Glutathione infusion is weak dullness support, not pigment correction."
+      ],
+      "additional_case_rules": [
+        "B1: Microdermabrasion avoids rosacea-pattern redness, flaking barrier and melasma-prone areas. Its active-acne restriction applies only to lesion footprints; other facial areas remain eligible.",
+        "B2: MNRF avoids barrier-caution skin. MNRF/rollers avoid active lesion footprints, and RF avoids active inflammatory footprints; do not generalise acne-related restrictions to uninvolved face.",
+        "B3: Never mechanically extract inflamed papules, pustules or nodules. Other eligible comedones/unaffected areas may be treated.",
+        "B4: Do not peel, extract or heat the nodule itself; use gentle local cooling/LED/hydration there as suitable. Correctives remain available on the uninvolved face. No mandatory referral output field is added.",
+        "B6: Hydration signal < 0.40 excludes medium peels.",
+        "B7: Structural disruption with barrier uniformity < 0.55 additionally excludes peels except Pumpkin and abrasion; existing energy-denial gates remain unchanged.",
+        "B9: Diffuse-dominant redness avoids glycolic, salicylic above 20%, heat and high frequency; vascular-reactive areas avoid heat and glycolic. Do not create a new numeric erythema >0.60 gate.",
+        "B10: High/rosacea-like redness >65 in the diagnostic higher-is-worse score scale calls for barrier-first care rather than correction. This is not a threshold on the inverted customer-facing score.",
+        "B11: Melasma-pattern areas avoid RF/heat, medium glycolic peels, microdermabrasion and high fluence.",
+        "B12: Salicylic-family peels avoid dry/sensitive/redness patterns; Glyco 35 avoids flaking barrier. Glyco's active-acne restriction and Fusion's active-pustule FP IV-VI restriction are lesion-local only. Fusion also avoids barrier caution and the seven-day event window.",
+        "B13: No medium peels for teens.",
+        "B14: Charcoal masks avoid dry/flaking/sensitive areas and beard. Inflammation-related avoidance is local to active lesions. A medium peel alone does not prohibit peel-off masks.",
+        "B15: SSI <0.20 calls for hydration rather than degreasing; avoid full-face salicylic when oiliness is limited to T-zone; sebum-deficiency dehydration uses gentle spatula rather than stronger exfoliation.",
+        "B17: 532-nm spot work is doctor-led, with test spot/dark-skin caution, and is not a melasma treatment.",
+        "B18: Red LED is permitted as low-risk barrier recovery despite barrier-related energy denial; the original pregnancy exclusion remains."
+      ],
+      "explicit_user_exclusions": [
+        "B5 excluded: no extra flaking >0.50 denial. Preserve the live flaking >=0.60 energy gate.",
+        "B8 excluded: no extra erythema >0.60 acid/heat/HF denial. Preserve the live numeric erythema caution and denial rules.",
+        "B16 removed: use the mandatory customer-facing periocular <=70 infusion rule; no separate mother assessability/finding eligibility gate.",
+        "B19 removed: no mother-specific clinician-permission requirement for tranexamic infusion during pregnancy; retain the original live pregnancy/product rules.",
+        "B20 removed: no barrier-only/resume-correction-at-BSI<0.55 recovery rule. Use the current live rules at the current visit.",
+        "C3 removed: no blanket exclusion of peel-off masks after medium peels.",
+        "C7 removed: no automatic halving of expected changes or supplied targets.",
+        "All mother massage-omission instructions removed; mandatory drainage takes precedence."
+      ],
+      "c8_output_handling": {
+        "blue_led_screening": "If Blue LED is selected, include relevant reported photosensitising-medicine screening in preparations_checklist_for_therapist. Missing history does not create a new automatic denial.",
+        "referral_notes": "No relevant dedicated referral field exists in the live treatment JSON. Do not add new fields or require PCOD/thyroid/diabetes referral text under C8. Retain the live condition-specific improvement-outlook rules."
+      }
+    },
+    "peel_depth_classes": {
+      "superficial": [
+        "Party Peel",
+        "Gel Based Pumpkin Peel",
+        "Gel Based Mandelic Peel",
+        "Whitening Peel",
+        "20% Salicylic Acid Peel",
+        "Combination Peel"
+      ],
+      "medium": [
+        "Salicylic Acid 30% Peel",
+        "Sali DS Peel",
+        "Fusion Peel-E",
+        "Glyco Peel 35"
+      ],
+      "deep": [],
+      "note": "Depth is separate from corrective strength. Combination Peel is superficial; its existing relative_strength and mother 0-5 strengths are unchanged. Whitening/SA20 reference descriptions include superficial-medium depending on protocol; use the clinic superficial protocol for this class. The mother phrase \"deep means strongest available\" is not an authorised redefinition of the original live deep-peel exclusions."
+    },
+    "non_facial_inventory_timing_status": {
+      "Diode Laser Machine": {
+        "scope": "separate hair-removal service",
+        "estimated_minutes": null,
+        "reason": "No duration supplied by the live files or mother document; depends on hair-removal area/protocol."
+      },
+      "IV Infusion Kit": {
+        "scope": "separate nutrition/IV service",
+        "estimated_minutes": null,
+        "solutions": [
+          "Glutathione",
+          "Vitamin B12",
+          "N-Acetyl Cysteine (NAC)",
+          "Vitamin C"
+        ],
+        "reason": "No duration/dose protocol supplied here; not a facial procedure timing."
+      }
+    }
   },
   "availableResources": {
     "machines": [
@@ -655,7 +966,11 @@
       },
       {
         "name": "LED Light Therapy Machine",
-        "modes": ["Blue", "Red", "Green"]
+        "modes": [
+          "Blue",
+          "Red",
+          "Green"
+        ]
       },
       {
         "name": "IV Infusion Kit",
@@ -681,44 +996,111 @@
       {
         "name": "Microdermabrasion Machine",
         "configurations": {
-          "tips_available": ["Diamond Tip", "Crystal Tip"]
+          "tips_available": [
+            "Diamond Tip",
+            "Crystal Tip"
+          ]
         }
       },
       {
         "name": "High-Frequency Machine",
         "type": "acne_inflammation_management",
-        "uses": ["post-extraction sanitation", "reduce inflammation", "drying active acne"]
+        "uses": [
+          "post-extraction sanitation",
+          "reduce inflammation",
+          "drying active acne"
+        ]
       }
     ],
     "jet_infusion_solutions": [
       {
+        "name": "Hyaluronic Acid",
+        "use": "Hydration and skin plumping"
+      },
+      {
+        "name": "Vitamin C",
+        "use": "Brightening and antioxidant"
+      },
+      {
+        "name": "TRX A (Tranexamic Acid)",
+        "use": "Pigmentation reduction"
+      },
+      {
+        "name": "PDRN",
+        "use": "Repair, regeneration, hydration"
+      },
+      {
+        "name": "Exosomes",
+        "use": "Advanced regeneration + rejuvenation"
+      },
+      {
+        "name": "Lifting",
+        "use": "Firming and anti-aging"
+      },
+      {
+        "name": "Glutathione",
+        "use": "Skin lightening and detoxification"
+      },
+      {
+        "name": "Hydrafacial Serum AS1",
+        "use": "Cleanse & Exfoliate (Normal Skin)"
+      },
+      {
+        "name": "Hydrafacial Serum SA2",
+        "use": "Oil Control (Oily Skin)"
+      },
+      {
+        "name": "Hydrafacial Serum A03",
+        "use": "Hydration (Dry Skin)"
+      },
+      {
         "name": "Niacinamide",
         "use": "Clinic-approved option for under-eye infusion and Oxygen/Hydra spray when clinically appropriate.",
-        "approved_delivery_routes": ["under_eye_infusion", "hydra_spray"]
-      },
-      { "name": "Hyaluronic Acid", "use": "Hydration and skin plumping" },
-      { "name": "Vitamin C", "use": "Brightening and antioxidant" },
-      { "name": "TRX A (Tranexamic Acid)", "use": "Pigmentation reduction" },
-      { "name": "PDRN", "use": "Repair, regeneration, hydration" },
-      { "name": "Exosomes", "use": "Advanced regeneration + rejuvenation" },
-      { "name": "Lifting", "use": "Firming and anti-aging" },
-      { "name": "Glutathione", "use": "Skin lightening and detoxification" },
-      { "name": "Hydrafacial Serum AS1", "use": "Cleanse & Exfoliate (Normal Skin)" },
-      { "name": "Hydrafacial Serum SA2", "use": "Oil Control (Oily Skin)" },
-      { "name": "Hydrafacial Serum A03", "use": "Hydration (Dry Skin)" }
+        "approved_delivery_routes": [
+          "under_eye_infusion",
+          "hydra_spray"
+        ]
+      }
     ],
     "peelOffMasks": [
-      { "name": "Charcoal", "use": "Oil control and detox" },
-      { "name": "Calming", "use": "Reduce redness and irritation" },
-      { "name": "Brighten", "use": "Improve tone and radiance" },
-      { "name": "Hydrate", "use": "Deep moisturization" },
-      { "name": "Lift", "use": "Tightening and firming" }
+      {
+        "name": "Charcoal",
+        "use": "Oil control and detox"
+      },
+      {
+        "name": "Calming",
+        "use": "Reduce redness and irritation"
+      },
+      {
+        "name": "Brighten",
+        "use": "Improve tone and radiance"
+      },
+      {
+        "name": "Hydrate",
+        "use": "Deep moisturization"
+      },
+      {
+        "name": "Lift",
+        "use": "Tightening and firming"
+      }
     ],
     "ivInfusions": [
-      { "name": "Glutathione", "use": "Detox and brightening" },
-      { "name": "Vitamin B12", "use": "Energy and cellular metabolism" },
-      { "name": "N-Acetyl Cysteine (NAC)", "use": "Liver support, antioxidant" },
-      { "name": "Vitamin C", "use": "Immunity and skin glow" }
+      {
+        "name": "Glutathione",
+        "use": "Detox and brightening"
+      },
+      {
+        "name": "Vitamin B12",
+        "use": "Energy and cellular metabolism"
+      },
+      {
+        "name": "N-Acetyl Cysteine (NAC)",
+        "use": "Liver support, antioxidant"
+      },
+      {
+        "name": "Vitamin C",
+        "use": "Immunity and skin glow"
+      }
     ],
     "chemicalPeels": [
       {
@@ -738,13 +1120,23 @@
           "Arbutin": "20%",
           "Niacinamide": "10%"
         },
-        "mechanistic_bias": ["brightening", "radiance", "surface rejuvenation", "tone support"],
+        "mechanistic_bias": [
+          "brightening",
+          "radiance",
+          "surface rejuvenation",
+          "tone support"
+        ],
         "decision_note": "Prefer in clients where the single-session goal is immediate glow, polish, and visible radiance."
       },
       {
         "name": "Whitening Peel",
         "use": "Lightening and tone improvement",
-        "best_for": ["tone correction", "brightness", "mild pigmentation", "dullness"],
+        "best_for": [
+          "tone correction",
+          "brightness",
+          "mild pigmentation",
+          "dullness"
+        ],
         "relative_strength": "medium",
         "default_rank_bucket": "pigment_brightening",
         "key_actives": {
@@ -755,13 +1147,23 @@
           "Licorice Extract": "3%",
           "Bright Light": "2%"
         },
-        "mechanistic_bias": ["brightening", "pigment support", "tone evening", "surface renewal"],
+        "mechanistic_bias": [
+          "brightening",
+          "pigment support",
+          "tone evening",
+          "surface renewal"
+        ],
         "decision_note": "Prefer when brightness and tone-evening are more important than acne control."
       },
       {
         "name": "Sali DS Peel",
         "use": "Anti-acne and deep exfoliation",
-        "best_for": ["active acne", "oily skin", "comedonal burden", "inflamed acne hotspots"],
+        "best_for": [
+          "active acne",
+          "oily skin",
+          "comedonal burden",
+          "inflamed acne hotspots"
+        ],
         "relative_strength": "medium_to_high",
         "default_rank_bucket": "acne",
         "key_actives": {
@@ -782,13 +1184,22 @@
       {
         "name": "Salicylic Acid 30% Peel",
         "use": "Acne control and oil regulation",
-        "best_for": ["active acne", "high oiliness", "congestion", "comedones"],
+        "best_for": [
+          "active acne",
+          "high oiliness",
+          "congestion",
+          "comedones"
+        ],
         "relative_strength": "high",
         "default_rank_bucket": "acne",
         "key_actives": {
           "Salicylic Acid": "30%"
         },
-        "mechanistic_bias": ["strong acne correction", "oil control", "comedolysis"],
+        "mechanistic_bias": [
+          "strong acne correction",
+          "oil control",
+          "comedolysis"
+        ],
         "decision_note": "Prefer when acne/oil/congestion burden is high and salicylic use is safe."
       },
       {
@@ -824,7 +1235,11 @@
       {
         "name": "Gel Based Mandelic Peel",
         "use": "Exfoliation and brightening",
-        "best_for": ["gentle broad-spectrum exfoliation", "mild acne", "mild brightening"],
+        "best_for": [
+          "gentle broad-spectrum exfoliation",
+          "mild acne",
+          "mild brightening"
+        ],
         "relative_strength": "low_to_medium",
         "default_rank_bucket": "gentle_generalist",
         "key_actives": {
@@ -916,7 +1331,8 @@
           "oil/congestion support",
           "safer mixed corrective profile for darker skin"
         ],
-        "decision_note": "Should often outrank plain Mandelic when both acne and pigmentation are active goals."
+        "decision_note": "Should often outrank plain Mandelic when both acne and pigmentation are active goals.",
+        "depth_class": "superficial"
       },
       {
         "name": "20% Salicylic Acid Peel",
@@ -932,32 +1348,72 @@
         "key_actives": {
           "Salicylic Acid": "20%"
         },
-        "mechanistic_bias": ["comedolysis", "oil control", "pore congestion correction"],
+        "mechanistic_bias": [
+          "comedolysis",
+          "oil control",
+          "pore congestion correction"
+        ],
         "decision_note": "Prefer when blackheads/clogged pores are a meaningful visible component."
       }
     ],
     "Special_ingredients_for_facials_type": [
-      { "name": "Liquid Charcoal (Carbon Facial)", "use": "Anti-acne, Oil control, Brightening" },
-      { "name": "Carbon Lotion", "use": "For Q-switch carbon facial protocol" }
+      {
+        "name": "Liquid Charcoal (Carbon Facial)",
+        "use": "Anti-acne, Oil control, Brightening"
+      },
+      {
+        "name": "Carbon Lotion",
+        "use": "For Q-switch carbon facial protocol"
+      }
     ],
     "consumables": [
-      { "name": "Gauze Pads" },
-      { "name": "Cotton Pads" },
-      { "name": "Alcohol Swabs" },
-      { "name": "pH Neutral Gel (for RF, Ultrasound)" },
-      { "name": "Hydrating Gel Base" },
-      { "name": "Distilled Water" },
-      { "name": "Cleansing Towels" },
-      { "name": "Extraction Tools (Comedone Extractor, Loop Extractor)" },
-      { "name": "Disposable Headbands" },
-      { "name": "Disposable Brushes" }
+      {
+        "name": "Gauze Pads"
+      },
+      {
+        "name": "Cotton Pads"
+      },
+      {
+        "name": "Alcohol Swabs"
+      },
+      {
+        "name": "pH Neutral Gel (for RF, Ultrasound)"
+      },
+      {
+        "name": "Hydrating Gel Base"
+      },
+      {
+        "name": "Distilled Water"
+      },
+      {
+        "name": "Cleansing Towels"
+      },
+      {
+        "name": "Extraction Tools (Comedone Extractor, Loop Extractor)"
+      },
+      {
+        "name": "Disposable Headbands"
+      },
+      {
+        "name": "Disposable Brushes"
+      }
     ],
     "treatment_tools": [
-      { "name": "Manual Comedone Extractor" },
-      { "name": "Loop Extractor" },
-      { "name": "Fan Brush (for peel application)" },
-      { "name": "Mask Applicator Brush" },
-      { "name": "Spatula (non-scrubber, for product application)" }
+      {
+        "name": "Manual Comedone Extractor"
+      },
+      {
+        "name": "Loop Extractor"
+      },
+      {
+        "name": "Fan Brush (for peel application)"
+      },
+      {
+        "name": "Mask Applicator Brush"
+      },
+      {
+        "name": "Spatula (non-scrubber, for product application)"
+      }
     ]
   }
 }

@@ -9,7 +9,7 @@ const rules = await import(pathToFileURL(join(moduleRoot, 'treatmentClinicRules.
 const pipeline = await import(pathToFileURL(join(moduleRoot, 'treatmentPipeline.js')))
 const { buildTreatmentEligibility } = await import(pathToFileURL(join(moduleRoot, 'treatmentEligibility.js')))
 const evidenceAdapter = await import(pathToFileURL(join(moduleRoot, 'treatmentEvidence.js')))
-const { TREATMENT_STEPS, TREATMENT_KNOWLEDGE, compileTreatmentKnowledgeReference } = await import(pathToFileURL(join(moduleRoot, 'treatmentKnowledge.js')))
+const { TREATMENT_STEPS, TREATMENT_KNOWLEDGE, TREATMENT_KNOWLEDGE_PROMPT, compileTreatmentKnowledgeReference } = await import(pathToFileURL(join(moduleRoot, 'treatmentKnowledge.js')))
 const constraints = JSON.parse(await readFile(join(moduleRoot, 'treatment/constraints.json'), 'utf8'))
 const case91 = JSON.parse(await readFile(join(root, 'tests/fixtures/case91.json'), 'utf8'))
 const concern = 'Superficial Pigmentation Score'
@@ -60,6 +60,13 @@ const invalid = (d, pattern, type='express') => { const result=check(d,input.cli
 const envelope = (d=draft()) => {
   const plan=clone(d.treatment_plan);delete plan.total_time
   delete plan.modality_omission_explanation;plan.relevant_alternatives ||= []
+  for (const session of plan.treatments) {
+    for (const field of ['why_today', 'script', 'stack_comparison', 'personalisation_evidence', 'signature_moment', 'expectation_card', 'continuity']) delete session[field]
+    for (const strategy of session.primary_strategy) {
+      delete strategy.dominant_driver
+      delete strategy.why_this_wins
+    }
+  }
   return {planning_result:{outcome:'success',treatment_plan:plan,failure:null}}
 }
 const singleDraft = () => {
@@ -68,6 +75,59 @@ const singleDraft = () => {
   session.steps.splice(session.steps.length-1,0,step('LED.RED',13))
   return d
 }
+
+test('concise generation omits session narratives while retaining treatment detail and clinical linkage', async () => {
+  const e = envelope(), session = e.planning_result.treatment_plan.treatments[0]
+  const obsolete = ['why_today', 'script', 'stack_comparison', 'personalisation_evidence', 'signature_moment', 'expectation_card', 'continuity']
+  const format = rules.buildTreatmentGenerationResponseFormat('express', input)
+  const properties = format.schema.properties.planning_result.anyOf[0].properties.treatment_plan.properties.treatments.items.properties
+  for (const field of obsolete) assert.equal(properties[field], undefined, field)
+  assert.deepEqual(Object.keys(properties.primary_strategy.items.properties).sort(), ['care_type', 'concern', 'exception_reason', 'selected_step_id'])
+  const result = await pipeline.generateTreatmentPlan({ ...args, callModel: async () => e })
+  assert.equal(result.error, undefined)
+  const actual = result.treatment_plan.treatments[0]
+  for (const field of obsolete) assert.equal(actual[field], undefined, field)
+  assert.equal(actual.title, session.title)
+  assert.equal(actual.treatment_time, 43)
+  assert.deepEqual(actual.primary_strategy, session.primary_strategy)
+  assert.deepEqual(actual.steps.map((s) => [s.step_id, s.duration, s.zones, s.how_to_do, s.script]),
+    session.steps.map((s) => [s.step_id, s.duration, s.zones, s.how_to_do, s.script]))
+  assert.deepEqual(actual.preparations_checklist_for_therapist, session.preparations_checklist_for_therapist)
+  const invalidResponse = clone(e)
+  invalidResponse.planning_result.treatment_plan.treatments[0].expectation_card = { tonight: 'Unrequested narrative.' }
+  assert.throws(() => rules.unpackTreatmentPlannerResponse(invalidResponse, 'express', input), (error) => error.code === 'treatment_output_contract_violation')
+})
+
+test('legacy session narratives are removed without changing procedures or mutating the saved plan', () => {
+  const old = draft(), before = clone(old)
+  const final = rules.finalizeTreatmentPlan(old, input)
+  assert.deepEqual(old, before)
+  const session = final.treatment_plan.treatments[0]
+  for (const field of ['why_today', 'script', 'stack_comparison', 'personalisation_evidence', 'signature_moment', 'expectation_card', 'continuity']) assert.equal(session[field], undefined)
+  assert.equal(session.primary_strategy[0].dominant_driver, undefined)
+  assert.equal(session.primary_strategy[0].why_this_wins, undefined)
+  assert.deepEqual(session.steps.map((s) => s.how_to_do), before.treatment_plan.treatments[0].steps.map((s) => s.how_to_do))
+  assert.equal(rules.validateClinicTreatmentPlan(final, input.clinic_treatment_context, 'express', constraints, input).error, undefined)
+})
+
+test('preferred durations do not force padding or replace the binding session windows', () => {
+  const full = singleDraft(), led = full.treatment_plan.treatments[0].steps.find((s) => s.step_id === 'LED.RED')
+  led.duration = 12
+  let result = check(full, input.clinic_treatment_context, 'single')
+  assert.equal(result.error, undefined)
+  assert.equal(result.treatment_plan.treatments[0].treatment_time, 65)
+  led.duration = 7
+  result = check(full, input.clinic_treatment_context, 'single')
+  assert.equal(result.error, undefined)
+  assert.equal(result.treatment_plan.treatments[0].treatment_time, 60, 'valid doses are not padded to 65')
+  led.duration = 6
+  assert.ok(check(full, input.clinic_treatment_context, 'single').error, '59 minutes remains outside the allowed window')
+  const express = draft()
+  express.treatment_plan.treatments[0].steps = express.treatment_plan.treatments[0].steps.filter((s) => s.step_id !== 'INFUSE.TRX')
+  result = check(express)
+  assert.equal(result.error, undefined)
+  assert.equal(result.treatment_plan.treatments[0].treatment_time, 40)
+})
 
 test('mother reference has 15 concern maps and keeps the 0-5 scale',()=>{
   assert.equal(TREATMENT_KNOWLEDGE.concern_maps.length,15)
@@ -82,6 +142,86 @@ test('valid superficial Combination plus Carbon passes; timings and raw targets 
   assert.equal(session.concerns_addressed[0].current_value,70.235)
   assert.equal(session.concerns_addressed[0].target_value,61.917)
   assert.equal(session.steps[6].infusion_ingredients[0],'TRX A (Tranexamic Acid)')
+})
+
+test('tertiary contribution accepts ordinary language without magic keywords; missing secondary remains invalid', async () => {
+  const d = draft(), session = d.treatment_plan.treatments[0]
+  session.steps.find((s) => s.step_id === 'INFUSE.TRX').role = 'TERTIARY_CORRECTIVE'
+  session.stack_comparison = 'Compared with Carbon alone, the peel clears surface congestion and tranexamic infusion treats the pigment concern through a different route with little burden.'
+  assert.doesNotMatch(session.stack_comparison, /incremental|additive|additional|beyond/i)
+  const original = clone(d)
+  let calls = 0, metrics
+  const result = await pipeline.generateTreatmentPlan({ ...args,
+    callModel: async () => { calls++; return envelope(d) }, onMetrics: (value) => { metrics = value } })
+  assert.equal(result.error, undefined)
+  assert.equal(calls, 1)
+  assert.equal(metrics.repaired, false)
+  assert.deepEqual(d, original)
+  assert.deepEqual(result.treatment_plan.treatments[0].steps.map((s) => [s.step_id, s.role, s.duration, s.zones, s.how_to_do]),
+    original.treatment_plan.treatments[0].steps.map((s) => [s.step_id, s.role, s.duration, s.zones, s.how_to_do]))
+  session.steps.find((s) => s.role === 'SECONDARY_CORRECTIVE').role = 'SUPPORT'
+  invalid(d, /tertiary requires a secondary corrective/)
+})
+
+test('treatment wording preferences remain advisory and do not trigger model repair', async () => {
+  const d = draft(), session = d.treatment_plan.treatments[0]
+  session.stack_comparison = ''
+  session.personalisation_evidence = ['One actual supplied scan-to-treatment link.']
+  session.signature_moment.step_number = 999
+  session.steps[6].script = ''
+  session.steps[6].order_reason = ''
+  session.steps.splice(1, 0, step('EXTR.MANUAL', 2, 'SUPPORT', { duration_rationale: null }))
+  let calls = 0, metrics
+  const result = await pipeline.generateTreatmentPlan({ ...args,
+    callModel: async () => { calls++; return envelope(d) }, onMetrics: (value) => { metrics = value } })
+  assert.equal(result.error, undefined)
+  assert.equal(calls, 1)
+  const codes = metrics.validation_warnings.map((row) => row.code)
+  for (const code of ['missing_script', 'missing_order_reason', 'missing_duration_rationale']) assert.ok(codes.includes(code), code)
+  for (const code of ['missing_stack_comparison', 'personalisation_examples', 'signature_moment']) assert.ok(!codes.includes(code), code)
+  assert.equal(result.validation_warnings, undefined, 'warnings do not change the treatment output contract')
+})
+
+test('first request carries executable rules from the validator alongside clinical constraints', () => {
+  const compiled = pipeline.compileTreatmentConstraints(constraints)
+  const contract = compiled.clinical_constraints.execution_validation_contract
+  assert.deepEqual(contract, rules.buildTreatmentExecutionContract())
+  assert.deepEqual(contract.step_timings_minutes, rules.CLINIC_STEP_TIMINGS)
+  assert.deepEqual(contract.session_windows_minutes, rules.CLINIC_SESSION_WINDOWS)
+  assert.deepEqual(compiled.clinical_constraints.energy_device_policy, constraints.clinical_constraints.energy_device_policy)
+  const request = pipeline.buildTreatmentModelRequest({ systemPrompt: args.systemPrompt, constraints, plannerInput: input })
+  assert.ok(request.instructions.includes('execution_validation_contract'))
+  assert.ok(request.instructions.includes(contract.corrective_hierarchy))
+})
+
+test('registered equipment and irrelevant metadata are derived locally without changing procedures', async () => {
+  const d = draft(), s = d.treatment_plan.treatments[0].steps[6]
+  s.ingredients_equipments = []
+  s.clinic_step_type = 'other'
+  s.lip_passes = 2
+  s.lip_serum = 'Hyaluronic Acid'
+  s.massage_purpose = 'mandatory'
+  let calls = 0
+  const result = await pipeline.generateTreatmentPlan({ ...args, callModel: async () => { calls++; return d } })
+  assert.equal(result.error, undefined)
+  assert.equal(calls, 1)
+  const actual = result.treatment_plan.treatments[0].steps[6]
+  assert.equal(actual.clinic_step_type, 'infusion')
+  assert.equal(actual.duration, s.duration)
+  assert.deepEqual(actual.zones, s.zones)
+  assert.equal(actual.how_to_do, s.how_to_do)
+  assert.equal(actual.role, s.role)
+  assert.equal(actual.massage_purpose, null)
+  assert.equal(actual.lip_passes, null)
+  assert.ok(actual.ingredients_equipments.includes('Face Ultrasound Infusion Probe'))
+})
+
+test('documented protocol rinse wording is accepted; cooling and approved settings stay binding', () => {
+  const d = draft()
+  d.treatment_plan.treatments[0].steps[1].how_to_do = 'Apply the approved superficial protocol to the recorded zones; rinse off completely as directed by the clinic protocol before cooling.'
+  assert.equal(check(d).error, undefined)
+  d.treatment_plan.treatments[0].steps.splice(2, 1)
+  invalid(d, /superficial peel plus Carbon/)
 })
 test('fixed finish, carbon and infusion doses cannot be inflated or hidden as other',()=>{
   for (const [at,duration] of [[9,4],[4,7],[6,4]]) { const d=draft();d.treatment_plan.treatments[0].steps[at].duration=duration;invalid(d,/must take/) }
@@ -163,7 +303,9 @@ test('every detailed session needs exactly one mandatory massage within its 5-10
   const duplicate=draft();duplicate.treatment_plan.treatments[0].steps.splice(7,0,step('MASSAGE.LYMPH',5,'SUPPORT',{massage_purpose:'mandatory'}))
   invalid(duplicate,/exactly one mandatory/)
   const filler=draft();filler.treatment_plan.treatments[0].steps[7].massage_purpose='filler'
-  invalid(filler,/not optional filler/)
+  const canonical = check(filler)
+  assert.equal(canonical.error, undefined)
+  assert.equal(canonical.treatment_plan.treatments[0].steps[7].massage_purpose, 'mandatory')
 })
 test('raw current/target values cannot be invented, inverted or rounded',()=>{
   const p=rules.finalizeTreatmentPlan(draft(),input);p.treatment_plan.treatments[0].concerns_addressed[0].current_value=70
@@ -443,12 +585,14 @@ test('deadline aborts a stalled caller and makes no second request',async()=>{
 test('multiple courses expose only two detailed facials and gate all later sessions',()=>{
   const d=draft();const s=d.treatment_plan.treatments[0]
   s.steps.splice(1,0,step('EXTR.MANUAL',7),step('ENERGY.HF',3))
-  s.steps.splice(s.steps.length-1,0,step('LED.RED',10))
+  s.steps.splice(s.steps.length-1,0,step('LED.RED',12))
   s.signature_moment.step_number=s.steps.length-2
   const second=clone(s);second.session_number=2;second.week=3
   d.treatment_plan.treatments.push(second)
   d.treatment_plan.course_outline=Array.from({length:5},(_,i)=>({session_number:i+1,week:1+i*2,session_kind:'facial',clinical_goal:'Conditional goals after actual review.',candidate_step_ids:['ENERGY.CARBON.LASER'],reassessment_required:i>=2,escalation_condition:'Actual tolerance and reassessment must justify any escalation.'}))
-  assert.equal(check(d,input.clinic_treatment_context,'multiple').error,undefined)
+  const result = check(d,input.clinic_treatment_context,'multiple')
+  assert.equal(result.error,undefined)
+  assert.deepEqual(result.treatment_plan.treatments.map((session) => session.treatment_time), [65, 65])
   d.treatment_plan.course_outline[2].reassessment_required=false
   assert.match(check(d,input.clinic_treatment_context,'multiple').error.details.join('\n'),/reassessment gate/)
   d.treatment_plan.course_outline[2].reassessment_required=true
@@ -458,6 +602,49 @@ test('multiple courses expose only two detailed facials and gate all later sessi
 test('under-eye and spray approvals do not extend niacinamide to facial ultrasound infusion',()=>{
   const d=draft();d.treatment_plan.treatments[0].steps[6].infusion_ingredients=['Niacinamide']
   invalid(d,/ingredient is not approved for this route/)
+})
+
+test('medium-reasoning budgets leave headroom for the final JSON on each plan type', () => {
+  for (const [type, expected] of [['express', 32000], ['single', 32000], ['multiple', 48000], ['full', 48000]]) {
+    const p = rules.buildTreatmentPlannerInput(diagnosis, selected, type, null, constraints, options)
+    const request = pipeline.buildTreatmentModelRequest({ systemPrompt: args.systemPrompt, constraints, plannerInput: p })
+    assert.equal(request.max_output_tokens, expected)
+    assert.equal(request.model, 'gpt-5.4')
+    assert.equal(request.reasoning.effort, 'medium')
+    assert.equal(request.text.verbosity, 'low')
+  }
+  const override = pipeline.buildTreatmentModelRequest({ systemPrompt: args.systemPrompt, constraints, plannerInput: input,
+    config: { maxOutputTokensSingle: 36000 } })
+  assert.equal(override.max_output_tokens, 36000)
+})
+
+test('truncation preserves response ID, status and actual token usage without accepting partial JSON or retrying', async () => {
+  let calls = 0, metrics
+  // Deliberately valid-looking JSON must still be rejected when the API says
+  // incomplete; do not let a larger cap turn truncation into a clinical success.
+  const response = { id: 'resp_fixture_truncated', status: 'incomplete', max_output_tokens: 14000,
+    incomplete_details: { reason: 'max_output_tokens' }, output_text: JSON.stringify(envelope()),
+    usage: { input_tokens: 18000, output_tokens: 14000, input_tokens_details: { cached_tokens: 12000 },
+      output_tokens_details: { reasoning_tokens: 13000 } } }
+  const result = await pipeline.generateTreatmentPlan({ ...args,
+    callModel: async () => { calls++; return response }, onMetrics: (value) => { metrics = value } })
+  assert.equal(calls, 1)
+  assert.equal(result.treatment_plan, undefined)
+  assert.equal(result.error.code, 'treatment_response_incomplete')
+  assert.equal(result.error.phase, 'output_contract')
+  assert.equal(result.error.response_id, response.id)
+  assert.equal(result.error.status, 'incomplete')
+  assert.equal(result.error.incomplete_reason, 'max_output_tokens')
+  assert.equal(result.error.requested_max_output_tokens, 32000)
+  assert.equal(result.error.effective_max_output_tokens, 14000, 'a lower gateway cap remains visible')
+  assert.equal(result.error.usage.output_tokens, 14000)
+  assert.equal(result.error.usage.reasoning_tokens, 13000)
+  assert.match(result.error.details.join('\n'), /including 13000 reasoning tokens/)
+  assert.equal(metrics.repaired, false)
+  assert.equal(metrics.max_output_tokens, 32000)
+  assert.equal(metrics.call_metrics[0].incomplete_reason, 'max_output_tokens')
+  assert.equal(metrics.call_metrics[0].effective_max_output_tokens, 14000)
+  assert.ok(!JSON.stringify(metrics).includes('Cheek Tone Renewal'), 'diagnostics contain no patient or plan text')
 })
 
 test('documented legacy parameter input is normalised without empty primaries or score changes',async()=>{
@@ -691,30 +878,53 @@ test('the captured 62-minute successful plan remains valid with corrected eviden
   const p=makeCase91Input(),model=clone(case91.successful_model_plan)
   const old=clone(model);delete model.modality_omission_explanation
   model.relevant_alternatives=[{session_number:1,step_id:'PEEL.COMBO',reason:old.modality_omission_explanation.chemical_peel}]
-  const parsed=rules.unpackTreatmentPlannerResponse({planning_result:{outcome:'success',treatment_plan:model,failure:null}},'single',p)
+  const parsed=rules.unpackTreatmentPlannerResponse(envelope({treatment_plan:model}),'single',p)
   const result=rules.validateClinicTreatmentPlan(rules.finalizeTreatmentPlan(parsed,p),p.clinic_treatment_context,'single',constraints,p)
   assert.equal(result.error,undefined)
   assert.equal(result.treatment_plan.total_time,'62 minutes')
   assert.deepEqual(result.treatment_plan.treatments[0].steps.map((step)=>[step.step_id,step.duration,step.how_to_do]),old.treatments[0].steps.map((step)=>[step.step_id,step.duration,step.how_to_do]))
 })
-test('reference compilation keeps all supplied secondary maps and their exact original strengths and patterns',()=>{
+test('reference compilation preserves every original map and strength in the static prefix',()=>{
   const p=makeCase91Input(),r=compileTreatmentKnowledgeReference(p)
-  assert.equal(r.case_reference.concern_maps.length,15)
-  for(const row of r.case_reference.concern_maps) {
+  const global=JSON.parse(r.stable_prefix.slice(r.stable_prefix.indexOf('\n')+1))
+  assert.deepEqual(r.case_reference.concern_map_indices, Array.from({length:15}, (_, index) => index))
+  assert.equal(r.case_reference.concern_maps, undefined)
+  assert.equal(global.concern_maps.length, 15)
+  for(const row of global.concern_maps) {
     const {index,...source}=row;assert.deepEqual(source,TREATMENT_KNOWLEDGE.concern_maps[index])
   }
-  const global=JSON.parse(r.stable_prefix.slice(r.stable_prefix.indexOf('\n')+1))
   const strengthAt=global.atomic_steps.columns.indexOf('strengths')
   const idAt=global.atomic_steps.columns.indexOf('id')
   for(const row of global.atomic_steps.rows) assert.equal(row[strengthAt],TREATMENT_STEPS[row[idAt]].strengths)
   assert.deepEqual(global.strength_scale,TREATMENT_KNOWLEDGE.strength_scale)
   assert.equal(global.combination_reasoning_examples,undefined)
 })
-test('reference subsets follow supplied concerns, and unfamiliar identities retain the full reference',()=>{
+test('dynamic references are compact pointers; different concern subsets share all static knowledge',()=>{
   const sparse={diagnosis_report:{superficial_pigmentation:{parameter_name:concern}},planning_contract:{allowed_concern_names:[concern]}}
-  assert.equal(compileTreatmentKnowledgeReference(sparse).case_reference.concern_maps.length,1)
+  const before=clone(sparse), initial=compileTreatmentKnowledgeReference(sparse)
+  assert.equal(initial.case_reference.concern_map_indices.length,1)
+  assert.deepEqual(sparse,before)
+  assert.equal(JSON.parse(initial.stable_prefix.split('\n').slice(1).join('\n')).concern_maps.length,15)
   sparse.planning_contract.allowed_concern_names.push('Unfamiliar actual diagnosis name')
-  assert.equal(compileTreatmentKnowledgeReference(sparse).case_reference.concern_maps.length,15)
+  const unknown=compileTreatmentKnowledgeReference(sparse)
+  assert.equal(unknown.case_reference.concern_map_indices.length,15)
+  assert.equal(unknown.stable_prefix,initial.stable_prefix)
+  assert.equal(compileTreatmentKnowledgeReference(makeCase91Input()).stable_prefix,initial.stable_prefix)
+  assert.equal(compileTreatmentKnowledgeReference({}).stable_prefix,initial.stable_prefix)
+})
+
+test('the production knowledge placeholder is replaced once with the full stable reference', () => {
+  const p=makeCase91Input(),before=clone(p)
+  const request=pipeline.buildTreatmentModelRequest({systemPrompt:`Fixture instructions\n${TREATMENT_KNOWLEDGE_PROMPT}\nFixture ending.`,constraints,plannerInput:p})
+  const reference=compileTreatmentKnowledgeReference(p)
+  assert.ok(request.instructions.includes(reference.stable_prefix))
+  assert.ok(!request.instructions.includes(TREATMENT_KNOWLEDGE_PROMPT))
+  assert.equal((request.instructions.match(/"concern_maps":/g)||[]).length,1)
+  assert.equal((request.input.match(/"concern_maps":/g)||[]).length,0)
+  assert.deepEqual(JSON.parse(request.input).diagnosis_report,rules.compileTreatmentPlannerInput(p).diagnosis_report)
+  assert.deepEqual(p,before)
+  assert.equal(request.model,'gpt-5.4')
+  assert.equal(request.reasoning.effort,'medium')
 })
 test('different patients with the same schema reuse a stable prefix/group while their private input stays separate',()=>{
   const a=makeCase91Input(),b=clone(a)
@@ -729,6 +939,16 @@ test('different patients with the same schema reuse a stable prefix/group while 
   assert.equal(ra.prompt_cache_retention,'24h')
   assert.equal(ra.reasoning.effort,'medium')
   assert.ok(!ra.instructions.includes('Another fixture identity'))
+  const patientInput=JSON.parse(ra.input)
+  assert.equal(patientInput.mother_case_reference.concern_maps,undefined)
+  assert.deepEqual(patientInput.mother_case_reference.concern_map_indices,Array.from({length:15},(_,i)=>i))
+  assert.ok(JSON.stringify(patientInput.mother_case_reference).length<1000)
+  const start=ra.instructions.indexOf('MOTHER DOCUMENT REFERENCE KNOWLEDGE — STABLE TABLES\n')
+  assert.ok(start>=0)
+  const end=ra.instructions.indexOf('\n',start)+1
+  const global=JSON.parse(ra.instructions.slice(end,ra.instructions.indexOf('\n',end)))
+  assert.equal(global.concern_maps.length,15)
+  assert.ok(ra.instructions.indexOf('MOTHER DOCUMENT REFERENCE KNOWLEDGE — STABLE TABLES\n',start+1)<0)
 })
 test('input order and stock order cannot accidentally fragment equivalent cache groups',()=>{
   const a=makeCase91Input(),b=clone(a),stock=clone(constraints)

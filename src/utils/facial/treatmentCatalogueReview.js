@@ -89,10 +89,10 @@ assessment and client priorities; preserve scores and supplied targets.
    The upper limit is available for worthwhile care: 75 full/single, 45 express.
    Reaching the lower boundary, or passing the preferred target, is not itself a
    reason to omit a useful compatible treatment that fits the complete window.
-   Before allocating filler massage, and whenever finishing below the preference,
+   After reserving mandatory drainage, and whenever finishing below the preference,
    compare relevant additions AND substitutions for lower-value optional care.
    Preserve required recovery and fixed clinical doses. Choose worthwhile care
-   ahead of filler; then calculate filler under the existing massage rule.
+   while retaining exactly one mandatory 5-10-minute drainage step.
    In other_relevant_options, a below-preference session needs a concrete brief
    comparison: actual total versus the preferred target; the best relevant
    addition or substitution considered; and the case-specific reason it loses
@@ -107,8 +107,8 @@ assessment and client priorities; preserve scores and supplied targets.
    IV/hair-removal inventory stays outside an ordinary facial unless explicitly
    in scope and approved. Do not guess what an ambiguous 'Teenage Line' means.
 6. Personalize choices, zones, permitted intensity, delivery and recovery from the
-   actual findings. Give a specific title and a 50-80-word session script explaining
-   the priorities, adaptations and realistic expected benefit. Step scripts are
+   actual findings. Give a specific facial title without a separate session script
+   or narrative. Express adaptations in the actual treatment instructions. Step scripts are
    usually two short sentences (20-45 words) in simple spoken language; keep the
    required PRIMARY_CONCERN tags. Preserve all required therapist technique,
    approved settings, timing and stopping details in how_to_do. Similar needs may

@@ -2,6 +2,7 @@ import {
   buildTreatmentPlannerInput, finalizeTreatmentPlan, validateClinicTreatmentPlan,
   buildTreatmentGenerationResponseFormat, unpackTreatmentPlannerResponse,
   compileTreatmentPlannerInput,
+  buildTreatmentExecutionContract,
 } from './treatmentClinicRules.js'
 import { TREATMENT_KNOWLEDGE_PROMPT, compileTreatmentKnowledgeReference } from './treatmentKnowledge.js'
 
@@ -9,7 +10,9 @@ export const TREATMENT_RUNTIME_CONFIG = Object.freeze({
   model: 'gpt-5.4', reasoningEffort: 'medium', serviceTier: 'auto',
   // User-requested application override: zero disables automatic timeouts.
   deadlineMs: 0, initialCallMs: 0, minRepairBudgetMs: 15000,
-  maxRepairs: 1, maxOutputTokensSingle: 14000, maxOutputTokensMultiple: 22000,
+  // Responses caps include reasoning AND the final JSON, not just visible text.
+  // Give medium reasoning room to finish; concise output is still requested.
+  maxRepairs: 1, maxOutputTokensSingle: 32000, maxOutputTokensMultiple: 48000,
   promptCacheKey: 'ai-aesthetics-treatment-v5.6', promptCacheRetention: '24h',
 })
 
@@ -39,7 +42,8 @@ export function summarizeTreatmentModelUsage(usage = {}) {
 // objective. Mother maps supply relevant choices without a catalogue audit.
 export function compileTreatmentConstraints(constraints) {
   const result = JSON.parse(JSON.stringify(constraints))
-  const clinical = result.clinical_constraints || {}
+  const clinical = result.clinical_constraints ||= {}
+  clinical.execution_validation_contract = buildTreatmentExecutionContract()
   const hero = clinical.hero_modality_decision_policy
   if (hero?.primary_concern_candidate_framework) delete hero.primary_concern_candidate_framework
   // Legacy checklist names must not leak back into an optimized request.
@@ -97,14 +101,33 @@ export function buildTreatmentModelRequest({ systemPrompt, constraints, plannerI
   return request
 }
 
-function parseModelResponse(response) {
+function incompleteResponseError(response, request, reason, message) {
+  const usage = response?.usage ? summarizeTreatmentModelUsage(response.usage) : null
+  const requested = request?.max_output_tokens ?? null
+  const effective = response?.max_output_tokens ?? null
+  return Object.assign(new Error(message), {
+    code: 'treatment_response_incomplete', response_id: response?.id || response?.response_id || null,
+    status: response?.status || null, incomplete_reason: reason,
+    requested_max_output_tokens: requested, effective_max_output_tokens: effective, usage,
+    details: [
+      `Incomplete reason: ${reason}. Requested output cap: ${requested ?? 'unknown'}; reported output cap: ${effective ?? 'unknown'}.`,
+      ...(usage ? [`Used ${usage.output_tokens} output tokens, including ${usage.reasoning_tokens} reasoning tokens.`] : []),
+      'The output cap includes reasoning and final JSON. The incomplete plan was not accepted or automatically retried.',
+    ],
+  })
+}
+
+function parseModelResponse(response, request) {
   if (response?.error) throw Object.assign(new Error(response.error.message || 'The treatment gateway returned an error.'), response.error)
-  if (response?.status === 'incomplete') throw Object.assign(new Error(`Incomplete model response: ${response.incomplete_details?.reason || 'unknown'}.`), { code: 'treatment_response_incomplete' })
+  if (response?.status === 'incomplete') {
+    const reason = response.incomplete_details?.reason || 'unknown'
+    throw incompleteResponseError(response, request, reason, `Incomplete model response: ${reason}.`)
+  }
   if (response?.status && response.status !== 'completed') throw Object.assign(new Error(`Model response status ${response.status}.`), { code: 'treatment_response_failed' })
   if (response?.treatment_plan || response?.planning_result) return response
   if (typeof response === 'string') return JSON.parse(response)
   const chat = response?.choices?.[0]
-  if (chat?.finish_reason === 'length') throw Object.assign(new Error('Incomplete Chat Completions output.'), { code: 'treatment_response_incomplete' })
+  if (chat?.finish_reason === 'length') throw incompleteResponseError(response, request, 'length', 'Incomplete Chat Completions output.')
   if (chat?.message?.refusal) throw Object.assign(new Error('The model refused this request.'), { code: 'treatment_response_refusal' })
   if (chat?.message?.parsed?.treatment_plan || chat?.message?.parsed?.planning_result) return chat.message.parsed
   let output = response?.output_text || chat?.message?.content
@@ -172,6 +195,7 @@ export async function generateTreatmentPlan({
     metrics.patient_input_characters = request.input.length
     metrics.prompt_cache_key = request.prompt_cache_key
     metrics.prompt_cache_retention = request.prompt_cache_retention ?? 'default'
+    metrics.max_output_tokens = request.max_output_tokens
     metrics.call_metrics = []
     const recordedCall = async (modelRequest, timeout, kind) => {
       const began = Date.now()
@@ -179,15 +203,22 @@ export async function generateTreatmentPlan({
         const response = await timedCall(callModel, modelRequest, timeout)
         metrics.usage.push(response?.usage || null)
         metrics.call_metrics.push({ kind, elapsed_ms: Date.now() - began,
-          status: response?.status || 'returned', ...summarizeTreatmentModelUsage(response?.usage) })
+          status: response?.status || 'returned', response_id: response?.id || response?.response_id || null,
+          requested_max_output_tokens: modelRequest.max_output_tokens,
+          effective_max_output_tokens: response?.max_output_tokens ?? null,
+          incomplete_reason: response?.incomplete_details?.reason || null,
+          ...summarizeTreatmentModelUsage(response?.usage) })
         return response
       } catch (error) {
         metrics.call_metrics.push({ kind, elapsed_ms: Date.now() - began, status: error.code || 'failed' })
         throw error
       }
     }
+    const recordWarnings = (warnings) => {
+      metrics.validation_warnings = warnings
+    }
     const check = async (plan) => {
-      let result = validateClinicTreatmentPlan(finalizeTreatmentPlan(plan, plannerInput), plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput)
+      let result = validateClinicTreatmentPlan(finalizeTreatmentPlan(plan, plannerInput), plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput, recordWarnings)
       if (!result.error && existingClinicalValidator) {
         result = await timedCall(
           async (_, controls) => existingClinicalValidator(result, { plannerInput, constraints, signal: controls.signal }),
@@ -195,7 +226,7 @@ export async function generateTreatmentPlan({
         if (!result?.error) {
           // A gateway/validator must not turn a complete plan into an empty success.
           result = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(result, treatmentType, plannerInput), plannerInput)
-          result = validateClinicTreatmentPlan(result, plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput)
+          result = validateClinicTreatmentPlan(result, plannerInput.clinic_treatment_context, treatmentType, constraints, plannerInput, recordWarnings)
         }
       }
       return result
@@ -204,7 +235,7 @@ export async function generateTreatmentPlan({
     metrics.calls += 1
     const response = await recordedCall(request, initialTimeout, 'initial')
     phase = 'output_contract'
-    const draft = unpackTreatmentPlannerResponse(parseModelResponse(response), treatmentType, plannerInput)
+    const draft = unpackTreatmentPlannerResponse(parseModelResponse(response, request), treatmentType, plannerInput)
     candidate = finalizeTreatmentPlan(draft, plannerInput)
     phase = 'initial_validation'
     let checked = await check(candidate)
@@ -226,7 +257,7 @@ export async function generateTreatmentPlan({
       phase = 'repair_request'
       const repair = await recordedCall(repairRequest, remainingTimeout(), 'repair')
       phase = 'repair_output_contract'
-      candidate = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(parseModelResponse(repair), treatmentType, plannerInput), plannerInput)
+      candidate = finalizeTreatmentPlan(unpackTreatmentPlannerResponse(parseModelResponse(repair, repairRequest), treatmentType, plannerInput), plannerInput)
       phase = 'repair_validation'
       checked = await check(candidate)
       if (checked.error) {
@@ -248,6 +279,12 @@ export async function generateTreatmentPlan({
     metrics.status = error.code || 'treatment_generation_failed'
     const failure = { code: metrics.status, message: error.message, details: error.details || [],
       phase, response_id: error.response_id || null, status: error.status || null, stack: error.stack }
+    if (error.code === 'treatment_response_incomplete') Object.assign(failure, {
+      incomplete_reason: error.incomplete_reason,
+      requested_max_output_tokens: error.requested_max_output_tokens,
+      effective_max_output_tokens: error.effective_max_output_tokens,
+      usage: error.usage,
+    })
     if (initialValidationError) {
       failure.initial_validation = initialValidationError
       failure.message = `${initialValidationError.message} Repair failed: ${error.message}`

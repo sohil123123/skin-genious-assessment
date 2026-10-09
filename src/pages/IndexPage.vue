@@ -207,6 +207,7 @@ import {
   buildTreatmentPlannerInput,
   TREATMENT_PLAN_RESPONSE_FORMAT,
   validateClinicTreatmentPlan,
+  buildClinicGenerationContract,
 } from 'src/utils/facial/treatmentClinicRules.js'
 import { treatmentHistoryFlags, inClinicProductRecords } from 'src/utils/facial/5_light_modes/treatmentIntegration.js'
 import { encode } from '@toon-format/toon'
@@ -915,12 +916,19 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
       return plan
     } finally { Loading.hide() }
   }
+  const generationConstraints = {
+    ...prompts.constraints,
+    clinical_constraints: {
+      ...prompts.constraints.clinical_constraints,
+      execution_validation_contract: buildClinicGenerationContract(),
+    },
+  }
   const treatmentPlannerInput = buildTreatmentPlannerInput(
     assessmentData.value.diagnosis,
     selected,
     treatmentType,
     clinicTreatmentContext,
-    prompts.constraints,
+    generationConstraints,
   )
   const { treatment_catalogue, ...patientTreatmentInput } = treatmentPlannerInput
   const input = [
@@ -933,7 +941,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
         },
         {
           type: 'input_text',
-          text: encode(prompts.constraints),
+          text: encode(generationConstraints),
         },
         {
           type: 'input_text',
@@ -983,7 +991,10 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
   }
   const result = await timedTreatmentResponse(input, treatmentOptions)
   console.log('🩺 Treatment plans:', result)
-  const validated = validateClinicTreatmentPlan(result, clinicTreatmentContext, treatmentType, prompts.constraints)
+  const reportValidationWarnings = warnings => {
+    if (warnings.length) console.info('[facial-treatment] advisory checks', warnings)
+  }
+  const validated = validateClinicTreatmentPlan(result, clinicTreatmentContext, treatmentType, generationConstraints, reportValidationWarnings)
   if (validated?.error?.code !== 'facial_treatment_rule_violation') return finishPlanning(validated, false)
   console.warn('[facial-treatment] correction required', {
     validation_error_count: validated.error.details.length,
@@ -1007,7 +1018,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     ...treatmentOptions,
     metadata: { stage: 'facial_treatment_correction' },
   })
-  const correctedValidation = validateClinicTreatmentPlan(corrected, clinicTreatmentContext, treatmentType, prompts.constraints)
+  const correctedValidation = validateClinicTreatmentPlan(corrected, clinicTreatmentContext, treatmentType, generationConstraints, reportValidationWarnings)
   if (correctedValidation?.error) {
     console.error('[facial-treatment] correction rejected', {
       code: correctedValidation.error.code,

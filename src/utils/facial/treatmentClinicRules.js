@@ -42,6 +42,18 @@ export const SUPPORTIVE_REVIEW_KEYS = [
   'other_relevant_options',
 ]
 
+export function buildClinicGenerationContract() {
+  return {
+    session_windows_minutes: CLINIC_SESSION_WINDOWS,
+    preferred_session_minutes: CLINIC_SESSION_TARGETS,
+    session_target_policy: 'Plan toward 65 minutes for a single facial and EVERY detailed course facial, and 40 for express. Do not default to the lower bound. Use meaningful indicated care and realistic adjustable durations in approved ranges; preserve fixed doses and never add filler. Clinically justified totals elsewhere within the allowed window remain valid.',
+    step_timings_minutes: CLINIC_STEP_TIMINGS,
+    mandatory_care: 'Exactly one 5-10-minute clinical drainage step in every facial; one combined three-minute finish last. Include triggered lip care and approved regional care in the actual session sum.',
+    validity: 'Actual doses, required equipment, approved ingredient routes, lip eligibility and executable structure are binding. Presentation summaries and catalogue coverage bookkeeping are advisory and do not require a second plan.',
+    generation: 'Apply the clinical history, numeric, zone, pairing and sequence constraints while selecting the first plan. Check the actual session once before returning. No required keyword in corrective-benefit explanations. Do not output session speech or a separate session narrative; retain the facial title, duration and actual treatment instructions/metadata.',
+  }
+}
+
 export const CLINIC_TREATMENT_RULES_PROMPT = `
 CLINIC TREATMENT SELECTION AND TIMING (AUTHORITATIVE)
 Use the supplied diagnosis and feature evidence; do not re-score, change targets,
@@ -122,8 +134,10 @@ SELECTION ORDER (NOT A RIGID PROCEDURE SEQUENCE):
 3. Evaluate regional care, facial infusion, under-eye infusion, cooling, spray,
    mask selection and other relevant catalogue options against the FULL diagnosis.
    Consider support even when the relevant parameter was not chosen as primary.
-   A low peri-orbital score alone does not establish an infusion indication;
-   use available regional evidence and the clinic-approved treatment purpose.
+   A supplied higher-is-better customer periocular score <=70 requires the
+   additional two-minute ocular infusion under the supplied score rule. Use
+   regional findings to select its approved serum; absent detailed findings,
+   select appropriate hydration/comfort care. Missing scores do not trigger it.
 4. Select support for useful additional clinical, regional, comfort or recovery
    benefit, including recovery from the planned procedure burden. Compare its
    actual contribution with selected care; a shared broad goal does not itself
@@ -132,7 +146,7 @@ SELECTION ORDER (NOT A RIGID PROCEDURE SEQUENCE):
 5. Compare worthwhile additions or substitutions before filler massage, including
    when the minimum duration is already met. Use the available complete window
    for beneficial care while preserving fixed doses and required recovery. Then
-   calculate any necessary filler under the existing rule below.
+   retain the mandatory drainage reserved under the rule below.
 
 Record a concise per-session decision in treatment_plan.modality_omission_explanation
 for EACH of: ${SUPPORTIVE_REVIEW_KEYS.join(', ')}.
@@ -142,22 +156,15 @@ with the relevant finding, incremental role or reason. Do not output private
 ranking deliberations; these are brief, checkable selection summaries.
 
 MASSAGE:
-- One Face and Neck Lymphatic Drainage Massage step at most, 5-10 minutes.
-- Set massage_purpose to "filler" or "clinical" on that step (null elsewhere).
-- For filler, sum ALL other steps including any lip treatment. If already at or
-  above the minimum, omit filler. Otherwise select one appropriate 5-10-minute
-  massage that brings the complete session inside its permitted window.
-  The remaining gap sets a minimum needed duration, not the only allowed duration;
-  do not force the total to equal the lower boundary or default massage to 10.
-  Explain the selected massage duration in the existing lymphatic_drainage entry.
-  If one 5-10-minute massage cannot meet the complete session window, reconsider
-  justified treatment choices; never pad fixed steps or add duplicate massage.
-- Clinical massage may use 5-10 minutes when a specific documented finding
-  supports it. Explain that clinical purpose in how_to_do; do not relabel filler
-  as clinical to bypass the calculation. Selection priority is not step order.
-- All time totals describe actual sequential session time, including specified
-  drying/contact time. Do not describe concurrent steps and then add their full
-  durations as though they were sequential.
+- Exactly one Face and Neck Lymphatic Drainage Massage is mandatory in EVERY
+  facial, 5-10 minutes, even when the other steps meet the session minimum.
+- Use the existing massage_purpose "clinical" value (null elsewhere); explain
+  mandatory drainage care and the selected duration in how_to_do and the existing
+  lymphatic_drainage review. Reserve at least five minutes when planning.
+- Adapt gently around active lesions and reactive/recently treated areas. Acne
+  restrictions are lesion-local and never create a massage-omission option.
+- Keep meaningful care at its real dose. Do not duplicate massage, automatically
+  select ten minutes or inflate fixed steps to fill time. Placement is case-specific.
 
 LIP RULE (INDICATION AND PROTOCOL UNCHANGED):
 The application supplies clinic_treatment_context.lip_pigmentation.
@@ -210,7 +217,6 @@ export const TREATMENT_PLAN_RESPONSE_FORMAT = {
         objectSchema({
           session_number: { type: 'integer' },
           title: stringSchema,
-          script: stringSchema,
           catalogue_review: objectSchema(
             Object.fromEntries(CATALOGUE_OMISSION_STATUSES.map((status) => [status, arraySchema(stringSchema)])),
           ),
@@ -489,12 +495,19 @@ const ingredientKey = (value) => {
 
 // Validate before saving. Arithmetic and required metadata are checked in code;
 // patient-specific clinical benefit still requires review of the actual plan.
-export function validateClinicTreatmentPlan(plan, context, treatmentType, constraints = {}) {
+export function validateClinicTreatmentPlan(plan, context, treatmentType, constraints = {}, onWarnings = null) {
   if (plan?.error) return plan
   // The unchanged API wrapper projects client scores on return. Restore only a
   // validation copy so its display metadata is not mistaken for model schema drift.
   const enginePlan = prepareFacialEngineInput(plan)
+  // Older saved plans may contain the retired session speech field.
+  // Step scripts remain part of the actual treatment instructions.
+  const legacySessions = enginePlan?.treatment_plan?.treatments
+  for (const session of Array.isArray(legacySessions) ? legacySessions : []) {
+    if (session && typeof session === 'object') delete session.script
+  }
   const errors = schemaErrors(enginePlan, TREATMENT_PLAN_RESPONSE_FORMAT.schema)
+  const warnings = []
   const treatments = enginePlan?.treatment_plan?.treatments
   const lip = context?.lip_pigmentation
   const normalizedType = normalizeTreatmentPlanType(treatmentType)
@@ -515,7 +528,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   }
   const review = enginePlan?.treatment_plan?.modality_omission_explanation
   for (const key of SUPPORTIVE_REVIEW_KEYS) {
-    if (!nonempty(review?.[key])) errors.push(`Supportive-treatment review is missing for ${key}.`)
+    if (!nonempty(review?.[key])) warnings.push({ code: 'missing_supportive_summary', field: key })
   }
   const protocols = constraints?.clinical_constraints?.supportive_treatment_protocols || {}
   const catalogueIngredients = constraints?.availableResources?.jet_infusion_solutions || []
@@ -529,7 +542,12 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   for (const [sessionIndex, session] of (Array.isArray(treatments) ? treatments : []).entries()) {
     const label = `Session ${sessionIndex + 1}`
     const steps = Array.isArray(session?.steps) ? session.steps : []
-    errors.push(...catalogueReviewErrors({ ...session, steps }, catalogue, label))
+    for (const error of catalogueReviewErrors({ ...session, steps }, catalogue, label)) {
+      // Selected resource identity remains binding. Omission-ledger bookkeeping
+      // is not a reason to regenerate otherwise executable clinical steps.
+      if (/unknown catalogue ID|must name its actual catalogue resource|must identify/i.test(error)) errors.push(error)
+      else warnings.push({ code: 'catalogue_coverage', session_number: sessionIndex + 1 })
+    }
     if (!steps.length) errors.push(`${label}: steps are missing.`)
     let totalMinutes = 0
     const byType = (type) => steps.filter((step) => step?.clinic_step_type === type)
@@ -563,10 +581,8 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
         if (!equipment.some((item) => item.includes(probe)))
           errors.push(`${label}, step ${stepIndex + 1}: list the approved ${type} probe.`)
       }
-      if (!nonempty(step.how_to_do) || !nonempty(step.script))
-        errors.push(
-          `${label}, step ${stepIndex + 1}: technique and client explanation are required.`,
-        )
+      if (!nonempty(step.how_to_do)) errors.push(`${label}, step ${stepIndex + 1}: technique is required.`)
+      if (!nonempty(step.script)) warnings.push({ code: 'missing_script', session_number: sessionIndex + 1, step_number: stepIndex + 1 })
       if (type === 'other') continue
       let [min, max] = CLINIC_STEP_TIMINGS[type]
       if (['infusion', 'under_eye_infusion', 'hydra_spray'].includes(type)) {
@@ -610,29 +626,11 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
         errors.push(`${label}: ${type} is one whole step; do not duplicate it to fill time.`)
     }
     const massages = byType('lymphatic_drainage')
-    if (massages.length > 1)
-      errors.push(`${label}: do not duplicate lymphatic drainage to fill time.`)
+    if (massages.length !== 1)
+      errors.push(`${label}: exactly one mandatory 5-10-minute lymphatic drainage massage is required.`)
     for (const massage of massages) {
-      if (!['filler', 'clinical'].includes(massage.massage_purpose))
-        errors.push(`${label}: massage_purpose must be filler or clinical.`)
-      if (massage.massage_purpose === 'filler' && window) {
-        const required = requiredFillerMinutes(
-          totalMinutes - (numeric(massage.duration) ?? 0),
-          normalizedType,
-        )
-        if (required === null)
-          errors.push(
-            `${label}: other steps leave a gap that one 5-10-minute massage cannot fill; review justified treatment options without padding.`,
-          )
-        else if (required === 0)
-          errors.push(
-            `${label}: the session already meets its minimum without filler massage; omit filler.`,
-          )
-        else if ((numeric(massage.duration) ?? 0) < required - 1e-9)
-          errors.push(
-            `${label}: filler massage must take at least ${required} minutes within the 5-10-minute limit, including lip treatment in the other-step total.`,
-          )
-      }
+      if (massage.massage_purpose !== 'clinical')
+        errors.push(`${label}: mandatory drainage must use the existing clinical massage_purpose.`)
     }
     const carbonApplication = byType('carbon_application_drying')
     const carbonLaser = byType('carbon_laser')
@@ -691,6 +689,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
         )
     }
   }
+  if (onWarnings) onWarnings(warnings)
   if (errors.length)
     return {
       error: {

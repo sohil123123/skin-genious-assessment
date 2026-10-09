@@ -1777,7 +1777,8 @@ export const TREATMENT_KNOWLEDGE_PROMPT = `MOTHER DOCUMENT REFERENCE KNOWLEDGE
 ${JSON.stringify({steps: Object.values(TREATMENT_STEPS).map(({id, name, clinic_step_type, clinic_class, mechanism, burden, strengths, actives, reference_minutes, notes}) => ({id, name, clinic_step_type, clinic_class, mechanism, burden, strengths, actives, reference_minutes, notes})), ...TREATMENT_KNOWLEDGE})}`
 
 // Keep the complete ratified source above. This is a non-destructive request
-// projection: compact stable tables, plus full maps for every supplied concern.
+// projection: all unchanged tables/maps precede patient data for prefix caching.
+// Only pointers to applicable maps belong in the dynamic patient input.
 export function compileTreatmentKnowledgeReference(plannerInput = {}) {
   const { concern_maps, ...globalReference } = TREATMENT_KNOWLEDGE
   delete globalReference.combination_reasoning_examples
@@ -1786,8 +1787,9 @@ export function compileTreatmentKnowledgeReference(plannerInput = {}) {
   const global = {
     ...globalReference,
     atomic_steps: { columns, rows: Object.values(TREATMENT_STEPS).map((step) => columns.map((name) => step[name] ?? null)) },
+    concern_maps: concern_maps.map((map, index) => ({ index, ...map })),
     concern_map_index: concern_maps.map((map, index) => [index, map.concern]),
-    reference_scope: 'Use the case maps for supplied concerns, including secondary concerns. This table is reference, not an audit checklist. The complete source retains worked examples; recipes are not required model input. Applicable constraints and dose/sequence protocols remain binding.',
+    reference_scope: 'Complete unchanged maps for all 15 concerns are in this stable reference. mother_case_reference.concern_map_indices points to maps relevant to the supplied primary and secondary concerns; it does not restrict eligibility or replace case findings. This is reference, not an audit checklist. The complete source retains worked examples; recipes are not required model input. Applicable constraints and dose/sequence protocols remain binding.',
   }
   const indices = new Set()
   let unknown = false
@@ -1807,7 +1809,7 @@ export function compileTreatmentKnowledgeReference(plannerInput = {}) {
   return {
     stable_prefix: `MOTHER DOCUMENT REFERENCE KNOWLEDGE — STABLE TABLES\n${JSON.stringify(global)}`,
     case_reference: { mother_document_version: TREATMENT_KNOWLEDGE.mother_document_version,
-      concern_maps: [...indices].sort((a, b) => a - b).map((index) => ({ index, ...concern_maps[index] })),
-      scope: 'Complete source maps for all supplied concerns; not limited to selected primaries, low scores or high-confidence rows. The unchanged 0-5 strengths are retained. Select relevant contenders once; do not assess every row.' },
+      concern_map_indices: [...indices].sort((a, b) => a - b),
+      scope: 'Pointers to the complete maps in the stable mother reference for all supplied concerns, including secondary concerns. No patient findings are encoded in these pointers. Select relevant contenders once; do not assess every row.' },
   }
 }
