@@ -10,7 +10,7 @@
         </div> -->
         <div class="text-caption text-grey-7 q-mt-xs">
           Total Duration: {{ treatmentPlan?.total_time }} •
-          {{ treatmentPlan?.treatments?.length }} sessions
+          {{ treatmentPlan?.course_outline?.length || treatmentPlan?.treatments?.length }} planned sessions
         </div>
       </div>
 
@@ -55,6 +55,18 @@
     </div>
   </q-card>
 
+  <q-card v-if="treatmentPlan?.course_outline?.length" flat bordered class="q-pa-md q-mb-md">
+    <div class="text-subtitle1">Course outline</div>
+    <div v-for="slot in treatmentPlan.course_outline" :key="slot.session_number" class="q-mt-sm">
+      <strong>Session {{ slot.session_number }} · Week {{ slot.week }}</strong>
+      <div>{{ slot.clinical_goal }}</div>
+      <div v-if="slot.session_number >= 3 || slot.reassessment_required" class="text-caption text-grey-7">
+        Provisional — reassessment required before treatment.
+      </div>
+      <div v-if="slot.escalation_condition" class="text-caption">{{ slot.escalation_condition }}</div>
+    </div>
+  </q-card>
+
   <!-- Sessions -->
   <div
     v-for="(session, index) in treatmentPlan?.treatments"
@@ -66,7 +78,7 @@
         <q-expansion-item
           expand-separator
           :label="`Session ${session.session_number} • ${session.title}`"
-          :caption="`Week ${session.week} | ${session.treatment_time}`"
+          :caption="`${session.treatment_time} minutes`"
           header-class="bg-white text-weight-bold"
           dense
           expand-icon="arrow_drop_down"
@@ -104,8 +116,8 @@
                     >
                       <div class="text-caption">
                         <strong class="text-amber-8">{{ c.concern }}</strong> — <em>Current:</em>
-                        {{ c.current_value }} → <strong>Target:</strong>
-                        {{ c.target_value }}
+                        {{ c.current_value ?? 'Unavailable' }} → <strong>Target:</strong>
+                        {{ c.target_value ?? 'Unavailable' }}
                       </div>
                     </div>
                   </div>

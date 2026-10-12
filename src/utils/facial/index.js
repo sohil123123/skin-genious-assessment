@@ -1,3 +1,5 @@
+export { formatFacialClientScores, prepareFacialEngineInput, facialClientScore, facialLegacyScoreGap } from './clientScoreDisplay.js'
+
 export const getFacialPrompts = async (mode) => {
   const m = mode && mode.startsWith('5') ? '5_light_modes' : '6_light_modes'
   const aiPrompts = await import(`./${m}/scoring/aiPrompts.js`)
@@ -8,7 +10,12 @@ export const getFacialPrompts = async (mode) => {
   const constraints = constraintsModule.constraints
   const productJson = await import(`./${m}/treatment/productJson.js`)
 
+  const treatmentPipeline = m === '5_light_modes'
+    ? await import('./5_light_modes/treatmentPipeline.js') : null
+
   return {
+    buildTreatmentSystemPrompt: treatmentPrompt.buildTreatmentSystemPrompt,
+    generateTreatmentPlan: treatmentPipeline?.generateTreatmentPlan,
     SYSTEM_PROMPT_FEATURE_PACKET_V1: aiPrompts.SYSTEM_PROMPT_FEATURE_PACKET_V1,
     SYSTEM_PROMPT_DIAGNOSIS: scoringPrompt.SYSTEM_PROMPT_DIAGNOSIS,
     D_REPORT_USER_PROMPT: scoringPrompt.D_REPORT_USER_PROMPT,
