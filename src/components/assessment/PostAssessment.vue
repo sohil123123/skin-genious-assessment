@@ -101,6 +101,13 @@
 
               <q-separator spaced />
 
+              <div v-if="isSebumReportingRow(param, key)" class="q-mb-sm">
+                <q-badge :color="param.result === 'improved' ? 'positive' : 'info'">
+                  {{ sebumResultLabel(param) }}
+                </q-badge>
+                <div class="text-caption q-mt-xs">{{ param.score_explanation }}</div>
+              </div>
+
               <div class="row items-center q-col-gutter-md">
                 <!-- Before Column -->
                 <div class="col-6">
@@ -160,6 +167,8 @@ import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import config from 'src/config.js'
+import { formatFacialClientScores } from 'src/utils/facial/clientScoreDisplay.js'
+import { isSebumReportingRow } from 'src/utils/facial/sebumBalanceReporting.js'
 
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
@@ -180,6 +189,9 @@ const showComparisonDropdown = computed(() => {
 const post_diagnosis = ref(null)
 const faceImages = ref(null)
 const postTreatmentImages = ref(null)
+const sebumResultLabel = row => row.result === 'improved' ? 'Improved'
+  : row.report_comparison_status === 'balanced' ? 'Stable — balanced'
+  : row.report_comparison_status === 'review_required' ? 'Stable — balance needs review' : 'Stable'
 
 watch(
   () => assessmentData.value,
@@ -190,9 +202,11 @@ watch(
 
       let beforeImagesSource = val.images || []
       let postImagesSource = val.post_images || []
+      let reportingBaseline = val.diagnosis
+      let report = val.post_diagnosis
 
       if (sessionId.value && currentSession.value) {
-        post_diagnosis.value = currentSession.value.post_diagnosis
+        report = currentSession.value.post_diagnosis
         postImagesSource = currentSession.value.post_images || []
 
         const currentNum = currentSession.value.session_number
@@ -203,10 +217,12 @@ watch(
             t => t.session_number === currentNum - 1
           )
           beforeImagesSource = prevSess ? (prevSess.post_images || []) : (val.images || [])
+          reportingBaseline = prevSess?.post_diagnosis ?? val.diagnosis
         }
-      } else {
-        post_diagnosis.value = val.post_diagnosis
       }
+      post_diagnosis.value = formatFacialClientScores(report, {
+        sebumBaseline: reportingBaseline, sebumOriginalBaseline: val.diagnosis,
+      })
 
       const desiredImages = imagesOrder.map((name) =>
         beforeImagesSource.find((img) => img.url.toLowerCase().includes(`${name}.`)),

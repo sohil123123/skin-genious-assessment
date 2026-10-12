@@ -1108,7 +1108,10 @@ Reference Scores: ${JSON.stringify(prepareFacialEngineInput(prevContext.scores))
   console.log('✅ Post Assessment Result:', result)
   // Presentation only: the same-session reference can clarify sebum's balance
   // direction. The scoring request and all returned engine values stay intact.
-  return formatFacialClientScores(result, { sebumBaseline: prevContext.scores })
+  return formatFacialClientScores(result, {
+    sebumBaseline: prevContext.scores,
+    sebumOriginalBaseline: assessmentData.value.diagnosis,
+  })
 }
 
 function finalizeAndExit() {
