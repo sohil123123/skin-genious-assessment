@@ -776,22 +776,22 @@ async function callApiForDiagnosis(data, images) {
   // let finalFileIdArray = [...fileArrar, ...storedFiles]
   // console.log(finalFileIdArray)
   const prompts = await getFacialPrompts(data.face_scan_machine)
-  // const input = [
-  //   {
-  //     role: 'system',
-  //     content: prompts.SYSTEM_PROMPT_FEATURE_PACKET_V1,
-  //   },
-  //   {
-  //     role: 'user',
-  //     content: [
-  //       ...storedFiles,
-  //       {
-  //         type: 'input_text',
-  //         text: prompts.D_REPORT_USER_PROMPT,
-  //       },
-  //     ],
-  //   },
-  // ]
+  const input = [
+    {
+      role: 'system',
+      content: prompts.SYSTEM_PROMPT_FEATURE_PACKET_V1,
+    },
+    {
+      role: 'user',
+      content: [
+        ...storedFiles,
+        {
+          type: 'input_text',
+          text: prompts.D_REPORT_USER_PROMPT,
+        },
+      ],
+    },
+  ]
   processingMessage.value = 'Processing scanned images...'
   console.log('Conv ID:', convId)
   console.log('Diagnosis Input:', input)
