@@ -15,7 +15,7 @@ import {
 export const TREATMENT_RUNTIME_CONFIG = Object.freeze({
   model: 'gpt-5.4',
   reasoningEffort: 'medium',
-  serviceTier: 'auto', // 'auto' or 'priority'
+  serviceTier: 'priority', // 'auto' or 'priority'
   // User-requested application override: zero disables automatic timeouts.
   deadlineMs: 0,
   initialCallMs: 0,
