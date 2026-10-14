@@ -195,7 +195,7 @@ const route = useRoute()
 const sessionId = computed(() => route.query.session_id ? Number(route.query.session_id) : null)
 const currentSession = computed(() => {
   if (!sessionId.value || !assessmentData.value?.treatment_sessions?.treatments) return null
-  return assessmentData.value.treatment_sessions.treatments.find(t => t.id === sessionId.value)
+  return assessmentData.value.treatment_sessions.treatments.find(t => Number(t.id) === sessionId.value)
 })
 
 const showComparisonDropdown = computed(() => {
@@ -203,15 +203,28 @@ const showComparisonDropdown = computed(() => {
 })
 
 const post_diagnosis = ref(null)
-const faceImages = ref(null)
-const postTreatmentImages = ref(null)
+const faceImages = ref([])
+const postTreatmentImages = ref([])
 const sebumResultLabel = row => row.result === 'improved' ? 'Improved'
   : row.report_comparison_status === 'balanced' ? 'Stable — balanced'
   : row.report_comparison_status === 'review_required' ? 'Stable — balance needs review' : 'Stable'
 
+function orderedReportImages(records, imagesOrder) {
+  const byMode = new Map()
+  for (const image of records || []) {
+    if (typeof image?.url !== 'string') continue
+    try {
+      const pathname = new URL(image.url, 'https://scan.invalid').pathname
+      const filename = decodeURIComponent(pathname.slice(pathname.lastIndexOf('/') + 1))
+      byMode.set(filename.replace(/\.[^.]+$/, '').toLowerCase(), image.url)
+    } catch { /* A missing or invalid image leaves its numbered slot empty. */ }
+  }
+  return imagesOrder.map(mode => byMode.get(mode) || '')
+}
+
 watch(
-  () => assessmentData.value,
-  (val) => {
+  [() => assessmentData.value, sessionId],
+  ([val]) => {
     if (val) {
       const machineMode = val.face_scan_machine?.charAt(0) || '6'
       const imagesOrder = config.IMAGES_ORDER[machineMode] || config.IMAGES_ORDER['6']
@@ -225,14 +238,15 @@ watch(
         report = currentSession.value.post_diagnosis
         postImagesSource = currentSession.value.post_images || []
 
-        const currentNum = currentSession.value.session_number
+        const currentNum = Number(currentSession.value.session_number)
         if (currentNum === 1) {
           beforeImagesSource = val.images || []
         } else {
           const prevSess = val.treatment_sessions?.treatments?.find(
-            t => t.session_number === currentNum - 1
+            t => Number(t.session_number) === currentNum - 1
           )
-          beforeImagesSource = prevSess ? (prevSess.post_images || []) : (val.images || [])
+          beforeImagesSource = prevSess?.post_diagnosis && prevSess.post_images?.length
+            ? prevSess.post_images : (val.images || [])
           reportingBaseline = prevSess?.post_diagnosis ?? val.diagnosis
         }
       }
@@ -240,20 +254,11 @@ watch(
         sebumBaseline: reportingBaseline, sebumOriginalBaseline: val.diagnosis,
       })
 
-      const desiredImages = imagesOrder.map((name) =>
-        beforeImagesSource.find((img) => img.url.toLowerCase().includes(`${name}.`)),
-      ).filter(Boolean)
-
-      faceImages.value = desiredImages.map((img) => img.url)
-
-      const desiredPostImages = imagesOrder.map((name) =>
-        postImagesSource.find((img) => img.url.toLowerCase().includes(`${name}.`)),
-      ).filter(Boolean)
-
-      postTreatmentImages.value = desiredPostImages.map((img) => img.url)
+      faceImages.value = orderedReportImages(beforeImagesSource, imagesOrder)
+      postTreatmentImages.value = orderedReportImages(postImagesSource, imagesOrder)
     }
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 )
 
 const downloadReport = async (compareTo = 'previous') => {

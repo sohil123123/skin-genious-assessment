@@ -160,6 +160,37 @@ test('a model returning restarted or extra sessions is rejected rather than renu
   assert.ok(result.error)
 })
 
+test('saved null escalation conditions in initial slots do not block continuation or rewrite the outline', async () => {
+  const { planning, draft } = scenario(5, 2)
+  planning.courseContinuation.course_outline[0].escalation_condition = null
+  planning.courseContinuation.course_outline[1].escalation_condition = null
+  const before = JSON.stringify(planning)
+  let calls = 0
+  const result = await generateTreatmentPlan({
+    callModel: async () => { calls++; return copy(draft) }, systemPrompt, constraints,
+    diagnosis: planning.diagnosis, selectedConcerns: planning.selectedConcerns,
+    treatmentType: 'multiple', config: { maxRepairs: 0 },
+    options: { ...options, courseContinuation: planning.courseContinuation },
+  })
+  assert.equal(result.error, undefined, JSON.stringify(result.error))
+  assert.equal(calls, 1)
+  assert.deepEqual(result.treatment_plan.course_outline, planning.courseContinuation.course_outline)
+  assert.equal(JSON.stringify(planning), before)
+})
+
+test('a null escalation condition in a future outline slot still fails validation', async () => {
+  const { planning, draft } = scenario(5, 2)
+  planning.courseContinuation.course_outline[2].escalation_condition = null
+  const result = await generateTreatmentPlan({
+    callModel: async () => copy(draft), systemPrompt, constraints,
+    diagnosis: planning.diagnosis, selectedConcerns: planning.selectedConcerns,
+    treatmentType: 'multiple', config: { maxRepairs: 0 },
+    options: { ...options, courseContinuation: planning.courseContinuation },
+  })
+  assert.ok(result.error)
+  assert.match(JSON.stringify(result.error), /course_outline\[2\]\.escalation_condition/)
+})
+
 test('standalone clinician slots and illegal checkpoints retain their existing restrictions', () => {
   const { course } = scenario(5, 2)
   const standalone = copy(course)
