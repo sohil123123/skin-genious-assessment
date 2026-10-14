@@ -1,0 +1,2225 @@
+{
+  "diagnosis": {
+    "diagnosis_report": {
+      "skin_type": {
+        "parameter_name": "Skin Type Classification",
+        "description": "Classifies your skin into oily, dry, combination, or normal based on sebum distribution, shine patterns, pore visibility, and hydration cues across the 5 imaging modes.",
+        "client_description": "Your skin looks mostly balanced but with a mild tendency toward combination behavior, especially through the central face.",
+        "score_or_label": "Combination",
+        "score_explanation": "There is mild oil activity through the T-zone with relatively balanced cheeks, while hydration appears generally adequate. Pores and congestion are more noticeable in the center of the face, which supports a combination pattern rather than fully oily or dry skin.",
+        "affected_area_image": "4",
+        "possible_causes": [
+          "Natural variation in oil production between the T-zone and cheeks",
+          "Mild follicular congestion in the central face"
+        ],
+        "score_semantics": "label",
+        "score_polarity": "label_only",
+        "ideal_score_direction": "maintain",
+        "continuous_index_name": null,
+        "continuous_index_polarity": "not_applicable",
+        "comparison_mode": "label_mapping",
+        "target_interpretation_rule": "Stable categorical classification; target is to maintain or move only when imaging and feature-packet evidence clearly support a different category.",
+        "normalized_burden_0_to_1": 0.55,
+        "data_quality": {
+          "is_estimated": false,
+          "estimated_fields": [],
+          "estimation_basis": "feature_packet_correlates",
+          "confidence_0_1": 0.88
+        }
+      },
+      "barrier_health_sensitivity": {
+        "parameter_name": "Barrier Health + Sensitivity (Combined Score)",
+        "description": "Evaluates redness, flaking, barrier uniformity, hydration stress, and reactivity using the 5-mode system plus the feature packet.",
+        "client_description": "Your skin barrier looks fairly stable overall, with only mild signs of sensitivity.",
+        "score_or_label": 29.215,
+        "score_explanation": "Your skin does not show much flaking or obvious surface damage, which is a good sign. There is some mild redness and slight hydration stress, so the barrier looks a little reactive rather than fully compromised.",
+        "affected_area_image": "3",
+        "possible_causes": [
+          "Mild sensitivity or environmental irritation",
+          "Slight dehydration stress"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": "BSI_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.285,
+        "data_quality": {
+          "is_estimated": false,
+          "estimated_fields": [],
+          "estimation_basis": "feature_packet_correlates",
+          "confidence_0_1": 0.87
+        }
+      },
+      "visual_acne_grading": {
+        "parameter_name": "Visual Acne Grading",
+        "description": "Assesses active acne burden, comedones, inflammatory lesions and clustering using the new 5-mode system plus the feature packet.",
+        "client_description": "You have a mild but visible amount of acne activity, with a mix of clogged pores and a few inflamed spots.",
+        "score_or_label": 31.88165217391304,
+        "score_explanation": "Breakouts are present across the forehead, cheeks, and chin, but they are not dense or deeply cystic. The pattern looks like mild active acne with some ongoing congestion and leftover post-acne marking.",
+        "affected_area_image": "2",
+        "possible_causes": [
+          "Follicular congestion and clogged pores",
+          "Mild inflammatory breakouts"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": "ASI_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.31193588054457616,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "total_lesion_count",
+            "comedone_density_index",
+            "inflammatory_cluster_index",
+            "uv_porhyrin_load",
+            "chronicity_index",
+            "lesion_counts",
+            "region_activity_map",
+            "per_lesion_coordinate_map",
+            "inflammatory_hotspot_map",
+            "acne_grid_map"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.55
+        }
+      },
+      "skin_sebum_content": {
+        "parameter_name": "Skin Sebum Index",
+        "description": "Assesses visible oiliness, shine pattern, follicular congestion, porphyrin-like support, and sebum variability using the 5-mode system plus the feature packet.",
+        "client_description": "Your skin does not look very oily overall, but there is some mild sebum activity and congestion in the central face.",
+        "score_or_label": 29.71,
+        "score_explanation": "Visible shine is fairly limited, which keeps the overall oil level from looking high. At the same time, the pores and follicular areas suggest some mild oil-related congestion rather than a fully dry pattern.",
+        "affected_area_image": "3",
+        "possible_causes": [
+          "Mild sebaceous activity in the T-zone",
+          "Follicular buildup with low-grade congestion"
+        ],
+        "score_semantics": "state_spectrum",
+        "score_polarity": "distance_to_target",
+        "ideal_score_direction": "move_toward_target",
+        "continuous_index_name": "SSI_continuous",
+        "continuous_index_polarity": "depends_on_target",
+        "comparison_mode": "target_distance",
+        "target_interpretation_rule": "Middle-to-ideal range is best; target is movement toward the clinically appropriate balance zone rather than uniformly lower or higher values.",
+        "normalized_burden_0_to_1": 0.29,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "sebum_fluorescence_index",
+            "porphyrin_load_index",
+            "sebaceous_congestion_index",
+            "regional_sebum_map",
+            "sebum_hotspot_grid",
+            "sebum_variability_index",
+            "improvability_index",
+            "bacterial_inflammatory_burden_index"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.55
+        }
+      },
+      "vascularity_redness_profiling": {
+        "parameter_name": "Vascularity / Redness Score",
+        "description": "Assesses visible redness, vascular prominence, diffuse erythema and inflammatory hotspots using red-first evidence plus the feature packet.",
+        "client_description": "Your skin shows mild redness overall, with a slightly reactive look rather than strong ongoing inflammation.",
+        "score_or_label": 27.5,
+        "score_explanation": "Redness is visible but not intense, and it appears spread lightly rather than concentrated in severe patches. There are some mild reactive and acne-linked red areas, but not strong vessel prominence or severe flushing.",
+        "affected_area_image": "1",
+        "possible_causes": [
+          "Mild skin sensitivity",
+          "Low-grade inflammation around acne-prone areas"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": "BIBI_index",
+        "continuous_index_polarity": "higher_is_worse",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.2676767676767677,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "clinical_erythema_score",
+            "vascular_pattern_score",
+            "diffuse_redness_score",
+            "subclinical_hotspot_score",
+            "sebaceous_inflammation_score",
+            "BIBI_index"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.55
+        }
+      },
+      "skin_hydration_score": {
+        "parameter_name": "Skin Hydration Score",
+        "description": "Measures plumpness, reflectance, micro-lines, dryness fluorescence and hydration support using the 5-mode system plus the feature packet.",
+        "client_description": "Your skin looks reasonably hydrated, though not at its most plump or dewy level.",
+        "score_or_label": 59.905,
+        "score_explanation": "The skin surface appears fairly even without strong flaking, and there are only mild dehydration lines. Hydration looks adequate overall, but there is still room for more bounce and softness, especially in the lower face and cheek areas.",
+        "affected_area_image": "4",
+        "possible_causes": [
+          "Everyday water loss from the skin surface",
+          "Slight imbalance between hydration and surface smoothness"
+        ],
+        "score_semantics": "health",
+        "score_polarity": "higher_is_better",
+        "ideal_score_direction": "increase",
+        "continuous_index_name": "HSI_continuous",
+        "continuous_index_polarity": "higher_is_better",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Higher score is better; target is progressive upward movement toward 100 while preserving clinical realism and avoiding overstating short-term gains.",
+        "normalized_burden_0_to_1": 0.595,
+        "data_quality": {
+          "is_estimated": false,
+          "estimated_fields": [],
+          "estimation_basis": "feature_packet_correlates",
+          "confidence_0_1": 0.88
+        }
+      },
+      "skin_luminosity_glow_index": {
+        "parameter_name": "Skin Luminosity / Glow Index",
+        "description": "Assesses brightness, glow, reflectance uniformity and dullness using the 5-mode system plus the feature packet.",
+        "client_description": "Your skin has a moderate natural glow, but it is not especially radiant right now.",
+        "score_or_label": 53.7675,
+        "score_explanation": "Your complexion has some visible brightness and fairly even light reflection, but mild uneven tone and texture reduce the overall glow. It looks healthy rather than dull, though not especially luminous.",
+        "affected_area_image": "4",
+        "possible_causes": [
+          "Mild surface unevenness",
+          "Pigmentation and texture softening the overall glow"
+        ],
+        "score_semantics": "health",
+        "score_polarity": "higher_is_better",
+        "ideal_score_direction": "increase",
+        "continuous_index_name": "GLI_continuous",
+        "continuous_index_polarity": "higher_is_better",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Higher score is better; target is progressive upward movement toward 100 while preserving clinical realism and avoiding overstating short-term gains.",
+        "normalized_burden_0_to_1": 0.5329999999999999,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "surface_reflectance_uniformity",
+            "color_luminance_index",
+            "subsurface_diffusion_index",
+            "shadow_softness_index",
+            "sebum_gloss_index",
+            "dryness_dullness_index",
+            "regional_glow_map",
+            "luminosity_grid_map",
+            "glow_limiting_factors",
+            "treatment_responsiveness_index"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.55
+        }
+      },
+      "superficial_pigmentation_score": {
+        "parameter_name": "Superficial Pigmentation Score",
+        "description": "Assesses visible pigment burden, intensity, contrast, distribution and depth support using the 5-mode system plus the feature packet.",
+        "client_description": "There is mild to moderate visible pigmentation, mainly as scattered uneven tone and post-breakout marks.",
+        "score_or_label": 35.69513186813187,
+        "score_explanation": "Pigment is most noticeable across the forehead and cheeks, where there are scattered darker marks and a mottled tone. The spots are visible in normal lighting but are not extremely dense or very dark overall.",
+        "affected_area_image": "5",
+        "possible_causes": [
+          "Post-acne marks",
+          "Sun-related uneven pigmentation"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": "PPL_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.3504558774558775,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "coverage_area_percent",
+            "coverage_area_normalized",
+            "mean_intensity_normalized",
+            "uniformity_index",
+            "woods_cluster_density",
+            "border_definition_score",
+            "depth_indicator_ratio",
+            "depth_index_uv_to_woods",
+            "melanin_chroma_separation_index",
+            "region_variation_index",
+            "asymmetry_index",
+            "uv_enhancement_ratio",
+            "superficial_fraction_index",
+            "improvability_index",
+            "pigment_response_index",
+            "regional_burden_map",
+            "pigment_grid_map"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.55
+        }
+      },
+      "periorbital_health": {
+        "parameter_name": "Peri-Orbital Health Score",
+        "description": "Assesses under-eye pigment, vascularity, hollowness, puffiness and fine-line burden using the 5-mode system plus the feature packet.",
+        "client_description": "The eye area shows mild concerns, mainly from darkness and some puffiness.",
+        "score_or_label": 33.175000000000004,
+        "score_explanation": "There is visible under-eye darkness with a little puffiness, while hollowness and fine lines remain fairly mild. The overall eye-area concern looks noticeable but not advanced.",
+        "affected_area_image": "2",
+        "possible_causes": [
+          "Pigment and vascular darkness under the eyes",
+          "Mild fluid-related puffiness"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": null,
+        "continuous_index_polarity": "not_applicable",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.32499999999999996,
+        "data_quality": {
+          "is_estimated": false,
+          "estimated_fields": [],
+          "estimation_basis": "feature_packet_correlates",
+          "confidence_0_1": 0.84
+        }
+      },
+      "lip_pigmentation": {
+        "parameter_name": "Lip Pigmentation Score",
+        "description": "Assesses visible lip darkening, intrinsic melanin support and vascular congestion using the 5-mode system plus the feature packet.",
+        "client_description": "Your lips show mild natural pigmentation, with a fairly even overall appearance.",
+        "score_or_label": 30.7,
+        "score_explanation": "There is some mild natural lip darkening, more from inherent pigment than strong redness or irritation. The color looks relatively even and not heavily pronounced.",
+        "affected_area_image": "5",
+        "possible_causes": [
+          "Natural melanin distribution in the lips",
+          "Mild background lip dryness or tone variation"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": null,
+        "continuous_index_polarity": "not_applicable",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.3,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "surface_darkness_index",
+            "lipstick_mask_confidence"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.55
+        }
+      },
+      "texture_open_pores_scoring": {
+        "parameter_name": "Texture & Open Pores Score",
+        "description": "Assesses pore size, distribution, blackhead/congestion burden, and surface irregularity using the 5-mode system plus the feature packet.",
+        "client_description": "Your pores and skin texture are mildly to moderately visible, especially around the nose and inner cheeks.",
+        "score_or_label": 44.065,
+        "score_explanation": "Pores are clearly visible in the central face and cheeks, with some mild roughness and congestion. The texture does not look severe, but it is noticeable enough to soften the smoothness of the skin.",
+        "affected_area_image": "3",
+        "possible_causes": [
+          "Genetically larger visible pores",
+          "Oil-related congestion and uneven surface texture"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": "PTI_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.435,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "texture_roughness_index",
+            "blackhead_congestion_index"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.55
+        }
+      },
+      "superficial_wrinkles_scoring": {
+        "parameter_name": "Superficial Wrinkles Score",
+        "description": "Measures fine lines, etched lines, and early wrinkle patterns using the 5-mode system plus the feature packet.",
+        "client_description": "Only minimal surface wrinkling is visible at this time.",
+        "score_or_label": 22.285,
+        "score_explanation": "Fine lines are light overall and appear more subtle than fixed or etched. Most of the line pattern looks early and mild rather than strongly age-related.",
+        "affected_area_image": "3",
+        "possible_causes": [
+          "Early dehydration-related fine lines",
+          "Mild natural skin folding around expressive areas"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": "WBI_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.215,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "wrinkle_line_count",
+            "wrinkle_depth_index",
+            "chronicity_uv_index",
+            "structural_vs_dehydration_index",
+            "improvability_index",
+            "regional_wrinkle_map",
+            "wrinkle_grid_map"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.5
+        }
+      },
+      "jawline_sagging_score": {
+        "parameter_name": "Jawline Sagging Score",
+        "description": "Assesses jawline definition, tissue descent, and contour smoothness using the 5-mode system plus the feature packet.",
+        "client_description": "Your jawline looks fairly well defined, with only minimal early softness.",
+        "score_or_label": 22.0,
+        "score_explanation": "The lower face contour remains mostly smooth and stable, without marked jowling or heavy tissue descent. Any softness present looks early and mild rather than advanced.",
+        "affected_area_image": "4",
+        "possible_causes": [
+          "Early lower-face soft tissue laxity",
+          "Mild natural contour asymmetry"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": null,
+        "continuous_index_polarity": "not_applicable",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.21212121212121213,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "mandibular_line_deflection_angle",
+            "pre_jowl_sulcus_depth_index",
+            "jowl_bulge_prominence_index",
+            "submental_fullness_index",
+            "dermal_collagen_thinning_index",
+            "left_right_asymmetry_index",
+            "contour_continuity_break_index",
+            "sagging_chronicity_index",
+            "fat_vs_laxity_component_split",
+            "regional_sagging_map",
+            "jawline_grid_map"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.5
+        }
+      },
+      "skin_firmness_elasticity_index": {
+        "parameter_name": "Skin Firmness & Elasticity Index",
+        "description": "Assesses subtle laxity, collagen reflectance support, and firmness behavior using the 5-mode system plus the feature packet.",
+        "client_description": "Your skin firmness looks generally good, with only mild early loss of elasticity.",
+        "score_or_label": 35.155,
+        "score_explanation": "The skin still appears to hold its shape fairly well, but there are some mild early signs of reduced firmness. This looks more like subtle softening than advanced laxity.",
+        "affected_area_image": "4",
+        "possible_causes": [
+          "Early collagen support decline",
+          "Mild lower-face and cheek softening"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": "continuous_firmness_index",
+        "continuous_index_polarity": "higher_is_worse",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.345,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "micro_laxity_pattern_index",
+            "collagen_reflectance_uniformity",
+            "elastic_recoil_proxy_index",
+            "regional_firmness_map",
+            "collagen_loss_pattern_type",
+            "improvability_index"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.5
+        }
+      },
+      "textural_radiance_index": {
+        "parameter_name": "Textural Radiance Index",
+        "description": "Assesses surface clarity, smooth scatter, and keratin-related radiance loss using the 5-mode system plus the feature packet.",
+        "client_description": "Your skin texture looks moderately refined, but there is some surface haze that reduces a polished finish.",
+        "score_or_label": 41.59,
+        "score_explanation": "The skin surface looks reasonably smooth overall, but pores, mild congestion, and slight unevenness reduce a crisp, polished appearance. This gives the skin a moderate loss of textural radiance rather than a very glassy finish.",
+        "affected_area_image": "3",
+        "possible_causes": [
+          "Visible pores and mild surface irregularity",
+          "Low-grade keratin buildup and congestion"
+        ],
+        "score_semantics": "severity",
+        "score_polarity": "higher_is_worse",
+        "ideal_score_direction": "decrease",
+        "continuous_index_name": "continuous_TRI",
+        "continuous_index_polarity": "higher_is_worse",
+        "comparison_mode": "direct_numeric",
+        "target_interpretation_rule": "Lower score is better; target is progressive downward movement toward 1 while preserving clinical realism and avoiding overcalling improvement.",
+        "normalized_burden_0_to_1": 0.41,
+        "data_quality": {
+          "is_estimated": true,
+          "estimated_fields": [
+            "micro_clarity_index",
+            "surface_smooth_scatter_index",
+            "keratin_shadow_index",
+            "regional_radiance_map",
+            "radiance_loss_pattern",
+            "improvability_index"
+          ],
+          "estimation_basis": "mixed",
+          "confidence_0_1": 0.55
+        }
+      }
+    },
+    "treatable_concerns_summary": {
+      "description": "Parameters showing measurable deviations and their expected improvement after a single treatment session.",
+      "parameters_with_abnormal_scores": [
+        {
+          "parameter": "Visual Acne Grading",
+          "current_score": 31.88165217391304,
+          "target_single_session_score": 26.5,
+          "is_primary_concern": true,
+          "reason_for_selection": "Visible active lesions and congestion are present across multiple regions, with mild inflammatory activity and moderate short-term responsiveness.",
+          "short_description": "Mild active acne is still visible across the face. A single session could reduce inflammation and calm some of the more active areas.",
+          "score_semantics": "severity",
+          "score_polarity": "higher_is_worse",
+          "ideal_score_direction": "decrease",
+          "comparison_mode": "direct_numeric"
+        },
+        {
+          "parameter": "Superficial Pigmentation Score",
+          "current_score": 35.69513186813187,
+          "target_single_session_score": 31.0,
+          "is_primary_concern": true,
+          "reason_for_selection": "There is noticeable pigment burden over the forehead and cheeks with mottled distribution and post-acne marking, with a meaningful superficial component.",
+          "short_description": "There are visible marks and uneven tone, especially where previous breakouts have left discoloration. A session may brighten the overall look and soften contrast.",
+          "score_semantics": "severity",
+          "score_polarity": "higher_is_worse",
+          "ideal_score_direction": "decrease",
+          "comparison_mode": "direct_numeric"
+        },
+        {
+          "parameter": "Texture & Open Pores Score",
+          "current_score": 44.065,
+          "target_single_session_score": 38.5,
+          "is_primary_concern": true,
+          "reason_for_selection": "Pore density and diameter are clearly visible in the nose and cheek regions, with mild roughness and low-grade congestion affecting surface smoothness.",
+          "short_description": "Pores and texture are one of the more noticeable visible concerns. Treatment can help make the surface look smoother and pores less obvious.",
+          "score_semantics": "severity",
+          "score_polarity": "higher_is_worse",
+          "ideal_score_direction": "decrease",
+          "comparison_mode": "direct_numeric"
+        },
+        {
+          "parameter": "Vascularity / Redness Score",
+          "current_score": 27.5,
+          "target_single_session_score": 23.5,
+          "is_primary_concern": false,
+          "reason_for_selection": "Mild diffuse and reactive redness is present, but not severe; short-term calming improvement is realistic.",
+          "short_description": "There is some mild redness and reactivity in the skin. A calming session could help the skin look more even and less reactive.",
+          "score_semantics": "severity",
+          "score_polarity": "higher_is_worse",
+          "ideal_score_direction": "decrease",
+          "comparison_mode": "direct_numeric"
+        },
+        {
+          "parameter": "Peri-Orbital Health Score",
+          "current_score": 33.175000000000004,
+          "target_single_session_score": 29.5,
+          "is_primary_concern": false,
+          "reason_for_selection": "The under-eye area shows mild pigment burden and puffiness, which are visible but not advanced and can improve modestly in one session.",
+          "short_description": "The under-eye area shows mild darkness and some puffiness. A treatment may give a fresher and slightly brighter look.",
+          "score_semantics": "severity",
+          "score_polarity": "higher_is_worse",
+          "ideal_score_direction": "decrease",
+          "comparison_mode": "direct_numeric"
+        },
+        {
+          "parameter": "Textural Radiance Index",
+          "current_score": 41.59,
+          "target_single_session_score": 36.5,
+          "is_primary_concern": false,
+          "reason_for_selection": "Moderate radiance loss appears linked to pore visibility, mild congestion, and surface haze, which are commonly treatment-responsive.",
+          "short_description": "Your skin could look more polished and refined with improved clarity and smoother surface texture. A single session may boost that cleaner, fresher finish.",
+          "score_semantics": "severity",
+          "score_polarity": "higher_is_worse",
+          "ideal_score_direction": "decrease",
+          "comparison_mode": "direct_numeric"
+        },
+        {
+          "parameter": "Skin Hydration Score",
+          "current_score": 59.905,
+          "target_single_session_score": 66.5,
+          "is_primary_concern": false,
+          "reason_for_selection": "Hydration is adequate but not optimal, with room for visible improvement in plumpness and comfort after a single session.",
+          "short_description": "Hydration is decent, but the skin could still look softer and more refreshed. A session may improve plumpness and surface comfort.",
+          "score_semantics": "health",
+          "score_polarity": "higher_is_better",
+          "ideal_score_direction": "increase",
+          "comparison_mode": "direct_numeric"
+        },
+        {
+          "parameter": "Skin Luminosity / Glow Index",
+          "current_score": 53.7675,
+          "target_single_session_score": 59.0,
+          "is_primary_concern": false,
+          "reason_for_selection": "Glow is moderate and somewhat reduced by uneven tone and texture; visible but realistic single-session brightening is achievable.",
+          "short_description": "Your skin has some natural glow, but it could look brighter and more radiant. Improving texture and tone may noticeably lift overall brightness.",
+          "score_semantics": "health",
+          "score_polarity": "higher_is_better",
+          "ideal_score_direction": "increase",
+          "comparison_mode": "direct_numeric"
+        },
+        {
+          "parameter": "Skin Sebum Index",
+          "current_score": 29.71,
+          "target_single_session_score": 36.0,
+          "is_primary_concern": false,
+          "reason_for_selection": "Oil level is not excessive, but central facial congestion suggests movement toward a more balanced sebum state would support treatment goals.",
+          "short_description": "Oil production is not high, but there is some imbalance linked to congestion. The goal is better balance, not simply making the skin drier.",
+          "score_semantics": "state_spectrum",
+          "score_polarity": "distance_to_target",
+          "ideal_score_direction": "move_toward_target",
+          "comparison_mode": "target_distance"
+        }
+      ]
+    }
+  },
+  "featurePacket": {
+    "feature_packet_version": "aia_fp_v1",
+    "scan_meta": {
+      "scan_quality": "pass",
+      "pose_variation": "mild",
+      "confidence_multiplier": 0.85,
+      "quality_issues": []
+    },
+    "regions": [
+      "forehead",
+      "nose",
+      "left_cheek",
+      "right_cheek",
+      "chin",
+      "perioral"
+    ],
+    "proxies": {
+      "hydration": {
+        "surface_reflectance_bin": "moderate",
+        "subsurface_diffusion_bin": "moderate",
+        "microline_density_bin": "mild",
+        "dry_patch_fluorescence_bin": "low",
+        "surface_reflectance_index": 0.5,
+        "subsurface_diffusion_index": 0.5,
+        "microline_density_index": 0.3,
+        "dry_patch_fluorescence_index": 0.25,
+        "sebum_balance_ratio": 0.95,
+        "regional_map": {
+          "forehead": 0.5,
+          "nose": 0.5,
+          "left_cheek": 0.45,
+          "right_cheek": 0.45,
+          "chin": 0.45,
+          "perioral": 0.4
+        },
+        "borderline": false
+      },
+      "combined_barrier_sensitivity": {
+        "erythema_intensity_bin": "mild",
+        "erythema_coverage_bin": "moderate",
+        "flaking_texture_bin": "none",
+        "barrier_uniformity_bin": "good",
+        "hydration_signal_bin": "moderate",
+        "erythema_intensity_index": 0.2,
+        "erythema_coverage_ratio": 0.55,
+        "flaking_texture_index": 0.1,
+        "barrier_uniformity_index": 0.7,
+        "hydration_signal_index": 0.55,
+        "borderline": false
+      },
+      "acne": {
+        "inflammatory_lesion_count_bin": "6-20",
+        "comedone_count_bin": "11-30",
+        "porphyrin_load_bin": "low",
+        "inflammatory_ratio_bin": "medium",
+        "active_lesion_visibility_bin": "mild",
+        "post_inflammatory_mark_burden_bin": "moderate",
+        "dominant_regions": [
+          "forehead",
+          "left_cheek",
+          "right_cheek",
+          "chin"
+        ],
+        "borderline": false
+      },
+      "sebum_oiliness": {
+        "shine_intensity_index": 0.25,
+        "shine_coverage_ratio": 0.25,
+        "t_zone_oil_bin": "mild",
+        "cheek_oil_bin": "mild",
+        "shine_intensity_bin": "mild",
+        "shine_coverage_bin": "low",
+        "surface_shine_vs_follicular_congestion_bin": "follicular_congestion_dominant",
+        "borderline": false
+      },
+      "redness": {
+        "diffuse_redness_bin": "mild",
+        "vascular_pattern_bin": "mild",
+        "subclinical_hotspots_bin": "moderate",
+        "diffuse_vs_vascular_dominance_bin": "mixed",
+        "borderline": false
+      },
+      "pigmentation": {
+        "coverage_band": "moderate",
+        "intensity_band": "mild",
+        "contrast_band": "moderate",
+        "uniformity_band": "mottled",
+        "depth_band": "mixed",
+        "underlying_pigment_band": "moderate",
+        "visible_mean_intensity_index": 0.3,
+        "contrast_to_surrounding_skin_index": 0.4,
+        "coverage_index": 0.5,
+        "intensity_weighted_burden_index": 0.35,
+        "region_loads_0_1": {
+          "forehead": 0.5,
+          "nose": 0.2,
+          "left_cheek": 0.45,
+          "right_cheek": 0.45,
+          "chin": 0.2,
+          "perioral": 0.25
+        },
+        "regional_intensity_map": {
+          "forehead": 0.35,
+          "nose": 0.15,
+          "left_cheek": 0.3,
+          "right_cheek": 0.3,
+          "chin": 0.15,
+          "perioral": 0.2
+        },
+        "borderline": false
+      },
+      "pores_texture": {
+        "pore_visibility_bin": "moderate",
+        "texture_roughness_bin": "mild",
+        "blackhead_congestion_bin": "low",
+        "dominant_regions": [
+          "nose",
+          "left_cheek",
+          "right_cheek"
+        ],
+        "borderline": false
+      },
+      "wrinkles": {
+        "wrinkle_line_count_bin": "0-10",
+        "wrinkle_depth_index": 0.2,
+        "chronicity_uv_index": 0.2,
+        "structural_vs_dehydration_bin": "mostly_dehydration",
+        "dominant_regions": [
+          "peri_orbital",
+          "perioral"
+        ],
+        "borderline": true
+      },
+      "lips_pigmentation": {
+        "woods_intensity": 0.3,
+        "UV_absorption": 0.3,
+        "intrinsic_melanin_index": 0.3,
+        "vascular_congestion_index": 0.2,
+        "pigment_classification": "melanin_dominant",
+        "borderline": false
+      },
+      "peri_orbital": {
+        "under_eye_pigment_index": 0.4,
+        "vascular_congestion_index": 0.2,
+        "hollow_shadow_index": 0.2,
+        "puffiness_index": 0.45,
+        "fine_line_texture_index": 0.25,
+        "dominant_side": "symmetric",
+        "eyes_closed": true,
+        "borderline": false
+      },
+      "jawline_sagging": {
+        "mandibular_line_deflection_angle_deg": 2.5,
+        "mandibular_line_deflection_index_0_1": 0.2,
+        "pre_jowl_sulcus_depth_index": 0.25,
+        "jowl_bulge_prominence_index": 0.2,
+        "submental_fullness_index": 0.25,
+        "dermal_collagen_thinning_index": 0.2,
+        "left_right_asymmetry_index": 0.15,
+        "lower_face_visibility_ratio": 0.85,
+        "jawline_edge_confidence": 0.8,
+        "borderline": true
+      },
+      "firmness_elasticity": {
+        "micro_laxity_pattern_index": 0.25,
+        "collagen_reflectance_uniformity": 0.55,
+        "elastic_recoil_proxy_index": 0.65,
+        "dermal_density_proxy_index": 0.7,
+        "firmness_uniformity_index": 0.6,
+        "borderline": true
+      },
+      "wrinkles_plus": {
+        "regional_uniformity_index": 0.45,
+        "wrinkle_microline_density_index": 0.25,
+        "borderline": false
+      },
+      "pores_texture_plus": {
+        "pore_density_index": 0.55,
+        "pore_diameter_index": 0.45,
+        "pore_clarity_index": 0.55,
+        "borderline": false
+      }
+    },
+    "diagnosis_report": {
+      "skin_type": {
+        "label": "combination",
+        "score_0_1": 0.55
+      },
+      "barrier_health": {
+        "label": "mildly_compromised",
+        "score_0_1": 0.4
+      },
+      "visual_acne_grading": {
+        "label": "mild",
+        "score_0_1": 0.4
+      },
+      "skin_sebum_content": {
+        "label": "balanced_to_mild",
+        "score_0_1": 0.3
+      },
+      "vascularity_redness_profiling": {
+        "label": "mild_mixed_redness",
+        "score_0_1": 0.25
+      },
+      "skin_hydration": {
+        "label": "adequate",
+        "score_0_1": 0.5
+      },
+      "skin_luminosity_glow_index": {
+        "label": "moderate",
+        "score_0_1": 0.5
+      },
+      "superficial_pigmentation_score": {
+        "label": "mild_to_moderate",
+        "score_0_1": 0.35
+      },
+      "peri_orbital_health": {
+        "label": "mild_concern",
+        "score_0_1": 0.35
+      },
+      "lip_pigmentation": {
+        "label": "mild",
+        "score_0_1": 0.3
+      },
+      "texture_open_pores_grading": {
+        "label": "mild_to_moderate",
+        "score_0_1": 0.45
+      },
+      "superficial_wrinkles": {
+        "label": "minimal",
+        "score_0_1": 0.2
+      },
+      "jawline_sagging": {
+        "label": "minimal",
+        "score_0_1": 0.2
+      },
+      "skin_firmness_elasticity_index": {
+        "label": "good",
+        "score_0_1": 0.65
+      },
+      "textural_radiance_index": {
+        "label": "moderate",
+        "score_0_1": 0.55
+      }
+    },
+    "treatable_concerns": [
+      {
+        "concern": "post_acne_marks_and_mottled_pigmentation",
+        "severity_0_1": 0.35,
+        "priority": "medium",
+        "dominant_regions": [
+          "forehead",
+          "left_cheek",
+          "right_cheek"
+        ]
+      },
+      {
+        "concern": "mild_active_acne_with_follicular_congestion",
+        "severity_0_1": 0.4,
+        "priority": "medium",
+        "dominant_regions": [
+          "forehead",
+          "nose",
+          "left_cheek",
+          "right_cheek",
+          "chin"
+        ]
+      },
+      {
+        "concern": "visible_pores_and_texture",
+        "severity_0_1": 0.45,
+        "priority": "medium",
+        "dominant_regions": [
+          "nose",
+          "left_cheek",
+          "right_cheek"
+        ]
+      },
+      {
+        "concern": "mild_periorbital_pigment_and_puffiness",
+        "severity_0_1": 0.35,
+        "priority": "low",
+        "dominant_regions": [
+          "left_periorbital",
+          "right_periorbital"
+        ]
+      },
+      {
+        "concern": "mild_redness_sensitivity",
+        "severity_0_1": 0.25,
+        "priority": "low",
+        "dominant_regions": [
+          "forehead",
+          "nose",
+          "cheeks"
+        ]
+      }
+    ],
+    "missing_data": {
+      "fields_set_null_due_to_uncertainty": [],
+      "notes": "FALLBACK_USED: wrinkles.wrinkle_depth_index; FALLBACK_USED: wrinkles.chronicity_uv_index; FALLBACK_USED: jawline_sagging.mandibular_line_deflection_index_0_1; FALLBACK_USED: jawline_sagging.mandibular_line_deflection_angle_deg; FALLBACK_USED: jawline_sagging.pre_jowl_sulcus_depth_index; FALLBACK_USED: jawline_sagging.jowl_bulge_prominence_index; FALLBACK_USED: jawline_sagging.submental_fullness_index; FALLBACK_USED: jawline_sagging.dermal_collagen_thinning_index; FALLBACK_USED: jawline_sagging.left_right_asymmetry_index; FALLBACK_USED: firmness_elasticity.micro_laxity_pattern_index; FALLBACK_USED: firmness_elasticity.collagen_reflectance_uniformity; FALLBACK_USED: firmness_elasticity.dermal_density_proxy_index; FALLBACK_USED: firmness_elasticity.elastic_recoil_proxy_index; FALLBACK_USED: firmness_elasticity.firmness_uniformity_index"
+    }
+  },
+  "draft": {
+    "planning_result": {
+      "outcome": "success",
+      "treatment_plan": {
+        "course_outline": [],
+        "treatments": [
+          {
+            "session_number": 1,
+            "title": "Carbon Clarity Reset",
+            "week": 1,
+            "preparations_checklist_for_therapist": [
+              "Confirm whether salicylic acid or glycolic acid was used yesterday; defer Carbon laser if yes until clinician clears.",
+              "Map active lesion footprints versus extractable non-inflamed comedones; do not plan extraction on papules/pustules.",
+              "Preload Hydrafacial serums: SA2 for T-zone congestion and AS1 for cheeks.",
+              "Prepare Carbon Lotion and confirm the approved local conservative Carbon Facial laser preset; if preset is not available in file, clinician must load the approved protocol before treatment.",
+              "Preload approved post-extraction high-frequency acne-support preset and red LED recovery mode; clinician completes settings if protocol file is absent.",
+              "Left cheek is the hotter side; reduce local intensity there and extend soothing/cooling on that side."
+            ],
+            "primary_strategy": [
+              {
+                "concern": "Visual Acne Grading",
+                "selected_step_id": "ENERGY.CARBON.LASER",
+                "care_type": "corrective",
+                "exception_reason": null
+              },
+              {
+                "concern": "Superficial Pigmentation Score",
+                "selected_step_id": "ENERGY.CARBON.LASER",
+                "care_type": "corrective",
+                "exception_reason": null
+              },
+              {
+                "concern": "Texture & Open Pores Score",
+                "selected_step_id": "ENERGY.CARBON.LASER",
+                "care_type": "corrective",
+                "exception_reason": null
+              }
+            ],
+            "lip_pigmentation_rule": {
+              "status": "not_triggered",
+              "reason": "Client lip pigmentation display score is 70; the add-on triggers only below 70.",
+              "constraint_reference": "clinic_treatment_context.lip_pigmentation.trigger"
+            },
+            "steps": [
+              {
+                "step_id": "PREP.CLEANSE",
+                "duration": 2,
+                "role": "PREP",
+                "zones": [
+                  "full_face",
+                  "neck"
+                ],
+                "target_concerns": [
+                  "Barrier Health + Sensitivity (Combined Score)"
+                ],
+                "intensity_rung": null,
+                "order_reason": "Starts with residue removal.",
+                "settings_note": "Use cleanser only; no device preset.",
+                "duration_rationale": null,
+                "how_to_do": "Cleanse face and neck with derma decode Gentle Hydrating Cleanser Face Wash, remove sunscreen and surface oil fully, keep under-eye and lip pressure light, and pat dry before machine work.",
+                "script": "Gentle cleanse to remove oil, sunscreen and surface debris.",
+                "additional_products": [
+                  "derma decode Gentle Hydrating Cleanser Face Wash"
+                ],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "EXFO.VORTEX",
+                "duration": 4,
+                "role": "SUPPORT",
+                "zones": [
+                  "forehead",
+                  "nose",
+                  "left_cheek",
+                  "right_cheek",
+                  "chin"
+                ],
+                "target_concerns": [
+                  "Texture & Open Pores Score",
+                  "Skin Sebum Index",
+                  "Textural Radiance Index",
+                  "Visual Acne Grading"
+                ],
+                "intensity_rung": 2,
+                "order_reason": "Softens keratin before extraction.",
+                "settings_note": "Approved suction preset not supplied; use approved clinic Hydrafacial setting, SA2 through T-zone and AS1 on cheeks.",
+                "duration_rationale": "Four minutes to zone central congestion separately from the cheeks.",
+                "how_to_do": "Perform hydradermabrasion with SA2 over forehead, nose and chin for follicular congestion, then lighter AS1 passes over both cheeks; reduce suction and one pass on the hotter left cheek; avoid direct suction on active papules/pustules and under-eye skin.",
+                "script": "Serum-assisted suction clears T-zone buildup while staying gentler on cheeks.",
+                "additional_products": [
+                  "Hydrafacial Serum SA2",
+                  "Hydrafacial Serum AS1"
+                ],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "EXTR.MANUAL",
+                "duration": 6,
+                "role": "SECONDARY_CORRECTIVE",
+                "zones": [
+                  "forehead",
+                  "nose",
+                  "left_cheek",
+                  "right_cheek",
+                  "chin"
+                ],
+                "target_concerns": [
+                  "Visual Acne Grading",
+                  "Texture & Open Pores Score",
+                  "Textural Radiance Index"
+                ],
+                "intensity_rung": 2,
+                "order_reason": "Removes loosened comedones before laser.",
+                "settings_note": "Manual extraction only; no device preset.",
+                "duration_rationale": "Limited to visible non-inflamed comedones in central face and inner cheeks.",
+                "how_to_do": "Extract only open and closed comedones on nose, inner cheeks, forehead and chin after softening; skip papules, pustules, red inflamed bumps and broken skin; stop if swelling or pinpoint bleeding rises.",
+                "script": "Selective comedone clearing for cleaner pores and fewer bumps.",
+                "additional_products": [],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "ENERGY.HF",
+                "duration": 2,
+                "role": "SUPPORT",
+                "zones": [
+                  "forehead",
+                  "nose",
+                  "left_cheek",
+                  "right_cheek",
+                  "chin"
+                ],
+                "target_concerns": [
+                  "Visual Acne Grading"
+                ],
+                "intensity_rung": 1,
+                "order_reason": "Sanitises immediately after extraction.",
+                "settings_note": "Approved HF acne-support preset not supplied; clinician to load approved post-extraction mode.",
+                "duration_rationale": "Minimum effective post-extraction sanitation on treated sites only.",
+                "how_to_do": "Glide high frequency briefly over extracted areas only; avoid prolonged heat build-up, and stop if sting or unexpected redness rises.",
+                "script": "Brief acne support over extracted areas to calm bacteria load.",
+                "additional_products": [],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "ENERGY.CARBON.APPLY",
+                "duration": 3,
+                "role": "PREP",
+                "zones": [
+                  "full_face"
+                ],
+                "target_concerns": [
+                  "Visual Acne Grading",
+                  "Superficial Pigmentation Score",
+                  "Texture & Open Pores Score",
+                  "Skin Sebum Index",
+                  "Textural Radiance Index"
+                ],
+                "intensity_rung": 2,
+                "order_reason": "Creates uniform laser chromophore.",
+                "settings_note": "Use approved carbon film protocol; full dry-down completed before laser.",
+                "duration_rationale": null,
+                "how_to_do": "Apply an even carbon layer over forehead, nose, cheeks, chin and perioral skin, keeping clear of under-eyes, lips and active open lesions; use a thinner film on the hotter left cheek and allow the full dry period.",
+                "script": "Carbon film preps congested pores and mottled areas for laser clearing.",
+                "additional_products": [
+                  "Carbon Lotion"
+                ],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "ENERGY.CARBON.LASER",
+                "duration": 4,
+                "role": "HERO_CORRECTIVE",
+                "zones": [
+                  "full_face"
+                ],
+                "target_concerns": [
+                  "Visual Acne Grading",
+                  "Superficial Pigmentation Score",
+                  "Texture & Open Pores Score",
+                  "Skin Sebum Index",
+                  "Textural Radiance Index",
+                  "Skin Luminosity / Glow Index"
+                ],
+                "intensity_rung": 2,
+                "order_reason": "Main corrective once film is dry.",
+                "settings_note": "Approved local Carbon Facial laser preset not supplied; clinician must load the approved conservative acne-pore-pigment protocol before treatment.",
+                "duration_rationale": "Fixed Carbon laser dose per clinic timing rule.",
+                "how_to_do": "Use the approved conservative Carbon Facial laser protocol once the film is dry; prioritize nose, inner cheeks and forehead, give lighter work on the hotter left cheek, and avoid direct firing over active papules/pustules, under-eyes and lips; stop for excessive erythema or unexpected sting.",
+                "script": "Laser lifts pore debris, calms oil-acne congestion and brightens surface marks.",
+                "additional_products": [],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "COOL.ICE",
+                "duration": 4,
+                "role": "RECOVERY",
+                "zones": [
+                  "full_face"
+                ],
+                "target_concerns": [
+                  "Barrier Health + Sensitivity (Combined Score)",
+                  "Vascularity / Redness Score",
+                  "Visual Acne Grading"
+                ],
+                "intensity_rung": null,
+                "order_reason": "Required right after energy.",
+                "settings_note": "Ice Probe cooling with extra dwell on the hotter left cheek.",
+                "duration_rationale": "Extended to four minutes for post-energy recovery and left-cheek heat asymmetry.",
+                "how_to_do": "Immediately cool the treated face with the Ice Probe, keeping movement continuous and giving extra time to the left cheek and central face until heat settles.",
+                "script": "Cooling settles heat and reduces post-laser redness.",
+                "additional_products": [],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "PEEL.SPOT.SALI",
+                "duration": 2,
+                "role": "ADJUNCT",
+                "zones": [
+                  "forehead",
+                  "left_cheek",
+                  "right_cheek",
+                  "chin"
+                ],
+                "target_concerns": [
+                  "Visual Acne Grading"
+                ],
+                "intensity_rung": 1,
+                "order_reason": "Lesion-only adjunct after broad correction.",
+                "settings_note": "Lesion-only spot protocol; no extra cooling required after this step.",
+                "duration_rationale": null,
+                "how_to_do": "Apply 20% Salicylic Acid Peel with a cotton tip only to visible active lesions on the forehead, cheeks and chin; avoid under-eye skin, lips, broken skin and freshly extracted openings; remove per product protocol if undue frosting or irritation appears.",
+                "script": "Targeted salicylic only on active spots to dry bumps faster.",
+                "additional_products": [
+                  "20% Salicylic Acid Peel"
+                ],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "LED.RED",
+                "duration": 8,
+                "role": "RECOVERY",
+                "zones": [
+                  "full_face"
+                ],
+                "target_concerns": [
+                  "Barrier Health + Sensitivity (Combined Score)",
+                  "Vascularity / Redness Score",
+                  "Visual Acne Grading"
+                ],
+                "intensity_rung": null,
+                "order_reason": "Calms after laser and spot treatment.",
+                "settings_note": "Approved red LED recovery preset not supplied; clinician to load approved calming mode.",
+                "duration_rationale": "Minimum full recovery cycle after Carbon and lesion spot work.",
+                "how_to_do": "Run red LED over the full face after cooling and spot treatment to reduce reactive redness and support recovery; pause if warmth accumulates.",
+                "script": "Red light helps settle redness and supports healing.",
+                "additional_products": [],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "MASSAGE.LYMPH",
+                "duration": 6,
+                "role": "SUPPORT",
+                "zones": [
+                  "full_face",
+                  "neck"
+                ],
+                "target_concerns": [
+                  "Peri-Orbital Health Score",
+                  "Vascularity / Redness Score",
+                  "Jawline Sagging Score"
+                ],
+                "intensity_rung": null,
+                "order_reason": "Mandatory de-puffing before leave-on care.",
+                "settings_note": "Use approved gentle face-and-neck lymphatic technique; avoid direct pressure on active lesions.",
+                "duration_rationale": "Minimum-plus dose for mandatory drainage with mild puffiness present.",
+                "how_to_do": "Perform gentle face-and-neck lymphatic drainage using approved pathways; keep pressure feather-light over lesion-bearing cheeks and chin, and reduce pressure further on the hotter left cheek.",
+                "script": "Gentle drainage reduces puffiness without pressing on breakouts.",
+                "additional_products": [],
+                "infusion_ingredients": null,
+                "massage_purpose": "mandatory"
+              },
+              {
+                "step_id": "EYE.INFUSE",
+                "duration": 2,
+                "role": "SUPPORT",
+                "zones": [
+                  "under_eye"
+                ],
+                "target_concerns": [
+                  "Peri-Orbital Health Score"
+                ],
+                "intensity_rung": null,
+                "order_reason": "Adds precise orbital pigment care.",
+                "settings_note": "Ocular Ultrasound Infusion Probe protocol not supplied; clinician confirmation required before treatment.",
+                "duration_rationale": null,
+                "how_to_do": "Using the Ocular Ultrasound Infusion Probe, infuse TRX A lightly along the under-eye crescent and orbital rim only; avoid lash line and lids, and stop if sting occurs.",
+                "script": "Focused under-eye infusion for darkness and comfort.",
+                "additional_products": [],
+                "infusion_ingredients": [
+                  "TRX A (Tranexamic Acid)"
+                ],
+                "massage_purpose": null
+              },
+              {
+                "step_id": "INFUSE.TRX",
+                "duration": 3,
+                "role": "SUPPORT",
+                "zones": [
+                  "forehead",
+                  "nose",
+                  "left_cheek",
+                  "right_cheek",
+                  "chin"
+                ],
+                "target_concerns": [
+                  "Superficial Pigmentation Score",
+                  "Vascularity / Redness Score",
+                  "Skin Luminosity / Glow Index"
+                ],
+                "intensity_rung": null,
+                "order_reason": "Post-laser pigment support on clear skin.",
+                "settings_note": "Face Ultrasound Infusion Probe protocol not supplied; clinician confirmation required before use.",
+                "duration_rationale": null,
+                "how_to_do": "Use the face ultrasound infusion probe with TRX A over pigmented forehead and cheeks first, then a light pass over nose and chin; avoid direct infusion on active lesions, under-eyes and lips.",
+                "script": "Tranexamic infusion supports post-acne marks and uneven tone.",
+                "additional_products": [],
+                "infusion_ingredients": [
+                  "TRX A (Tranexamic Acid)"
+                ],
+                "massage_purpose": null
+              },
+              {
+                "step_id": "MASK.CALMING",
+                "duration": 15,
+                "role": "RECOVERY",
+                "zones": [
+                  "full_face"
+                ],
+                "target_concerns": [
+                  "Barrier Health + Sensitivity (Combined Score)",
+                  "Vascularity / Redness Score",
+                  "Visual Acne Grading"
+                ],
+                "intensity_rung": null,
+                "order_reason": "Locks in calming recovery.",
+                "settings_note": "Calming peel-off mask.",
+                "duration_rationale": null,
+                "how_to_do": "Apply the calming peel-off mask evenly over the face, keeping clear of nostril openings, brow hair, under-eye margin and any lesion crusting; remove gently after full set.",
+                "script": "Calming mask cools skin after correction.",
+                "additional_products": [],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              },
+              {
+                "step_id": "FINISH.SMS",
+                "duration": 3,
+                "role": "FINISH",
+                "zones": [
+                  "full_face",
+                  "neck"
+                ],
+                "target_concerns": [
+                  "Barrier Health + Sensitivity (Combined Score)",
+                  "Superficial Pigmentation Score"
+                ],
+                "intensity_rung": null,
+                "order_reason": "Must close the session.",
+                "settings_note": "Combined serum, moisturiser and mineral sunscreen finish.",
+                "duration_rationale": null,
+                "how_to_do": "Apply derma decode Brightening Serum Concentrate for Acne Marks and Pigmentation, then derma decode Oil Control Moisturizer for Oily Acne Prone Skin, then YUDERMA Eclipse Solaire Active Sunscreen SPF 50 PA+++ evenly over face and neck as the final protective layer.",
+                "script": "Serum, moisturiser and sunscreen finish the session and protect results.",
+                "additional_products": [
+                  "derma decode Brightening Serum Concentrate for Acne Marks and Pigmentation",
+                  "derma decode Oil Control Moisturizer for Oily Acne Prone Skin",
+                  "YUDERMA Eclipse Solaire Active Sunscreen SPF 50 PA+++"
+                ],
+                "infusion_ingredients": null,
+                "massage_purpose": null
+              }
+            ]
+          }
+        ],
+        "relevant_alternatives": [
+          {
+            "session_number": 1,
+            "step_id": "PEEL.COMBO",
+            "reason": "Useful for acne plus PIH, but Carbon gives stronger same-session pore clearing with broad pigment help and less full-face acid burden."
+          },
+          {
+            "session_number": 1,
+            "step_id": "PEEL.SA20",
+            "reason": "Strong for congestion, but it would do less than Carbon for concurrent cheek-forehead pigmentation and visible pore refinement."
+          },
+          {
+            "session_number": 1,
+            "step_id": "ENERGY.QS.TONING",
+            "reason": "Not chosen because today’s pigment is mild superficial post-acne marking and Carbon better also treats acne and pores in one session."
+          }
+        ]
+      },
+      "failure": null
+    }
+  },
+  "patientInput": {
+    "approved_device_protocols": null,
+    "approved_product_names": [
+      "derma decode Daily Use Face Serum for Dry Skin",
+      "derma decode Brightening Serum Concentrate for Acne Marks and Pigmentation",
+      "derma decode Gentle Hydrating Cleanser Face Wash",
+      "derma decode Oil Control Moisturizer for Oily Acne Prone Skin",
+      "derma decode Hydrating Face Moisturizer for Dry and Sensitive Skin",
+      "YUDERMA Eclipse Solaire Active Sunscreen SPF 50 PA+++"
+    ],
+    "clinic_treatment_context": {
+      "active_acne_evidence_source": "feature_evidence.proxies.acne.active_lesion_visibility_bin",
+      "active_acne_lesions_visible": true,
+      "clinical_clearance": {
+        "blocked_steps": {},
+        "evidence_contract_version": "treatment-evidence-v1",
+        "history_rule_flags": {
+          "PCOD": false,
+          "age_between_30_and_60": true,
+          "aloe_vera_allergy": false,
+          "breastfeeding": false,
+          "diabetes": false,
+          "laser_within_last_7_days": false,
+          "on_blood_thinners": false,
+          "pregnant": false,
+          "social_event_within_7_days": false,
+          "sun_exposure_1_to_2_hours": false,
+          "sun_exposure_gt_2_hours": false,
+          "thyroid": false,
+          "travel_within_7_days": false,
+          "used_retinol_last_24_hours": false,
+          "vitamin_c_allergy": false
+        },
+        "invalid_proxy_sources": [],
+        "missing_history_conditions": [
+          "used_salicylic_yesterday",
+          "used_glycolic_acid_yesterday"
+        ],
+        "missing_proxy_fields": [
+          "BSI_continuous"
+        ],
+        "note": "Fast checks supplement the complete constraints and clinician screening. They do not infer missing history or approve a device setting. Raw proxy values outside 0-1 are treated as missing, never rescaled from a client score.",
+        "numeric_denial_reasons": [],
+        "numeric_energy_status": "allowed_with_caution",
+        "numeric_proxy_source_paths": {
+          "BSI_continuous": null,
+          "barrier_uniformity_index": "feature_evidence.proxies.combined_barrier_sensitivity.barrier_uniformity_index",
+          "erythema_intensity_index": "feature_evidence.proxies.combined_barrier_sensitivity.erythema_intensity_index",
+          "flaking_texture_index": "feature_evidence.proxies.combined_barrier_sensitivity.flaking_texture_index",
+          "hydration_signal_index": "feature_evidence.proxies.combined_barrier_sensitivity.hydration_signal_index"
+        },
+        "numeric_proxy_values": {
+          "BSI_continuous": null,
+          "barrier_uniformity_index": 0.7,
+          "erythema_intensity_index": 0.2,
+          "flaking_texture_index": 0.1,
+          "hydration_signal_index": 0.55
+        },
+        "proxy_source_disagreements": [],
+        "temperature": {
+          "derived": {
+            "avg_cheek_surface_temp_c": 32.25,
+            "avg_facial_surface_temp_c": 32.166666666666664,
+            "forehead_minus_avg_cheek_delta_c": -0.25,
+            "left_right_delta_c": 0.5
+          },
+          "readings": {
+            "forehead_surface_c": 32,
+            "left_cheek_surface_c": 32.5,
+            "right_cheek_surface_c": 32
+          },
+          "reasons": [
+            "left_cheek is the hotter cheek; apply the existing regional modifiers."
+          ],
+          "status": "normal"
+        }
+      },
+      "lip_pigmentation": {
+        "assessable": true,
+        "client_display_score": 70,
+        "reason": "Compared the rounded client-display score with 70.",
+        "threshold_exclusive": 70,
+        "trigger": false,
+        "visibility_caution": false
+      },
+      "version": "clinic-treatment-v1"
+    },
+    "diagnosis_report": {
+      "barrier_health_sensitivity": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "BSI_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "data_quality": {
+          "confidence_0_1": 0.87,
+          "estimated_fields": [],
+          "estimation_basis": "feature_packet_correlates",
+          "is_estimated": false
+        },
+        "feature_assessment": {
+          "label": "mildly_compromised"
+        },
+        "finding": "Your skin does not show much flaking or obvious surface damage, which is a good sign. There is some mild redness and slight hydration stress, so the barrier looks a little reactive rather than fully compromised.",
+        "ideal_score_direction": "decrease",
+        "normalized_burden_0_to_1": 0.285,
+        "parameter_name": "Barrier Health + Sensitivity (Combined Score)",
+        "possible_causes": [
+          "Mild sensitivity or environmental irritation",
+          "Slight dehydration stress"
+        ],
+        "score_or_label": 29.215,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity"
+      },
+      "jawline_sagging_score": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": null,
+        "continuous_index_polarity": "not_applicable",
+        "data_quality": {
+          "confidence_0_1": 0.5,
+          "estimated_fields": [
+            "mandibular_line_deflection_angle",
+            "pre_jowl_sulcus_depth_index",
+            "jowl_bulge_prominence_index",
+            "submental_fullness_index",
+            "dermal_collagen_thinning_index",
+            "left_right_asymmetry_index",
+            "contour_continuity_break_index",
+            "sagging_chronicity_index",
+            "fat_vs_laxity_component_split",
+            "regional_sagging_map",
+            "jawline_grid_map"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "minimal"
+        },
+        "finding": "The lower face contour remains mostly smooth and stable, without marked jowling or heavy tissue descent. Any softness present looks early and mild rather than advanced.",
+        "ideal_score_direction": "decrease",
+        "normalized_burden_0_to_1": 0.21212121212121213,
+        "parameter_name": "Jawline Sagging Score",
+        "possible_causes": [
+          "Early lower-face soft tissue laxity",
+          "Mild natural contour asymmetry"
+        ],
+        "score_or_label": 22,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity"
+      },
+      "lip_pigmentation": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": null,
+        "continuous_index_polarity": "not_applicable",
+        "data_quality": {
+          "confidence_0_1": 0.55,
+          "estimated_fields": [
+            "surface_darkness_index",
+            "lipstick_mask_confidence"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "mild"
+        },
+        "finding": "There is some mild natural lip darkening, more from inherent pigment than strong redness or irritation. The color looks relatively even and not heavily pronounced.",
+        "ideal_score_direction": "decrease",
+        "normalized_burden_0_to_1": 0.3,
+        "parameter_name": "Lip Pigmentation Score",
+        "possible_causes": [
+          "Natural melanin distribution in the lips",
+          "Mild background lip dryness or tone variation"
+        ],
+        "score_or_label": 30.7,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity"
+      },
+      "periorbital_health": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": null,
+        "continuous_index_polarity": "not_applicable",
+        "data_quality": {
+          "confidence_0_1": 0.84,
+          "estimated_fields": [],
+          "estimation_basis": "feature_packet_correlates",
+          "is_estimated": false
+        },
+        "feature_assessment": {
+          "label": "mild_concern"
+        },
+        "finding": "There is visible under-eye darkness with a little puffiness, while hollowness and fine lines remain fairly mild. The overall eye-area concern looks noticeable but not advanced.",
+        "ideal_score_direction": "decrease",
+        "is_primary_concern": false,
+        "normalized_burden_0_to_1": 0.32499999999999996,
+        "parameter_name": "Peri-Orbital Health Score",
+        "possible_causes": [
+          "Pigment and vascular darkness under the eyes",
+          "Mild fluid-related puffiness"
+        ],
+        "reason_for_selection": "The under-eye area shows mild pigment burden and puffiness, which are visible but not advanced and can improve modestly in one session.",
+        "score_or_label": 33.175000000000004,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity",
+        "target_single_session_score": 29.5
+      },
+      "skin_firmness_elasticity_index": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "continuous_firmness_index",
+        "continuous_index_polarity": "higher_is_worse",
+        "data_quality": {
+          "confidence_0_1": 0.5,
+          "estimated_fields": [
+            "micro_laxity_pattern_index",
+            "collagen_reflectance_uniformity",
+            "elastic_recoil_proxy_index",
+            "regional_firmness_map",
+            "collagen_loss_pattern_type",
+            "improvability_index"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "good"
+        },
+        "finding": "The skin still appears to hold its shape fairly well, but there are some mild early signs of reduced firmness. This looks more like subtle softening than advanced laxity.",
+        "ideal_score_direction": "decrease",
+        "normalized_burden_0_to_1": 0.345,
+        "parameter_name": "Skin Firmness & Elasticity Index",
+        "possible_causes": [
+          "Early collagen support decline",
+          "Mild lower-face and cheek softening"
+        ],
+        "score_or_label": 35.155,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity"
+      },
+      "skin_hydration_score": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "HSI_continuous",
+        "continuous_index_polarity": "higher_is_better",
+        "data_quality": {
+          "confidence_0_1": 0.88,
+          "estimated_fields": [],
+          "estimation_basis": "feature_packet_correlates",
+          "is_estimated": false
+        },
+        "feature_assessment": {
+          "label": "adequate"
+        },
+        "finding": "The skin surface appears fairly even without strong flaking, and there are only mild dehydration lines. Hydration looks adequate overall, but there is still room for more bounce and softness, especially in the lower face and cheek areas.",
+        "ideal_score_direction": "increase",
+        "is_primary_concern": false,
+        "normalized_burden_0_to_1": 0.595,
+        "parameter_name": "Skin Hydration Score",
+        "possible_causes": [
+          "Everyday water loss from the skin surface",
+          "Slight imbalance between hydration and surface smoothness"
+        ],
+        "reason_for_selection": "Hydration is adequate but not optimal, with room for visible improvement in plumpness and comfort after a single session.",
+        "score_or_label": 59.905,
+        "score_polarity": "higher_is_better",
+        "score_semantics": "health",
+        "target_single_session_score": 66.5
+      },
+      "skin_luminosity_glow_index": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "GLI_continuous",
+        "continuous_index_polarity": "higher_is_better",
+        "data_quality": {
+          "confidence_0_1": 0.55,
+          "estimated_fields": [
+            "surface_reflectance_uniformity",
+            "color_luminance_index",
+            "subsurface_diffusion_index",
+            "shadow_softness_index",
+            "sebum_gloss_index",
+            "dryness_dullness_index",
+            "regional_glow_map",
+            "luminosity_grid_map",
+            "glow_limiting_factors",
+            "treatment_responsiveness_index"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "moderate"
+        },
+        "finding": "Your complexion has some visible brightness and fairly even light reflection, but mild uneven tone and texture reduce the overall glow. It looks healthy rather than dull, though not especially luminous.",
+        "ideal_score_direction": "increase",
+        "is_primary_concern": false,
+        "normalized_burden_0_to_1": 0.5329999999999999,
+        "parameter_name": "Skin Luminosity / Glow Index",
+        "possible_causes": [
+          "Mild surface unevenness",
+          "Pigmentation and texture softening the overall glow"
+        ],
+        "reason_for_selection": "Glow is moderate and somewhat reduced by uneven tone and texture; visible but realistic single-session brightening is achievable.",
+        "score_or_label": 53.7675,
+        "score_polarity": "higher_is_better",
+        "score_semantics": "health",
+        "target_single_session_score": 59
+      },
+      "skin_sebum_content": {
+        "comparison_mode": "target_distance",
+        "continuous_index_name": "SSI_continuous",
+        "continuous_index_polarity": "depends_on_target",
+        "data_quality": {
+          "confidence_0_1": 0.55,
+          "estimated_fields": [
+            "sebum_fluorescence_index",
+            "porphyrin_load_index",
+            "sebaceous_congestion_index",
+            "regional_sebum_map",
+            "sebum_hotspot_grid",
+            "sebum_variability_index",
+            "improvability_index",
+            "bacterial_inflammatory_burden_index"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "balanced_to_mild"
+        },
+        "finding": "Visible shine is fairly limited, which keeps the overall oil level from looking high. At the same time, the pores and follicular areas suggest some mild oil-related congestion rather than a fully dry pattern.",
+        "ideal_score_direction": "move_toward_target",
+        "is_primary_concern": false,
+        "normalized_burden_0_to_1": 0.29,
+        "parameter_name": "Skin Sebum Index",
+        "possible_causes": [
+          "Mild sebaceous activity in the T-zone",
+          "Follicular buildup with low-grade congestion"
+        ],
+        "reason_for_selection": "Oil level is not excessive, but central facial congestion suggests movement toward a more balanced sebum state would support treatment goals.",
+        "score_or_label": 29.71,
+        "score_polarity": "distance_to_target",
+        "score_semantics": "state_spectrum",
+        "target_single_session_score": 36
+      },
+      "skin_type": {
+        "comparison_mode": "label_mapping",
+        "continuous_index_name": null,
+        "continuous_index_polarity": "not_applicable",
+        "data_quality": {
+          "confidence_0_1": 0.88,
+          "estimated_fields": [],
+          "estimation_basis": "feature_packet_correlates",
+          "is_estimated": false
+        },
+        "feature_assessment": {
+          "label": "combination"
+        },
+        "finding": "There is mild oil activity through the T-zone with relatively balanced cheeks, while hydration appears generally adequate. Pores and congestion are more noticeable in the center of the face, which supports a combination pattern rather than fully oily or dry skin.",
+        "ideal_score_direction": "maintain",
+        "normalized_burden_0_to_1": 0.55,
+        "parameter_name": "Skin Type Classification",
+        "possible_causes": [
+          "Natural variation in oil production between the T-zone and cheeks",
+          "Mild follicular congestion in the central face"
+        ],
+        "score_or_label": "Combination",
+        "score_polarity": "label_only",
+        "score_semantics": "label"
+      },
+      "superficial_pigmentation_score": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "PPL_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "data_quality": {
+          "confidence_0_1": 0.55,
+          "estimated_fields": [
+            "coverage_area_percent",
+            "coverage_area_normalized",
+            "mean_intensity_normalized",
+            "uniformity_index",
+            "woods_cluster_density",
+            "border_definition_score",
+            "depth_indicator_ratio",
+            "depth_index_uv_to_woods",
+            "melanin_chroma_separation_index",
+            "region_variation_index",
+            "asymmetry_index",
+            "uv_enhancement_ratio",
+            "superficial_fraction_index",
+            "improvability_index",
+            "pigment_response_index",
+            "regional_burden_map",
+            "pigment_grid_map"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "mild_to_moderate"
+        },
+        "finding": "Pigment is most noticeable across the forehead and cheeks, where there are scattered darker marks and a mottled tone. The spots are visible in normal lighting but are not extremely dense or very dark overall.",
+        "ideal_score_direction": "decrease",
+        "is_primary_concern": true,
+        "normalized_burden_0_to_1": 0.3504558774558775,
+        "parameter_name": "Superficial Pigmentation Score",
+        "possible_causes": [
+          "Post-acne marks",
+          "Sun-related uneven pigmentation"
+        ],
+        "reason_for_selection": "There is noticeable pigment burden over the forehead and cheeks with mottled distribution and post-acne marking, with a meaningful superficial component.",
+        "score_or_label": 35.69513186813187,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity",
+        "target_single_session_score": 31
+      },
+      "superficial_wrinkles_scoring": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "WBI_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "data_quality": {
+          "confidence_0_1": 0.5,
+          "estimated_fields": [
+            "wrinkle_line_count",
+            "wrinkle_depth_index",
+            "chronicity_uv_index",
+            "structural_vs_dehydration_index",
+            "improvability_index",
+            "regional_wrinkle_map",
+            "wrinkle_grid_map"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "minimal"
+        },
+        "finding": "Fine lines are light overall and appear more subtle than fixed or etched. Most of the line pattern looks early and mild rather than strongly age-related.",
+        "ideal_score_direction": "decrease",
+        "normalized_burden_0_to_1": 0.215,
+        "parameter_name": "Superficial Wrinkles Score",
+        "possible_causes": [
+          "Early dehydration-related fine lines",
+          "Mild natural skin folding around expressive areas"
+        ],
+        "score_or_label": 22.285,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity"
+      },
+      "textural_radiance_index": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "continuous_TRI",
+        "continuous_index_polarity": "higher_is_worse",
+        "data_quality": {
+          "confidence_0_1": 0.55,
+          "estimated_fields": [
+            "micro_clarity_index",
+            "surface_smooth_scatter_index",
+            "keratin_shadow_index",
+            "regional_radiance_map",
+            "radiance_loss_pattern",
+            "improvability_index"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "moderate"
+        },
+        "finding": "The skin surface looks reasonably smooth overall, but pores, mild congestion, and slight unevenness reduce a crisp, polished appearance. This gives the skin a moderate loss of textural radiance rather than a very glassy finish.",
+        "ideal_score_direction": "decrease",
+        "is_primary_concern": false,
+        "normalized_burden_0_to_1": 0.41,
+        "parameter_name": "Textural Radiance Index",
+        "possible_causes": [
+          "Visible pores and mild surface irregularity",
+          "Low-grade keratin buildup and congestion"
+        ],
+        "reason_for_selection": "Moderate radiance loss appears linked to pore visibility, mild congestion, and surface haze, which are commonly treatment-responsive.",
+        "score_or_label": 41.59,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity",
+        "target_single_session_score": 36.5
+      },
+      "texture_open_pores_scoring": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "PTI_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "data_quality": {
+          "confidence_0_1": 0.55,
+          "estimated_fields": [
+            "texture_roughness_index",
+            "blackhead_congestion_index"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "mild_to_moderate"
+        },
+        "finding": "Pores are clearly visible in the central face and cheeks, with some mild roughness and congestion. The texture does not look severe, but it is noticeable enough to soften the smoothness of the skin.",
+        "ideal_score_direction": "decrease",
+        "is_primary_concern": true,
+        "normalized_burden_0_to_1": 0.435,
+        "parameter_name": "Texture & Open Pores Score",
+        "possible_causes": [
+          "Genetically larger visible pores",
+          "Oil-related congestion and uneven surface texture"
+        ],
+        "reason_for_selection": "Pore density and diameter are clearly visible in the nose and cheek regions, with mild roughness and low-grade congestion affecting surface smoothness.",
+        "score_or_label": 44.065,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity",
+        "target_single_session_score": 38.5
+      },
+      "vascularity_redness_profiling": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "BIBI_index",
+        "continuous_index_polarity": "higher_is_worse",
+        "data_quality": {
+          "confidence_0_1": 0.55,
+          "estimated_fields": [
+            "clinical_erythema_score",
+            "vascular_pattern_score",
+            "diffuse_redness_score",
+            "subclinical_hotspot_score",
+            "sebaceous_inflammation_score",
+            "BIBI_index"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "mild_mixed_redness"
+        },
+        "finding": "Redness is visible but not intense, and it appears spread lightly rather than concentrated in severe patches. There are some mild reactive and acne-linked red areas, but not strong vessel prominence or severe flushing.",
+        "ideal_score_direction": "decrease",
+        "is_primary_concern": false,
+        "normalized_burden_0_to_1": 0.2676767676767677,
+        "parameter_name": "Vascularity / Redness Score",
+        "possible_causes": [
+          "Mild skin sensitivity",
+          "Low-grade inflammation around acne-prone areas"
+        ],
+        "reason_for_selection": "Mild diffuse and reactive redness is present, but not severe; short-term calming improvement is realistic.",
+        "score_or_label": 27.5,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity",
+        "target_single_session_score": 23.5
+      },
+      "visual_acne_grading": {
+        "comparison_mode": "direct_numeric",
+        "continuous_index_name": "ASI_continuous",
+        "continuous_index_polarity": "higher_is_worse",
+        "data_quality": {
+          "confidence_0_1": 0.55,
+          "estimated_fields": [
+            "total_lesion_count",
+            "comedone_density_index",
+            "inflammatory_cluster_index",
+            "uv_porhyrin_load",
+            "chronicity_index",
+            "lesion_counts",
+            "region_activity_map",
+            "per_lesion_coordinate_map",
+            "inflammatory_hotspot_map",
+            "acne_grid_map"
+          ],
+          "estimation_basis": "mixed",
+          "is_estimated": true
+        },
+        "feature_assessment": {
+          "label": "mild"
+        },
+        "finding": "Breakouts are present across the forehead, cheeks, and chin, but they are not dense or deeply cystic. The pattern looks like mild active acne with some ongoing congestion and leftover post-acne marking.",
+        "ideal_score_direction": "decrease",
+        "is_primary_concern": true,
+        "normalized_burden_0_to_1": 0.31193588054457616,
+        "parameter_name": "Visual Acne Grading",
+        "possible_causes": [
+          "Follicular congestion and clogged pores",
+          "Mild inflammatory breakouts"
+        ],
+        "reason_for_selection": "Visible active lesions and congestion are present across multiple regions, with mild inflammatory activity and moderate short-term responsiveness.",
+        "score_or_label": 31.88165217391304,
+        "score_polarity": "higher_is_worse",
+        "score_semantics": "severity",
+        "target_single_session_score": 26.5
+      }
+    },
+    "feature_evidence": {
+      "feature_findings": [
+        {
+          "concern": "post_acne_marks_and_mottled_pigmentation",
+          "dominant_regions": [
+            "forehead",
+            "left_cheek",
+            "right_cheek"
+          ],
+          "severity_0_1": 0.35
+        },
+        {
+          "concern": "mild_active_acne_with_follicular_congestion",
+          "dominant_regions": [
+            "forehead",
+            "nose",
+            "left_cheek",
+            "right_cheek",
+            "chin"
+          ],
+          "severity_0_1": 0.4
+        },
+        {
+          "concern": "visible_pores_and_texture",
+          "dominant_regions": [
+            "nose",
+            "left_cheek",
+            "right_cheek"
+          ],
+          "severity_0_1": 0.45
+        },
+        {
+          "concern": "mild_periorbital_pigment_and_puffiness",
+          "dominant_regions": [
+            "left_periorbital",
+            "right_periorbital"
+          ],
+          "severity_0_1": 0.35
+        },
+        {
+          "concern": "mild_redness_sensitivity",
+          "dominant_regions": [
+            "forehead",
+            "nose",
+            "cheeks"
+          ],
+          "severity_0_1": 0.25
+        }
+      ],
+      "feature_packet_version": "aia_fp_v1",
+      "missing_data": {
+        "fields_set_null_due_to_uncertainty": [],
+        "notes": "FALLBACK_USED: wrinkles.wrinkle_depth_index; FALLBACK_USED: wrinkles.chronicity_uv_index; FALLBACK_USED: jawline_sagging.mandibular_line_deflection_index_0_1; FALLBACK_USED: jawline_sagging.mandibular_line_deflection_angle_deg; FALLBACK_USED: jawline_sagging.pre_jowl_sulcus_depth_index; FALLBACK_USED: jawline_sagging.jowl_bulge_prominence_index; FALLBACK_USED: jawline_sagging.submental_fullness_index; FALLBACK_USED: jawline_sagging.dermal_collagen_thinning_index; FALLBACK_USED: jawline_sagging.left_right_asymmetry_index; FALLBACK_USED: firmness_elasticity.micro_laxity_pattern_index; FALLBACK_USED: firmness_elasticity.collagen_reflectance_uniformity; FALLBACK_USED: firmness_elasticity.dermal_density_proxy_index; FALLBACK_USED: firmness_elasticity.elastic_recoil_proxy_index; FALLBACK_USED: firmness_elasticity.firmness_uniformity_index"
+      },
+      "proxies": {
+        "acne": {
+          "active_lesion_visibility_bin": "mild",
+          "borderline": false,
+          "comedone_count_bin": "11-30",
+          "dominant_regions": [
+            "forehead",
+            "left_cheek",
+            "right_cheek",
+            "chin"
+          ],
+          "inflammatory_lesion_count_bin": "6-20",
+          "inflammatory_ratio_bin": "medium",
+          "porphyrin_load_bin": "low",
+          "post_inflammatory_mark_burden_bin": "moderate"
+        },
+        "combined_barrier_sensitivity": {
+          "barrier_uniformity_bin": "good",
+          "borderline": false,
+          "erythema_coverage_bin": "moderate",
+          "erythema_coverage_ratio": 0.55,
+          "erythema_intensity_bin": "mild",
+          "flaking_texture_bin": "none",
+          "hydration_signal_bin": "moderate"
+        },
+        "firmness_elasticity": {
+          "borderline": true,
+          "collagen_reflectance_uniformity": 0.55,
+          "dermal_density_proxy_index": 0.7,
+          "elastic_recoil_proxy_index": 0.65,
+          "firmness_uniformity_index": 0.6,
+          "micro_laxity_pattern_index": 0.25
+        },
+        "hydration": {
+          "borderline": false,
+          "dry_patch_fluorescence_bin": "low",
+          "dry_patch_fluorescence_index": 0.25,
+          "microline_density_bin": "mild",
+          "microline_density_index": 0.3,
+          "regional_map": {
+            "chin": 0.45,
+            "forehead": 0.5,
+            "left_cheek": 0.45,
+            "nose": 0.5,
+            "perioral": 0.4,
+            "right_cheek": 0.45
+          },
+          "sebum_balance_ratio": 0.95,
+          "subsurface_diffusion_bin": "moderate",
+          "subsurface_diffusion_index": 0.5,
+          "surface_reflectance_bin": "moderate",
+          "surface_reflectance_index": 0.5
+        },
+        "jawline_sagging": {
+          "borderline": true,
+          "dermal_collagen_thinning_index": 0.2,
+          "jawline_edge_confidence": 0.8,
+          "jowl_bulge_prominence_index": 0.2,
+          "left_right_asymmetry_index": 0.15,
+          "lower_face_visibility_ratio": 0.85,
+          "mandibular_line_deflection_angle_deg": 2.5,
+          "mandibular_line_deflection_index_0_1": 0.2,
+          "pre_jowl_sulcus_depth_index": 0.25,
+          "submental_fullness_index": 0.25
+        },
+        "lips_pigmentation": {
+          "UV_absorption": 0.3,
+          "borderline": false,
+          "intrinsic_melanin_index": 0.3,
+          "pigment_classification": "melanin_dominant",
+          "vascular_congestion_index": 0.2,
+          "woods_intensity": 0.3
+        },
+        "peri_orbital": {
+          "borderline": false,
+          "dominant_side": "symmetric",
+          "eyes_closed": true,
+          "fine_line_texture_index": 0.25,
+          "hollow_shadow_index": 0.2,
+          "puffiness_index": 0.45,
+          "under_eye_pigment_index": 0.4,
+          "vascular_congestion_index": 0.2
+        },
+        "pigmentation": {
+          "borderline": false,
+          "contrast_band": "moderate",
+          "contrast_to_surrounding_skin_index": 0.4,
+          "coverage_band": "moderate",
+          "coverage_index": 0.5,
+          "depth_band": "mixed",
+          "intensity_band": "mild",
+          "intensity_weighted_burden_index": 0.35,
+          "region_loads_0_1": {
+            "chin": 0.2,
+            "forehead": 0.5,
+            "left_cheek": 0.45,
+            "nose": 0.2,
+            "perioral": 0.25,
+            "right_cheek": 0.45
+          },
+          "regional_intensity_map": {
+            "chin": 0.15,
+            "forehead": 0.35,
+            "left_cheek": 0.3,
+            "nose": 0.15,
+            "perioral": 0.2,
+            "right_cheek": 0.3
+          },
+          "underlying_pigment_band": "moderate",
+          "uniformity_band": "mottled",
+          "visible_mean_intensity_index": 0.3
+        },
+        "pores_texture": {
+          "blackhead_congestion_bin": "low",
+          "borderline": false,
+          "dominant_regions": [
+            "nose",
+            "left_cheek",
+            "right_cheek"
+          ],
+          "pore_visibility_bin": "moderate",
+          "texture_roughness_bin": "mild"
+        },
+        "pores_texture_plus": {
+          "borderline": false,
+          "pore_clarity_index": 0.55,
+          "pore_density_index": 0.55,
+          "pore_diameter_index": 0.45
+        },
+        "redness": {
+          "borderline": false,
+          "diffuse_redness_bin": "mild",
+          "diffuse_vs_vascular_dominance_bin": "mixed",
+          "subclinical_hotspots_bin": "moderate",
+          "vascular_pattern_bin": "mild"
+        },
+        "sebum_oiliness": {
+          "borderline": false,
+          "cheek_oil_bin": "mild",
+          "shine_coverage_bin": "low",
+          "shine_coverage_ratio": 0.25,
+          "shine_intensity_bin": "mild",
+          "shine_intensity_index": 0.25,
+          "surface_shine_vs_follicular_congestion_bin": "follicular_congestion_dominant",
+          "t_zone_oil_bin": "mild"
+        },
+        "wrinkles": {
+          "borderline": true,
+          "chronicity_uv_index": 0.2,
+          "dominant_regions": [
+            "peri_orbital",
+            "perioral"
+          ],
+          "structural_vs_dehydration_bin": "mostly_dehydration",
+          "wrinkle_depth_index": 0.2,
+          "wrinkle_line_count_bin": "0-10"
+        },
+        "wrinkles_plus": {
+          "borderline": false,
+          "regional_uniformity_index": 0.45,
+          "wrinkle_microline_density_index": 0.25
+        }
+      },
+      "regions": [
+        "forehead",
+        "nose",
+        "left_cheek",
+        "right_cheek",
+        "chin",
+        "perioral"
+      ],
+      "scan_meta": {
+        "confidence_multiplier": 0.85,
+        "pose_variation": "mild",
+        "quality_issues": [],
+        "scan_quality": "pass"
+      }
+    },
+    "mother_case_reference": {
+      "concern_map_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "mother_document_version": "1.3",
+      "scope": "Pointers to the complete maps in the stable mother reference for all supplied concerns, including secondary concerns. No patient findings are encoded in these pointers. Select relevant contenders once; do not assess every row."
+    },
+    "patient_profile_and_history": {
+      "age": 35,
+      "allergies": [
+        "None"
+      ],
+      "breastfeeding": "no",
+      "daily_sun_exposure_hours": "Less than 1 hour",
+      "forehead_surface_c": 32,
+      "gender": "Female",
+      "is_pregnant": false,
+      "laser_within_last_7_days": "no",
+      "left_cheek_surface_c": 32.5,
+      "medical_history": [
+        "None"
+      ],
+      "name": "Anonymous verification fixture",
+      "right_cheek_surface_c": 32,
+      "social_event": "no",
+      "upcoming_travel": "no",
+      "used_retinol_last_24_hours": "no"
+    },
+    "planning_contract": {
+      "allowed_concern_names": [
+        "Skin Type Classification",
+        "Barrier Health + Sensitivity (Combined Score)",
+        "Visual Acne Grading",
+        "Skin Sebum Index",
+        "Vascularity / Redness Score",
+        "Skin Hydration Score",
+        "Skin Luminosity / Glow Index",
+        "Superficial Pigmentation Score",
+        "Peri-Orbital Health Score",
+        "Lip Pigmentation Score",
+        "Texture & Open Pores Score",
+        "Superficial Wrinkles Score",
+        "Jawline Sagging Score",
+        "Skin Firmness & Elasticity Index",
+        "Textural Radiance Index"
+      ],
+      "evidence_contract": "treatment-evidence-v1: canonical raw safety proxies and their source paths are in clinic_treatment_context.clinical_clearance. Supplied feature proxies fill missing diagnosis backend_details. No displayed score, normalized burden or feature diagnosis score substitutes for a raw measurement. Selected primary names remain exactly those in required_primary_concerns.",
+      "fixed_step_roles": {
+        "ENERGY.CARBON.APPLY": "PREP",
+        "FINISH.SMS": "FINISH",
+        "MASSAGE.LYMPH": "SUPPORT",
+        "PEEL.SPOT.SALI": "ADJUNCT",
+        "PREP.CLEANSE": "PREP"
+      },
+      "input_contract_version": "treatment-case-v1",
+      "primary_strategy_rule": "Exactly one strategy per required primary in every detailed session. Copy its exact concern name into the strategy and selected step target_concerns. A corrective Carbon strategy selects ENERGY.CARBON.LASER; never its PREP application or PEEL.SPOT.SALI. Do not invent aliases or findings.",
+      "required_primary_concerns": [
+        "Visual Acne Grading",
+        "Superficial Pigmentation Score",
+        "Texture & Open Pores Score"
+      ],
+      "spot_sali_product_options": [
+        "Sali DS Peel",
+        "Salicylic Acid 30% Peel",
+        "20% Salicylic Acid Peel"
+      ],
+      "spot_sali_product_rule": "For PEEL.SPOT.SALI, choose exactly one approved named product from spot_sali_product_options and put it in additional_products. Do not select a default concentration or name the product only in prose.",
+      "spot_salicylic_cooling_rule": "PEEL.SPOT.SALI does not require cooling after it or between it and Carbon/Q-switch, including a lip pass. Keep independently required immediate post-energy cooling and actual broad-peel-plus-Carbon preparation/cooling. The spot adjunct is not a broad/full-face peel."
+    },
+    "prior_visit": null,
+    "treatment_plan_type": "single"
+  }
+}

@@ -1,4 +1,5 @@
 import { facialClientScore, prepareFacialEngineInput } from '../clientScoreDisplay.js'
+import { treatmentCourseWindow } from './treatmentCourseContinuation.js'
 import { TREATMENT_STEPS } from './treatmentKnowledge.js'
 import { buildTreatmentEligibility } from './treatmentEligibility.js'
 import { resolveTreatmentEvidence, treatmentConcernFamily, TREATMENT_PROXY_FIELDS } from './treatmentEvidence.js'
@@ -121,10 +122,14 @@ const finalStep = object({ step_number: int, ...stepProperties, catalogue_option
 const finalSession = object({ ...sessionProperties, steps: array(finalStep, { minItems: 1 }), treatment_time: num,
   step_duration_total: num, timing_validation: object({ calculated_from_steps: num, matches_treatment_time: { type: 'boolean' } }) })
 export const normalizeTreatmentPlanType = (value) => value === 'full' ? 'multiple' : value
-const sessionLimits = (treatmentType) => treatmentType == null ? { minItems: 1, maxItems: 2 }
+const sessionLimits = (treatmentType, plannerInput = null) => {
+  const continuation = treatmentCourseWindow(plannerInput, treatmentType)
+  if (continuation) return { minItems: continuation.session_numbers.length, maxItems: continuation.session_numbers.length }
+  return treatmentType == null ? { minItems: 1, maxItems: 2 }
   : ['single','express'].includes(normalizeTreatmentPlanType(treatmentType)) ? { minItems: 1, maxItems: 1 }
   : normalizeTreatmentPlanType(treatmentType) === 'multiple' ? { minItems: 2, maxItems: 2 }
   : (() => { throw new Error('Unknown treatment plan type.'); })()
+}
 
 export function buildTreatmentPlanResponseFormat(treatmentType = null) {
   return format('facial_treatment_plan_v5_1', { ...planProperties,
@@ -133,6 +138,7 @@ export function buildTreatmentPlanResponseFormat(treatmentType = null) {
 
 export function buildTreatmentGenerationResponseFormat(treatmentType = null, plannerInput = null) {
   const multiple = normalizeTreatmentPlanType(treatmentType) === 'multiple'
+  const continuation = treatmentCourseWindow(plannerInput, treatmentType)
   const hasCaseData = plannerInput && (Object.hasOwn(plannerInput, 'diagnosis_report') || Object.hasOwn(plannerInput, 'treatable_concerns'))
   const contract = hasCaseData ? buildTreatmentConcernContract(plannerInput) : null
   const concernSchema = contract?.allowed_concern_names.length
@@ -153,13 +159,15 @@ export function buildTreatmentGenerationResponseFormat(treatmentType = null, pla
     concern: primarySchema,
     selected_step_id: { type: ['string','null'], enum: [...Object.keys(TREATMENT_STEPS), null] } })
   const caseSessionProperties = { ...draftSessionProperties,
+    ...(continuation ? { session_number: { type: 'integer', enum: continuation.session_numbers },
+      week: { type: 'number', enum: continuation.slots.map(slot => slot.week) } } : {}),
     primary_strategy: array(caseStrategy, contract
       ? { minItems: contract.required_primary_concerns.length, maxItems: contract.required_primary_concerns.length } : {}),
     steps: array(caseStepSchema, { minItems: 1 }) }
   const draftProperties = { ...planProperties,
-    treatments: array(object(caseSessionProperties), sessionLimits(treatmentType)),
+    treatments: array(object(caseSessionProperties), sessionLimits(treatmentType, plannerInput)),
     course_outline: { ...planProperties.course_outline,
-      ...(treatmentType == null ? {} : multiple ? { minItems: 5, maxItems: 8 } : { maxItems: 0 }) },
+      ...(continuation ? { maxItems: 0 } : treatmentType == null ? {} : multiple ? { minItems: 5, maxItems: 8 } : { maxItems: 0 }) },
   }
   // Arithmetic is performed locally; the model cannot assert an unsupported total.
   delete draftProperties.total_time
@@ -370,7 +378,7 @@ export function unpackTreatmentPlannerResponse(parsed, treatmentType, plannerInp
   // Existing server gateways may already return the unwrapped draft/final plan.
   // They must still supply the selected number of sessions and actual steps.
   const sessions = parsed?.treatment_plan?.treatments
-  const limits = sessionLimits(treatmentType)
+  const limits = sessionLimits(treatmentType, plannerInput)
   if (!Array.isArray(sessions) || sessions.length < limits.minItems || sessions.length > limits.maxItems ||
       sessions.some((session) => !Array.isArray(session?.steps) || !session.steps.length))
     throw contractError(['A successful result requires the selected number of detailed sessions and non-empty steps; an empty treatment array is not a clinical blockage.'])
@@ -471,6 +479,10 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
     prior_visit: options.priorVisit ?? null,
     approved_device_protocols: options.approvedDeviceProtocols ?? null,
     approved_product_names: options.inClinicProductNames ?? [],
+  }
+  if (options.courseContinuation) {
+    input.course_continuation = JSON.parse(JSON.stringify(options.courseContinuation))
+    treatmentCourseWindow(input)
   }
   input.planning_contract = { ...buildTreatmentConcernContract(input),
     fixed_step_roles: FIXED_TREATMENT_STEP_ROLES,
@@ -629,6 +641,8 @@ export function finalizeTreatmentPlan(draft, plannerInput = null) {
   if (!draft || typeof draft !== 'object' || draft.error) return draft
   const plan = JSON.parse(JSON.stringify(draft))
   removeLegacySessionNarratives(plan)
+  const continuation = treatmentCourseWindow(plannerInput)
+  if (continuation && plan.treatment_plan) plan.treatment_plan.course_outline = JSON.parse(JSON.stringify(continuation.course_outline))
   if (plan.treatment_plan) finalizeDecisionSummary(plan.treatment_plan)
   for (const session of plan.treatment_plan?.treatments || []) {
     const steps = session.steps || []
@@ -727,6 +741,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   const root = enginePlan?.treatment_plan
   const sessions = Array.isArray(root?.treatments) ? root.treatments : []
   const normalizedType = normalizeTreatmentPlanType(treatmentType)
+  const continuation = treatmentCourseWindow(plannerInput, treatmentType)
   const window = CLINIC_SESSION_WINDOWS[normalizedType]
   const lip = context?.lip_pigmentation
   const clearance = context?.clinical_clearance || {}
@@ -746,14 +761,17 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   if (!sessions.length) errors.push('No compliant detailed treatment sessions returned.')
   if (['single','express'].includes(normalizedType) && sessions.length !== 1) errors.push('Single/Express requires exactly one detailed session.')
   if (normalizedType === 'multiple') {
-    if (sessions.length !== 2) errors.push('Multiple requires only sessions 1 and 2 in detail; later sessions require reassessment.')
+    if (continuation) {
+      if (sessions.length !== continuation.session_numbers.length) errors.push('Continuation must contain exactly the requested remaining sessions.')
+      if (JSON.stringify(root?.course_outline) !== JSON.stringify(continuation.course_outline)) errors.push('Continuation cannot rewrite the original course outline.')
+    } else if (sessions.length !== 2) errors.push('Multiple requires only sessions 1 and 2 in detail; later sessions require reassessment.')
     const outline = root?.course_outline || []
     if (outline.length < 5 || outline.length > 8) errors.push('The course outline requires 5-8 sessions.')
     outline.forEach((row, i) => {
       if (row.session_number !== i + 1 || row.week < 1) errors.push(`Course item ${i + 1}: invalid session number/week.`)
       if (i > 0 && row.week <= outline[i - 1].week) errors.push(`Course item ${i + 1}: weeks must advance.`)
       if (i >= 2 && row.reassessment_required !== true) errors.push(`Course item ${i + 1}: reassessment gate is required.`)
-      if (i < 2 && (row.session_kind !== 'facial' || row.week !== sessions[i]?.week)) errors.push(`Course item ${i + 1}: detailed facial and outline must agree.`)
+      if (!continuation && i < 2 && (row.session_kind !== 'facial' || row.week !== sessions[i]?.week)) errors.push(`Course item ${i + 1}: detailed facial and outline must agree.`)
       const standalone = row.candidate_step_ids?.some((id) => TREATMENT_STEPS[id]?.facial_session_allowed === false)
       if (standalone && row.session_kind !== 'separate_clinician_session') errors.push(`Course item ${i + 1}: standalone device needs a separately assessed clinician session.`)
     })
@@ -764,11 +782,13 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   const protocols = constraints?.clinical_constraints?.supportive_treatment_protocols || {}
   const ingredients = constraints?.availableResources?.jet_infusion_solutions || []
   for (const [index, session] of sessions.entries()) {
-    const label = `Session ${index + 1}`
+    const label = `Session ${continuation ? continuation.session_numbers[index] : index + 1}`
     const steps = Array.isArray(session.steps) ? session.steps : []
     const typeSteps = (type) => steps.filter((s) => s.clinic_step_type === type)
     const idSteps = (id) => steps.filter((s) => s.step_id === id)
-    if (session.session_number !== index + 1 || session.week < 1 || index === 0 && session.week !== 1) errors.push(`${label}: numbering must start at 1, first session week 1.`)
+    if (continuation) {
+      if (session.session_number !== continuation.session_numbers[index] || session.week !== continuation.slots[index]?.week) errors.push(`${label}: use the requested course session number and original outline week.`)
+    } else if (session.session_number !== index + 1 || session.week < 1 || index === 0 && session.week !== 1) errors.push(`${label}: numbering must start at 1, first session week 1.`)
     if (index && session.week <= sessions[index - 1].week) errors.push(`${label}: week must follow the previous session.`)
     if (!steps.length) errors.push(`${label}: steps are missing.`)
     let sum = 0

@@ -356,18 +356,50 @@ export const useAssessmentStore = defineStore('assessment', {
         return false
       }
     },
-    async saveTreatmentSessionPostAssessment(session_id, payload) {
+    async saveTreatmentSessionPostAssessment(session_id, payload, { throwOnError = false } = {}) {
       try {
         const response = await api.post(`/treatment-sessions/${session_id}/post-assessment`, payload)
-        return response.data.results
+        const saved = response.data.results
+        if (!saved?.id || Number(saved.id) !== Number(session_id)) throw new Error('The API did not confirm saving this reassessment.')
+        const current = this.assessmentData.treatment_sessions?.treatments?.find(row => Number(row.id) === Number(session_id))
+        if (current) Object.assign(current, saved)
+        return saved
       } catch (e) {
         console.error('SAVE POST ASSESSMENT ERROR:', e.response?.data || e)
         Notify.create({
           type: 'negative',
           message: e.response?.data?.message || 'Failed to save post assessment',
         })
+        if (throwOnError) throw e
         return null
       }
+    },
+    async claimTreatmentCourseContinuation(sessionId) {
+      const response = await api.post(`/treatment-sessions/${sessionId}/course-continuation/claim`)
+      const result = response.data.results
+      const assessment = result?.assessment?.data || result?.assessment
+      if (assessment && Number(assessment.id) === Number(this.assessmentData.id)) this.setData(assessment)
+      return result
+    },
+    async completeTreatmentCourseContinuation(sessionId, token, generatedPlan, featurePacket) {
+      const response = await api.post(`/treatment-sessions/${sessionId}/course-continuation/complete`, {
+        token, generated_plan: generatedPlan, post_feature_packet: featurePacket,
+      })
+      const result = response.data.results
+      const assessment = result?.assessment?.data || result?.assessment
+      if (result?.status !== 'ready' || !assessment) throw new Error('The API did not confirm the new course sessions.')
+      requireSavedTreatmentSessions(assessment, generatedPlan)
+      if (Number(assessment.id) === Number(this.assessmentData.id)) this.setData(assessment)
+      return result
+    },
+    async releaseTreatmentCourseContinuation(sessionId, token, message) {
+      const response = await api.post(`/treatment-sessions/${sessionId}/course-continuation/release`, {
+        token, message: String(message).slice(0, 800),
+      })
+      const result = response.data.results
+      const assessment = result?.assessment?.data || result?.assessment
+      if (assessment && Number(assessment.id) === Number(this.assessmentData.id)) this.setData(assessment)
+      return result
     },
   },
 })

@@ -57,10 +57,11 @@
 
   <q-card v-if="treatmentPlan?.course_outline?.length" flat bordered class="q-pa-md q-mb-md">
     <div class="text-subtitle1">Course outline</div>
+    <div class="text-caption">{{ treatmentPlan.treatments.length }} detailed sessions available of {{ treatmentPlan.course_outline.length }} planned.</div>
     <div v-for="slot in treatmentPlan.course_outline" :key="slot.session_number" class="q-mt-sm">
       <strong>Session {{ slot.session_number }} · Week {{ slot.week }}</strong>
       <div>{{ slot.clinical_goal }}</div>
-      <div v-if="slot.session_number >= 3 || slot.reassessment_required" class="text-caption text-grey-7">
+      <div v-if="!treatmentPlan.treatments.some(session => Number(session.session_number) === Number(slot.session_number))" class="text-caption text-grey-7">
         Provisional — reassessment required before treatment.
       </div>
       <div v-if="slot.escalation_condition" class="text-caption">{{ slot.escalation_condition }}</div>

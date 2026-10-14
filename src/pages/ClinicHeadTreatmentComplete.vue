@@ -290,6 +290,7 @@ function toPostAssessment() {
   } else {
     routeData = router.resolve({
       name: 'index-with-id',
+      query: { session_id: route.params.session_id },
       params: {
         user_id: route.params.user_id,
         step: 'step-6',
