@@ -918,12 +918,12 @@
         "target_minutes": 65
       },
       "express": {
-        "min_minutes": 35,
-        "max_minutes": 45,
-        "target_minutes": 40
+        "min_minutes": 40,
+        "max_minutes": 50,
+        "target_minutes": 45
       },
       "arithmetic": "Sum actual numeric steps[].duration. treatment_time, step_duration_total and timing_validation.calculated_from_steps must equal that sum. Preserve the existing JSON shape.",
-      "target_behavior": "Plan toward 65 minutes in a single facial and EVERY detailed course facial, and 40 minutes in express. Do not default to the lower bound. Consider meaningful indicated care and realistic adjustable durations within approved ranges. A clinically justified shorter or longer total inside the allowed window remains valid; never inflate a fixed dose, repeat care or add filler to reach a target.",
+      "target_behavior": "Plan toward 65 minutes in a single facial and EVERY detailed course facial, and 45 minutes in express. Do not default to the lower bound. Consider meaningful indicated care and realistic adjustable durations within approved ranges. A clinically justified shorter or longer total inside the allowed window remains valid; never inflate a fixed dose, repeat care or add filler to reach a target.",
       "estimated_dose_behavior": "Reference ranges are estimates for the planned zones and coverage, not newly therapist-ratified fixed doses. Select a realistic duration inside the estimate; do not automatically select its maximum.",
       "standalone_behavior": "HIFU/needling reference ranges describe their assessed corrective procedures. The total of any detailed facial session in this output still obeys its selected facial session window. Standalone means no incompatible additional corrective; user-mandatory drainage and finish remain required in every facial."
     },

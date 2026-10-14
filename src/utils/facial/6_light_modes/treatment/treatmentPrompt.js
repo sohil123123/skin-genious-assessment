@@ -415,12 +415,12 @@ const MOTHER_TREATMENT_PLANNER_KNOWLEDGE = {
         "target_minutes": 65
       },
       "express": {
-        "min_minutes": 35,
-        "max_minutes": 45,
-        "target_minutes": 40
+        "min_minutes": 40,
+        "max_minutes": 50,
+        "target_minutes": 45
       },
       "arithmetic": "Sum actual numeric steps[].duration. treatment_time, step_duration_total and timing_validation.calculated_from_steps must equal that sum. Preserve the existing JSON shape.",
-      "target_behavior": "Plan toward 65 minutes in a single facial and EVERY detailed course facial, and 40 minutes in express. Do not default to the lower bound. Consider meaningful indicated care and realistic adjustable durations within approved ranges. A clinically justified shorter or longer total inside the allowed window remains valid; never inflate a fixed dose, repeat care or add filler to reach a target.",
+      "target_behavior": "Plan toward 65 minutes in a single facial and EVERY detailed course facial, and 45 minutes in express. Do not default to the lower bound. Consider meaningful indicated care and realistic adjustable durations within approved ranges. A clinically justified shorter or longer total inside the allowed window remains valid; never inflate a fixed dose, repeat care or add filler to reach a target.",
       "estimated_dose_behavior": "Reference ranges are estimates for the planned zones and coverage, not newly therapist-ratified fixed doses. Select a realistic duration inside the estimate; do not automatically select its maximum.",
       "standalone_behavior": "HIFU/needling reference ranges describe their assessed corrective procedures. The total of any detailed facial session in this output still obeys its selected facial session window. Standalone means no incompatible additional corrective; user-mandatory drainage and finish remain required in every facial."
     },
@@ -1198,7 +1198,7 @@ const MOTHER_TREATMENT_PLANNER_KNOWLEDGE = {
       "section": "1.8",
       "title": "1.8 Time budgeting with the clinic's actual step timings",
       "paragraphs": [
-        "Binding windows: express 35–45 min; single and each multiple-plan session 60–75 min, lip add-on included. Aim for 65 minutes for single/plan facials and 40 minutes for express. Keep actual doses and meaningful selection; no fixed-dose padding.",
+        "Binding windows: express 40–50 min; single and each multiple-plan session 60–75 min, lip add-on included. Aim for 65 minutes for single/plan facials and 45 minutes for express. Keep actual doses and meaningful selection; no fixed-dose padding.",
         "Fixed or bounded durations (validated in code): cleansing 2 · suction 2–4 · carbon_application_drying 3 + carbon_laser 4 · chemical_peel 3–4 · spot_salicylic 2 · infusion 3 per distinct ingredient · under_eye_infusion 2 · hydra_spray 3 · cooling 2–5 · peel_off_mask 15 · lymphatic_drainage 5-10 (one mandatory step) · lip_pigmentation_add_on 2 · finishing 3.",
         "Everything else (extraction, high-frequency, spatula, microdermabrasion, LED, RF, Q-switch toning, HIFU, needling) is other with the reference minutes in Section 1; their specific duration ranges are not enforced by the current timing table, although the validator requires positive durations and checks the session sum; state each selected duration and its reason .",
         "Calculate time from actual selected doses: cleanse 2 + Carbon application 3 + Carbon laser 4 + spot salicylic 2 + cooling 3 + one facial infusion 3 + mask 15 + mandatory drainage 5 + finish 3 = 40 minutes. This is an arithmetic example, not a treatment sequence or a recipe. Add the two-minute lip/under-eye steps when triggered and count them inside the selected window. Never infer a standard total from the number of correctives."
@@ -2709,7 +2709,7 @@ o	Maintenance & follow-up
 
 D) If treatment_plan_type = "express":
 • Create the SAME clinical-quality treatment as a single session.
-• Total treatment time MUST be strictly limited to 35-45 minutes, with a target of 40 minutes.
+• Total treatment time MUST be strictly limited to 40-50 minutes, with a target of 45 minutes.
 • Prioritize highest-efficacy steps only.
 • Remove or shorten low-impact, supportive, or optional steps.
 • Never downgrade modality strength—only reduce time allocation.
@@ -3088,7 +3088,7 @@ J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
       Incorrect: "10 minutes", "10 mins", "approx 10"
 
     2. For every session:
-      treatment_time = sum of all steps[].duration. Single/multiple facials: 60-75 minutes, target 65. Express: 35-45 minutes, target 40.
+      treatment_time = sum of all steps[].duration. Single/multiple facials: 60-75 minutes, target 65. Express: 40-50 minutes, target 45.
 
     3. If the sum of step durations is lower than the selected treatment_time:
       - Either add clinically meaningful missing steps, OR
@@ -3118,7 +3118,7 @@ J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
           - Post-care verbal instructions: 1–2 min
       • FIXED DURATION: the mandatory finish (serum + moisturizer + sunscreen) is ONE combined final step with a duration of EXACTLY 3 minutes — always 3, never less and never more. Do NOT split it into separate serum/moisturizer/sunscreen steps and do NOT change this number. Any finish step that is not exactly 3 minutes is INVALID and must be corrected to 3.
       • The bulk of session minutes must sit in the HERO / SECONDARY corrective and active-treatment blocks — NOT in cleansing, cooling, masking, or finishing.
-      • The minimum session time is a HARD floor: treatment_time >=60 minutes for single/multiple facials and >=35 for express. Targets are 65 and 40 respectively; upper limits are 75 and 45.
+      • The minimum session time is a HARD floor: treatment_time >=60 minutes for single/multiple facials and >=40 for express. Targets are 65 and 45 respectively; upper limits are 75 and 50.
       • Every LYMPHATIC DRAINAGE MASSAGE step must explicitly state "Face and Neck Lymphatic Drainage Massage" in the step name.
       • If realistic durations sum BELOW the minimum, absorb the shortfall into the LYMPHATIC DRAINAGE MASSAGE step — it is the designated time-flexible step:
           1) Extend the mandatory lymphatic drainage massage to close the gap, up to a realistic ceiling of 10 minutes. A longer, more thorough drainage protocol (additional pathways and reps) is genuine clinical value, not padding.
@@ -3128,8 +3128,8 @@ J) SESSION TIMING CONTRACT — PRODUCTION CRITICAL
 K) SESSION DURATION RANGE RULES
 
     For treatment_plan_type = "express":
-    - treatment_time must be 35-45 minutes, with a target of 40 minutes.
-    - Sum of step durations must also be 35-45 minutes, with a target of 40 minutes.
+    - treatment_time must be 40-50 minutes, with a target of 45 minutes.
+    - Sum of step durations must also be 40-50 minutes, with a target of 45 minutes.
 
     For treatment_plan_type = "single":
     - treatment_time must be 60-75 minutes, with a target of 65 minutes.
@@ -3319,7 +3319,7 @@ ${CLINIC_TREATMENT_RULES_PROMPT}
 
 ${CATALOGUE_PERSONALIZATION_PROMPT}
 
-Return the supplied strict response schema, including its clinic timing and selection metadata. Keep the facial title and duration and the actual treatment instructions. Do not generate session speech or separate rationale, personalisation, expectation, continuity or signature narratives. Aim toward 65 minutes in a single facial and EVERY detailed course facial, and 40 minutes in express; do not default to the lower bound. Preserve fixed doses and avoid filler; a clinically justified total inside the allowed range remains valid.
+Return the supplied strict response schema, including its clinic timing and selection metadata. Keep the facial title and duration and the actual treatment instructions. Do not generate session speech or separate rationale, personalisation, expectation, continuity or signature narratives. Aim toward 65 minutes in a single facial and EVERY detailed course facial, and 45 minutes in express; do not default to the lower bound. Preserve fixed doses and avoid filler; a clinically justified total inside the allowed range remains valid.
 `
 
 export const USER_TREATMENT_PLAN_PROMPT = `Based on previous analysis, generate a structured JSON treatment plan including: primary_focus, in_clinic_sessions (name, frequency, sessions) and follow_up. Consider patient's age, skin type, and allergies.`

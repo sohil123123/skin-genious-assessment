@@ -4,9 +4,9 @@ import { buildTreatmentEligibility } from './treatmentEligibility.js'
 import { resolveTreatmentEvidence, treatmentConcernFamily, TREATMENT_PROXY_FIELDS } from './treatmentEvidence.js'
 
 // Treatment-only replacement. Existing scoring and client-display functions are reused.
-export const CLINIC_SESSION_WINDOWS = { express: [35, 45], single: [60, 75], multiple: [60, 75] }
+export const CLINIC_SESSION_WINDOWS = { express: [40, 50], single: [60, 75], multiple: [60, 75] }
 // Soft planning targets; realistic doses and clinically justified session windows govern.
-export const CLINIC_SESSION_TARGETS = { express: 40, single: 65, multiple: 65 }
+export const CLINIC_SESSION_TARGETS = { express: 45, single: 65, multiple: 65 }
 export const CLINIC_STEP_TIMINGS = {
   cleansing: [2, 2], suction: [2, 4], carbon_application_drying: [3, 3], carbon_laser: [4, 4],
   infusion: [3, 3], under_eye_infusion: [2, 2], hydra_spray: [3, 3], cooling: [2, 5],
@@ -56,7 +56,7 @@ export function buildTreatmentExecutionContract() {
   }
 }
 export const CLINIC_TREATMENT_RULES_PROMPT = `CLINIC DOSE AND TIMING CONTRACT
-Complete windows including lip treatment: express 35-45 minutes; single and each detailed multiple-plan facial 60-75. Aim for 40 minutes for express and 65 for single/multiple using meaningful indicated care. Targets are preferences, not exact requirements; never pad fixed doses or add token steps. No 80-minute or +2 exception.
+Complete windows including lip treatment: express 40-50 minutes; single and each detailed multiple-plan facial 60-75. Aim for 45 minutes for express and 65 for single/multiple using meaningful indicated care. Targets are preferences, not exact requirements; never pad fixed doses or add token steps. No 80-minute or +2 exception.
 ${Object.entries(CLINIC_STEP_TIMINGS).map(([type, [min,max]]) => `${type}: ${min === max ? min : `${min}-${max}`} minutes${type === 'infusion' ? ' PER DISTINCT FACIAL INGREDIENT' : ''}`).join('\n')}
 Carbon is TWO atomic steps: ENERGY.CARBON.APPLY (3, always PREP), then ENERGY.CARBON.LASER (4, carries the chosen corrective role). Together they are one corrective modality. A corrective primary_strategy must reference ENERGY.CARBON.LASER, never ENERGY.CARBON.APPLY. Preserve the carbon film and completed drying before its laser pass; cool immediately after the laser.
 Facial infusion: list distinct actual infusion_ingredients; duration is 3 per ingredient. Use separate steps for different ingredients so each has an exact INFUSE.* ID. Do not count aliases twice. Under-eye infusion and spray have their own WHOLE-STEP durations, not the facial multiplier.

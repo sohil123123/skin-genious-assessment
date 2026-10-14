@@ -9,7 +9,7 @@ const constraints = (mode) => JSON.parse(readFileSync(new URL(`../src/utils/faci
 
 test('both facial paths share amended session targets and mandatory score rules', () => {
   assert.deepEqual(fiveLightTargets, CLINIC_SESSION_TARGETS)
-  assert.deepEqual(fiveLightTargets, { express: 40, single: 65, multiple: 65 })
+  assert.deepEqual(fiveLightTargets, { express: 45, single: 65, multiple: 65 })
   const five = constraints(5).clinical_constraints
   const six = constraints(6).clinical_constraints
   for (const key of ['session_timing_policy', 'clinic_step_timings_minutes', 'under_eye_infusion_score_rule', 'lip_pigmentation_add_on_rule', 'active_acne_restriction_scope']) {
