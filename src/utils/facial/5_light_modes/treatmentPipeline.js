@@ -7,6 +7,7 @@ import {
   compileTreatmentPlannerInput,
   buildTreatmentExecutionContract,
 } from './treatmentClinicRules.js'
+import { COURSE_CONTINUATION_INSTRUCTIONS, treatmentCourseWindow } from './treatmentCourseContinuation.js'
 import {
   TREATMENT_KNOWLEDGE_PROMPT,
   compileTreatmentKnowledgeReference,
@@ -133,7 +134,8 @@ export function buildTreatmentModelRequest({
   const prefix = systemPrompt.includes(TREATMENT_KNOWLEDGE_PROMPT)
     ? systemPrompt.replace(TREATMENT_KNOWLEDGE_PROMPT, reference.stable_prefix)
     : `${systemPrompt}\n\n${reference.stable_prefix}`
-  const instructions = `${prefix}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${stableTreatmentJson(compileTreatmentConstraints(constraints))}`
+  const continuation = treatmentCourseWindow(plannerInput)
+  const instructions = `${prefix}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${stableTreatmentJson(compileTreatmentConstraints(constraints))}${continuation ? `\n\n${COURSE_CONTINUATION_INSTRUCTIONS}` : ''}`
   const responseFormat = buildTreatmentGenerationResponseFormat(
     plannerInput.treatment_plan_type,
     plannerInput,

@@ -287,7 +287,7 @@ test('mandatory massage is included even when every other step already totals 61
   assert.equal(session.steps.filter((s)=>s.step_id==='MASSAGE.LYMPH').length,1)
   assert.equal(rules.requiredMassageMinutes(61,'single'),5)
   assert.equal(rules.requiredFillerMinutes(61,'single'),5)
-  assert.equal(rules.requiredMassageMinutes(31,'express'),5)
+  assert.equal(rules.requiredMassageMinutes(31,'express'),9)
   assert.equal(rules.requiredMassageMinutes(20,'express'),null)
   assert.equal(rules.requiredMassageMinutes(71,'single'),null)
 })

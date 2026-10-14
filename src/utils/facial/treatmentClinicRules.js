@@ -7,13 +7,13 @@ import {
 
 // Treatment planning only. Scoring, reassessment and display formulas are unchanged.
 export const CLINIC_SESSION_WINDOWS = {
-  express: [35, 45],
+  express: [40, 50],
   single: [60, 75],
   multiple: [60, 75],
 }
 
 // Planning preferences only; fixed doses, permitted windows and clinical rules win.
-export const CLINIC_SESSION_TARGETS = { express: 40, single: 65, multiple: 65 }
+export const CLINIC_SESSION_TARGETS = { express: 45, single: 65, multiple: 65 }
 
 export const CLINIC_STEP_TIMINGS = {
   cleansing: [2, 2],
@@ -46,7 +46,7 @@ export function buildClinicGenerationContract() {
   return {
     session_windows_minutes: CLINIC_SESSION_WINDOWS,
     preferred_session_minutes: CLINIC_SESSION_TARGETS,
-    session_target_policy: 'Plan toward 65 minutes for a single facial and EVERY detailed course facial, and 40 for express. Do not default to the lower bound. Use meaningful indicated care and realistic adjustable durations in approved ranges; preserve fixed doses and never add filler. Clinically justified totals elsewhere within the allowed window remain valid.',
+    session_target_policy: 'Plan toward 65 minutes for a single facial and EVERY detailed course facial, and 45 for express. Do not default to the lower bound. Use meaningful indicated care and realistic adjustable durations in approved ranges; preserve fixed doses and never add filler. Clinically justified totals elsewhere within the allowed window remain valid.',
     step_timings_minutes: CLINIC_STEP_TIMINGS,
     mandatory_care: 'Exactly one 5-10-minute clinical drainage step in every facial; one combined three-minute finish last. Include triggered lip care and approved regional care in the actual session sum.',
     validity: 'Actual doses, required equipment, approved ingredient routes, lip eligibility and executable structure are binding. Presentation summaries and catalogue coverage bookkeeping are advisory and do not require a second plan.',

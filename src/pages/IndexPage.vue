@@ -151,6 +151,9 @@
 
           <PostAssessment
             v-if="currentStep === 'step-7'"
+            :course-continuation="courseContinuationState"
+            @retry-course-continuation="resumeCourseContinuation(sessionId)"
+            @view-course="navigateToStep('step-5')"
             @save_data="submit"
             @finalize_and_exit="finalizeAndExit"
           />
@@ -182,7 +185,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch, computed } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
 import PatientIntake from 'src/components/assessment/PatientIntake.vue'
 import UploadFaceImages from 'src/components/assessment/UploadFaceImages.vue'
 import DiagnosisComponent from 'src/components/assessment/DiagnosisComponent.vue'
@@ -209,10 +212,8 @@ import {
   validateClinicTreatmentPlan,
   buildClinicGenerationContract,
 } from 'src/utils/facial/treatmentClinicRules.js'
-import {
-  treatmentHistoryFlags,
-  inClinicProductRecords,
-} from 'src/utils/facial/5_light_modes/treatmentIntegration.js'
+import { treatmentHistoryFlags, inClinicProductRecords } from 'src/utils/facial/5_light_modes/treatmentIntegration.js'
+import { buildContinuationPlanningContext, isPairedFacialCourse } from 'src/utils/facial/5_light_modes/treatmentCourseContinuation.js'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
 
@@ -232,7 +233,10 @@ const { assessmentData } = storeToRefs(store)
 const route = useRoute()
 const router = useRouter()
 
-const sessionId = computed(() => (route.query.session_id ? Number(route.query.session_id) : null))
+const sessionId = computed(() => {
+  const id = route.query.session_id || route.params.session_id
+  return id ? Number(id) : null
+})
 const currentSession = computed(() => {
   if (!sessionId.value || !assessmentData.value.treatment_sessions?.treatments) return null
   return assessmentData.value.treatment_sessions.treatments.find((t) => t.id === sessionId.value)
@@ -567,6 +571,9 @@ async function handleDiagnosis(files) {
 }
 
 async function handlePostAssessment(files) {
+  if (isPairedFacialCourse(assessmentData.value) && !sessionId.value) {
+    throw scanImageMappingError('Open the exact course session before saving its reassessment. A course checkpoint cannot be inferred from the assessment alone.')
+  }
   if (sessionId.value && !currentSession.value) {
     throw scanImageMappingError(
       'The treatment session could not be found. Please reload the assessment.',
@@ -584,10 +591,9 @@ async function handlePostAssessment(files) {
     ).map(({ record }) => record.url)
     startProcessingStep.value = false
     if (sessionId.value) {
-      currentSession.value.post_diagnosis = reassessment
       await store.saveTreatmentSessionPostAssessment(sessionId.value, {
         post_diagnosis: reassessment,
-      })
+      }, { throwOnError: true })
     } else {
       assessmentData.value.post_diagnosis = reassessment
     }
@@ -614,11 +620,11 @@ async function handlePostAssessment(files) {
     } else {
       startProcessingStep.value = false
       if (sessionId.value) {
-        currentSession.value.post_diagnosis = apiResponse
         await store.saveTreatmentSessionPostAssessment(sessionId.value, {
-          post_feature_packet: currentSession.value.post_feature_packet,
+          // A new course checkpoint must not reuse features from an older scan.
+          post_feature_packet: isPairedFacialCourse(assessmentData.value) ? null : currentSession.value.post_feature_packet,
           post_diagnosis: apiResponse,
-        })
+        }, { throwOnError: true })
       } else {
         assessmentData.value.post_diagnosis = apiResponse
         submit(['post_diagnosis'])
@@ -892,6 +898,10 @@ async function getResponseFromOpenCv(images) {
 }
 
 async function callApiForTreatmentPlan(selected, treatmentType) {
+async function callApiForTreatmentPlan(selected, treatmentType, continuationContext = null) {
+  const planningAssessment = continuationContext?.assessment || assessmentData.value
+  const planningDiagnosis = continuationContext?.diagnosis || planningAssessment.diagnosis
+  const planningFeatures = continuationContext?.featurePacket || planningAssessment.feature_packet
   const planningStarted = performance.now()
   // Treatment-only timings: no patient data or changes to scoring/model settings.
   const timedTreatmentResponse = async (request, options) => {
@@ -924,11 +934,11 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     messageColor: 'white',
   })
 
-  const convId = assessmentData.value.conversation_id
+  const convId = planningAssessment.conversation_id
 
   const clinicTreatmentContext = buildClinicTreatmentContext(
-    assessmentData.value.diagnosis,
-    assessmentData.value.feature_packet,
+    planningDiagnosis,
+    planningFeatures,
   )
 
   // Numeric treatment inputs; null stays missing instead of becoming "null°C".
@@ -938,24 +948,24 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     return Number.isFinite(number) ? number : null
   }
   const patientData = {
-    name: assessmentData.value.name,
-    age: assessmentData.value.age,
-    gender: assessmentData.value.gender,
-    daily_sun_exposure_hours: assessmentData.value.daily_sun_exposure_hours,
-    social_event: assessmentData.value.social_event,
-    upcoming_travel: assessmentData.value.upcoming_travel,
-    medical_history: assessmentData.value.medical_history,
-    allergies: assessmentData.value.allergies,
-    is_pregnant: assessmentData.value.is_pregnant,
-    breastfeeding: assessmentData.value.breastfeeding,
-    forehead_surface_c: temperatureValue(assessmentData.value.skin_temp_for_head),
-    left_cheek_surface_c: temperatureValue(assessmentData.value.left_cheek_temp),
-    right_cheek_surface_c: temperatureValue(assessmentData.value.right_cheek_temp),
-    laser_within_last_7_days: assessmentData.value.recent_peel_or_laser,
-    used_retinol_last_24_hours: assessmentData.value.retinol_used_last_night,
+    name: planningAssessment.name,
+    age: planningAssessment.age,
+    gender: planningAssessment.gender,
+    daily_sun_exposure_hours: planningAssessment.daily_sun_exposure_hours,
+    social_event: planningAssessment.social_event,
+    upcoming_travel: planningAssessment.upcoming_travel,
+    medical_history: planningAssessment.medical_history,
+    allergies: planningAssessment.allergies,
+    is_pregnant: planningAssessment.is_pregnant,
+    breastfeeding: planningAssessment.breastfeeding,
+    forehead_surface_c: temperatureValue(planningAssessment.skin_temp_for_head),
+    left_cheek_surface_c: temperatureValue(planningAssessment.left_cheek_temp),
+    right_cheek_surface_c: temperatureValue(planningAssessment.right_cheek_temp),
+    laser_within_last_7_days: planningAssessment.recent_peel_or_laser,
+    used_retinol_last_24_hours: planningAssessment.retinol_used_last_night,
   }
 
-  const prompts = await getFacialPrompts(assessmentData.value.face_scan_machine)
+  const prompts = await getFacialPrompts(planningAssessment.face_scan_machine)
   if (prompts.generateTreatmentPlan) {
     const products = inClinicProductRecords(prompts.available_skincare_products)
     try {
@@ -993,20 +1003,21 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
         },
         systemPrompt: prompts.buildTreatmentSystemPrompt(products),
         constraints: prompts.constraints,
-        diagnosis: assessmentData.value.diagnosis,
+        diagnosis: planningDiagnosis,
         selectedConcerns: selected,
         treatmentType,
         clinicContext: clinicTreatmentContext,
         options: {
           patientProfileAndHistory: patientData,
-          historyRuleFlags: treatmentHistoryFlags(assessmentData.value),
+          historyRuleFlags: treatmentHistoryFlags(planningAssessment),
           temperatureReadings: {
             forehead_surface_c: patientData.forehead_surface_c,
             left_cheek_surface_c: patientData.left_cheek_surface_c,
             right_cheek_surface_c: patientData.right_cheek_surface_c,
           },
-          featurePacket: assessmentData.value.feature_packet,
-          inClinicProductNames: products.map((product) => product.name),
+          featurePacket: planningFeatures,
+          inClinicProductNames: products.map(product => product.name),
+          ...(continuationContext ? { courseContinuation: continuationContext.courseContinuation, priorVisit: continuationContext.priorVisit } : {}),
         },
         // The former validator is the shared catalogue-ledger contract. V5's
         // local validator replaces it; no additional server evaluator exists here.
@@ -1017,6 +1028,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
       Loading.hide()
     }
   }
+  if (continuationContext) throw new Error('This reassessment-gated course requires the existing five-mode V5 planner.')
   const generationConstraints = {
     ...prompts.constraints,
     clinical_constraints: {
@@ -1025,7 +1037,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
     },
   }
   const treatmentPlannerInput = buildTreatmentPlannerInput(
-    assessmentData.value.diagnosis,
+    planningDiagnosis,
     selected,
     treatmentType,
     clinicTreatmentContext,
@@ -1059,7 +1071,7 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
         },
         {
           type: 'input_text',
-          text: encode(assessmentData.value.feature_packet),
+          text: encode(planningAssessment.feature_packet),
         },
         {
           type: 'input_text',
@@ -1074,9 +1086,8 @@ async function callApiForTreatmentPlan(selected, treatmentType) {
   const promptText = prompts.SYSTEM_TREATMENT_PLAN_PROMPT
   const requestProfile = {
     prompt_revision: promptText.match(/^TREATMENT PLANNER REVISION: (.+)$/m)?.[1] || 'unversioned',
-    catalogue_review_revision:
-      promptText.match(/^CATALOGUE REVIEW REVISION: (.+)$/m)?.[1] || 'unversioned',
-    imaging_mode: assessmentData.value.face_scan_machine,
+    catalogue_review_revision: promptText.match(/^CATALOGUE REVIEW REVISION: (.+)$/m)?.[1] || 'unversioned',
+    imaging_mode: planningAssessment.face_scan_machine,
     reasoning_effort: 'medium',
     instruction_characters: input[0].content[0].text.length,
     constraint_characters: input[0].content[1].text.length,
@@ -1249,6 +1260,82 @@ Reference Scores: ${JSON.stringify(prepareFacialEngineInput(prevContext.scores))
     sebumBaseline: prevContext.scores,
     sebumOriginalBaseline: assessmentData.value.diagnosis,
   })
+}
+
+
+// The saved report is the durable checkpoint. On failure it remains available,
+// and this same flow can resume on the report page without rescoring it.
+const courseContinuationState = ref({ status: 'idle' })
+let courseContinuationInFlight = null
+let courseContinuationPoll = null
+onBeforeUnmount(() => clearTimeout(courseContinuationPoll))
+watch([() => currentStep.value, () => sessionId.value, () => isInitializing.value], ([step, id, initializing]) => {
+  clearTimeout(courseContinuationPoll)
+  if (step === 'step-7' && id && !initializing && !process.env.APP_TEST && isPairedFacialCourse(assessmentData.value)) {
+    void resumeCourseContinuation(id)
+  }
+})
+
+async function checkpointFeaturePacket(context) {
+  if (context.source_session.post_feature_packet) return context.source_session.post_feature_packet
+  const machine = context.assessment.face_scan_machine || assessmentData.value.face_scan_machine
+  context.assessment.face_scan_machine = machine
+  const ordered = orderScanImages(context.source_session.post_images, machine)
+  const prompts = await getFacialPrompts(machine)
+  if (!prompts.generateTreatmentPlan) throw new Error('This course requires the five-mode V5 treatment planner.')
+  Loading.show({ message: 'Reassessment saved. Reading current scan features for the next sessions...' })
+  const packet = await runResponse(context.assessment.conversation_id, [
+    { role: 'system', content: prompts.SYSTEM_PROMPT_FEATURE_PACKET_V1 },
+    { role: 'user', content: [...scanImageRequestContent(ordered),
+      { type: 'input_text', text: prompts.D_REPORT_USER_PROMPT }] },
+  ], undefined, FACIAL_JSON_OPTIONS)
+  if (packet?.error) throw new Error(packet.error.message)
+  return packet
+}
+
+async function resumeCourseContinuation(id) {
+  if (!id || courseContinuationInFlight || !isPairedFacialCourse(assessmentData.value)) return
+  const sourceId = Number(id)
+  let token = null
+  courseContinuationInFlight = sourceId
+  courseContinuationState.value = { status: 'generating' }
+  try {
+    const claim = await store.claimTreatmentCourseContinuation(sourceId)
+    if (!claim?.status) throw new Error('The API did not return the course continuation state.')
+    courseContinuationState.value = { status: claim.status, message: claim.message, sessionNumbers: claim.course_continuation?.session_numbers || [] }
+    if (claim.status === 'generating') {
+      courseContinuationPoll = setTimeout(() => {
+        if (currentStep.value === 'step-7' && Number(sessionId.value) === sourceId) void resumeCourseContinuation(sourceId)
+      }, 5000)
+      return
+    }
+    if (claim.status !== 'claimed') return
+    token = claim.token
+    const context = claim.context
+    // The patient-mode setting is exposed by the existing user API too.
+    context.assessment.face_scan_machine ||= assessmentData.value.face_scan_machine
+    courseContinuationState.value.status = 'generating'
+    const features = await checkpointFeaturePacket(context)
+    const planningContext = buildContinuationPlanningContext(context, features)
+    const generated = formatFacialClientScores(await callApiForTreatmentPlan(planningContext.selectedConcerns, 'multiple', planningContext))
+    if (generated?.error) throw new Error(generated.error.message)
+    await store.completeTreatmentCourseContinuation(sourceId, token, generated, features)
+    courseContinuationState.value = { status: 'ready', sessionNumbers: claim.course_continuation.session_numbers }
+    Notify.create({ type: 'positive', message: `Sessions ${claim.course_continuation.session_numbers.join(' and ')} are ready.`, timeout: 5000 })
+  } catch (error) {
+    const message = error.response?.data?.message || error.message || 'The next sessions could not be generated.'
+    let recovered
+    if (token) {
+      try { recovered = await store.releaseTreatmentCourseContinuation(sourceId, token, message) }
+      catch { /* The durable claim can be recovered after its lease expires. */ }
+    }
+    courseContinuationState.value = recovered?.status === 'ready'
+      ? { status: 'ready', sessionNumbers: recovered.course_continuation?.session_numbers || [] }
+      : { status: 'failed', message }
+  } finally {
+    courseContinuationInFlight = null
+    Loading.hide()
+  }
 }
 
 function finalizeAndExit() {

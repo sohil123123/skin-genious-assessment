@@ -13,6 +13,21 @@
     </q-card-section>
   </q-card>
 
+  <q-banner v-if="courseContinuation && !['idle', 'not_applicable', 'awaiting_reassessment'].includes(courseContinuation.status)" rounded class="bg-blue-1 q-mb-md">
+    <template v-if="['generating', 'claimed'].includes(courseContinuation.status)">
+      <q-spinner class="q-mr-sm" /> Reassessment saved. Preparing the next course sessions…
+    </template>
+    <template v-else-if="courseContinuation.status === 'ready'">
+      The next course sessions are ready.
+      <q-btn flat color="primary" label="View updated course" @click="$emit('view-course')" />
+    </template>
+    <template v-else-if="courseContinuation.status === 'complete'">All planned course sessions have been generated.</template>
+    <template v-else>
+      Reassessment saved. {{ courseContinuation.message || 'The next sessions are waiting to be generated.' }}
+      <q-btn v-if="courseContinuation.status !== 'blocked'" flat color="primary" label="Retry next sessions" @click="$emit('retry-course-continuation')" />
+    </template>
+  </q-banner>
+
   <div v-if="post_diagnosis">
     <q-card flat class="q-pa-md shadow-2 rounded-borders">
       <div class="row items-center justify-between q-mb-md">
@@ -173,7 +188,8 @@ import { isSebumReportingRow } from 'src/utils/facial/sebumBalanceReporting.js'
 const store = useAssessmentStore()
 const { assessmentData } = storeToRefs(store)
 
-defineEmits(['save_data', 'finalize_and_exit'])
+defineProps({ courseContinuation: { type: Object, default: null } })
+defineEmits(['save_data', 'finalize_and_exit', 'retry-course-continuation', 'view-course'])
 
 const route = useRoute()
 const sessionId = computed(() => route.query.session_id ? Number(route.query.session_id) : null)
