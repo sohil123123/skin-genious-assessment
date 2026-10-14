@@ -737,11 +737,19 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   if (plan?.error) return plan
   const enginePlan = prepareFacialEngineInput(plan)
   removeLegacySessionNarratives(enginePlan)
-  const errors = schemaErrors(enginePlan, buildTreatmentPlanResponseFormat().schema)
+  const continuation = treatmentCourseWindow(plannerInput, treatmentType)
+  const schemaPlan = continuation ? JSON.parse(JSON.stringify(enginePlan)) : enginePlan
+  // Laravel can persist the initial slots' empty escalation strings as null.
+  // Compare the original outline unchanged; adapt only this schema-check copy.
+  if (continuation && Array.isArray(schemaPlan?.treatment_plan?.course_outline)) {
+    for (const slot of schemaPlan.treatment_plan.course_outline.slice(0, 2)) {
+      if (slot?.escalation_condition === null) slot.escalation_condition = ''
+    }
+  }
+  const errors = schemaErrors(schemaPlan, buildTreatmentPlanResponseFormat().schema)
   const root = enginePlan?.treatment_plan
   const sessions = Array.isArray(root?.treatments) ? root.treatments : []
   const normalizedType = normalizeTreatmentPlanType(treatmentType)
-  const continuation = treatmentCourseWindow(plannerInput, treatmentType)
   const window = CLINIC_SESSION_WINDOWS[normalizedType]
   const lip = context?.lip_pigmentation
   const clearance = context?.clinical_clearance || {}
