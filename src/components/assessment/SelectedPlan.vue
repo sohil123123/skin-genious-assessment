@@ -86,6 +86,9 @@
           :default-opened="index == 0"
         >
           <q-card flat class="q-pa-md bg-white">
+            <q-banner v-if="session.session_kind === 'separate_clinician_session' || treatmentPlan.course_outline?.some(slot => Number(slot.session_number) === Number(session.session_number) && slot.session_kind === 'separate_clinician_session')" rounded class="bg-blue-1 q-mb-md">
+              <strong>Dr. Supervised session</strong> — Standalone draft. The doctor selects the device settings and confirms the plan before treatment. Duration is an estimate.
+            </q-banner>
             <div class="grid">
               <!-- Left Panel -->
               <div class="panel q-pa-md">

@@ -239,5 +239,40 @@ namespace {
         $mirror = json_decode($disk->files[$path], true);
         check($mirror['treatment_plan']['treatments'][2] === $case['generated']['treatment_plan']['treatments'][0], 'Legacy plan lost final session format');
     });
+    runContract('mixed standalone/facial continuation retains format and requires recorded doctor confirmation', function () use ($service, $disk) {
+        [$a, $s, $case, , $path] = seed(6);
+        $mixed = json_decode(file_get_contents(dirname(__DIR__).'/generated-cases/standalone-mixed.json'), true);
+        $outline = $mixed['generated']['treatment_plan']['course_outline'];
+        $original = json_decode($disk->files[$path], true);
+        $original['treatment_plan']['course_outline'] = $outline;
+        $disk->files[$path] = json_encode($original);
+        $case['generated']['treatment_plan']['course_outline'] = $outline;
+        $claim = $service->claim($s);
+        $service->complete($s, $claim['token'], $case['generated'], $case['features']);
+        $source = $a->treatmentSessions()->where('session_number', 4)->first();
+        $source->update(['post_diagnosis' => $case['context']['source_session']['post_diagnosis'], 'post_images' => [['id' => 400]]]);
+        $claim = $service->claim($source);
+        check($claim['status'] === 'claimed', 'Standalone outline still blocked the pair');
+        $request = new class extends \Illuminate\Http\Request {
+            public function validate(array $rules, ...$params) { return app('validator')->make($this->all(), $rules)->validate(); }
+        };
+        $request->replace(['token' => $claim['token'], 'generated_plan' => $mixed['generated'], 'post_feature_packet' => $mixed['features']]);
+        $controller = (new \ReflectionClass(\App\Http\Controllers\Api\TreatmentSessionController::class))->newInstanceWithoutConstructor();
+        $response = $controller->completeCourseContinuation($request, $source, $service);
+        check($response['results']['status'] === 'ready', 'Mixed pair not saved');
+        $standalone = $a->treatmentSessions()->where('session_number', 5)->first();
+        $facial = $a->treatmentSessions()->where('session_number', 6)->first();
+        check((float) $standalone->treatment_time === 90.0 && count($standalone->steps) === 1, 'Facial timing/steps imposed on standalone');
+        check($standalone->steps === $mixed['generated']['treatment_plan']['treatments'][0]['steps'], 'Standalone directions lost');
+        check($standalone->status === 'pending', 'Generating a draft approved execution');
+        expectFailure(fn () => $service->requireDoctorConfirmation($standalone), 'record doctor');
+        $service->requireDoctorConfirmation($facial);
+        $confirmation = $service->recordDoctorConfirmation($standalone, 'Fixture Doctor', 123);
+        check($confirmation['doctor_name'] === 'Fixture Doctor' && $confirmation['recorded_by'] === 123, 'Confirmation audit missing');
+        $service->requireDoctorConfirmation($standalone);
+        $steps = $standalone->steps; $steps[0]['how_to_do'] .= ' Changed draft.';
+        $standalone->update(['steps' => $steps]);
+        expectFailure(fn () => $service->requireDoctorConfirmation($standalone), 'record doctor');
+    });
     echo "Backend contracts passed: $passed\n";
 }

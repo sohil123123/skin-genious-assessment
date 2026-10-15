@@ -57,3 +57,21 @@ test('an old request finishing after navigation cannot replace another active pa
   assert.equal(state.assessmentData.id, 999)
   assert.equal(state.assessmentData.treatment_sessions.treatments[0].id, 2)
 })
+
+test('doctor confirmation records the named supervisor through its dedicated endpoint', async () => {
+  let sent
+  const { actions, state } = setup(async (url, body) => {
+    sent = { url, body }
+    return { data: { results: { doctor_name: body.doctor_name, recorded_by: 123 } } }
+  })
+  const confirmation = await actions.confirmStandaloneDoctor.call(state, 505, ' Fixture Doctor ')
+  assert.equal(sent.url, '/treatment-sessions/505/doctor-confirmation')
+  assert.equal(sent.body.doctor_name, 'Fixture Doctor')
+  assert.equal(sent.body.confirmed, true)
+  assert.equal(confirmation.recorded_by, 123)
+})
+
+test('a refused start propagates so preparation cannot navigate into treatment', async () => {
+  const { actions, state } = setup(async () => { throw new Error('Doctor confirmation required') })
+  await assert.rejects(actions.updateTreatmentSessionStatus.call(state, 505, 'in_progress', { throwOnError: true }), /Doctor confirmation required/)
+})

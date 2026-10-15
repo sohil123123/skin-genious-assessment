@@ -195,9 +195,74 @@ test('standalone clinician slots and illegal checkpoints retain their existing r
   const { course } = scenario(5, 2)
   const standalone = copy(course)
   standalone.course_outline[2].session_kind = 'separate_clinician_session'
-  assert.throws(() => treatmentCourseWindow({ course_continuation: standalone, treatment_plan_type: 'multiple' }), /separate clinician/)
+  assert.throws(() => treatmentCourseWindow({ course_continuation: standalone, treatment_plan_type: 'multiple' }), /registered standalone/)
   assert.throws(() => treatmentCourseWindow({ course_continuation: { ...course, after_session_number: 3 }, treatment_plan_type: 'multiple' }), /checkpoint/)
   assert.throws(() => treatmentCourseWindow({ course_continuation: course, treatment_plan_type: 'single' }), /multiple-session/)
+})
+
+function standaloneScenario(id = 'ENERGY.MNRF', duration = 90) {
+  const result = scenario(6, 4)
+  const slot = result.planning.courseContinuation.course_outline[4]
+  slot.session_kind = 'separate_clinician_session'
+  slot.candidate_step_ids = [id]
+  const session = result.draft.planning_result.treatment_plan.treatments[0]
+  session.steps = [{ ...copy(session.steps[0]), step_id: id, duration, role: 'HERO_CORRECTIVE',
+    zones: ['left_cheek'], target_concerns: ['Texture & Open Pores Score'], intensity_rung: null,
+    additional_products: [], settings_note: 'Doctor to select approved settings.',
+    how_to_do: 'Hand over to the supervising doctor after screening and consent. The doctor confirms the indication and zones, selects and records settings, follows the approved manufacturer protocol and documents monitoring and aftercare.',
+    duration_rationale: 'Appointment estimate to be confirmed by the doctor.',
+  }]
+  session.primary_strategy = session.primary_strategy.map(row => ({ ...row, selected_step_id: null,
+    care_type: 'blocked', exception_reason: 'This standalone draft addresses structural texture only; review other concerns separately.' }))
+  return result
+}
+
+async function runStandalone(value, optionOverrides = {}) {
+  const { planning, draft } = value
+  return generateTreatmentPlan({ callModel: async request => {
+    assert.ok(request.instructions.includes('DOCTOR-SUPERVISED STANDALONE COURSE SLOTS'))
+    return copy(draft)
+  }, systemPrompt, constraints, diagnosis: planning.diagnosis, selectedConcerns: planning.selectedConcerns,
+  treatmentType: 'multiple', config: { maxRepairs: 0 },
+  options: { ...options, courseContinuation: planning.courseContinuation, ...optionOverrides } })
+}
+
+for (const id of ['ENERGY.MNRF', 'ENERGY.HIFU', 'ENERGY.NEEDLE.PEN', 'ENERGY.NEEDLE.ROLLER']) {
+  test(`${id}: standalone draft and facial coexist with different timing and mandatory-care rules`, async () => {
+    const scenario = standaloneScenario(id)
+    const result = await runStandalone(scenario)
+    assert.equal(result.error, undefined, JSON.stringify(result.error))
+    const [standalone, facial] = result.treatment_plan.treatments
+    assert.equal(standalone.session_number, 5)
+    assert.equal(standalone.treatment_time, 90)
+    assert.equal(standalone.steps.length, 1)
+    assert.ok(standalone.title.startsWith('Dr. Supervised session'))
+    assert.match(standalone.steps[0].settings_note, /Doctor must select and document/)
+    assert.ok(standalone.preparations_checklist_for_therapist.some(item => item.includes('Doctor sign-off required')))
+    assert.ok(facial.steps.some(step => step.step_id === 'MASSAGE.LYMPH'))
+    assert.ok(facial.treatment_time >= 60 && facial.treatment_time <= 75)
+    assert.deepEqual(result.treatment_plan.course_outline, scenario.planning.courseContinuation.course_outline)
+    if (id === 'ENERGY.MNRF') {
+      fs.writeFileSync(new URL('./generated-cases/standalone-mixed.json', import.meta.url), JSON.stringify({ generated: result, features: scenario.planning.featurePacket }, null, 2))
+    }
+  })
+}
+
+test('standalone drafts cannot bypass pregnancy restrictions', async () => {
+  const value = standaloneScenario()
+  const result = await runStandalone(value, { historyRuleFlags: { ...options.historyRuleFlags, pregnant: true } })
+  assert.ok(result.error)
+  assert.match(JSON.stringify(result.error), /pregnant/)
+})
+
+test('unrelated correctives and numeric doctor settings are rejected in standalone drafts', async () => {
+  for (const invalid of ['extra_corrective', 'device_settings']) {
+    const value = standaloneScenario()
+    if (invalid === 'extra_corrective') value.draft.planning_result.treatment_plan.treatments[0].steps.push(copy(fixture.draft.planning_result.treatment_plan.treatments[0].steps.find(step => step.step_id === 'ENERGY.CARBON.LASER')))
+    else value.draft.planning_result.treatment_plan.treatments[0].steps[0].how_to_do = 'Use 1.5 mm and 20 W.'
+    const result = await runStandalone(value)
+    assert.ok(result.error)
+  }
 })
 
 test('single, express and previously fully generated courses do not enter the paired-course trigger', () => {

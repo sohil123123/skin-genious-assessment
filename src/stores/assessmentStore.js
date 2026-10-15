@@ -345,7 +345,7 @@ export const useAssessmentStore = defineStore('assessment', {
           })
         })
     },
-    async updateTreatmentSessionStatus(treatment_session_id, status) {
+    async updateTreatmentSessionStatus(treatment_session_id, status, { throwOnError = false } = {}) {
       try {
         await api.post(`/treatment-sessions/status/${treatment_session_id}`, {
           status: status,
@@ -353,8 +353,15 @@ export const useAssessmentStore = defineStore('assessment', {
         return true
       } catch (e) {
         console.log(e)
+        if (throwOnError) throw e
         return false
       }
+    },
+    async confirmStandaloneDoctor(sessionId, doctorName) {
+      const response = await api.post(`/treatment-sessions/${sessionId}/doctor-confirmation`, {
+        doctor_name: doctorName.trim(), confirmed: true,
+      })
+      return response.data.results
     },
     async saveTreatmentSessionPostAssessment(session_id, payload, { throwOnError = false } = {}) {
       try {

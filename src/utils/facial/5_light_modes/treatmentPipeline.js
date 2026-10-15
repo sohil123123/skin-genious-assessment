@@ -8,6 +8,7 @@ import {
   buildTreatmentExecutionContract,
 } from './treatmentClinicRules.js'
 import { COURSE_CONTINUATION_INSTRUCTIONS, treatmentCourseWindow } from './treatmentCourseContinuation.js'
+import { STANDALONE_CONTINUATION_INSTRUCTIONS } from './treatmentStandalone.js'
 import {
   TREATMENT_KNOWLEDGE_PROMPT,
   compileTreatmentKnowledgeReference,
@@ -135,7 +136,7 @@ export function buildTreatmentModelRequest({
     ? systemPrompt.replace(TREATMENT_KNOWLEDGE_PROMPT, reference.stable_prefix)
     : `${systemPrompt}\n\n${reference.stable_prefix}`
   const continuation = treatmentCourseWindow(plannerInput)
-  const instructions = `${prefix}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${stableTreatmentJson(compileTreatmentConstraints(constraints))}${continuation ? `\n\n${COURSE_CONTINUATION_INSTRUCTIONS}` : ''}`
+  const instructions = `${prefix}\n\nAUTHORITATIVE CLINIC CONSTRAINTS AND AVAILABLE RESOURCES\n${stableTreatmentJson(compileTreatmentConstraints(constraints))}${continuation ? `\n\n${COURSE_CONTINUATION_INSTRUCTIONS}` : ''}${continuation?.slots.some(slot => slot.session_kind === 'separate_clinician_session') ? `\n\n${STANDALONE_CONTINUATION_INSTRUCTIONS}` : ''}`
   const responseFormat = buildTreatmentGenerationResponseFormat(
     plannerInput.treatment_plan_type,
     plannerInput,
@@ -333,7 +334,8 @@ export async function generateTreatmentPlan({
     const massageBlocks =
       plannerInput.clinic_treatment_context.clinical_clearance.blocked_steps?.['MASSAGE.LYMPH'] ||
       []
-    if (massageBlocks.length)
+    const scope = treatmentCourseWindow(plannerInput)
+    if (massageBlocks.length && (!scope || scope.slots.some(slot => slot.session_kind === 'facial')))
       throw Object.assign(
         new Error(
           'An evaluated clinical constraint blocks the mandatory lymphatic drainage step; clinical review is required.',

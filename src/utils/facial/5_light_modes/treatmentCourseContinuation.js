@@ -1,5 +1,6 @@
 import { prepareFacialEngineInput } from '../clientScoreDisplay.js'
 import { TREATMENT_CONCERN_FAMILIES, treatmentConcernFamily } from './treatmentEvidence.js'
+import { standaloneIds } from './treatmentStandalone.js'
 
 const clone = value => JSON.parse(JSON.stringify(value))
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value || {}, key)
@@ -21,7 +22,8 @@ export function treatmentCourseWindow(input, treatmentType = input?.treatment_pl
     row.session_number !== i + 1 || !Number.isFinite(row.week) || row.week < 1 || i > 0 && row.week <= outline[i - 1].week))
     fail('The original course outline must be complete, numbered and unchanged.')
   const slots = expected.map(number => outline[number - 1])
-  if (slots.some(row => row.session_kind !== 'facial')) fail('A requested slot is a separate clinician session and needs its existing separate assessment pathway.')
+  if (slots.some(row => !['facial', 'separate_clinician_session'].includes(row.session_kind))) fail('The requested course slot has an invalid session kind.')
+  if (slots.some(row => row.session_kind === 'separate_clinician_session' && !standaloneIds(row).length)) fail('A standalone slot must identify a registered standalone procedure.')
   return { ...scope, session_numbers: expected, slots }
 }
 
