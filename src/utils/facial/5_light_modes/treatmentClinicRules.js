@@ -1,5 +1,6 @@
 import { facialClientScore, prepareFacialEngineInput } from '../clientScoreDisplay.js'
 import { treatmentCourseWindow } from './treatmentCourseContinuation.js'
+import { DOCTOR_SESSION_LABEL, DOCTOR_SETTINGS_NOTE, DOCTOR_CHECKLIST, standaloneSlot, standaloneIds, standaloneAllowedSteps } from './treatmentStandalone.js'
 import { TREATMENT_STEPS } from './treatmentKnowledge.js'
 import { buildTreatmentEligibility } from './treatmentEligibility.js'
 import { resolveTreatmentEvidence, treatmentConcernFamily, TREATMENT_PROXY_FIELDS } from './treatmentEvidence.js'
@@ -645,6 +646,11 @@ export function finalizeTreatmentPlan(draft, plannerInput = null) {
   if (continuation && plan.treatment_plan) plan.treatment_plan.course_outline = JSON.parse(JSON.stringify(continuation.course_outline))
   if (plan.treatment_plan) finalizeDecisionSummary(plan.treatment_plan)
   for (const session of plan.treatment_plan?.treatments || []) {
+    const standalone = standaloneSlot(continuation, session.session_number)
+    if (standalone) {
+      if (!session.title?.startsWith(DOCTOR_SESSION_LABEL)) session.title = `${DOCTOR_SESSION_LABEL} — ${session.title || 'Standalone treatment'}`
+      session.preparations_checklist_for_therapist = [...new Set([DOCTOR_CHECKLIST, ...(session.preparations_checklist_for_therapist || [])])]
+    }
     const steps = session.steps || []
     steps.forEach((step, index) => {
       const ref = TREATMENT_STEPS[step.step_id]
@@ -661,6 +667,10 @@ export function finalizeTreatmentPlan(draft, plannerInput = null) {
         if (!existing.length && equipmentProducts.length === 1) step.additional_products.push(equipmentProducts[0])
       }
       if (ref) {
+        if (standalone && ref.facial_session_allowed === false) {
+          step.settings_note = DOCTOR_SETTINGS_NOTE
+          step.intensity_rung = null
+        }
         const fixedRole = FIXED_TREATMENT_STEP_ROLES[step.step_id]
         if (fixedRole) { step.role = fixedRole; step.intensity_rung = null }
         // Registered IDs determine these fields; normalise metadata without
@@ -790,6 +800,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
   const protocols = constraints?.clinical_constraints?.supportive_treatment_protocols || {}
   const ingredients = constraints?.availableResources?.jet_infusion_solutions || []
   for (const [index, session] of sessions.entries()) {
+    const standalone = standaloneSlot(continuation, session.session_number)
     const label = `Session ${continuation ? continuation.session_numbers[index] : index + 1}`
     const steps = Array.isArray(session.steps) ? session.steps : []
     const typeSteps = (type) => steps.filter((s) => s.clinic_step_type === type)
@@ -804,7 +815,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
       const ref = TREATMENT_STEPS[step?.step_id]
       const stepLabel = `${label}, step ${i + 1}`
       if (!ref) { errors.push(`${stepLabel}: unknown step_id.`); continue }
-      if (!ref.facial_session_allowed) errors.push(`${stepLabel}: this procedure is a standalone clinician session, not a facial step.`)
+      if (!ref.facial_session_allowed && !standalone) errors.push(`${stepLabel}: this procedure is a standalone clinician session, not a facial step.`)
       if (step.step_number !== i + 1) errors.push(`${stepLabel}: step numbers must follow array position.`)
       if (step.clinic_step_type !== ref.clinic_step_type) errors.push(`${stepLabel}: step_id requires clinic_step_type ${ref.clinic_step_type}.`)
       if (typeof step.duration !== 'number' || !Number.isFinite(step.duration) || step.duration <= 0) errors.push(`${stepLabel}: duration must be a positive number.`)
@@ -845,6 +856,26 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
       if (immediatelyCooled.has(step.step_id) && steps[i + 1]?.step_id !== 'COOL.ICE') errors.push(`${stepLabel}: Ice Probe cooling must immediately follow this energy step.`)
       if (step.step_id !== 'ENERGY.QS.LIP' && (step.lip_passes !== null || step.lip_serum !== null)) errors.push(`${stepLabel}: lip metadata must be null outside the lip step.`)
       if (step.step_id !== 'MASSAGE.LYMPH' && step.massage_purpose !== null) errors.push(`${stepLabel}: massage_purpose must be null outside massage.`)
+    }
+    if (standalone) {
+      const slot = continuation.slots[index]
+      const procedures = steps.filter(step => TREATMENT_STEPS[step.step_id]?.facial_session_allowed === false)
+      const core = procedures[0]?.step_id
+      if (procedures.length !== 1 || !standaloneIds(slot).includes(core)) errors.push(`${label}: exactly one standalone procedure from the saved outline is required.`)
+      if (steps.some(step => !standaloneAllowedSteps(core).includes(step.step_id))) errors.push(`${label}: unrelated facial/standalone procedures cannot be added to a standalone session.`)
+      const procedureAt = steps.indexOf(procedures[0])
+      if (steps.some((step, position) => step.step_id === 'PREP.CLEANSE' ? position > procedureAt : step.step_id !== core && position < procedureAt) || steps.some((step, position) => step.step_id === 'FINISH.SMS' && position !== steps.length - 1)) errors.push(`${label}: standalone preparation must precede the procedure and recovery must follow it; any finish must be last.`)
+      if (!session.title.startsWith(DOCTOR_SESSION_LABEL) || !session.preparations_checklist_for_therapist.includes(DOCTOR_CHECKLIST) || procedures[0]?.settings_note !== DOCTOR_SETTINGS_NOTE) errors.push(`${label}: doctor supervision, manual settings and sign-off must be explicit.`)
+      if (procedures.some(step => /\b\d+(?:\.\d+)?\s*(?:mm|mJ|J|W|MHz|Hz|ms|shots|passes)\b/i.test(step.how_to_do))) errors.push(`${label}: device settings must be selected by the doctor, not prescribed in draft directions.`)
+      const values = clearance.numeric_proxy_values || {}
+      const barrierCaution = values.BSI_continuous >= 0.45 && values.BSI_continuous < 0.55 || values.erythema_intensity_index >= 0.62 && values.erythema_intensity_index < 0.75 || values.hydration_signal_index !== null && values.hydration_signal_index < 0.40 && (values.BSI_continuous >= 0.40 || values.erythema_intensity_index >= 0.55)
+      if (core === 'ENERGY.MNRF' && barrierCaution) errors.push(`${label}: MNRF is excluded on barrier-caution skin under the existing protocol.`)
+      if (session.treatment_time !== sum || session.step_duration_total !== sum || session.timing_validation?.calculated_from_steps !== sum || session.timing_validation?.matches_treatment_time !== true) errors.push(`${label}: derived time fields must equal the actual step sum.`)
+      for (const outcome of session.concerns_addressed || []) {
+        const row = rows.get(normalize(outcome.concern))
+        if (!row || outcome.current_value !== (row.score_or_label ?? row.current_score ?? row.current_value ?? row.final_score ?? null) || outcome.target_value !== (row.target_single_session_score ?? row.target_score ?? row.target_value ?? null)) errors.push(`${label}: preserve supplied raw current/target values without invented gains.`)
+      }
+      continue
     }
     const finish = typeSteps('finishing')
     if (finish.length !== 1 || steps.at(-1) !== finish[0] || finish[0]?.role !== 'FINISH') errors.push(`${label}: one combined 3-minute FINISH.SMS must be last.`)

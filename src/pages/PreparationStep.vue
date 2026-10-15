@@ -48,6 +48,13 @@
             </div>
           </div>
 
+          <q-banner v-if="isStandalone" rounded class="bg-blue-1 q-mt-md">
+            <div class="text-weight-bold">Dr. Supervised session</div>
+            <div>This is a standalone draft. The doctor must confirm the indication, screening, consent, device settings and aftercare before treatment.</div>
+            <q-input v-model="doctorName" label="Supervising doctor's name" maxlength="160" :readonly="!!session?.doctor_confirmation" dense class="q-mt-sm" />
+            <q-checkbox v-model="doctorConfirmed" :disable="!!session?.doctor_confirmation" label="The supervising doctor has reviewed this plan and recorded the settings in the clinical record." />
+          </q-banner>
+
           <div class="row q-col-gutter-md q-mt-md">
             <!-- Concerns Addressed -->
             <div class="col-12 col-md-5">
@@ -124,7 +131,8 @@
                   label="Preparation Completed"
                   class="gredient text-white"
                   rounded
-                  :disable="checkedCount == totalItems ? false : true"
+                  :disable="checkedCount !== totalItems || starting || (isStandalone && (!doctorConfirmed || !doctorName.trim()))"
+                  :loading="starting"
                   @click="startSteps"
                 />
                 <q-btn flat label="Back to Plan" class="q-ml-sm" @click="backToPlan" />
@@ -167,6 +175,7 @@
 
 <script setup>
 import { onMounted, computed, ref } from 'vue'
+import { Notify } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
@@ -190,12 +199,21 @@ onMounted(async () => {
   await assessmentStore.getSingleAssessment(route.params.assessment_id)
 
   store.treatmentPlan = assessmentStore.assessmentData.treatment_sessions
+  if (session.value?.doctor_confirmation) {
+    doctorName.value = session.value.doctor_confirmation.doctor_name
+    doctorConfirmed.value = true
+  }
 })
 
 const session = computed(() =>
   store.treatmentPlan ? store.treatmentPlan.treatments.find((s) => s.id === sessionID) : null,
 )
 const concerns_addressed = computed(() => session.value?.concerns_addressed ?? [])
+const isStandalone = computed(() => session.value?.session_kind === 'separate_clinician_session' ||
+  store.treatmentPlan?.course_outline?.some(slot => Number(slot.session_number) === Number(session.value?.session_number) && slot.session_kind === 'separate_clinician_session'))
+const doctorName = ref('')
+const doctorConfirmed = ref(false)
+const starting = ref(false)
 const prepList = computed(() => session.value?.preparations_checklist_for_therapist ?? [])
 const text = computed(() => session.value?.script ?? '')
 
@@ -205,19 +223,29 @@ const checkedCount = computed(() => selected.value.length)
 const progress = computed(() => checkedCount.value / totalItems.value)
 
 async function startSteps() {
-  await assessmentStore.updateTreatmentSessionStatus(sessionID, 'in_progress')
+  if (starting.value) return
+  if (isStandalone.value && (!doctorConfirmed.value || !doctorName.value.trim())) return
+  starting.value = true
+  try {
+    if (isStandalone.value && !session.value?.doctor_confirmation) await assessmentStore.confirmStandaloneDoctor(sessionID, doctorName.value)
+    await assessmentStore.updateTreatmentSessionStatus(sessionID, 'in_progress', { throwOnError: true })
 
-  // go to first step (steps are 1-based in route)
-  router.push({
-    name: 'TreatmentSteps',
-    params: {
-      user_id: route.params.user_id,
-      assessment_id: assessmentStore.assessmentData.id,
-      session_id: sessionID,
-      step: 1,
-      ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
-    },
-  })
+    // go to first step (steps are 1-based in route)
+    await router.push({
+      name: 'TreatmentSteps',
+      params: {
+        user_id: route.params.user_id,
+        assessment_id: assessmentStore.assessmentData.id,
+        session_id: sessionID,
+        step: 1,
+        ...(route.params.appointment_id && { appointment_id: route.params.appointment_id }),
+      },
+    })
+  } catch (error) {
+    Notify.create({ type: 'negative', message: error.response?.data?.message || error.message || 'The session could not be started.' })
+  } finally {
+    starting.value = false
+  }
 }
 
 function backToPlan() {
