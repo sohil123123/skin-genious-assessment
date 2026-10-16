@@ -141,8 +141,28 @@
             @post_assessment="goNext"
             @save_data="submit"
           />
+          <q-banner
+            v-if="currentStep === 'step-6' && isPairedFacialCourse(assessmentData) && !sessionId"
+            rounded
+            class="bg-blue-1 q-mb-md"
+          >
+            Select the treatment session to reassess before uploading its scans. Session 1
+            reassessment saves a report; the next batch is generated after Session 2.
+            <q-select
+              :model-value="null"
+              :options="reassessmentSessionOptions"
+              label="Treatment session to reassess"
+              emit-value
+              map-options
+              outlined
+              dense
+              class="q-mt-sm"
+              @update:model-value="selectReassessmentSession"
+            />
+          </q-banner>
           <UploadFaceImages
             v-if="currentStep === 'step-6'"
+            :key="`post-scans-${sessionId || 'unselected'}`"
             :isPostAssessment="true"
             :assessmentData="assessmentData"
             v-model:startProcessingStep="startProcessingStep"
@@ -245,8 +265,30 @@ const sessionId = computed(() => {
 })
 const currentSession = computed(() => {
   if (!sessionId.value || !assessmentData.value.treatment_sessions?.treatments) return null
-  return assessmentData.value.treatment_sessions.treatments.find((t) => t.id === sessionId.value)
+  return assessmentData.value.treatment_sessions.treatments.find(
+    (t) => Number(t.id) === sessionId.value,
+  )
 })
+const reassessmentSessionOptions = computed(() =>
+  (assessmentData.value.treatment_sessions?.treatments || [])
+    .filter((session) => session.id)
+    .map((session) => ({
+      label: `Session ${session.session_number} — ${session.title}`,
+      value: Number(session.id),
+    })),
+)
+
+async function selectReassessmentSession(id) {
+  const session = assessmentData.value.treatment_sessions?.treatments?.find(
+    (item) => Number(item.id) === Number(id),
+  )
+  if (!session?.id) return
+  await router.replace({
+    name: route.name,
+    params: route.params,
+    query: { ...route.query, session_id: String(session.id) },
+  })
+}
 
 function getPreviousScores() {
   if (!sessionId.value || !currentSession.value) {
@@ -579,7 +621,7 @@ async function handleDiagnosis(files) {
 async function handlePostAssessment(files) {
   if (isPairedFacialCourse(assessmentData.value) && !sessionId.value) {
     throw scanImageMappingError(
-      'Open the exact course session before saving its reassessment. A course checkpoint cannot be inferred from the assessment alone.',
+      'Select the treatment session above before processing its reassessment scans.',
     )
   }
   if (sessionId.value && !currentSession.value) {
