@@ -184,7 +184,7 @@
 import { ref, watch } from 'vue'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
 import { storeToRefs } from 'pinia'
-import { Notify } from 'quasar'
+import { Dialog, Notify } from 'quasar'
 
 const emit = defineEmits(['generate-treatment', 'previous', 'save_data', 'next'])
 
@@ -213,6 +213,26 @@ const generatePlan = () => {
     })
     return
   }
+  const hasGeneratedPlan =
+    assessmentData.value.treatment_sessions?.treatments?.length > 0 ||
+    assessmentData.value.treatment_plans?.treatment_plan?.treatments?.length > 0
+
+  if (hasGeneratedPlan) {
+    Dialog.create({
+      title: 'Regenerate Treatment Plan',
+      message:
+        'A treatment plan has already been generated. Are you sure you want to regenerate the treatment plan?',
+      ok: { label: 'Regenerate', color: 'positive' },
+      cancel: { label: 'Cancel', flat: true },
+      persistent: true,
+    }).onOk(createTreatmentPlan)
+    return
+  }
+
+  createTreatmentPlan()
+}
+
+const createTreatmentPlan = () => {
   assessmentData.value.selected_plan_type = treatmentType.value
   emit('save_data', ['selected_plan_type'])
   emit(
