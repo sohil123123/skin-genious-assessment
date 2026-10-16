@@ -94,6 +94,7 @@ onMounted(async () => {
           } else {
             router.push({
               name: 'index-with-id',
+              query: session_id ? { session_id } : {},
               params: {
                 user_id: userId,
                 step: 'step-1',
