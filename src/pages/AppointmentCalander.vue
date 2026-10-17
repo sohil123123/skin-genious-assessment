@@ -17,7 +17,22 @@
               @update:model-value="handleClinicChange"
             />
           </div>
-          <div v-if="!therapistId" class="col-md-3 col-sm-6 col-xs-12">
+          <div class="col-md-3 col-sm-6 col-xs-12">
+            <q-select
+              v-model="consultCalendar"
+              label="Calendar"
+              :options="[
+                { label: 'Consult appointments', value: true },
+                { label: 'Therapist appointments', value: false },
+              ]"
+              emit-value
+              map-options
+              outlined
+              dense
+              @update:model-value="handleCalendarChange"
+            />
+          </div>
+          <div v-if="!therapistId && !consultCalendar" class="col-md-3 col-sm-6 col-xs-12">
             <q-select
               label="Select Therapist"
               outlined
@@ -33,7 +48,7 @@
         </div>
       </q-card-section>
 
-      <q-card-section v-if="clinic_id && therapist_id">
+      <q-card-section v-if="calendarReady">
         <EmergencyWarning :warnings="warning" />
         <ServerErrorDialog v-model="showErrorDialog" :error="selectedError" />
 
@@ -60,8 +75,10 @@
       <q-card-section v-else>
         <div class="text-center q-py-xl">
           <q-icon name="calendar_month" size="xl" color="grey-4" class="q-mb-md" />
-          <div class="text-h6 text-grey-6 q-mb-sm">No Clinic & Therapist Selected</div>
-          <div class="text-grey-7">Start by selecting a clinic and therapist</div>
+          <div class="text-h6 text-grey-6 q-mb-sm">Select appointment calendar</div>
+          <div class="text-grey-7">
+            {{ consultCalendar ? 'Start by selecting a clinic' : 'Start by selecting a clinic and therapist' }}
+          </div>
         </div>
       </q-card-section>
     </q-card>
@@ -71,6 +88,7 @@
     <CreateUpdateModal
       :clients="clients"
       :clinic="clinic"
+      :consult-only="consultCalendar"
       v-model:appointmentData="appointmentData"
       @submit="handleSave"
     />
@@ -174,10 +192,15 @@ const initialAppointmentData = {
 const clinic_id = ref(clinicId)
 const clinic = ref(null)
 const therapist_id = ref(therapistId)
+const consultCalendar = ref(false)
+const calendarReady = computed(
+  () => !!clinic_id.value && (consultCalendar.value || !!therapist_id.value),
+)
 
 const appointments = ref([])
 const disabledSlotsFromAPI = ref([])
 const isLoading = ref(false)
+let appointmentFetchId = 0
 
 const formatDate = (iso) => {
   const d = new Date(iso)
@@ -419,7 +442,7 @@ const calendarOptions = ref({
   },
 
   datesSet: () => {
-    if (clinic_id.value && therapist_id.value) {
+    if (calendarReady.value) {
       fetchAppointments()
     }
   },
@@ -542,6 +565,17 @@ async function handleSave() {
   try {
     let success = false
 
+    if (!isEditMode.value) {
+      appointmentData.value.therapist_id =
+        appointmentData.value.type === 'consult' ? null : therapist_id.value
+      appointmentData.value.clinic_id = clinic_id.value
+    }
+
+    if (appointmentData.value.type !== 'consult' && !appointmentData.value.therapist_id) {
+      Notify.create({ type: 'negative', message: 'Please select a therapist' })
+      return
+    }
+
     if (isEditMode.value) {
       Loading.show({ message: 'Updating Appointment...' })
       success = await appointmentStore.updateAppointment(appointmentData.value)
@@ -549,9 +583,6 @@ async function handleSave() {
       if (!success) return
     } else {
       Loading.show({ message: 'Booking Appointment...' })
-
-      appointmentData.value.therapist_id = therapist_id.value
-      appointmentData.value.clinic_id = clinic_id.value
 
       success = await appointmentStore.storeAppointments(appointmentData.value)
 
@@ -581,6 +612,7 @@ async function handleSave() {
 
 function resetAppointmentData() {
   Object.assign(appointmentData.value, { ...initialAppointmentData })
+  if (consultCalendar.value) appointmentData.value.type = 'consult'
 }
 
 function handleDelete(eventId) {
@@ -620,9 +652,9 @@ function setAppointmentData() {
   appointmentData.value = {
     id: selectedEvent.value.id,
     type: selectedEvent.value.meta.type,
-    start_datetime: selectedEvent.value.start_datetime,
-    end_datetime: selectedEvent.value.end_datetime,
-    notes: selectedEvent.value.notes || '',
+    start_datetime: selectedEvent.value.start_datetime.slice(0, 16),
+    end_datetime: selectedEvent.value.end_datetime.slice(0, 16),
+    notes: selectedEvent.value.notes || selectedEvent.value.meta.notes || '',
     status: selectedEvent.value.status || 'confirmed',
     client_id: selectedEvent.value.meta.client_id || null,
     therapist_id: selectedEvent.value.meta.therapist_id || null,
@@ -634,7 +666,8 @@ function setAppointmentData() {
 
 /* ------------------ API METHODS ------------------ */
 async function fetchAppointments() {
-  if (!clinic_id.value || !therapist_id.value) {
+  const fetchId = ++appointmentFetchId
+  if (!calendarReady.value) {
     return
   }
 
@@ -642,10 +675,12 @@ async function fetchAppointments() {
   try {
     const response = await appointmentStore.getAppointments(
       clinic_id.value,
-      therapist_id.value,
+      consultCalendar.value ? null : therapist_id.value,
       formatDateToYMD(calendarRef.value?.getApi()?.view?.currentStart),
       formatDateToYMD(calendarRef.value?.getApi()?.view?.currentEnd),
     )
+
+    if (fetchId !== appointmentFetchId) return
 
     if (response.success) {
       const results = response.data || []
@@ -670,7 +705,7 @@ async function fetchAppointments() {
 }
 
 async function getClinicById(id) {
-  api
+  return api
     .get(`get-clinics?id=${id}&is_first=1`)
     .then((res) => {
       clinic.value = res.data.results
@@ -684,16 +719,28 @@ async function getClinicById(id) {
     })
 }
 
-function handleClinicChange(clinic) {
-  if (!clinic) return
-  clinic.value = clinic
-  clinic_id.value = clinic.id
+async function handleClinicChange(selectedClinic) {
+  if (!selectedClinic) return
+  appointmentFetchId++
+  clinic.value = selectedClinic
+  clinic_id.value = selectedClinic.id
   therapist_id.value = null
   appointments.value = []
   disabledSlotsFromAPI.value = []
 
-  commonStore.getTherapiests(clinic.id)
-  commonStore.getClients(clinic.id)
+  commonStore.getTherapiests(selectedClinic.id)
+  commonStore.getClients(selectedClinic.id)
+  await nextTick()
+  if (calendarReady.value) fetchAppointments()
+}
+
+async function handleCalendarChange() {
+  appointmentFetchId++
+  appointments.value = []
+  disabledSlotsFromAPI.value = []
+  await nextTick()
+  calendarRef.value?.getApi()?.refetchEvents()
+  if (calendarReady.value) fetchAppointments()
 }
 
 function handleTherapistChange(therapistId) {
