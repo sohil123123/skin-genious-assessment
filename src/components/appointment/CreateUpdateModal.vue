@@ -230,6 +230,7 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  consultOnly: Boolean,
 })
 
 const emit = defineEmits(['update:modelValue', 'submit'])
@@ -251,12 +252,14 @@ const selectedAssessmentTypeLabel = computed(() => {
   return typeLabel
 })
 
-const appointmentTypes = [
-  { label: 'Consult', value: 'consult' },
-  { label: 'Treatment', value: 'treatment' },
-  { label: 'Express', value: 'express' },
-  { label: 'Other', value: 'other' },
-]
+const appointmentTypes = computed(() =>
+  [
+    { label: 'Consult', value: 'consult' },
+    { label: 'Treatment', value: 'treatment' },
+    { label: 'Express', value: 'express' },
+    { label: 'Other', value: 'other' },
+  ].filter((type) => props.consultOnly ? type.value === 'consult' : type.value !== 'consult'),
+)
 
 const statusOptions = [
   { label: 'Pending', value: 'pending' },
@@ -276,6 +279,7 @@ function handleSubmit() {
 }
 
 onMounted(async () => {
+  if (!appointmentData.value.id) autoSetConsultEndTime()
   await getAssessments()
   getTreatmentSessions()
 })
@@ -360,6 +364,7 @@ function setType(type) {
   appointmentData.value.type = type
   // Reset dependent fields when type changes
   if (type == 'consult') {
+    appointmentData.value.therapist_id = null
     appointmentData.value.assessment_id = null
     appointmentData.value.treatment_session_id = null
     // ✅ AUTO SET 90 MIN SLOT

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { api } from 'src/boot/axios'
 import _ from 'lodash'
 import { Loading, Notify, QSpinnerClock } from 'quasar'
+import { consultAppointmentParams, consultAppointmentEvent } from 'src/utils/consultAppointments'
 
 export const useAppointmentStore = defineStore('appointment', {
   state: () => ({
@@ -81,13 +82,19 @@ export const useAppointmentStore = defineStore('appointment', {
       })
 
       try {
-        const res = await api.get(url)
-        this.rawEvents = res.data.results
+        const res = therapist_id
+          ? await api.get(url)
+          : await api.get('appointments', {
+              params: consultAppointmentParams(clinic_id, start_date, end_date),
+            })
+        this.rawEvents = therapist_id
+          ? res.data.results
+          : (res.data.results || []).map(consultAppointmentEvent)
 
         // Return the data so component can use it
         return {
           success: true,
-          data: res.data.results,
+          data: this.rawEvents,
           message: res.data.message,
         }
       } catch (error) {
