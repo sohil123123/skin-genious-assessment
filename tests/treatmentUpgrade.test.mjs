@@ -325,6 +325,58 @@ test('triggered lip cannot be omitted or blocked using an unevaluated generic ru
   const d=draft();d.treatment_plan.treatments[0].lip_pigmentation_rule={status:'blocked_by_existing_constraints',constraint_reference:'energy_device_policy',reason:'A fabricated generic block.'}
   assert.match(check(d,ctx).error.details.join('\n'),/actual evaluated/)
 })
+
+test('lip references resolve actual constraint paths and reject unrelated existing keys',()=>{
+  const ctx=clone(input.clinic_treatment_context)
+  ctx.lip_pigmentation={...ctx.lip_pigmentation,client_display_score:65,trigger:true}
+  ctx.clinical_clearance.blocked_steps['ENERGY.QS.LIP']=[{condition:'energy_device_policy',reason:'Synthetic evaluated lip restriction.'}]
+  for(const reference of ['energy_device_policy','clinical_constraints.energy_device_policy','clinic_treatment_context.clinical_clearance.blocked_steps.ENERGY.QS.LIP[0]']) {
+    const d=draft()
+    d.treatment_plan.treatments[0].lip_pigmentation_rule={status:'blocked_by_existing_constraints',constraint_reference:reference,reason:'Synthetic evaluated lip restriction.'}
+    assert.equal(check(d,ctx).error,undefined,reference)
+  }
+  for(const reference of ['pregnant','energy_device','clinical_constraints.nonexistent']) {
+    const d=draft()
+    d.treatment_plan.treatments[0].lip_pigmentation_rule={status:'blocked_by_existing_constraints',constraint_reference:reference,reason:'Unrelated reference.'}
+    assert.match(check(d,ctx).error.details.join('\n'),/Copy an applicable constraint_reference: energy_device_policy/)
+  }
+  const withLip=draft()
+  withLip.treatment_plan.treatments[0].lip_pigmentation_rule={status:'blocked_by_existing_constraints',constraint_reference:'energy_device_policy',reason:'Synthetic evaluated lip restriction.'}
+  withLip.treatment_plan.treatments[0].steps.splice(-1,0,step('ENERGY.QS.LIP',2,'ADJUNCT',{zones:['lips']}))
+  assert.match(check(withLip,ctx).error.details.join('\n'),/no lip step/)
+})
+
+test('medium-peel lip reference applies only to a session containing a medium peel',()=>{
+  const ctx=clone(input.clinic_treatment_context)
+  ctx.lip_pigmentation={...ctx.lip_pigmentation,client_display_score:65,trigger:true}
+  const d=draft(),s=d.treatment_plan.treatments[0]
+  s.lip_pigmentation_rule={status:'blocked_by_existing_constraints',constraint_reference:'clinical_constraints.mother_document_selected_clinical_rules.sequencing_and_pairing[1]',reason:'Selected medium peel excludes a Q-switch lip pass.'}
+  assert.ok(check(d,ctx).error)
+  s.steps=s.steps.filter(row=>!['ENERGY.CARBON.APPLY','ENERGY.CARBON.LASER'].includes(row.step_id))
+  s.steps.splice(1,0,step('EXTR.MANUAL',7))
+  const peel=s.steps.find(row=>row.step_id==='PEEL.COMBO');peel.step_id='PEEL.FUSION';peel.role='HERO_CORRECTIVE'
+  s.primary_strategy[0].selected_step_id='PEEL.FUSION'
+  assert.equal(check(d,ctx).error,undefined)
+})
+
+test('express and single repair receive actionable lip references and keep the two-call limit',async()=>{
+  const lipDiagnosis=clone(diagnosis);lipDiagnosis.diagnosis_report.lip_pigmentation.score_or_label=65
+  const lipOptions={...options,evaluatedClinicalBlocks:{'ENERGY.QS.LIP':[{condition:'energy_device_policy',reason:'Synthetic server-evaluated lip-only restriction.'}]}}
+  for(const type of ['express','single']) {
+    let calls=0
+    const result=await pipeline.generateTreatmentPlan({systemPrompt:'Offline fixture.',diagnosis:lipDiagnosis,selectedConcerns:selected,treatmentType:type,constraints,options:lipOptions,callModel:async(request)=>{
+      calls++
+      const payload=JSON.parse(request.input)
+      const patient=calls===1?payload:payload.patient_input
+      assert.ok(patient.planning_contract.lip_block_options.some(option=>option.constraint_reference==='energy_device_policy'))
+      if(calls===2) assert.ok(payload.validation_errors.some(error=>error.includes('Copy an applicable constraint_reference: energy_device_policy')))
+      const d=type==='single'?singleDraft():draft()
+      d.treatment_plan.treatments[0].lip_pigmentation_rule={status:'blocked_by_existing_constraints',constraint_reference:calls===1?'invented_reference':'clinical_constraints.energy_device_policy',reason:'Synthetic server-evaluated lip-only restriction.'}
+      return {status:'completed',output_text:JSON.stringify(envelope(d))}
+    }})
+    assert.equal(result.error,undefined);assert.equal(calls,2)
+  }
+})
 test('history denies override efficacy; missing proxies create caution rather than denial',()=>{
   const a=buildTreatmentEligibility(diagnosis,constraints,{historyRuleFlags:{pregnant:true}})
   assert.ok(a.blocked_steps['ENERGY.CARBON.LASER']);assert.ok(a.blocked_steps['LED.RED'])

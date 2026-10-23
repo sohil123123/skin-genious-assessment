@@ -68,7 +68,7 @@ Spot salicylic: PEEL.SPOT.SALI, exactly 2 minutes, role ADJUNCT; mandatory for v
 For PEEL.SPOT.SALI, additional_products must contain exactly ONE named product from planning_contract.spot_sali_product_options. Choose the appropriate approved product for this case; do not assume a default concentration. A generic "salicylic acid" or a product mentioned only in prose does not identify the executable product. No other step requires this spot-product choice.
 Spot salicylic creates NO mandatory cooling step after it or between it and Carbon/Q-switch, including a lip pass. It is a lesion-only ADJUNCT, not a broad/full-face peel. Preserve independently required post-energy cooling and the actual broad-peel-plus-Carbon preparation/cooling rules; do not add cooling merely because PEEL.SPOT.SALI is present.
 Massage: exactly one MASSAGE.LYMPH in EVERY detailed facial, 5-10 minutes, massage_purpose "mandatory". Reserve at least 5 minutes before selecting optional additions. Include it even when puffiness is minimal or all other steps already meet the session minimum. It is required session care, not optional filler or a corrective substitute. Use the existing clinician-approved technique and applicable zone precautions; do not invent a new diagnosis-wide exclusion from reference notes. An actual evaluated clinical hard stop requires an explicit blocked response, never a successful session without massage. No duplicate massage, automatic 10-minute duration or padding fixed steps. Selection order does not fix procedure order.
-Lip: reuse clinic_treatment_context.lip_pigmentation. Its trigger is the rounded higher-is-better CLIENT score <70, never the raw severity or target. If assessable, triggered and not blocked, include ENERGY.QS.LIP: two Q-switch passes with HA, exactly 2 minutes before finish, lip_passes 2, lip_serum "Hyaluronic Acid". Use existing contraindications, proxy and temperature rules. Blocked status needs the actual existing constraint key and case evidence. Cosmetic occlusion wins over a fallback score. No invented lip wavelength, energy or serum sequence.
+Lip: reuse clinic_treatment_context.lip_pigmentation. Its trigger is the rounded higher-is-better CLIENT score <70, never the raw severity or target. If assessable, triggered and not blocked, include ENERGY.QS.LIP: two Q-switch passes with HA, exactly 2 minutes before finish, lip_passes 2, lip_serum "Hyaluronic Acid". Use existing contraindications, proxy and temperature rules. For blocked status, copy a constraint_reference from planning_contract.lip_block_options and explain its supplied case evidence. A medium-peel option applies only when that session actually includes a listed medium peel. A time budget or preferred alternative alone never blocks lip care. Cosmetic occlusion wins over a fallback score. No invented lip wavelength, energy or serum sequence.
 Finish: exactly one FINISH.SMS, serum + moisturiser + sunscreen together, exactly 3 minutes, last. All times are actual sequential minutes; do not double-count concurrent activity or drying/contact time.
 No protocol settings may be invented from an equipment range. Use a supplied approved preset/protocol, or flag missing settings in preparations_checklist_for_therapist and settings_note for clinician completion before treatment.
 `
@@ -487,6 +487,7 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
   }
   input.planning_contract = { ...buildTreatmentConcernContract(input),
     fixed_step_roles: FIXED_TREATMENT_STEP_ROLES,
+    lip_block_options: treatmentLipBlockOptions(input.clinic_treatment_context, constraints),
     spot_sali_product_options: approvedSpotSaliProducts(constraints),
     spot_sali_product_rule: 'For PEEL.SPOT.SALI, choose exactly one approved named product from spot_sali_product_options and put it in additional_products. Do not select a default concentration or name the product only in prose.',
     primary_strategy_rule: 'Exactly one strategy per required primary in every detailed session. Copy its exact concern name into the strategy and selected step target_concerns. A corrective Carbon strategy selects ENERGY.CARBON.LASER; never its PREP application or PEEL.SPOT.SALI. Do not invent aliases or findings.',
@@ -723,6 +724,45 @@ function inventoryNames(constraints) {
   return names
 }
 
+// References must identify a block that applies to this case, rather than any
+// substring of the source JSON. Accept exact keys and their actual source paths.
+function treatmentLipBlockOptions(context, constraints) {
+  const options = []
+  const blocks = context?.clinical_clearance?.blocked_steps?.['ENERGY.QS.LIP'] || []
+  for (const [index, block] of blocks.entries()) {
+    const references = new Set()
+    const visit = (value, path = '') => {
+      if (!value || typeof value !== 'object') return
+      if (value.condition === block.condition) references.add(path)
+      for (const [key, child] of Object.entries(value)) {
+        const childPath = path ? `${path}.${key}` : key
+        if (key === block.condition) { references.add(key); references.add(childPath) }
+        visit(child, childPath)
+      }
+    }
+    visit(constraints)
+    if (!references.size) continue
+    references.add(block.condition)
+    references.add(`clinic_treatment_context.clinical_clearance.blocked_steps.ENERGY.QS.LIP.${index}`)
+    options.push({ constraint_reference: block.condition, accepted_references: [...references],
+      case_evidence: block.reason, required_session_step_ids: [] })
+  }
+  const pairing = constraints?.clinical_constraints?.mother_document_selected_clinical_rules?.sequencing_and_pairing
+  const mediumRule = pairing?.findIndex((rule) => rule.startsWith('A2:')) ?? -1
+  if (mediumRule >= 0) options.push({
+    constraint_reference: `clinical_constraints.mother_document_selected_clinical_rules.sequencing_and_pairing.${mediumRule}`,
+    accepted_references: ['sequencing_and_pairing', 'clinical_constraints.mother_document_selected_clinical_rules.sequencing_and_pairing',
+      `clinical_constraints.mother_document_selected_clinical_rules.sequencing_and_pairing.${mediumRule}`],
+    case_evidence: pairing[mediumRule],
+    required_session_step_ids: Object.values(TREATMENT_STEPS).filter((step) => step.clinic_class === 'medium').map((step) => step.id),
+  })
+  if (!inventoryNames(constraints).has(normalize('Q-Switch Laser'))) options.push({
+    constraint_reference: 'availableResources.machines', accepted_references: ['availableResources.machines'],
+    case_evidence: 'Q-Switch Laser is absent from supplied clinic equipment.', required_session_step_ids: [],
+  })
+  return options
+}
+
 function targetRows(input) {
   const report = input?.diagnosis_report || {}
   const selected = selectedConcernRows(input)
@@ -945,7 +985,10 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
         if (addons.length !== 1 || addons[0]?.lip_passes !== 2 || ingredientKey(addons[0]?.lip_serum) !== 'hyaluronicacid') errors.push(`${label}: lip protocol requires exactly two Q-switch passes with HA.`)
         if (knownLipBlocks.length) errors.push(`${label}: lip pass is blocked by existing clinical clearance.`)
       } else if (decision?.status === 'blocked_by_existing_constraints') {
-        if (addons.length || !nonempty(decision.constraint_reference) || !JSON.stringify(constraints).includes(decision.constraint_reference)) errors.push(`${label}: blocked lip decision needs a real constraint reference and no lip step.`)
+        const applicable = treatmentLipBlockOptions(context, constraints).filter((option) =>
+          !option.required_session_step_ids.length || steps.some((step) => option.required_session_step_ids.includes(step.step_id)))
+        const reference = decision.constraint_reference?.trim().replace(/\[(\d+)\]/g, '.$1')
+        if (addons.length || !applicable.some((option) => option.accepted_references.includes(reference))) errors.push(`${label}: blocked lip decision needs a real constraint reference and no lip step. Copy an applicable constraint_reference: ${applicable.map((option) => `${option.constraint_reference} (${option.case_evidence})`).join('; ') || 'none; include the triggered lip protocol unless an evaluated block applies'}.`)
         if (!knownLipBlocks.length && !mediumPeels.length && knownNames.has(normalize('Q-Switch Laser'))) errors.push(`${label}: blocked lip status needs an actual evaluated history/proxy/temperature block or the medium-peel incompatibility.`)
       } else if (decision?.status === 'not_assessable') {
         if (!lip.visibility_caution || addons.length) errors.push(`${label}: lip non-assessability requires observed visibility evidence.`)
