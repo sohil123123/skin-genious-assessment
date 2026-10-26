@@ -124,7 +124,7 @@ export const useAssessmentStore = defineStore('assessment', {
           })
         })
     },
-    async getSingleAssessment(assessment_id) {
+    async getSingleAssessment(assessment_id, { throwOnError = false } = {}) {
       Loading.show({
         message: 'Getting assessment data...',
       })
@@ -139,8 +139,9 @@ export const useAssessmentStore = defineStore('assessment', {
           console.log(e)
           Notify.create({
             type: 'negative',
-            message: e.response.data.message,
+            message: e.response?.data?.message || 'Failed to load assessment.',
           })
+          if (throwOnError) throw e
         })
     },
     async createNewAssessment() {
@@ -344,6 +345,34 @@ export const useAssessmentStore = defineStore('assessment', {
             message: e.response.data.message,
           })
         })
+    },
+    async completeTreatmentSession(sessionId, { assessmentId, userId, appointmentId } = {}) {
+      const positiveId = (value) => Number.isSafeInteger(Number(value)) && Number(value) > 0
+      const assessment = this.assessmentData
+      const session = assessment.treatment_sessions?.treatments?.find(
+        (row) => Number(row.id) === Number(sessionId),
+      )
+      if (!positiveId(sessionId) || !positiveId(assessmentId) || !positiveId(userId) ||
+          Number(assessment.id) !== Number(assessmentId) || Number(assessment.user_id) !== Number(userId) || !session) {
+        throw new Error('The session does not match this patient and assessment. Reopen it from CRM.')
+      }
+      if (appointmentId != null && appointmentId !== '' && !positiveId(appointmentId)) {
+        throw new Error('Invalid appointment. Reopen the session from CRM.')
+      }
+      const response = await api.post(`/treatment-sessions/status/${sessionId}`, {
+        status: 'completed',
+        assessment_id: Number(assessmentId),
+        user_id: Number(userId),
+        ...(appointmentId && { appointment_id: Number(appointmentId) }),
+      })
+      const saved = response.data?.results
+      if (response.data?.success !== true || response.data?.completion_synced !== true ||
+          Number(saved?.id) !== Number(sessionId) || saved?.status !== 'completed' ||
+          Number(saved?.assessment_id) !== Number(assessmentId) || Number(saved?.user_id) !== Number(userId)) {
+        throw new Error('CRM did not confirm session and appointment completion. Please retry.')
+      }
+      session.status = saved.status
+      return saved
     },
     async updateTreatmentSessionStatus(treatment_session_id, status, { throwOnError = false } = {}) {
       try {
