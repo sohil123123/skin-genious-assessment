@@ -17,7 +17,7 @@
         <q-card flat>
           <div class="row items-center justify-between">
             <div>
-              <h4 class="q-my-md">Treatment Complete ✔</h4>
+              <h4 class="q-my-md">{{ completionSaved ? 'Treatment Complete ✔' : 'Finalizing Treatment' }}</h4>
               <!-- <div class="text-subtitle2 q-mt-xs">Session {{ sessionNumber }} completed</div> -->
             </div>
           </div>
@@ -55,7 +55,14 @@
             <div class="col-md-12 col-sm-12">
               <q-card flat class="preview-card q-pa-md full-height bg-grey-2">
                 <div class="text-h6 q-mb-sm">Complete Session</div>
-                <div>Finish session and return to CRM.</div>
+                <div v-if="completing" role="status">Saving session completion to CRM...</div>
+                <q-banner v-else-if="completionError" class="bg-red-1 text-negative q-mt-md" role="alert">
+                  {{ completionError }}
+                  <template #action>
+                    <q-btn flat label="Retry saving" no-caps @click="completeSession" />
+                  </template>
+                </q-banner>
+                <div v-else-if="completionSaved">Session saved in CRM. Transfer to the Clinic Head.</div>
                 <q-separator class="q-my-lg" />
                 <div class="text-center">
                   <q-btn
@@ -63,6 +70,8 @@
                     outline
                     no-caps
                     label="Complete Session & Transfer to Clinic Head"
+                    :loading="completing"
+                    :disable="!completionSaved"
                     @click="skipAndFinish"
                   />
                 </div>
@@ -76,7 +85,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTreatmentFlowStore } from 'stores/treatmentFlow'
 import { useAssessmentStore } from 'src/stores/assessmentStore'
@@ -87,28 +96,46 @@ const $q = useQuasar()
 const assessmentStore = useAssessmentStore()
 const route = useRoute()
 const store = useTreatmentFlowStore()
+const assessmentData = computed(() => assessmentStore.assessmentData)
+const completing = ref(false)
+const completionSaved = ref(false)
+const completionError = ref('')
 
-onMounted(async () => {
-  // ensure map of state
-  store.currentSessionId = Number(route.params.session_id)
-  await assessmentStore.getSingleAssessment(route.params.assessment_id)
-  store.treatmentPlan = assessmentStore.assessmentData.treatment_sessions
-  // mark completed if not yet
-  store.markCompleted()
-  // INFO: Update Treatment Session Status and Appointment Status to "completed"
-  if (route.params.appointment_id) {
-    await assessmentStore.updateStatus(route.params.appointment_id)
-  }
+onMounted(completeSession)
 
-  // Update treatment session status to completed
-  if (route.params.session_id) {
-    await assessmentStore.updateTreatmentSessionStatus(route.params.session_id, 'completed')
+async function completeSession() {
+  if (completing.value || completionSaved.value) return
+  completing.value = true
+  completionError.value = ''
+  try {
+    await assessmentStore.getSingleAssessment(route.params.assessment_id, { throwOnError: true })
+    await assessmentStore.completeTreatmentSession(route.params.session_id, {
+      assessmentId: route.params.assessment_id,
+      userId: route.params.user_id,
+      appointmentId: route.params.appointment_id,
+    })
+    store.currentSessionId = Number(route.params.session_id)
+    store.treatmentPlan = assessmentStore.assessmentData.treatment_sessions
+    completionSaved.value = true
+    // CRM is authoritative; browser storage may be unavailable or full.
+    try {
+      store.markCompleted()
+    } catch (error) {
+      console.warn('Completion saved in CRM, but browser progress could not be saved.', error)
+    }
+  } catch (error) {
+    const errors = error.response?.data?.errors
+    completionError.value = (errors && Object.values(errors).flat()[0]) ||
+      error.response?.data?.message || error.message || 'Could not save completion. Please retry.'
+  } finally {
+    completing.value = false
   }
-})
+}
 
 const session = computed(() => store.currentSession)
 
 function skipAndFinish() {
+  if (!completionSaved.value || completing.value) return
   $q.dialog({
     title: 'Confirm',
     message: 'Are you sure you want to complete the treatment?',
@@ -127,15 +154,12 @@ function skipAndFinish() {
       icon: 'close',
     },
   })
-    .onOk(async () => {
+    .onOk(() => {
       LocalStorage.removeItem('user')
       Loading.show({
         message: 'Finalizing and redirecting...',
       })
-      setTimeout(() => {
-        // LocalStorage.clear()
-        window.location.href = `${process.env.CRM_URL}`
-      }, 2000)
+      window.location.href = `${process.env.CRM_URL}`
     })
     .onCancel(() => {
       console.log('User cancelled')
