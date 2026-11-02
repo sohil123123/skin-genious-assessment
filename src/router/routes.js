@@ -112,6 +112,11 @@ const routes = [
         component: () => import('src/pages/PigmentationAssessment.vue'),
       },
       {
+        path: 'lhr-assessment/:user_id/:assessment_id?/:appointment_id?',
+        name: 'lhr-assessment',
+        component: () => import('src/pages/LhrAssessment.vue'),
+      },
+      {
         path: 'pigmentation-reassessment/:user_id?/:assessment_id?/:appointment_id?',
         name: 'pigmentation-reassessment',
         component: () => import('src/pages/PigmentationReassessment.vue'),

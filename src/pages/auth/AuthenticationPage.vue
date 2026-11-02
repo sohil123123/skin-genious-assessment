@@ -61,6 +61,17 @@ onMounted(async () => {
       store.user_id = userId
       api.defaults.headers.common.Authorization = 'Bearer ' + token
       setTimeout(() => {
+        if (type == 'lhr' || (type == 'edit' && assessment_type == 'lhr')) {
+          router.push({
+            name: 'lhr-assessment',
+            params: {
+              user_id: userId,
+              ...(assessment_id && { assessment_id }),
+              ...(appointmentId && { appointment_id: appointmentId }),
+            },
+          })
+          return
+        }
         if (type == 'assessment') {
           router.push({
             name: 'index',
