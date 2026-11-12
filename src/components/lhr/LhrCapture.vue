@@ -83,12 +83,6 @@
               "
             />
           </q-tabs>
-          <q-checkbox
-            v-model="alignmentConfirmed"
-            color="black"
-            label="The selected zone and view match the guide; the treatment area and any physical marker are fully visible."
-            class="q-mb-md"
-          />
           <q-input
             v-model.number="scaleMarkerMm"
             outlined
@@ -104,10 +98,15 @@
             :key="zone.id"
             :context-key="`${zone.id}:${activeView}:${capturePhase}`"
             :zone-id="zone.id"
-            :alignment-confirmed="alignmentConfirmed"
+            :session-id="sessionId"
+            :view-index="activeView"
+            :ai-framing-allowed="!!draft.consent.imaging && !!draft.consent.ai"
             :capture-phase="capturePhase"
             :view-label="`${zone.label} · ${zone.views[activeView]}`"
             :enabled="true"
+            :capture-exists="!!captureFor(capturePhase === 'before' ? 'A' : 'B')"
+            :capture-pending="!!captureFor('A')?.pending || !!captureFor('B')?.pending"
+            :auto-blocked="saving || !!processing.__profile || !!processing[zone.id]"
             :can-capture-a="canCapture('A')"
             :can-capture-b="canCapture('B')"
             :camera-lock="cameraLock"
@@ -354,6 +353,7 @@ import LhrProfile from './LhrProfile.vue'
 import { inspectCaptureFile, CAPTURE_STANDARD_VERSION } from 'src/utils/lhr/captureQuality'
 import LhrSafetyConsent from './LhrSafetyConsent.vue'
 const props = defineProps({
+  sessionId: { type: Number, required: true },
   modelValue: { type: Object, required: true },
   captures: { type: Object, required: true },
   results: { type: Object, required: true },
@@ -384,7 +384,6 @@ const slots = computed(() =>
 const visibleShots = computed(() =>
   SHOTS.filter((shot) => shot.id === (props.capturePhase === 'before' ? 'A' : 'B')),
 )
-const alignmentConfirmed = ref(false)
 const savedCount = computed(
   () =>
     slots.value.filter(({ key }) => props.captures[key]?.id && !props.captures[key].pending).length,
@@ -402,13 +401,6 @@ watch(
   },
   { flush: 'sync' },
 )
-watch(
-  () => [activeZone.value, activeView.value, props.capturePhase],
-  () => {
-    alignmentConfirmed.value = false
-  },
-  { flush: 'sync' },
-)
 function slotFor(shot) {
   return allSlots.value.find(
     (slot) =>
@@ -422,7 +414,6 @@ function captureFor(shot) {
 }
 function canCapture(shot) {
   if (
-    !alignmentConfirmed.value ||
     shot !== (props.capturePhase === 'before' ? 'A' : 'B') ||
     captureFor('A')?.pending ||
     captureFor('B')?.pending
@@ -438,7 +429,6 @@ function standardMetadata(quality) {
     version: CAPTURE_STANDARD_VERSION,
     zone_id: activeZone.value,
     view_index: activeView.value,
-    alignment_confirmed: alignmentConfirmed.value,
     quality: { pass: quality.pass, brightness: quality.brightness, focus: quality.focus },
   }
 }
@@ -467,7 +457,10 @@ async function addImage(shot, file) {
 function captureFromCamera(shot, file, metadata) {
   emit('capture', slotFor(shot), file, {
     ...metadata,
-    capture_standard: standardMetadata(metadata.capture_quality || {}),
+    capture_standard: {
+      ...standardMetadata(metadata.capture_quality || {}),
+      ...(metadata.zone_check ? { zone_check: metadata.zone_check } : {}),
+    },
     scale_marker_mm: scaleMarkerMm.value || null,
   })
 }

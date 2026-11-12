@@ -92,6 +92,7 @@
         <LhrCapture
           v-else-if="[2, 3].includes(step) && editable"
           :key="`${session.id}:${step}`"
+          :session-id="session.id"
           :capture-phase="step === 2 ? 'before' : 'after'"
           :profile="session.profile"
           :all-before-captured="allBeforeCaptured"
