@@ -5,6 +5,16 @@
         <div class="text-subtitle1 text-weight-medium">Live camera</div>
         <q-badge v-if="cameraLock" color="grey-8" label="Camera locked for this zone" />
       </div>
+      <q-toggle
+        v-model="autoEnabled"
+        color="black"
+        label="Auto capture when steady"
+        class="q-mb-sm"
+      />
+      <p class="text-caption text-grey-7 q-mt-none">
+        Align the selected treatment area with its guide and hold steady for 2 seconds. Auto capture
+        checks that the exposed treatment area matches the selected zone before saving.
+      </p>
       <q-btn-toggle
         :model-value="profile"
         :options="cameraOptions"
@@ -84,6 +94,15 @@
         </svg>
         <div class="camera-overlay-label">{{ viewLabel }} · {{ guide.label }}</div>
         <div class="camera-marker-label">10 mm marker target · guide only</div>
+        <div
+          v-if="autoEnabled && autoState.phase === 'holding'"
+          class="camera-countdown"
+          role="status"
+          aria-live="polite"
+        >
+          {{ Math.max(1, Math.ceil(autoState.remainingMs / 1000)) }}
+          <span>Hold steady</span>
+        </div>
         <q-badge v-if="state.status === 'live'" color="positive" class="camera-live-label"
           >Live · {{ front ? 'Front' : 'Rear' }}</q-badge
         >
@@ -154,6 +173,31 @@
           @click="takeShot('B')"
         />
       </div>
+      <q-linear-progress
+        v-if="autoEnabled && autoState.phase === 'holding'"
+        :value="1 - autoState.remainingMs / AUTO_CAPTURE_HOLD_MS"
+        color="positive"
+        rounded
+        class="q-mt-md"
+      />
+      <q-banner
+        v-if="autoEnabled && state.status === 'live'"
+        rounded
+        class="bg-blue-1 q-mt-md text-caption"
+        aria-live="polite"
+      >
+        <q-spinner v-if="zoneCheck.status === 'checking'" size="18px" class="q-mr-sm" />
+        {{ autoMessage }}
+        <q-btn
+          v-if="autoState.phase === 'captured' && !captureExists && !capturePending && !capturing"
+          flat
+          dense
+          no-caps
+          label="Retry auto capture"
+          class="q-ml-sm"
+          @click="retryAutoCapture"
+        />
+      </q-banner>
       <q-banner
         v-if="state.status === 'live'"
         rounded
@@ -164,32 +208,44 @@
         {{
           liveReady
             ? 'Frame ready: exposure, detail and stability checks passed.'
-            : !alignmentConfirmed
-              ? 'Confirm the selected zone/view and framing above to enable capture.'
-              : quality.pass
-                ? 'Hold steady while frame readiness settles.'
-                : quality.issues.join(' ')
+            : quality.pass
+              ? 'Hold steady while frame readiness settles.'
+              : quality.issues.join(' ')
         }}
       </q-banner>
       <p class="text-caption text-grey-7 q-mt-md q-mb-none">
         Shot A: before shaving. Shot B: after shaving in the same position. Alignment guides do not
         measure scale or recognise anatomy. Frame checks assess brightness, detail and stability; AI
-        reviews the labelled treatment area after upload.
+        checks the selected treatment area before auto capture is saved and reviews saved images
+        during analysis.
       </p>
     </q-card-section>
   </q-card>
 </template>
 
 <script setup>
+import { api } from 'src/boot/axios'
+import {
+  verifyZoneFrame,
+  reviewZoneCandidate,
+  frameChanged,
+  framingErrorMessage,
+} from 'src/utils/lhr/zoneFraming'
 import { computed, onBeforeUnmount, onMounted, ref, shallowReactive, watch } from 'vue'
 import { cameraMatches, captureVideoFrame, createCameraSession } from 'src/utils/lhr/camera'
+import { AUTO_CAPTURE_HOLD_MS, createAutoCaptureGate } from 'src/utils/lhr/autoCapture'
 import { inspectCaptureElement, framingGuide } from 'src/utils/lhr/captureQuality'
 
 const props = defineProps({
   enabled: Boolean,
+  sessionId: { type: Number, required: true },
+  viewIndex: { type: Number, required: true },
+  aiFramingAllowed: Boolean,
   zoneId: { type: String, default: '' },
   capturePhase: { type: String, default: 'after' },
-  alignmentConfirmed: Boolean,
+  captureExists: Boolean,
+  capturePending: Boolean,
+  autoBlocked: Boolean,
   canCaptureA: Boolean,
   canCaptureB: Boolean,
   contextKey: { type: String, required: true },
@@ -203,6 +259,49 @@ const profile = ref(props.cameraLock?.profile || 'rear')
 const frameReady = ref(false)
 const capturing = ref(false)
 const captureError = ref('')
+const autoEnabled = ref(true)
+const zoneCheck = ref({ status: 'idle', message: '' })
+let framingController = null
+let rejectedPixels = null
+let recheckAfter = 0
+function cancelZoneCheck() {
+  framingController?.abort()
+  framingController = null
+  rejectedPixels = null
+  zoneCheck.value = { status: 'idle', message: '' }
+}
+const autoGate = createAutoCaptureGate()
+const autoState = ref(autoGate.reset(props.contextKey))
+const shot = computed(() => (props.capturePhase === 'before' ? 'A' : 'B'))
+const autoMessage = computed(() => {
+  if (props.capturePending) return 'Saving the captured image. Auto capture is paused.'
+  if (props.captureExists)
+    return 'This view already has an image. Choose another view or remove it to capture again.'
+  if (props.autoBlocked)
+    return 'Auto capture is paused while patient data or images are being processed.'
+  if (!props.aiFramingAllowed)
+    return 'Select clinical imaging and AI processing consent to enable automatic zone verification. Manual camera capture remains available.'
+  if (zoneCheck.value.status === 'checking')
+    return `Checking that the image shows ${props.viewLabel}. Keep the camera on the treatment area.`
+  if (zoneCheck.value.status === 'rejected' || zoneCheck.value.status === 'error')
+    return zoneCheck.value.message
+  if (autoState.value.phase === 'captured')
+    return capturing.value
+      ? 'Capturing image…'
+      : 'Capture attempted. Review the saved image or retry if needed.'
+  if (autoState.value.phase === 'holding')
+    return `Keep the treatment area steady. Capturing in ${Math.max(1, Math.ceil(autoState.value.remainingMs / 1000))}…`
+  return 'Position the treatment area inside its guide. Auto capture starts when lighting, detail and stability checks pass.'
+})
+function cancelAutoCountdown() {
+  autoState.value = autoGate.cancel()
+}
+function retryAutoCapture() {
+  if (props.captureExists || props.capturePending || capturing.value) return
+  captureError.value = ''
+  cancelZoneCheck()
+  autoState.value = autoGate.reset(props.contextKey)
+}
 const showReference = ref(false)
 const aspectRatio = ref(16 / 9)
 const state = shallowReactive({ status: 'idle', camera: null, stream: null, error: '' })
@@ -220,13 +319,25 @@ const liveReady = computed(
     state.status === 'live' &&
     frameReady.value &&
     quality.value.pass &&
-    stableFrames.value >= 2 &&
-    props.alignmentConfirmed,
+    stableFrames.value >= 2,
 )
 let qualityTimer = null
 let previousPixels = null
-function checkQuality() {
-  if (state.status !== 'live' || !frameReady.value || !video.value) return
+let previousVideoTime = null
+function checkQuality(allowAuto = true) {
+  if (state.status !== 'live' || !frameReady.value || !video.value) {
+    stableFrames.value = 0
+    cancelAutoCountdown()
+    return
+  }
+  if (allowAuto) {
+    if (previousVideoTime === video.value.currentTime) {
+      stableFrames.value = 0
+      cancelAutoCountdown()
+      return
+    }
+    previousVideoTime = video.value.currentTime
+  }
   try {
     const result = inspectCaptureElement(video.value, previousPixels)
     previousPixels = result.pixels
@@ -241,15 +352,45 @@ function checkQuality() {
     quality.value = { pass: false, issues: ['Wait for a usable camera frame.'] }
     stableFrames.value = 0
   }
+  if (allowAuto) {
+    if (
+      zoneCheck.value.status === 'rejected' &&
+      performance.now() >= recheckAfter &&
+      frameChanged(rejectedPixels, previousPixels)
+    ) {
+      rejectedPixels = null
+      zoneCheck.value = { status: 'idle', message: '' }
+      autoState.value = autoGate.reset(props.contextKey)
+    }
+    autoState.value = autoGate.observe({
+      key: props.contextKey,
+      now: performance.now(),
+      ready:
+        autoEnabled.value &&
+        props.aiFramingAllowed &&
+        zoneCheck.value.status === 'idle' &&
+        !document.hidden &&
+        liveReady.value &&
+        !props.captureExists &&
+        !props.capturePending &&
+        !props.autoBlocked &&
+        !capturing.value &&
+        (shot.value === 'A' ? props.canCaptureA : props.canCaptureB),
+    })
+    if (autoState.value.trigger) void takeShot(shot.value, true)
+  }
 }
 const session = createCameraSession({ onChange: (next) => Object.assign(state, next) })
 let contextVersion = 0
 
 function stop() {
   contextVersion += 1
+  cancelZoneCheck()
+  cancelAutoCountdown()
   if (qualityTimer) clearInterval(qualityTimer)
   qualityTimer = null
   previousPixels = null
+  previousVideoTime = null
   stableFrames.value = 0
   quality.value = { pass: false, issues: ['Wait for a steady, focused frame.'] }
   frameReady.value = false
@@ -289,24 +430,37 @@ async function changeProfile(value) {
   if (reopen) await open()
 }
 function updateDimensions() {
-  if (!qualityTimer) qualityTimer = setInterval(checkQuality, 350)
+  if (!qualityTimer) qualityTimer = setInterval(() => checkQuality(), 350)
   if (video.value?.videoWidth && video.value.videoHeight)
     aspectRatio.value = video.value.videoWidth / video.value.videoHeight
 }
-async function takeShot(shot) {
-  checkQuality()
+async function takeShot(shot, automatic = false) {
+  checkQuality(false)
   if (
     !liveReady.value ||
     (shot === 'A' ? props.capturePhase !== 'before' : props.capturePhase !== 'after') ||
     capturing.value ||
+    (automatic &&
+      (!autoEnabled.value ||
+        !props.aiFramingAllowed ||
+        props.captureExists ||
+        props.capturePending ||
+        props.autoBlocked ||
+        document.hidden)) ||
     !(shot === 'A' ? props.canCaptureA : props.canCaptureB)
   )
     return
   const context = contextVersion
   const contextKey = props.contextKey
   const camera = { ...state.camera }
+  const captureQuality = { ...quality.value }
+  const candidatePixels = previousPixels?.slice()
+  let zoneResult = null
+  let reviewSignal = null
   capturing.value = true
+  autoState.value = autoGate.reserve(contextKey)
   captureError.value = ''
+  const capturedAt = new Date().toISOString()
   try {
     const { blob, width, height } = await captureVideoFrame(video.value)
     if (
@@ -316,7 +470,85 @@ async function takeShot(shot) {
       state.status !== 'live'
     )
       return
-    const capturedAt = new Date().toISOString()
+    if (
+      automatic &&
+      (!autoEnabled.value ||
+        !props.aiFramingAllowed ||
+        props.captureExists ||
+        props.capturePending ||
+        props.autoBlocked ||
+        document.hidden)
+    )
+      return
+    if (automatic) {
+      framingController = new AbortController()
+      reviewSignal = framingController.signal
+      zoneCheck.value = { status: 'checking', message: '' }
+      const review = await reviewZoneCandidate(
+        blob,
+        (candidate) =>
+          verifyZoneFrame(api, {
+            sessionId: props.sessionId,
+            zoneId: props.zoneId,
+            viewIndex: props.viewIndex,
+            shot,
+            blob: candidate,
+            signal: reviewSignal,
+          }),
+        () =>
+          context === contextVersion &&
+          props.contextKey === contextKey &&
+          autoEnabled.value &&
+          props.aiFramingAllowed &&
+          !reviewSignal.aborted &&
+          !document.hidden &&
+          props.enabled &&
+          state.status === 'live' &&
+          !props.captureExists &&
+          !props.capturePending &&
+          !props.autoBlocked,
+      )
+      if (review.status === 'stale') {
+        if (
+          context === contextVersion &&
+          props.contextKey === contextKey &&
+          !reviewSignal.aborted
+        ) {
+          zoneCheck.value = { status: 'idle', message: '' }
+          autoState.value = autoGate.reset(contextKey)
+        }
+        return
+      }
+      if (review.status === 'rejected') {
+        rejectedPixels = candidatePixels
+        recheckAfter = performance.now() + 3000
+        zoneCheck.value = {
+          status: 'rejected',
+          message:
+            (typeof review.result?.reason === 'string' ? review.result.reason.slice(0, 300) : '') ||
+            `The selected ${props.viewLabel} could not be verified. Centre the exposed treatment area and adjust the camera to retry.`,
+        }
+        return
+      }
+      zoneResult = review.result
+      zoneCheck.value = { status: 'accepted', message: '' }
+    }
+    if (
+      context !== contextVersion ||
+      props.contextKey !== contextKey ||
+      !props.enabled ||
+      props.capturePending ||
+      !(shot === 'A' ? props.canCaptureA : props.canCaptureB) ||
+      (automatic &&
+        (!autoEnabled.value ||
+          !props.aiFramingAllowed ||
+          reviewSignal?.aborted ||
+          props.captureExists ||
+          props.autoBlocked ||
+          document.hidden)) ||
+      state.status !== 'live'
+    )
+      return
     const file = new File(
       [blob],
       `lhr-${contextKey.replaceAll(':', '-')}-${shot}-${Date.now()}.jpg`,
@@ -324,20 +556,55 @@ async function takeShot(shot) {
     )
     emit('capture', shot, file, {
       source: 'camera',
+      ...(zoneResult ? { zone_check: zoneResult } : {}),
       capture_quality: {
-        pass: quality.value.pass,
-        brightness: quality.value.brightness,
-        focus: quality.value.focus,
+        pass: captureQuality.pass,
+        brightness: captureQuality.brightness,
+        focus: captureQuality.focus,
       },
       capturedAt,
       camera: { ...camera, width, height },
     })
   } catch (error) {
-    if (context === contextVersion) captureError.value = error.message
+    if (context === contextVersion && !reviewSignal?.aborted) {
+      if (automatic) zoneCheck.value = { status: 'error', message: framingErrorMessage(error) }
+      else captureError.value = error.message
+    }
   } finally {
+    if (framingController?.signal === reviewSignal) framingController = null
     capturing.value = false
   }
 }
+watch(
+  () => [autoEnabled.value, props.aiFramingAllowed],
+  () => {
+    cancelZoneCheck()
+    autoState.value = autoGate.reset(props.contextKey)
+  },
+  { flush: 'sync' },
+)
+watch(
+  () => [
+    autoEnabled.value,
+    props.captureExists,
+    props.capturePending,
+    props.autoBlocked,
+    props.canCaptureA,
+    props.canCaptureB,
+    frameReady.value,
+    state.status,
+  ],
+  cancelAutoCountdown,
+  { flush: 'sync' },
+)
+watch(
+  () => props.captureExists,
+  (exists, previouslyExisted) => {
+    if (previouslyExisted && !exists && !props.capturePending)
+      autoState.value = autoGate.reset(props.contextKey)
+  },
+  { flush: 'sync' },
+)
 function visibilityChanged() {
   if (document.hidden) stop()
 }
@@ -352,6 +619,7 @@ watch(
   () => props.contextKey,
   () => {
     stop()
+    autoState.value = autoGate.reset(props.contextKey)
     showReference.value = false
   },
   { flush: 'sync' },
@@ -430,6 +698,27 @@ onBeforeUnmount(() => {
 .camera-marker-label {
   left: 6%;
   bottom: 6%;
+}
+.camera-countdown {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #123b2ddd;
+  color: white;
+  border: 3px solid #8fd9bb;
+  font-size: 42px;
+  pointer-events: none;
+}
+.camera-countdown span {
+  font-size: 12px;
 }
 .camera-live-label {
   position: absolute;
