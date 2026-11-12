@@ -64,6 +64,7 @@ onMounted(async () => {
         if (type == 'lhr' || (type == 'edit' && assessment_type == 'lhr')) {
           router.push({
             name: 'lhr-assessment',
+            query: session_id ? { session_id } : {},
             params: {
               user_id: userId,
               ...(assessment_id && { assessment_id }),

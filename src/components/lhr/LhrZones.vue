@@ -54,7 +54,7 @@
         unelevated
         color="black"
         no-caps
-        label="Continue to capture"
+        label="Continue to before-shave capture"
         icon-right="arrow_forward"
         :disable="!zones.length"
         @click="$emit('next')"

@@ -1,97 +1,113 @@
 <template>
-  <section aria-labelledby="capture-heading">
-    <div class="row items-start justify-between q-gutter-sm q-mb-md">
+  <section>
+    <div class="row items-start justify-between q-gutter-sm q-mb-lg">
       <div>
-        <h1 id="capture-heading" class="lhr-title">Capture</h1>
-        <p class="text-grey-7 q-mb-none">
-          Capture each selected view. Complete safety and consent alongside the simulated analysis.
+        <h1 class="lhr-title">
+          {{
+            capturePhase === 'before' ? 'Before-shave capture' : 'After-shave capture and analysis'
+          }}
+        </h1>
+        <p class="text-grey-7">
+          {{
+            capturePhase === 'before'
+              ? 'Capture every zone before shaving, then generate the AI skin and hair profile.'
+              : 'Capture every zone after shaving in the matching position. Complete safety and consent while the images are analysed.'
+          }}
         </p>
       </div>
       <q-btn
         outline
         rounded
         no-caps
-        color="black"
-        label="Fill test patient answers"
-        icon="science"
-        @click="$emit('fill-demo')"
+        label="Save patient answers"
+        icon="save"
+        :loading="saving"
+        @click="$emit('save')"
       />
     </div>
     <div class="row q-col-gutter-lg">
       <div class="col-12 col-lg-7">
-        <q-banner v-if="zones.length && !draft.consent.imaging" rounded class="bg-amber-1 q-mb-md">
-          Select clinical imaging consent to enable photographs for the selected zones.
-        </q-banner>
-        <q-banner rounded class="bg-grey-2 q-mb-md text-caption">
-          Keep framing, camera, distance and lighting consistent. Include a scale marker where
-          available. Demo frames and QC values are examples.
-        </q-banner>
-        <div class="row items-center justify-between q-mb-md q-gutter-sm">
-          <div class="text-subtitle2">{{ capturedCount }} / {{ slots.length }} images ready</div>
-          <q-btn
-            v-if="zones.length"
-            rounded
-            no-caps
-            outline
-            label="Fill demo frames"
-            icon="collections"
-            :disable="!draft.consent.imaging"
-            @click="$emit('demo-frames')"
-          />
-        </div>
+        <q-banner rounded class="bg-grey-2 q-mb-md text-caption"
+          >Images are saved securely to the server. Keep camera, distance, framing and lighting
+          consistent. Capture is always available; consent is collected before sending images to
+          AI.</q-banner
+        >
+        <div class="text-subtitle2 q-mb-sm">{{ savedCount }} / {{ slots.length }} images saved</div>
         <q-linear-progress
-          :value="slots.length ? capturedCount / slots.length : 0"
-          color="black"
+          :value="slots.length ? savedCount / slots.length : 0"
           rounded
+          color="black"
           class="q-mb-lg"
-          aria-label="Capture progress"
         />
         <q-tabs
           v-model="activeZone"
           align="left"
-          dense
           active-color="black"
           indicator-color="black"
           class="bg-grey-2 rounded-borders q-mb-md"
         >
           <q-tab
-            v-for="zone in zones"
-            :key="zone.id"
-            :name="zone.id"
-            :label="zone.label"
+            v-for="item in zones"
+            :key="item.id"
+            :name="item.id"
+            :label="item.label"
             no-caps
-            :icon="results[zone.id] ? 'check_circle' : undefined"
+            :icon="results[item.id]?.qc_pass ? 'check_circle' : undefined"
           />
         </q-tabs>
         <template v-if="zone">
           <q-banner v-if="['face', 'beard'].includes(zone.id)" rounded class="bg-blue-1 q-mb-md"
-            >Hide identity before capture. Frame only the treatment area and exclude eyes and
-            identifying features; this preview does not automatically mask photos.</q-banner
+            >Hide identity before capture. Frame only the treatment area and keep eyes and
+            identifying features out of view.</q-banner
           >
-          <p class="text-subtitle2">
-            {{ zone.label }}
-            <span class="text-caption text-grey-7">· {{ zone.hint }}</span>
-          </p>
-          <q-select
+          <div class="text-h6 q-mb-sm">{{ zone.label }}</div>
+          <q-tabs
             v-model="activeView"
+            align="left"
+            dense
+            active-color="black"
+            indicator-color="black"
+            class="bg-grey-2 q-mb-md"
+            aria-label="Capture views"
+          >
+            <q-tab
+              v-for="(label, index) in zone.views"
+              :key="index"
+              :name="index"
+              :label="label"
+              no-caps
+              :icon="
+                captures[`${zone.id}:${index}:${capturePhase === 'before' ? 'A' : 'B'}`]?.id
+                  ? 'check_circle'
+                  : undefined
+              "
+            />
+          </q-tabs>
+          <q-checkbox
+            v-model="alignmentConfirmed"
+            color="black"
+            label="The selected zone and view match the guide; the treatment area and any physical marker are fully visible."
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="scaleMarkerMm"
             outlined
             dense
-            label="Capture view"
-            :options="
-              zone.views.map((label, index) => ({
-                label,
-                value: index,
-              }))
-            "
-            emit-value
-            map-options
-            class="q-mb-md"
+            type="number"
+            min="0.1"
+            label="Physical scale marker width (mm, if used)"
+            clearable
+            hint="For numeric density, include a readable ruler or known-size marker beside the skin in the same plane. For calibre, a calibrated close-up must also resolve shaft edges. This field alone does not calibrate the image."
+            class="q-mb-lg"
           />
           <LhrCamera
             :key="zone.id"
-            :context-key="`${zone.id}:${activeView}`"
+            :context-key="`${zone.id}:${activeView}:${capturePhase}`"
+            :zone-id="zone.id"
+            :alignment-confirmed="alignmentConfirmed"
+            :capture-phase="capturePhase"
             :view-label="`${zone.label} · ${zone.views[activeView]}`"
-            :enabled="draft.consent.imaging"
+            :enabled="true"
             :can-capture-a="canCapture('A')"
             :can-capture-b="canCapture('B')"
             :camera-lock="cameraLock"
@@ -103,168 +119,225 @@
             flat
             dense
             no-caps
-            color="grey-8"
             label="Remove this zone's images and unlock camera"
             class="q-mb-md"
             @click="clearZoneImages"
           />
           <div class="row q-col-gutter-md">
-            <div v-for="shot in SHOTS" :key="shot.id" class="col-12 col-sm-6">
-              <q-card flat bordered class="full-height capture-card">
+            <div v-for="shot in visibleShots" :key="shot.id" class="col-12">
+              <q-card flat bordered class="full-height">
                 <q-card-section>
-                  <h3 class="text-subtitle1 text-weight-medium q-mt-none q-mb-xs">
-                    Shot {{ shot.id }} ·
-                    {{ shot.label }}
-                  </h3>
-                  <p class="text-caption text-grey-7">
-                    {{ shot.hint }}
-                  </p>
+                  <div class="text-subtitle1">Shot {{ shot.id }} · {{ shot.label }}</div>
+                  <p class="text-caption text-grey-7">{{ shot.hint }}</p>
                   <div class="capture-preview">
                     <img
-                      v-if="captureFor(shot.id)"
+                      v-if="captureFor(shot.id)?.src"
                       :src="captureFor(shot.id).src"
-                      :alt="`${zone.label}, ${zone.views[activeView]}, ${shot.label}`"
+                      :alt="`${zone.label} ${zone.views[activeView]} ${shot.label}`"
                     />
-                    <div v-else class="column flex-center text-grey-6 full-height">
-                      <q-icon name="photo_camera" size="42px" /><span
-                        class="text-caption q-mt-sm"
-                        >{{ zone.views[activeView] }}</span
-                      >
+                    <div v-else class="column flex-center full-height text-grey-6">
+                      <q-icon name="photo_camera" size="36px" /><span class="text-caption">{{
+                        zone.views[activeView]
+                      }}</span>
                     </div>
-                    <q-badge v-if="captureFor(shot.id)" color="black" class="frame-badge">{{
-                      captureFor(shot.id).demo
-                        ? 'Demo frame'
-                        : captureFor(shot.id).source === 'camera'
-                          ? 'Camera capture'
-                          : 'Local image'
-                    }}</q-badge>
+                    <q-badge
+                      v-if="captureFor(shot.id)"
+                      :color="captureFor(shot.id).error ? 'negative' : 'black'"
+                      class="frame-badge"
+                      >{{
+                        captureFor(shot.id).pending
+                          ? 'Saving…'
+                          : captureFor(shot.id).error
+                            ? 'Upload failed'
+                            : 'Saved'
+                      }}</q-badge
+                    >
                   </div>
                   <q-file
-                    :key="slotFor(shot.id).key + ':' + !!captureFor(shot.id)"
                     :model-value="null"
+                    :key="slotFor(shot.id).key + ':' + captureFor(shot.id)?.id"
                     outlined
                     dense
                     accept="image/jpeg,image/png,image/webp"
-                    :label="captureFor(shot.id) ? 'Replace with local image' : 'Choose local image'"
+                    label="Choose local image"
                     :disable="!canCapture(shot.id)"
-                    max-file-size="15728640"
+                    :max-file-size="15728640"
                     class="q-mt-md"
-                    @update:model-value="addImage(shot.id, $event)"
+                    @update:model-value="(file) => addImage(shot.id, file)"
                     @rejected="fileRejected"
-                  >
-                    <template #prepend><q-icon name="add_a_photo" /></template>
-                  </q-file>
+                  />
                   <div class="row justify-between q-mt-sm">
                     <q-btn
+                      v-if="captureFor(shot.id)?.error"
                       flat
                       dense
                       no-caps
-                      label="Use demo frame"
-                      :disable="!canCapture(shot.id)"
-                      @click="$emit('capture', slotFor(shot.id), null)"
+                      label="Retry upload"
+                      @click="$emit('retry', slotFor(shot.id).key)"
                     />
                     <q-btn
                       v-if="captureFor(shot.id)"
                       flat
                       dense
-                      no-caps
                       icon="delete_outline"
-                      aria-label="Remove image"
+                      aria-label="Remove capture"
+                      :disable="captureFor('A')?.pending || captureFor('B')?.pending"
                       @click="$emit('remove', slotFor(shot.id).key)"
                     />
                   </div>
                   <p
-                    v-if="shot.id === 'B' && !captureFor('A')"
+                    v-if="shot.id === 'B' && !captureFor('A')?.id"
                     class="text-caption text-grey-7 q-mb-none"
                   >
-                    Capture shot A for this view first.
+                    Save shot A for this view first.
                   </p>
                 </q-card-section>
               </q-card>
             </div>
           </div>
-          <q-banner v-if="processing[zone.id]" rounded class="bg-grey-2 q-mt-md" aria-live="polite">
-            <template #avatar><q-spinner color="black" /></template>
-            Simulating AI response for {{ zone.label }}. You can continue filling safety and
-            consent.
-          </q-banner>
+          <q-banner
+            v-if="capturePhase === 'after' && processing[zone.id]"
+            rounded
+            class="bg-grey-2 q-mt-md"
+            aria-live="polite"
+            ><template #avatar><q-spinner /></template>Analysing {{ zone.label }}. Continue filling
+            the patient answers while you wait.</q-banner
+          >
           <q-card
-            v-else-if="results[zone.id]"
+            v-else-if="capturePhase === 'after' && results[zone.id]"
             flat
             bordered
-            class="q-mt-md bg-green-1"
-            aria-live="polite"
+            class="q-mt-md"
+            :class="results[zone.id].qc_pass ? 'bg-green-1' : 'bg-amber-1'"
           >
             <q-card-section>
-              <div class="text-subtitle2">Example analysis · {{ zone.label }}</div>
-              <div class="row q-col-gutter-md q-mt-xs">
+              <div class="text-subtitle1">Image analysis · {{ zone.label }}</div>
+              <div class="row q-col-gutter-md q-mt-sm">
                 <div class="col-6">
-                  <strong>{{ results[zone.id].density }}</strong>
-                  <div class="text-caption">follicles/cm² (demo)</div>
+                  <strong>{{ results[zone.id].terminal_follicle_density_per_cm2 ?? 80 }}</strong>
+                  <div class="text-caption">Terminal follicles / cm&sup2;</div>
+                  <q-badge
+                    v-if="results[zone.id].terminal_follicle_density_per_cm2 == null"
+                    color="amber-3"
+                    text-color="black"
+                    label="Test value - not actual"
+                    class="q-mt-xs"
+                  />
+                  <div v-else class="text-caption">AI estimate</div>
                 </div>
                 <div class="col-6">
-                  <strong>{{ results[zone.id].calibre }} µm</strong>
-                  <div class="text-caption">mean calibre (demo)</div>
+                  <strong>{{ results[zone.id].mean_shaft_calibre_um ?? 70 }}</strong>
+                  <div class="text-caption">Mean shaft calibre (&micro;m)</div>
+                  <q-badge
+                    v-if="results[zone.id].mean_shaft_calibre_um == null"
+                    color="amber-3"
+                    text-color="black"
+                    label="Test value - not actual"
+                    class="q-mt-xs"
+                  />
+                  <div v-else class="text-caption">AI estimate</div>
                 </div>
               </div>
-              <div class="text-caption q-mt-md">
-                {{ results[zone.id].quality }} · Simulated response, independent of your images.
-              </div>
+              <p
+                v-if="
+                  results[zone.id].terminal_follicle_density_per_cm2 == null ||
+                  results[zone.id].mean_shaft_calibre_um == null
+                "
+                class="text-caption text-weight-medium q-mt-md q-mb-sm"
+              >
+                Labelled test values are examples for display testing only. They are not actual
+                measurements and are not saved or used for prescriptions or reports.
+              </p>
+              <p class="text-caption q-mt-md q-mb-sm">
+                <strong>Observed hair:</strong> {{ results[zone.id].hair_character }}
+              </p>
+              <p class="text-caption q-mb-sm">{{ results[zone.id].measurement_method }}</p>
+              <p
+                v-if="
+                  results[zone.id].terminal_follicle_density_per_cm2 == null ||
+                  results[zone.id].mean_shaft_calibre_um == null
+                "
+                class="text-caption q-mb-sm"
+              >
+                A physical scale and sufficient image detail are needed for absolute measurements.
+                Capture a close-up with a readable ruler or known-size marker in the skin plane,
+                then re-analyse. Overview photos can still support visual assessment.
+              </p>
+              <p v-else class="text-caption q-mb-sm">AI estimates — verify before clinical use.</p>
+              <ul class="text-caption q-pl-md">
+                <li v-for="note in results[zone.id].quality_notes" :key="note">{{ note }}</li>
+              </ul>
+              <p v-if="results[zone.id].requires_recapture" class="text-negative">
+                Recapture required: {{ results[zone.id].recapture_reason }}
+              </p>
             </q-card-section>
           </q-card>
           <q-btn
+            v-if="capturePhase === 'after'"
             rounded
             unelevated
-            color="black"
             no-caps
+            color="black"
+            icon="analytics"
             class="full-width q-mt-md"
-            :label="`Simulate analysis · ${zone.label}`"
+            :label="results[zone.id] ? 'Re-analyse zone images' : 'Analyse zone images'"
             :loading="!!processing[zone.id]"
-            :disable="
-              !zoneCaptured(zone.id) ||
-              !draft.consent.imaging ||
-              !draft.consent.ai ||
-              !!results[zone.id]
-            "
+            :disable="!zoneCaptured(zone.id) || !draft.consent.ai || !draft.consent.imaging"
             @click="$emit('process', zone.id)"
           />
-          <p v-if="!draft.consent.ai" class="text-caption text-grey-7 q-mt-sm">
-            Select AI image processing consent to run the example analysis.
+          <p
+            v-if="!draft.consent.ai || !draft.consent.imaging"
+            class="text-caption text-grey-7 q-mt-sm"
+          >
+            Record clinical imaging and AI processing consent before analysis. Camera capture
+            remains available.
           </p>
         </template>
-        <q-list bordered separator class="q-mt-lg rounded-borders">
-          <q-item v-for="item in zones" :key="item.id" clickable @click="activeZone = item.id">
-            <q-item-section>{{ item.label }}</q-item-section>
-            <q-item-section side>{{ zoneStatus(item.id) }}</q-item-section>
-          </q-item>
-        </q-list>
+        <q-list bordered separator class="q-mt-lg rounded-borders"
+          ><q-item v-for="item in zones" :key="item.id" clickable @click="activeZone = item.id"
+            ><q-item-section>{{ item.label }}</q-item-section
+            ><q-item-section side>{{ zoneStatus(item.id) }}</q-item-section></q-item
+          ></q-list
+        >
       </div>
       <div class="col-12 col-lg-5">
-        <LhrSafetyConsent :model-value="draft" />
+        <LhrProfile
+          v-if="capturePhase === 'before'"
+          :model-value="draft"
+          :profile="profile"
+          :all-captured="allBeforeCaptured"
+          :busy="!!processing.__profile"
+          @process="$emit('profile')"
+        />
+        <LhrSafetyConsent v-else :model-value="draft" />
       </div>
     </div>
-    <q-banner v-if="!ready" rounded class="bg-grey-2 q-mt-lg text-caption"
-      >To review: complete every selected capture and example analysis, review the safety answers
-      and select treatment consent.</q-banner
-    >
+    <q-banner v-if="!ready" rounded class="bg-grey-2 q-mt-lg text-caption">{{
+      capturePhase === 'before'
+        ? 'Complete all before-shave images and generate a usable AI skin and hair profile to continue.'
+        : 'Complete all after-shave images and usable analyses, review the safety answers and record consent to continue.'
+    }}</q-banner>
     <div class="row justify-between q-mt-lg q-gutter-sm">
       <q-btn
         outline
         rounded
-        color="black"
         no-caps
-        label="Back to zones"
+        :label="capturePhase === 'before' ? 'Back to zones' : 'Back to before-shave capture'"
         icon="arrow_back"
         @click="$emit('previous')"
-      />
-      <q-btn
+      /><q-btn
         rounded
         unelevated
-        color="black"
         no-caps
-        label="Review assessment"
+        color="black"
+        :label="
+          capturePhase === 'before'
+            ? 'Continue to after-shave capture'
+            : 'Continue to laser prescription'
+        "
         icon-right="arrow_forward"
         :disable="!ready"
+        :loading="saving"
         @click="$emit('review')"
       />
     </div>
@@ -275,43 +348,69 @@
 import { computed, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { selectedZones, captureSlots, SHOTS } from 'src/utils/lhr/assessment'
-import LhrSafetyConsent from './LhrSafetyConsent.vue'
-import LhrCamera from './LhrCamera.vue'
 import { zoneCameraLock } from 'src/utils/lhr/camera'
+import LhrCamera from './LhrCamera.vue'
+import LhrProfile from './LhrProfile.vue'
+import { inspectCaptureFile, CAPTURE_STANDARD_VERSION } from 'src/utils/lhr/captureQuality'
+import LhrSafetyConsent from './LhrSafetyConsent.vue'
 const props = defineProps({
   modelValue: { type: Object, required: true },
   captures: { type: Object, required: true },
   results: { type: Object, required: true },
   processing: { type: Object, required: true },
   ready: Boolean,
+  saving: Boolean,
+  capturePhase: { type: String, default: 'after' },
+  profile: { type: Object, default: null },
+  allBeforeCaptured: Boolean,
 })
 const emit = defineEmits([
   'capture',
   'remove',
+  'retry',
   'process',
-  'demo-frames',
-  'fill-demo',
   'previous',
   'review',
+  'save',
+  'profile',
 ])
 const $q = useQuasar()
 const draft = computed(() => props.modelValue)
 const zones = computed(() => selectedZones(draft.value))
-const slots = computed(() => captureSlots(draft.value))
-const capturedCount = computed(() => slots.value.filter(({ key }) => props.captures[key]).length)
+const allSlots = computed(() => captureSlots(draft.value))
+const slots = computed(() =>
+  allSlots.value.filter((slot) => slot.shot === (props.capturePhase === 'before' ? 'A' : 'B')),
+)
+const visibleShots = computed(() =>
+  SHOTS.filter((shot) => shot.id === (props.capturePhase === 'before' ? 'A' : 'B')),
+)
+const alignmentConfirmed = ref(false)
+const savedCount = computed(
+  () =>
+    slots.value.filter(({ key }) => props.captures[key]?.id && !props.captures[key].pending).length,
+)
 const activeZone = ref(zones.value[0]?.id)
 const activeView = ref(0)
-const cameraLock = computed(() => zoneCameraLock(props.captures, activeZone.value))
+const scaleMarkerMm = ref(null)
 const zone = computed(() => zones.value.find(({ id }) => id === activeZone.value))
+const cameraLock = computed(() => zoneCameraLock(props.captures, activeZone.value))
 watch(
   activeZone,
   () => {
     activeView.value = 0
+    scaleMarkerMm.value = null
+  },
+  { flush: 'sync' },
+)
+watch(
+  () => [activeZone.value, activeView.value, props.capturePhase],
+  () => {
+    alignmentConfirmed.value = false
   },
   { flush: 'sync' },
 )
 function slotFor(shot) {
-  return slots.value.find(
+  return allSlots.value.find(
     (slot) =>
       slot.zoneId === activeZone.value &&
       slot.view === zone.value?.views[activeView.value] &&
@@ -322,42 +421,88 @@ function captureFor(shot) {
   return props.captures[slotFor(shot)?.key]
 }
 function canCapture(shot) {
-  return draft.value.consent.imaging && (shot === 'A' || !!captureFor('A'))
+  if (
+    !alignmentConfirmed.value ||
+    shot !== (props.capturePhase === 'before' ? 'A' : 'B') ||
+    captureFor('A')?.pending ||
+    captureFor('B')?.pending
+  )
+    return false
+  return (
+    !captureFor(shot)?.pending &&
+    (shot === 'A' || (!!captureFor('A')?.id && !captureFor('A')?.pending))
+  )
 }
-function addImage(shot, file) {
-  if (file) emit('capture', slotFor(shot), file)
+function standardMetadata(quality) {
+  return {
+    version: CAPTURE_STANDARD_VERSION,
+    zone_id: activeZone.value,
+    view_index: activeView.value,
+    alignment_confirmed: alignmentConfirmed.value,
+    quality: { pass: quality.pass, brightness: quality.brightness, focus: quality.focus },
+  }
+}
+async function addImage(shot, file) {
+  if (!file || !canCapture(shot)) return
+  const key = slotFor(shot)?.key
+  try {
+    const quality = await inspectCaptureFile(file)
+    if (slotFor(shot)?.key !== key || !canCapture(shot)) return
+    if (!quality.pass) {
+      $q.notify({ type: 'negative', message: quality.issues.join(' ') })
+      return
+    }
+    emit('capture', slotFor(shot), file, {
+      source: 'upload',
+      scale_marker_mm: scaleMarkerMm.value || null,
+      capture_standard: standardMetadata(quality),
+    })
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: error.message || 'The image could not be checked. Choose a different image.',
+    })
+  }
 }
 function captureFromCamera(shot, file, metadata) {
-  emit('capture', slotFor(shot), file, metadata)
+  emit('capture', slotFor(shot), file, {
+    ...metadata,
+    capture_standard: standardMetadata(metadata.capture_quality || {}),
+    scale_marker_mm: scaleMarkerMm.value || null,
+  })
 }
 function clearZoneImages() {
-  slots.value
+  allSlots.value
     .filter((slot) => slot.zoneId === activeZone.value)
     .forEach(({ key }) => {
       if (props.captures[key]) emit('remove', key)
     })
 }
 function fileRejected() {
-  $q.notify({
-    type: 'negative',
-    message: 'Choose a JPG, PNG or WebP image under 15 MB.',
-  })
+  $q.notify({ type: 'negative', message: 'Choose a JPG, PNG or WebP image under 15 MB.' })
 }
 function zoneCaptured(id) {
-  return slots.value.filter((slot) => slot.zoneId === id).every(({ key }) => props.captures[key])
+  return slots.value
+    .filter((slot) => slot.zoneId === id)
+    .every(
+      ({ key }) =>
+        props.captures[key]?.id && !props.captures[key].pending && !props.captures[key].error,
+    )
 }
 function zoneStatus(id) {
-  if (props.processing[id]) return 'Processing example…'
-  if (props.results[id]) return 'Example response ready'
-  const required = slots.value.filter((slot) => slot.zoneId === id)
-  return `${required.filter(({ key }) => props.captures[key]).length} / ${required.length} images`
+  if (props.processing[id]) return 'Analysing…'
+  if (
+    props.capturePhase === 'after' &&
+    (props.results[id]?.requires_recapture || props.results[id]?.qc_pass === false)
+  )
+    return 'Review / recapture'
+  if (props.capturePhase === 'after' && props.results[id]) return 'Analysis ready'
+  const list = slots.value.filter((slot) => slot.zoneId === id)
+  return `${list.filter(({ key }) => props.captures[key]?.id).length} / ${list.length} saved`
 }
 </script>
 
 <style scoped>
-.capture-card {
-  border-radius: 14px;
-}
 .capture-preview {
   position: relative;
   height: 180px;
