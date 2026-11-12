@@ -56,6 +56,11 @@
           </q-item-section>
         </q-item>
 
+        <q-item clickable :to="{ name: 'lhr-sessions' }">
+          <q-item-section avatar><q-icon name="spa" /></q-item-section>
+          <q-item-section><q-item-label>LHR Sessions</q-item-label></q-item-section>
+        </q-item>
+
         <q-item clickable @click="confirmClearConvId" v-if="currentAssessmentId">
           <q-item-section avatar>
             <q-icon name="cleaning_services" />

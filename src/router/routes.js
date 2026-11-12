@@ -117,6 +117,11 @@ const routes = [
         component: () => import('src/pages/LhrAssessment.vue'),
       },
       {
+        path: 'lhr-sessions',
+        name: 'lhr-sessions',
+        component: () => import('src/pages/LhrSessions.vue'),
+      },
+      {
         path: 'pigmentation-reassessment/:user_id?/:assessment_id?/:appointment_id?',
         name: 'pigmentation-reassessment',
         component: () => import('src/pages/PigmentationReassessment.vue'),

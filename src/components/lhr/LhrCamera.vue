@@ -68,6 +68,7 @@
             stroke="white"
             stroke-width="2"
           />
+          <path :d="guide.path" fill="none" stroke="#8fd9bb" stroke-width="3" />
           <rect
             x="180"
             y="80"
@@ -81,7 +82,7 @@
           />
           <rect x="42" y="302" width="42" height="42" fill="none" stroke="white" stroke-width="2" />
         </svg>
-        <div class="camera-overlay-label">Align treatment area</div>
+        <div class="camera-overlay-label">{{ viewLabel }} · {{ guide.label }}</div>
         <div class="camera-marker-label">10 mm marker target · guide only</div>
         <q-badge v-if="state.status === 'live'" color="positive" class="camera-live-label"
           >Live · {{ front ? 'Front' : 'Rear' }}</q-badge
@@ -135,7 +136,8 @@
           no-caps
           unelevated
           color="black"
-          label="Capture shot A"
+          v-if="capturePhase === 'before'"
+          label="Capture before shaving"
           icon="photo_camera"
           :disable="!liveReady || !canCaptureA || capturing"
           @click="takeShot('A')"
@@ -145,15 +147,34 @@
           no-caps
           unelevated
           color="black"
-          label="Capture shot B"
+          v-if="capturePhase === 'after'"
+          label="Capture after shaving"
           icon="photo_camera"
           :disable="!liveReady || !canCaptureB || capturing"
           @click="takeShot('B')"
         />
       </div>
+      <q-banner
+        v-if="state.status === 'live'"
+        rounded
+        class="q-mt-md text-caption"
+        :class="liveReady ? 'bg-green-1' : 'bg-amber-1'"
+        aria-live="polite"
+      >
+        {{
+          liveReady
+            ? 'Frame ready: exposure, detail and stability checks passed.'
+            : !alignmentConfirmed
+              ? 'Confirm the selected zone/view and framing above to enable capture.'
+              : quality.pass
+                ? 'Hold steady while frame readiness settles.'
+                : quality.issues.join(' ')
+        }}
+      </q-banner>
       <p class="text-caption text-grey-7 q-mt-md q-mb-none">
         Shot A: before shaving. Shot B: after shaving in the same position. Alignment guides do not
-        measure scale or certify image quality.
+        measure scale or recognise anatomy. Frame checks assess brightness, detail and stability; AI
+        reviews the labelled treatment area after upload.
       </p>
     </q-card-section>
   </q-card>
@@ -162,9 +183,13 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, shallowReactive, watch } from 'vue'
 import { cameraMatches, captureVideoFrame, createCameraSession } from 'src/utils/lhr/camera'
+import { inspectCaptureElement, framingGuide } from 'src/utils/lhr/captureQuality'
 
 const props = defineProps({
   enabled: Boolean,
+  zoneId: { type: String, default: '' },
+  capturePhase: { type: String, default: 'after' },
+  alignmentConfirmed: Boolean,
   canCaptureA: Boolean,
   canCaptureB: Boolean,
   contextKey: { type: String, required: true },
@@ -186,12 +211,47 @@ const cameraOptions = [
   { label: 'Front camera', value: 'front' },
 ]
 const front = computed(() => (state.camera?.profile || profile.value) === 'front')
-const liveReady = computed(() => props.enabled && state.status === 'live' && frameReady.value)
+const quality = ref({ pass: false, issues: ['Wait for a steady, focused frame.'] })
+const stableFrames = ref(0)
+const guide = computed(() => framingGuide(props.zoneId))
+const liveReady = computed(
+  () =>
+    props.enabled &&
+    state.status === 'live' &&
+    frameReady.value &&
+    quality.value.pass &&
+    stableFrames.value >= 2 &&
+    props.alignmentConfirmed,
+)
+let qualityTimer = null
+let previousPixels = null
+function checkQuality() {
+  if (state.status !== 'live' || !frameReady.value || !video.value) return
+  try {
+    const result = inspectCaptureElement(video.value, previousPixels)
+    previousPixels = result.pixels
+    quality.value = {
+      pass: result.pass,
+      issues: result.issues,
+      brightness: result.brightness,
+      focus: result.focus,
+    }
+    stableFrames.value = result.pass ? stableFrames.value + 1 : 0
+  } catch {
+    quality.value = { pass: false, issues: ['Wait for a usable camera frame.'] }
+    stableFrames.value = 0
+  }
+}
 const session = createCameraSession({ onChange: (next) => Object.assign(state, next) })
 let contextVersion = 0
 
 function stop() {
   contextVersion += 1
+  if (qualityTimer) clearInterval(qualityTimer)
+  qualityTimer = null
+  previousPixels = null
+  stableFrames.value = 0
+  quality.value = { pass: false, issues: ['Wait for a steady, focused frame.'] }
   frameReady.value = false
   captureError.value = ''
   session.stop()
@@ -229,12 +289,15 @@ async function changeProfile(value) {
   if (reopen) await open()
 }
 function updateDimensions() {
+  if (!qualityTimer) qualityTimer = setInterval(checkQuality, 350)
   if (video.value?.videoWidth && video.value.videoHeight)
     aspectRatio.value = video.value.videoWidth / video.value.videoHeight
 }
 async function takeShot(shot) {
+  checkQuality()
   if (
     !liveReady.value ||
+    (shot === 'A' ? props.capturePhase !== 'before' : props.capturePhase !== 'after') ||
     capturing.value ||
     !(shot === 'A' ? props.canCaptureA : props.canCaptureB)
   )
@@ -261,6 +324,11 @@ async function takeShot(shot) {
     )
     emit('capture', shot, file, {
       source: 'camera',
+      capture_quality: {
+        pass: quality.value.pass,
+        brightness: quality.value.brightness,
+        focus: quality.value.focus,
+      },
       capturedAt,
       camera: { ...camera, width, height },
     })
