@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <q-card flat bordered>
     <q-card-section>
       <h2 class="text-h6 q-mt-none">Before-shave AI profile</h2>
@@ -7,6 +7,8 @@
         phototype using the patient's sun-response history. No manual phototype or hair selection is
         required.
       </p>
+      <q-input v-model.number="draft.daysSinceLastShave" outlined dense clearable type="number" min="0" max="3650" step="1"
+        label="Days since last shave" hint="At the time of the before-shave photos. Enter 0 for today. Leave blank if unknown or different across zones." class="q-mb-md" />
       <q-select
         v-model="draft.sunResponse"
         outlined

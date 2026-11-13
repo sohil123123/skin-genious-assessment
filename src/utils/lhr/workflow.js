@@ -16,6 +16,7 @@ export function normaliseInputs(input) {
     ),
     phototype: nullable(input.phototype),
     hair: nullable(input.hair),
+    daysSinceLastShave: numeric(input.daysSinceLastShave),
     sunResponse: nullable(input.sunResponse),
     tanning: nullable(input.tanning),
     plannedSessions: Number(input.plannedSessions || 8),

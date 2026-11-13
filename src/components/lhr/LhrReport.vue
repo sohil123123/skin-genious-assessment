@@ -14,12 +14,17 @@
           : 'The clinic head reviews the recorded endpoints and finalises the client report.'
       }}</q-banner
     >
+    <p class="text-body2 q-mb-lg">
+      Assessment status: <strong>{{ assessmentStatus === 'completed' ? 'Completed' : 'In progress' }}</strong>.
+      Session {{ session.session_number }} of {{ session.inputs.plannedSessions || 8 }}.
+      The assessment completes after clinic-head review of the last planned session.
+    </p>
     <q-markup-table flat bordered wrap-cells class="q-mb-lg"
       ><thead>
         <tr>
           <th class="text-left">Zone</th>
-          <th>Terminal density / cm²</th>
-          <th>Mean calibre (µm)</th>
+          <th>{{ visual ? 'Visible density / 10' : 'Terminal density / cm²' }}</th>
+          <th>{{ visual ? 'Apparent coarseness / 10' : 'Mean calibre (µm)' }}</th>
           <th>Endpoint</th>
         </tr>
       </thead>
@@ -28,12 +33,12 @@
           <td>{{ zone.label }}</td>
           <td class="text-center">
             {{
-              session.analysis?.[zone.id]?.terminal_follicle_density_per_cm2 ??
-              'Scale / detail needed'
+              (visual ? session.analysis?.[zone.id]?.density_score : session.analysis?.[zone.id]?.terminal_follicle_density_per_cm2) ??
+              'Unavailable'
             }}
           </td>
           <td class="text-center">
-            {{ session.analysis?.[zone.id]?.mean_shaft_calibre_um ?? 'Scale / detail needed' }}
+            {{ (visual ? session.analysis?.[zone.id]?.coarseness_score : session.analysis?.[zone.id]?.mean_shaft_calibre_um) ?? 'Unavailable' }}
           </td>
           <td class="text-center">
             {{ session.execution?.endpoint_grades?.[zone.id] ?? '—' }} / 4
@@ -98,7 +103,19 @@
             :disable="!confirmed"
             :loading="busy"
             @click="$emit('review', { review_confirmed: confirmed, review_notes: reviewNotes })"
-        /></template>
+        />
+          <q-btn
+            rounded
+            unelevated
+            no-caps
+            color="black"
+            label="Confirm and exit"
+            icon-right="exit_to_app"
+            class="q-mt-md q-ml-sm"
+            :disable="!confirmed || busy"
+            @click="$emit('confirm-exit', { review_confirmed: confirmed, review_notes: reviewNotes })"
+          />
+        </template>
         <template v-else-if="session.status === 'completed'"
           ><p v-if="session.report.review_notes">
             Clinic-head notes: {{ session.report.review_notes }}
@@ -116,7 +133,20 @@
             label="Download report PDF"
             :loading="busy"
             @click="$emit('download')"
-        /></template> </q-card-section
+        />
+          <q-btn
+            v-if="canManage"
+            rounded
+            outline
+            no-caps
+            color="black"
+            label="Confirm and exit"
+            icon-right="exit_to_app"
+            class="q-ml-sm"
+            :disable="busy"
+            @click="$emit('confirm-exit')"
+          />
+        </template> </q-card-section
     ></q-card>
     <q-btn
       v-if="
@@ -143,10 +173,12 @@ import LhrProgress from './LhrProgress.vue'
 const props = defineProps({
   session: { type: Object, required: true },
   progress: { type: Object, default: () => ({ zones: [] }) },
+  assessmentStatus: { type: String, default: 'in_progress' },
   canManage: Boolean,
   busy: Boolean,
 })
-defineEmits(['generate', 'review', 'download', 'next'])
+defineEmits(['generate', 'review', 'download', 'next', 'confirm-exit'])
+const visual = computed(() => Object.values(props.session.analysis || {}).some(z => z.score_version))
 const zones = computed(() => LHR_ZONES.filter((zone) => props.session.inputs.zones[zone.id]))
 const reviewNotes = ref('')
 const confirmed = ref(false)

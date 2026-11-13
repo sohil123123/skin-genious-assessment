@@ -142,6 +142,8 @@
           :can-manage="actor.can_manage"
           :progress="progress"
           :busy="!!busy"
+          :assessment-status="assessment.status"
+          @confirm-exit="confirmAndExit"
           @generate="generateReport"
           @review="(data) => action('review', data)"
           @download="downloadReport"
@@ -197,6 +199,7 @@ import LhrReport from 'src/components/lhr/LhrReport.vue'
 import LhrProgress from 'src/components/lhr/LhrProgress.vue'
 import { captureSlots } from 'src/utils/lhr/assessment'
 import { runLhrAi } from 'src/utils/lhr/ai'
+import { confirmLhrReportAndExit } from 'src/utils/lhr/reportReview'
 import { withMachineDefaults } from 'src/utils/lhr/machineDefaults'
 import { cameraMatches, zoneCameraLock } from 'src/utils/lhr/camera'
 import {
@@ -668,7 +671,7 @@ async function action(name, data = {}, method = 'post') {
   busy.value = name
   error.value = ''
   try {
-    await mutate(async () => {
+    return await mutate(async () => {
       const id = session.value.id
       const response = await api.request({
         url: `lhr/sessions/${id}/${name}`,
@@ -677,6 +680,25 @@ async function action(name, data = {}, method = 'post') {
         timeout: 240000,
       })
       await apply(response.data, { expectedSessionId: id })
+      return response.data.session
+    })
+  } catch (cause) {
+    showError(cause)
+  } finally {
+    busy.value = ''
+  }
+}
+async function confirmAndExit(data = {}) {
+  if (busy.value || !actor.value.can_manage) return
+  busy.value = 'confirm-exit'
+  error.value = ''
+  try {
+    await confirmLhrReportAndExit({
+      getSession: () => disposed ? null : session.value,
+      canManage: actor.value.can_manage,
+      crmUrl: process.env.CRM_URL,
+      review: () => action('review', data),
+      exit: (url) => window.location.assign(url),
     })
   } catch (cause) {
     showError(cause)

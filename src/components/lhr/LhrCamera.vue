@@ -90,10 +90,8 @@
             stroke-width="2"
             stroke-dasharray="8 6"
           />
-          <rect x="42" y="302" width="42" height="42" fill="none" stroke="white" stroke-width="2" />
         </svg>
         <div class="camera-overlay-label">{{ viewLabel }} · {{ guide.label }}</div>
-        <div class="camera-marker-label">10 mm marker target · guide only</div>
         <div
           v-if="autoEnabled && autoState.phase === 'holding'"
           class="camera-countdown"
@@ -681,8 +679,7 @@ onBeforeUnmount(() => {
   padding: 48px;
   text-align: center;
 }
-.camera-overlay-label,
-.camera-marker-label {
+.camera-overlay-label {
   position: absolute;
   color: white;
   background: #172019cc;
@@ -694,10 +691,6 @@ onBeforeUnmount(() => {
 .camera-overlay-label {
   left: 24%;
   top: 12%;
-}
-.camera-marker-label {
-  left: 6%;
-  bottom: 6%;
 }
 .camera-countdown {
   position: absolute;
@@ -726,8 +719,7 @@ onBeforeUnmount(() => {
   top: 12px;
 }
 @media (max-width: 599px) {
-  .camera-overlay-label,
-  .camera-marker-label {
+  .camera-overlay-label {
     font-size: 9px;
   }
 }

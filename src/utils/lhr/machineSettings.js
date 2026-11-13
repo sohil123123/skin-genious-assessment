@@ -14,5 +14,13 @@ export const GENERIC_SETTING_FIELDS = Object.freeze([
   { id: 'contact_cooling_c', label: 'Contact cooling', unit: '°C' },
   { id: 'fluence_ceiling_j_cm2', label: 'Fluence ceiling', unit: 'J/cm²' },
 ])
-export const machineSettingFields = (machine) =>
-  isShrMachine(machine) ? SHR_SETTING_FIELDS : GENERIC_SETTING_FIELDS
+const consoleFields = [
+  {id:'console_area',label:'Console area',unit:''},{id:'body_size',label:'Body size',unit:''},
+  {id:'phototype',label:'Fitzpatrick',unit:''},{id:'mode',label:'Mode',unit:''},
+  ...SHR_SETTING_FIELDS.filter(field => field.id !== 'fluence_ceiling_j_cm2'),
+  {id:'frequency_hz',label:'Pulse frequency',unit:'Hz'},{id:'stack_count',label:'Stack count',unit:'pulses/burst'},
+]
+export function machineSettingFields(machine, settings) {
+  if (settings?.mode) return consoleFields.filter(field => Object.hasOwn(settings, field.id))
+  return isShrMachine(machine) ? SHR_SETTING_FIELDS : GENERIC_SETTING_FIELDS
+}
