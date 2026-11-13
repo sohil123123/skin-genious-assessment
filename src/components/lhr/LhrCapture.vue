@@ -83,17 +83,6 @@
               "
             />
           </q-tabs>
-          <q-input
-            v-model.number="scaleMarkerMm"
-            outlined
-            dense
-            type="number"
-            min="0.1"
-            label="Physical scale marker width (mm, if used)"
-            clearable
-            hint="For numeric density, include a readable ruler or known-size marker beside the skin in the same plane. For calibre, a calibrated close-up must also resolve shaft edges. This field alone does not calibrate the image."
-            class="q-mb-lg"
-          />
           <LhrCamera
             :key="zone.id"
             :context-key="`${zone.id}:${activeView}:${capturePhase}`"
@@ -211,58 +200,13 @@
           >
             <q-card-section>
               <div class="text-subtitle1">Image analysis · {{ zone.label }}</div>
-              <div class="row q-col-gutter-md q-mt-sm">
-                <div class="col-6">
-                  <strong>{{ results[zone.id].terminal_follicle_density_per_cm2 ?? 80 }}</strong>
-                  <div class="text-caption">Terminal follicles / cm&sup2;</div>
-                  <q-badge
-                    v-if="results[zone.id].terminal_follicle_density_per_cm2 == null"
-                    color="amber-3"
-                    text-color="black"
-                    label="Test value - not actual"
-                    class="q-mt-xs"
-                  />
-                  <div v-else class="text-caption">AI estimate</div>
-                </div>
-                <div class="col-6">
-                  <strong>{{ results[zone.id].mean_shaft_calibre_um ?? 70 }}</strong>
-                  <div class="text-caption">Mean shaft calibre (&micro;m)</div>
-                  <q-badge
-                    v-if="results[zone.id].mean_shaft_calibre_um == null"
-                    color="amber-3"
-                    text-color="black"
-                    label="Test value - not actual"
-                    class="q-mt-xs"
-                  />
-                  <div v-else class="text-caption">AI estimate</div>
-                </div>
+              <div v-if="results[zone.id].score_version" class="row q-col-gutter-md q-mt-sm">
+                <div class="col-6"><strong>{{ results[zone.id].density_score ?? 'Unavailable' }}</strong><div>Visible density / 10 · {{ results[zone.id].density_label }}</div></div>
+                <div class="col-6"><strong>{{ results[zone.id].coarseness_score ?? 'Unavailable' }}</strong><div>Apparent coarseness / 10 · {{ results[zone.id].coarseness_label }}</div></div>
               </div>
-              <p
-                v-if="
-                  results[zone.id].terminal_follicle_density_per_cm2 == null ||
-                  results[zone.id].mean_shaft_calibre_um == null
-                "
-                class="text-caption text-weight-medium q-mt-md q-mb-sm"
-              >
-                Labelled test values are examples for display testing only. They are not actual
-                measurements and are not saved or used for prescriptions or reports.
-              </p>
-              <p class="text-caption q-mt-md q-mb-sm">
-                <strong>Observed hair:</strong> {{ results[zone.id].hair_character }}
-              </p>
-              <p class="text-caption q-mb-sm">{{ results[zone.id].measurement_method }}</p>
-              <p
-                v-if="
-                  results[zone.id].terminal_follicle_density_per_cm2 == null ||
-                  results[zone.id].mean_shaft_calibre_um == null
-                "
-                class="text-caption q-mb-sm"
-              >
-                A physical scale and sufficient image detail are needed for absolute measurements.
-                Capture a close-up with a readable ruler or known-size marker in the skin plane,
-                then re-analyse. Overview photos can still support visual assessment.
-              </p>
-              <p v-else class="text-caption q-mb-sm">AI estimates — verify before clinical use.</p>
+              <p v-else class="q-mt-sm">Earlier measurement · Density: {{ results[zone.id].terminal_follicle_density_per_cm2 ?? 'Unavailable' }} /cm² · Calibre: {{ results[zone.id].mean_shaft_calibre_um ?? 'Unavailable' }} µm</p>
+              <p class="q-mt-sm">{{ results[zone.id].hair_character }}</p>
+              <p class="text-caption">{{ results[zone.id].comparison_reason }}</p>
               <ul class="text-caption q-pl-md">
                 <li v-for="note in results[zone.id].quality_notes" :key="note">{{ note }}</li>
               </ul>
@@ -390,14 +334,12 @@ const savedCount = computed(
 )
 const activeZone = ref(zones.value[0]?.id)
 const activeView = ref(0)
-const scaleMarkerMm = ref(null)
 const zone = computed(() => zones.value.find(({ id }) => id === activeZone.value))
 const cameraLock = computed(() => zoneCameraLock(props.captures, activeZone.value))
 watch(
   activeZone,
   () => {
     activeView.value = 0
-    scaleMarkerMm.value = null
   },
   { flush: 'sync' },
 )
@@ -444,7 +386,6 @@ async function addImage(shot, file) {
     }
     emit('capture', slotFor(shot), file, {
       source: 'upload',
-      scale_marker_mm: scaleMarkerMm.value || null,
       capture_standard: standardMetadata(quality),
     })
   } catch (error) {
@@ -461,7 +402,6 @@ function captureFromCamera(shot, file, metadata) {
       ...standardMetadata(metadata.capture_quality || {}),
       ...(metadata.zone_check ? { zone_check: metadata.zone_check } : {}),
     },
-    scale_marker_mm: scaleMarkerMm.value || null,
   })
 }
 function clearZoneImages() {

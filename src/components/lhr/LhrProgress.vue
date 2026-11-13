@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section>
     <h2 class="text-h5">Treatment history and progress</h2>
     <p class="text-grey-7">
@@ -25,7 +25,22 @@
           no-caps
       /></q-tabs>
       <template v-if="zone">
-        <div class="row q-col-gutter-md q-mb-lg">
+        <div v-if="zone.has_visual" class="row q-col-gutter-md q-mb-lg">
+          <div v-for="metric in metrics" :key="metric.key" class="col-12 col-md-6">
+            <q-card flat bordered><q-card-section>
+              <div class="text-subtitle2">{{ metric.label }} / 10</div>
+              <svg viewBox="0 0 400 130" role="img" :aria-label="metric.label + ' by visit'">
+                <path d="M25 10 V107 H390" stroke="#888" fill="none" />
+                <text x="0" y="16" font-size="10">10</text><text x="8" y="107" font-size="10">0</text>
+                <g v-for="(row, i) in zone.sessions" :key="row.session_id">
+                  <circle v-if="row[metric.key] != null" :cx="plotX(i)" :cy="105 - row[metric.key]*9" r="4" fill="#12645d" />
+                  <text :x="plotX(i)" y="124" font-size="10" text-anchor="middle">S{{ row.session_number }}</text>
+                </g>
+              </svg>
+            </q-card-section></q-card>
+          </div>
+        </div>
+        <div v-else class="row q-col-gutter-md q-mb-lg">
           <div class="col-12 col-md-8">
             <q-card flat bordered
               ><q-card-section>
@@ -94,27 +109,29 @@
           ><thead>
             <tr>
               <th>Session / date</th>
-              <th>Density / cm²</th>
-              <th>Change</th>
-              <th>Calibre (µm)</th>
+              <th>Density {{ zone.has_visual ? '/ 10' : '/ cm²' }}</th>
+              <th>{{ zone.has_visual ? 'Density vs baseline (points)' : 'Change' }}</th>
+              <th>{{ zone.has_visual ? 'Coarseness / 10' : 'Calibre (µm)' }}</th><th v-if="zone.has_visual">Coarseness vs baseline (points)</th>
               <th>Regrowth (days)</th>
               <th>Fluence (J/cm²)</th>
-              <th>Pulse / SHR energy</th>
+              <th>Delivery setting</th>
               <th>Endpoint</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in zone.sessions" :key="row.session_id">
               <td>S{{ row.session_number }}<br />{{ row.date || 'Not recorded' }}</td>
-              <td>{{ row.density ?? 'Not measurable' }}</td>
-              <td>{{ row.change_percent == null ? '—' : `${row.change_percent}%` }}</td>
-              <td>{{ row.calibre ?? 'Not measurable' }}</td>
+              <td>{{ zone.has_visual && !row.score_version && row.density != null ? row.density + ' /cm² (legacy)' : ((zone.has_visual ? row.density_score : row.density) ?? '—') }}</td>
+              <td>{{ zone.has_visual ? (row.density_score_baseline_change ?? '—') : (row.change_percent == null ? '—' : row.change_percent + '%') }}</td>
+              <td>{{ zone.has_visual && !row.score_version && row.calibre != null ? row.calibre + ' µm (legacy)' : ((zone.has_visual ? row.coarseness_score : row.calibre) ?? '—') }}</td><td v-if="zone.has_visual" :title="row.comparison_reason">{{ row.coarseness_score_baseline_change ?? '—' }}</td>
               <td>{{ row.regrowth_days ?? '—' }}</td>
               <td>{{ row.fluence ?? '—' }}</td>
               <td>
                 <template v-if="row.energy_kj != null"
                   >{{ row.energy_kj }} kJ<br />{{ row.grid_size_cm2 ?? '—' }} cm² grid</template
                 >
+                <template v-else-if="row.frequency_hz">{{ row.frequency_hz }} Hz</template>
+                <template v-else-if="row.stack_count">{{ row.stack_count }} pulses/burst</template>
                 <template v-else>{{ row.pulse == null ? '—' : `${row.pulse} ms` }}</template>
               </td>
               <td>{{ row.endpoint ?? '—' }}</td>
@@ -122,7 +139,7 @@
           </tbody></q-markup-table
         >
       </template>
-      <q-markup-table flat bordered wrap-cells
+      <q-markup-table v-if="!progress.zones.some(z => z.has_visual)" flat bordered wrap-cells
         ><thead>
           <tr>
             <th>All zones</th>
@@ -162,5 +179,7 @@ watch(
   { immediate: true },
 )
 const zone = computed(() => props.progress.zones?.find((item) => item.zone_id === active.value))
+const metrics = [{key:'density_score', label:'Visible density'}, {key:'coarseness_score', label:'Apparent coarseness'}]
+const plotX = i => 42 + 335 * i / Math.max(1,zone.value.sessions.length - 1)
 const chart = computed(() => progressChart(zone.value))
 </script>

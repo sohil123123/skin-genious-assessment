@@ -25,7 +25,7 @@
                 emit-value
                 map-options
                 :options="[
-                  { label: 'SHR in-motion (console controls)', value: 'shr_console' },
+                  { label: 'Titanium console (matrix selection)', value: 'shr_console' },
                   { label: 'Generic / existing device protocol', value: 'generic' },
                 ]"
                 label="Machine control profile"
@@ -47,10 +47,10 @@
             </div>
             <div v-if="shr" class="col-12">
               <q-banner rounded class="bg-blue-1">
-                SHR photo reference: 1 J/cm² fluence · 10 kJ energy · 100 cm² grid. Timer readout:
+                Photographed SHR screen: 1 J/cm² fluence · 10 kJ energy · 100 cm² grid. Timer readout:
                 {{ LHR_CONSOLE_REFERENCE.displayed_time_seconds }} s (not a prescribed duration).
                 Available modes: {{ LHR_CONSOLE_REFERENCE.modes.join(' / ') }}. This profile
-                supports SHR. These displayed values do not establish operating limits. Pulse width,
+                uses the approved entries for the installed handpiece. These displayed values do not establish operating limits. Pulse width,
                 spot dimensions and contact-cooling temperature are not shown.
               </q-banner>
             </div>
@@ -67,7 +67,7 @@
                 outlined
                 clearable
                 :options="LHR_CONSOLE_REFERENCE.body_sizes"
-                label="Patient body-size preset (optional)"
+                label="Patient body-size preset"
               />
             </div>
             <div class="col-12">
@@ -88,8 +88,8 @@
                 outlined
                 type="textarea"
                 rows="3"
-                label="Clinician-approved device protocol and phototype-specific limits"
-                hint="Use the manufacturer's protocol and clinician-approved limits for this patient. Missing fields use labelled test defaults when generating. Replace them with verified device limits before treatment."
+                :label="shr ? 'Approved protocol reference' : 'Clinician-approved device protocol and phototype-specific limits'"
+                hint="For a Titanium clinical proposal, enter the protocol reference configured for this clinic and handpiece."
               />
             </div>
           </div>
@@ -133,7 +133,8 @@
           :label="zoneName(item.zone_id)"
           no-caps
       /></q-tabs>
-      <div v-if="zone" class="row q-col-gutter-lg">
+      <q-banner v-if="zone?.hold_reason" class="bg-amber-1 q-my-md">{{ zone.hold_reason }}</q-banner>
+      <div v-else-if="zone" class="row q-col-gutter-lg">
         <div class="col-12 col-lg-8">
           <q-markup-table flat bordered wrap-cells>
             <thead>
@@ -152,7 +153,8 @@
                   {{ lastSettings[field.id] == null ? '' : field.unit }}
                 </td>
                 <td>
-                  <q-input
+                  <span v-if="zone.candidate_id">{{ zone.settings[field.id] }} {{ field.unit }}</span>
+                  <q-input v-else
                     v-model.number="zone.settings[field.id]"
                     dense
                     outlined
@@ -166,7 +168,7 @@
                   {{
                     lastSettings[field.id] == null
                       ? 'Starting proposal'
-                      : Number(lastSettings[field.id]) === Number(zone.settings[field.id])
+                      : String(lastSettings[field.id]) === String(zone.settings[field.id])
                         ? 'Unchanged'
                         : 'Changed'
                   }}
@@ -253,7 +255,7 @@
                 label="Approve and transfer to therapist"
                 class="full-width q-mt-md"
                 :disable="
-                  !confirmed || !therapistId || dirty || draft.machine.is_test_configuration
+                  proposal.zones.some(z => z.hold_reason) || !confirmed || !therapistId || dirty || draft.machine.is_test_configuration
                 "
                 :loading="busy"
                 @click="approve"
@@ -347,5 +349,5 @@ const machineFields = computed(() =>
         { id: 'max_pulse_ms', label: 'Maximum pulse width (ms)' },
       ],
 )
-const settingsFields = computed(() => machineSettingFields(draft.value.machine))
+const settingsFields = computed(() => machineSettingFields(draft.value.machine,zone.value?.settings))
 </script>

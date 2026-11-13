@@ -1,4 +1,4 @@
-﻿import test from 'node:test'
+import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildLhrAiRequest,
@@ -133,12 +133,11 @@ test('SHR saved context selects console schema and leaves generic prescriptions 
     ],
   }
   const request = buildLhrAiRequest('prescription', shr)
-  assert.deepEqual(request.text.format.schema.properties.zones.items.properties.settings.required, [
-    'fluence_j_cm2',
-    'energy_kj',
-    'grid_size_cm2',
-    'fluence_ceiling_j_cm2',
-  ])
+  const item = request.text.format.schema.properties.zones.items
+  assert.equal(item.required.includes('candidate_id'), true)
+  assert.equal(item.required.includes('hold_reason'), true)
+  assert.equal('settings' in item.properties, false)
+  assert.match(request.instructions, /decision_matrix/)
   assert.match(request.instructions, /SOFTWARE TEST ONLY/)
   assert.match(request.instructions, /not a prescribed duration/)
   assert.equal(

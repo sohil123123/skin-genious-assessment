@@ -41,7 +41,7 @@
             ><q-card-section>
               <h3 class="text-h6 q-mt-none">{{ active.label }} · Approved machine settings</h3>
               <p v-if="isShrMachine(session.inputs?.machine)" class="text-grey-7">
-                SHR in-motion · {{ session.inputs.machine.wavelengths_label }}
+                {{ active.settings.mode || 'SHR' }} · {{ session.inputs.machine.wavelengths_label }}
                 <span v-if="session.inputs.machine.body_size">
                   · Body-size preset {{ session.inputs.machine.body_size }}</span
                 >
@@ -269,5 +269,5 @@ function completeZone() {
   if (props.canTreat && completionReady.value && !props.busy)
     emit('zone-complete', active.value.zone_id, payload())
 }
-const settingFields = computed(() => machineSettingFields(props.session.inputs?.machine))
+const settingFields = computed(() => machineSettingFields(props.session.inputs?.machine,active.value?.settings))
 </script>
