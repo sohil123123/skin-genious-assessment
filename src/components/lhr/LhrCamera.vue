@@ -13,7 +13,7 @@
       />
       <p class="text-caption text-grey-7 q-mt-none">
         Align the selected treatment area with its guide and hold steady for 2 seconds. Auto capture
-        checks that the exposed treatment area matches the selected zone before saving.
+        detects the selected treatment area and saves a close-up crop instead of the whole frame.
       </p>
       <q-btn-toggle
         :model-value="profile"
@@ -64,6 +64,7 @@
           :src="referenceImage"
           class="reference-frame"
           :class="{ mirrored: front }"
+          :style="referenceStyle"
           alt="Shot A alignment reference"
         />
         <svg
@@ -80,10 +81,10 @@
           />
           <path :d="guide.path" fill="none" stroke="#8fd9bb" stroke-width="3" />
           <rect
-            x="180"
-            y="80"
-            width="400"
-            height="240"
+            :x="guideBox.x * 760"
+            :y="guideBox.y * 400"
+            :width="guideBox.width * 760"
+            :height="guideBox.height * 400"
             rx="10"
             fill="none"
             stroke="#8fd9bb"
@@ -91,7 +92,7 @@
             stroke-dasharray="8 6"
           />
         </svg>
-        <div class="camera-overlay-label">{{ viewLabel }} · {{ guide.label }}</div>
+        <div class="camera-overlay-label">{{ viewLabel }} · Crop guide</div>
         <div
           v-if="autoEnabled && autoState.phase === 'holding'"
           class="camera-countdown"
@@ -119,6 +120,14 @@
           label="Show shot A alignment"
         />
       </div>
+      <p class="text-caption text-grey-7 q-mt-sm">
+        {{
+          aiFramingAllowed
+            ? 'AI locates the zone for both manual and automatic capture. Check the saved crop before continuing.'
+            : 'Before imaging and AI consent, manual capture saves only the dashed guide area. Position the exposed zone inside it.'
+        }}
+        Cropping enlarges the saved preview; move closer for more real hair detail.
+      </p>
       <q-banner
         v-if="state.error || captureError"
         rounded
@@ -156,6 +165,7 @@
           v-if="capturePhase === 'before'"
           label="Capture before shaving"
           icon="photo_camera"
+          :loading="capturing"
           :disable="!liveReady || !canCaptureA || capturing"
           @click="takeShot('A')"
         />
@@ -167,8 +177,21 @@
           v-if="capturePhase === 'after'"
           label="Capture after shaving"
           icon="photo_camera"
+          :loading="capturing"
           :disable="!liveReady || !canCaptureB || capturing"
           @click="takeShot('B')"
+        />
+        <q-btn
+          v-if="
+            aiFramingAllowed && (captureError || ['error', 'rejected'].includes(zoneCheck.status))
+          "
+          rounded
+          outline
+          no-caps
+          color="black"
+          label="Capture guide area instead"
+          :disable="!liveReady || capturing || !(shot === 'A' ? canCaptureA : canCaptureB)"
+          @click="takeShot(shot, false, true)"
         />
       </div>
       <q-linear-progress
@@ -179,7 +202,7 @@
         class="q-mt-md"
       />
       <q-banner
-        v-if="autoEnabled && state.status === 'live'"
+        v-if="(autoEnabled || zoneCheck.status !== 'idle') && state.status === 'live'"
         rounded
         class="bg-blue-1 q-mt-md text-caption"
         aria-live="polite"
@@ -214,8 +237,9 @@
       <p class="text-caption text-grey-7 q-mt-md q-mb-none">
         Shot A: before shaving. Shot B: after shaving in the same position. Alignment guides do not
         measure scale or recognise anatomy. Frame checks assess brightness, detail and stability; AI
-        checks the selected treatment area before auto capture is saved and reviews saved images
-        during analysis.
+        suggests a zone crop when consent is recorded. Without zone detection, manual capture uses
+        the dashed guide only. Review the saved crop; detection can be wrong. No hair pixels are
+        generated.
       </p>
     </q-card-section>
   </q-card>
@@ -232,7 +256,18 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref, shallowReactive, watch } from 'vue'
 import { cameraMatches, captureVideoFrame, createCameraSession } from 'src/utils/lhr/camera'
 import { AUTO_CAPTURE_HOLD_MS, createAutoCaptureGate } from 'src/utils/lhr/autoCapture'
-import { inspectCaptureElement, framingGuide } from 'src/utils/lhr/captureQuality'
+import {
+  inspectCaptureElement,
+  inspectCaptureFile,
+  framingGuide,
+} from 'src/utils/lhr/captureQuality'
+import {
+  cropZoneImage,
+  zoneGuideBox,
+  cropReferenceStyle,
+  CROP_QUALITY_OPTIONS,
+  validCropBox,
+} from 'src/utils/lhr/zoneCrop'
 
 const props = defineProps({
   enabled: Boolean,
@@ -250,6 +285,7 @@ const props = defineProps({
   viewLabel: { type: String, required: true },
   cameraLock: { type: Object, default: null },
   referenceImage: { type: String, default: '' },
+  referenceCrop: { type: Object, default: null },
 })
 const emit = defineEmits(['capture'])
 const video = ref(null)
@@ -272,17 +308,17 @@ const autoGate = createAutoCaptureGate()
 const autoState = ref(autoGate.reset(props.contextKey))
 const shot = computed(() => (props.capturePhase === 'before' ? 'A' : 'B'))
 const autoMessage = computed(() => {
+  if (zoneCheck.value.status === 'checking')
+    return `Detecting the treatment area and crop for ${props.viewLabel}.`
+  if (zoneCheck.value.status === 'rejected' || zoneCheck.value.status === 'error')
+    return zoneCheck.value.message
   if (props.capturePending) return 'Saving the captured image. Auto capture is paused.'
   if (props.captureExists)
     return 'This view already has an image. Choose another view or remove it to capture again.'
   if (props.autoBlocked)
     return 'Auto capture is paused while patient data or images are being processed.'
   if (!props.aiFramingAllowed)
-    return 'Select clinical imaging and AI processing consent to enable automatic zone verification. Manual camera capture remains available.'
-  if (zoneCheck.value.status === 'checking')
-    return `Checking that the image shows ${props.viewLabel}. Keep the camera on the treatment area.`
-  if (zoneCheck.value.status === 'rejected' || zoneCheck.value.status === 'error')
-    return zoneCheck.value.message
+    return 'Select clinical imaging and AI processing consent to enable automatic zone verification. Manual capture saves the guide area without AI.'
   if (autoState.value.phase === 'captured')
     return capturing.value
       ? 'Capturing image…'
@@ -311,6 +347,10 @@ const front = computed(() => (state.camera?.profile || profile.value) === 'front
 const quality = ref({ pass: false, issues: ['Wait for a steady, focused frame.'] })
 const stableFrames = ref(0)
 const guide = computed(() => framingGuide(props.zoneId))
+const guideBox = computed(() => zoneGuideBox(props.zoneId))
+const referenceStyle = computed(() =>
+  cropReferenceStyle(props.referenceCrop, front.value, aspectRatio.value),
+)
 const liveReady = computed(
   () =>
     props.enabled &&
@@ -432,7 +472,7 @@ function updateDimensions() {
   if (video.value?.videoWidth && video.value.videoHeight)
     aspectRatio.value = video.value.videoWidth / video.value.videoHeight
 }
-async function takeShot(shot, automatic = false) {
+async function takeShot(shot, automatic = false, guideOnly = false) {
   checkQuality(false)
   if (
     !liveReady.value ||
@@ -451,7 +491,7 @@ async function takeShot(shot, automatic = false) {
   const context = contextVersion
   const contextKey = props.contextKey
   const camera = { ...state.camera }
-  const captureQuality = { ...quality.value }
+  const verifyCrop = props.aiFramingAllowed && !guideOnly
   const candidatePixels = previousPixels?.slice()
   let zoneResult = null
   let reviewSignal = null
@@ -460,7 +500,7 @@ async function takeShot(shot, automatic = false) {
   captureError.value = ''
   const capturedAt = new Date().toISOString()
   try {
-    const { blob, width, height } = await captureVideoFrame(video.value)
+    const { blob } = await captureVideoFrame(video.value)
     if (
       context !== contextVersion ||
       props.contextKey !== contextKey ||
@@ -478,7 +518,7 @@ async function takeShot(shot, automatic = false) {
         document.hidden)
     )
       return
-    if (automatic) {
+    if (verifyCrop) {
       framingController = new AbortController()
       reviewSignal = framingController.signal
       zoneCheck.value = { status: 'checking', message: '' }
@@ -496,13 +536,13 @@ async function takeShot(shot, automatic = false) {
         () =>
           context === contextVersion &&
           props.contextKey === contextKey &&
-          autoEnabled.value &&
+          (!automatic || autoEnabled.value) &&
           props.aiFramingAllowed &&
           !reviewSignal.aborted &&
           !document.hidden &&
           props.enabled &&
           state.status === 'live' &&
-          !props.captureExists &&
+          (!automatic || !props.captureExists) &&
           !props.capturePending &&
           !props.autoBlocked,
       )
@@ -523,18 +563,29 @@ async function takeShot(shot, automatic = false) {
         zoneCheck.value = {
           status: 'rejected',
           message:
-            (typeof review.result?.reason === 'string' ? review.result.reason.slice(0, 300) : '') ||
+            (review.result?.zone_visible && !validCropBox(review.result?.crop_box)
+              ? 'A reliable crop could not be located. Centre the complete exposed treatment area and move closer before retrying.'
+              : typeof review.result?.reason === 'string'
+                ? review.result.reason.slice(0, 300)
+                : '') ||
             `The selected ${props.viewLabel} could not be verified. Centre the exposed treatment area and adjust the camera to retry.`,
         }
+        if (!automatic) captureError.value = zoneCheck.value.message
         return
       }
       zoneResult = review.result
       zoneCheck.value = { status: 'accepted', message: '' }
     }
+    const cropped = await cropZoneImage(blob, zoneResult?.crop_box || guideBox.value, {
+      method: zoneResult ? 'ai' : 'guide',
+    })
+    const captureQuality = await inspectCaptureFile(cropped.blob, CROP_QUALITY_OPTIONS)
+    if (!captureQuality.pass) throw new Error(captureQuality.issues.join(' '))
     if (
       context !== contextVersion ||
       props.contextKey !== contextKey ||
       !props.enabled ||
+      (verifyCrop && (!props.aiFramingAllowed || reviewSignal?.aborted)) ||
       props.capturePending ||
       !(shot === 'A' ? props.canCaptureA : props.canCaptureB) ||
       (automatic &&
@@ -548,24 +599,39 @@ async function takeShot(shot, automatic = false) {
     )
       return
     const file = new File(
-      [blob],
+      [cropped.blob],
       `lhr-${contextKey.replaceAll(':', '-')}-${shot}-${Date.now()}.jpg`,
       { type: 'image/jpeg' },
     )
     emit('capture', shot, file, {
       source: 'camera',
-      ...(zoneResult ? { zone_check: zoneResult } : {}),
+      ...(zoneResult
+        ? {
+            zone_check: {
+              zone_visible: zoneResult.zone_visible,
+              skin_visible: zoneResult.skin_visible,
+              framing_ok: zoneResult.framing_ok,
+              confidence: zoneResult.confidence,
+              reason: zoneResult.reason,
+            },
+          }
+        : {}),
+      crop: cropped.crop,
       capture_quality: {
         pass: captureQuality.pass,
         brightness: captureQuality.brightness,
         focus: captureQuality.focus,
       },
       capturedAt,
-      camera: { ...camera, width, height },
+      camera: { ...camera, width: cropped.width, height: cropped.height },
     })
   } catch (error) {
     if (context === contextVersion && !reviewSignal?.aborted) {
-      if (automatic) zoneCheck.value = { status: 'error', message: framingErrorMessage(error) }
+      if (verifyCrop)
+        zoneCheck.value = {
+          status: 'error',
+          message: error.response ? framingErrorMessage(error) : error.message,
+        }
       else captureError.value = error.message
     }
   } finally {

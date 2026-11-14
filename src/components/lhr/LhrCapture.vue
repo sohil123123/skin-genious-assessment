@@ -100,6 +100,7 @@
             :can-capture-b="canCapture('B')"
             :camera-lock="cameraLock"
             :reference-image="captureFor('A')?.src || ''"
+            :reference-crop="captureFor('A')?.metadata?.capture_standard?.crop || null"
             @capture="captureFromCamera"
           />
           <q-btn
@@ -141,6 +142,18 @@
                       }}</q-badge
                     >
                   </div>
+                  <p
+                    v-if="captureFor(shot.id)?.metadata?.capture_standard?.crop"
+                    class="text-caption q-mt-sm q-mb-none"
+                  >
+                    {{
+                      captureFor(shot.id).metadata.capture_standard.crop.method === 'ai'
+                        ? 'Zone crop · AI located area'
+                        : 'Guide crop · check area manually'
+                    }}
+                    · {{ captureFor(shot.id).metadata.capture_standard.crop.width }} ×
+                    {{ captureFor(shot.id).metadata.capture_standard.crop.height }} pixels
+                  </p>
                   <q-file
                     :model-value="null"
                     :key="slotFor(shot.id).key + ':' + captureFor(shot.id)?.id"
@@ -201,10 +214,20 @@
             <q-card-section>
               <div class="text-subtitle1">Image analysis · {{ zone.label }}</div>
               <div v-if="results[zone.id].score_version" class="row q-col-gutter-md q-mt-sm">
-                <div class="col-6"><strong>{{ results[zone.id].density_score ?? 'Unavailable' }}</strong><div>Visible density / 10 · {{ results[zone.id].density_label }}</div></div>
-                <div class="col-6"><strong>{{ results[zone.id].coarseness_score ?? 'Unavailable' }}</strong><div>Apparent coarseness / 10 · {{ results[zone.id].coarseness_label }}</div></div>
+                <div class="col-6">
+                  <strong>{{ results[zone.id].density_score ?? 'Unavailable' }}</strong>
+                  <div>Visible density / 10 · {{ results[zone.id].density_label }}</div>
+                </div>
+                <div class="col-6">
+                  <strong>{{ results[zone.id].coarseness_score ?? 'Unavailable' }}</strong>
+                  <div>Apparent coarseness / 10 · {{ results[zone.id].coarseness_label }}</div>
+                </div>
               </div>
-              <p v-else class="q-mt-sm">Earlier measurement · Density: {{ results[zone.id].terminal_follicle_density_per_cm2 ?? 'Unavailable' }} /cm² · Calibre: {{ results[zone.id].mean_shaft_calibre_um ?? 'Unavailable' }} µm</p>
+              <p v-else class="q-mt-sm">
+                Earlier measurement · Density:
+                {{ results[zone.id].terminal_follicle_density_per_cm2 ?? 'Unavailable' }} /cm² ·
+                Calibre: {{ results[zone.id].mean_shaft_calibre_um ?? 'Unavailable' }} µm
+              </p>
               <p class="q-mt-sm">{{ results[zone.id].hair_character }}</p>
               <p class="text-caption">{{ results[zone.id].comparison_reason }}</p>
               <ul class="text-caption q-pl-md">
@@ -401,6 +424,7 @@ function captureFromCamera(shot, file, metadata) {
     capture_standard: {
       ...standardMetadata(metadata.capture_quality || {}),
       ...(metadata.zone_check ? { zone_check: metadata.zone_check } : {}),
+      ...(metadata.crop ? { crop: metadata.crop } : {}),
     },
   })
 }

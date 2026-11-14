@@ -9,6 +9,7 @@ import {
   verifyZoneFrame,
 } from '../src/utils/lhr/zoneFraming.js'
 const pass = {
+  crop_box: { x: 0.2, y: 0.15, width: 0.55, height: 0.7 },
   zone_visible: true,
   skin_visible: true,
   framing_ok: true,
@@ -40,6 +41,15 @@ test('background, clothing, ambiguous anatomy and malformed responses cannot app
     assert.equal(zoneFrameAccepted({ ...pass, confidence }), false)
   assert.equal(zoneFrameAccepted({ ...pass, reason: '' }), false)
   assert.equal(zoneFrameAccepted(null), false)
+  for (const crop_box of [
+    undefined,
+    null,
+    {},
+    { x: 0.8, y: 0, width: 0.4, height: 1 },
+    { x: 0, y: 0, width: -0.5, height: 1 },
+    { x: '0', y: 0, width: 1, height: 1 },
+  ])
+    assert.equal(zoneFrameAccepted({ ...pass, crop_box }), false)
 })
 test('only the actual verified candidate is returned for saving, with no rejected or stale candidate', async () => {
   const candidate = new Blob(['frozen-camera-bytes'])
