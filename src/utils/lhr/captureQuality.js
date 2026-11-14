@@ -1,10 +1,13 @@
 ﻿// Framing checks are deterministic image-quality checks, not anatomical recognition.
-export const CAPTURE_STANDARD_VERSION = 'lhr-framing-v2'
+import { decodeCropImage } from './zoneCrop.js'
+
+export const CAPTURE_STANDARD_VERSION = 'lhr-framing-v3'
 export function assessCapturePixels(
   { data, width, height },
   sourceWidth,
   sourceHeight,
   previous = null,
+  { minLongEdge = 640, minShortEdge = 480 } = {},
 ) {
   const pixels = new Float32Array(width * height)
   let sum = 0,
@@ -33,8 +36,13 @@ export function assessCapturePixels(
     }
   const focus = edges / Math.max(1, count)
   const issues = []
-  if (Math.max(sourceWidth, sourceHeight) < 640 || Math.min(sourceWidth, sourceHeight) < 480)
-    issues.push('Use at least a 640 x 480 frame (portrait is also supported).')
+  if (
+    Math.max(sourceWidth, sourceHeight) < minLongEdge ||
+    Math.min(sourceWidth, sourceHeight) < minShortEdge
+  )
+    issues.push(
+      `Use at least a ${minLongEdge} x ${minShortEdge} frame (portrait is also supported).`,
+    )
   if (brightness < 35) issues.push('Add light to the treatment area.')
   if (brightness > 230 || clipped / pixels.length > 0.4)
     issues.push('Reduce glare or clipped highlights/shadows.')
@@ -49,7 +57,7 @@ export function assessCapturePixels(
     pixels,
   }
 }
-export function inspectCaptureElement(element, previous = null) {
+export function inspectCaptureElement(element, previous = null, options = {}) {
   const width = element.videoWidth || element.width
   const height = element.videoHeight || element.height
   if (!width || !height) throw new Error('Wait for an image frame before capture.')
@@ -64,14 +72,15 @@ export function inspectCaptureElement(element, previous = null) {
     width,
     height,
     previous,
+    options,
   )
 }
-export async function inspectCaptureFile(file) {
-  const bitmap = await createImageBitmap(file)
+export async function inspectCaptureFile(file, options = {}) {
+  const bitmap = await decodeCropImage(file)
   try {
-    return inspectCaptureElement(bitmap)
+    return inspectCaptureElement(bitmap, null, options)
   } finally {
-    bitmap.close()
+    bitmap.close?.()
   }
 }
 export function framingGuide(zoneId) {
