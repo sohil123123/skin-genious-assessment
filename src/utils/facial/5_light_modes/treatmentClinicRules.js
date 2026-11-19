@@ -445,6 +445,108 @@ export function approvedSpotSaliProducts(constraints = {}) {
   return names
 }
 
+// Spot salicylic is the one mandatory fixed-parameter step. Its lesion zones come
+// only from supplied acne evidence; nothing is inferred from a score or a grade.
+const SPOT_SALI_MINUTES = CLINIC_STEP_TIMINGS.spot_salicylic[0]
+const SPOT_SALI_EXCLUDED_ZONES = ['full_face', 'under_eye', 'lips']
+const BROAD_SALICYLIC_STEP_IDS = ['PEEL.SA20', 'PEEL.SA30', 'PEEL.SALIDS']
+
+export function activeAcneLesionZones(diagnosis = {}, featurePacket = null) {
+  const report = diagnosis?.diagnosis_report ?? diagnosis ?? {}
+  const packet = featurePacket ?? {}
+  const acne = Object.values(report).find((row) => row && typeof row === 'object' && !Array.isArray(row) &&
+    normalize(row.parameter_name ?? row.parameter).includes('acne')) || {}
+  const regionNames = (value) => Array.isArray(value) ? value
+    : value && typeof value === 'object' ? Object.entries(value).filter(([, v]) => v === true || typeof v === 'number' && v > 0).map(([k]) => k) : []
+  const candidates = [
+    packet.proxies?.acne?.dominant_regions,
+    packet.diagnosis_report?.visual_acne_grading?.supporting_signals?.dominant_regions,
+    acne.feature_assessment?.supporting_signals?.dominant_regions,
+    acne.backend_details?.dominant_regions, acne.dominant_regions,
+    acne.backend_details?.region_activity_map, acne.region_activity_map,
+  ].flatMap(regionNames).map((name) => normalize(name))
+  return zones.filter((zone) => !SPOT_SALI_EXCLUDED_ZONES.includes(zone) && candidates.includes(normalize(zone)))
+}
+
+// The model is told explicitly which derived flag binds it, instead of being left
+// to judge lesion activity itself and then failing the same rule twice.
+function activeAcneSpotRule(input) {
+  const context = input.clinic_treatment_context || {}
+  const blocks = context.clinical_clearance?.blocked_steps?.['PEEL.SPOT.SALI'] || []
+  const status = context.active_acne_lesions_visible !== true ? 'not_required'
+    : blocks.length ? 'blocked_by_existing_constraints' : 'required'
+  return {
+    status,
+    binding_flag: 'clinic_treatment_context.active_acne_lesions_visible',
+    evidence_source: context.active_acne_evidence_source ?? null,
+    lesion_zones: activeAcneLesionZones(input.diagnosis_report, input.feature_evidence),
+    blocking_conditions: blocks.map((block) => block.condition),
+    rule: {
+      required: 'The binding flag is derived in code from the supplied evidence. Every detailed facial session MUST contain exactly one PEEL.SPOT.SALI step: 2 minutes, role ADJUNCT, zones limited to lesion_zones (never full_face, under_eye or lips), one product from spot_sali_product_options in additional_products. A mild grade, your own reading of lesion activity, a short session window, an already selected broad peel or the patient\'s salicylic skincare use does not waive it (salicylic use rules out full-face salicylic peels, never this lesion-directed adjunct); only an evaluated block listed in clinical_clearance.blocked_steps does. A plan without it fails validation.',
+      blocked_by_existing_constraints: 'PEEL.SPOT.SALI is blocked by the listed evaluated constraints. Do not include it; document the block and choose the closest allowed lesion-directed alternative.',
+      not_required: 'No binding active-lesion flag is set. Include PEEL.SPOT.SALI only where the supplied evidence and clinic rules indicate it.',
+    }[status],
+  }
+}
+
+// Local completion of the mandatory adjunct when a draft omits it. The step has
+// fixed duration, role and product list under the clinic rule; zones come from the
+// supplied acne evidence. Blocked, standalone, broad-salicylic or over-window
+// sessions are left to the existing validation and repair path unchanged.
+export function completeActiveAcneSpotAdjunct(plan, plannerInput, constraints = {}) {
+  const untouched = { plan, completed_sessions: [] }
+  if (!plan || typeof plan !== 'object' || plan.error || !plannerInput) return untouched
+  const context = plannerInput.clinic_treatment_context || {}
+  if (context.active_acne_lesions_visible !== true) return untouched
+  if (context.clinical_clearance?.blocked_steps?.['PEEL.SPOT.SALI']?.length) return untouched
+  const products = plannerInput.planning_contract?.spot_sali_product_options || approvedSpotSaliProducts(constraints)
+  const lesionZones = activeAcneLesionZones(plannerInput.diagnosis_report, plannerInput.feature_evidence)
+  if (!products.length || !lesionZones.length) return untouched
+  const window = CLINIC_SESSION_WINDOWS[normalizeTreatmentPlanType(plannerInput.treatment_plan_type)]
+  const continuation = treatmentCourseWindow(plannerInput)
+  const acneRow = [...targetRows(plannerInput).values()].find((row) => normalize(row.parameter_name).includes('acne'))
+  const minutes = (step) => typeof step?.duration === 'number' && Number.isFinite(step.duration) ? step.duration : 0
+  const result = JSON.parse(JSON.stringify(plan))
+  const completed = []
+  for (const session of result.treatment_plan?.treatments || []) {
+    const steps = Array.isArray(session?.steps) ? session.steps : []
+    if (!steps.length || standaloneSlot(continuation, session.session_number)) continue
+    if (steps.some((step) => step?.step_id === 'PEEL.SPOT.SALI')) continue
+    // A broad salicylic peel on the same face is a clinical decision for the model's
+    // repair, not a place to stack a second salicylic pass in code.
+    if (steps.some((step) => BROAD_SALICYLIC_STEP_IDS.includes(step?.step_id))) continue
+    const total = steps.reduce((sum, step) => sum + minutes(step), 0) + SPOT_SALI_MINUTES
+    if (window && total > window[1]) {
+      // Only the flexible mandatory drainage absorbs the two minutes, never a fixed dose.
+      const massage = steps.find((step) => step?.step_id === 'MASSAGE.LYMPH')
+      const spare = massage ? minutes(massage) - CLINIC_STEP_TIMINGS.lymphatic_drainage[0] : 0
+      if (spare < total - window[1]) continue
+      massage.duration -= total - window[1]
+    }
+    const at = steps.findIndex((step) => step?.step_id === 'PREP.CLEANSE') + 1
+    steps.splice(at, 0, {
+      step_id: 'PEEL.SPOT.SALI', duration: SPOT_SALI_MINUTES, clinic_step_type: 'spot_salicylic', role: 'ADJUNCT',
+      zones: lesionZones, target_concerns: acneRow ? [acneRow.parameter_name] : [], intensity_rung: null,
+      order_reason: 'Mandatory lesion-directed adjunct under the clinic active-acne rule; applied after cleansing so lesions are prepared before corrective steps. Added by the clinic rule engine because the drafted plan omitted it.',
+      settings_note: null, duration_rationale: null, ingredients_equipments: [],
+      how_to_do: `Clinic rule engine addition: visible active lesions require this adjunct. Apply ${products[0]} only to the active lesions in the listed zones; avoid under-eye, lips, broken skin and flagged sensitive areas. Keep the two-minute protocol time, then remove per the product protocol; no additional cooling is needed for this spot adjunct. Clinician confirms the product choice and lesion zones before application.`,
+      script: 'We are also treating the individual active spots with a short, targeted salicylic application so those lesions settle faster.',
+      additional_products: [products[0]], infusion_ingredients: null, lip_passes: null, lip_serum: null, massage_purpose: null,
+    })
+    steps.forEach((step, index) => { step.step_number = index + 1 })
+    // A draft finalised before completion already lists its outcomes; the acne row
+    // joins them with the same supplied raw values the validator checks.
+    if (acneRow && Array.isArray(session.concerns_addressed) &&
+        !session.concerns_addressed.some((row) => normalize(row?.concern) === normalize(acneRow.parameter_name))) {
+      session.concerns_addressed.push({ concern: acneRow.parameter_name,
+        current_value: acneRow.score_or_label ?? acneRow.current_score ?? acneRow.current_value ?? acneRow.final_score ?? null,
+        target_value: acneRow.target_single_session_score ?? acneRow.target_score ?? acneRow.target_value ?? null })
+    }
+    completed.push(session.session_number)
+  }
+  return completed.length ? { plan: result, completed_sessions: completed } : untouched
+}
+
 function selectedConcernRows(input) {
   return normalizeTreatmentConcernRows(input?.treatable_concerns?.parameters_with_abnormal_scores || [], input?.diagnosis_report || {})
 }
@@ -490,6 +592,7 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
     lip_block_options: treatmentLipBlockOptions(input.clinic_treatment_context, constraints),
     spot_sali_product_options: approvedSpotSaliProducts(constraints),
     spot_sali_product_rule: 'For PEEL.SPOT.SALI, choose exactly one approved named product from spot_sali_product_options and put it in additional_products. Do not select a default concentration or name the product only in prose.',
+    active_acne_spot_rule: activeAcneSpotRule(input),
     primary_strategy_rule: 'Exactly one strategy per required primary in every detailed session. Copy its exact concern name into the strategy and selected step target_concerns. A corrective Carbon strategy selects ENERGY.CARBON.LASER; never its PREP application or PEEL.SPOT.SALI. Do not invent aliases or findings.',
     spot_salicylic_cooling_rule: 'PEEL.SPOT.SALI does not require cooling after it or between it and Carbon/Q-switch, including a lip pass. Keep independently required immediate post-energy cooling and actual broad-peel-plus-Carbon preparation/cooling. The spot adjunct is not a broad/full-face peel.',
     evidence_contract: 'treatment-evidence-v1: canonical raw safety proxies and their source paths are in clinic_treatment_context.clinical_clearance. Supplied feature proxies fill missing diagnosis backend_details. No displayed score, normalized burden or feature diagnosis score substitutes for a raw measurement. Selected primary names remain exactly those in required_primary_concerns.',
