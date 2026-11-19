@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { treatmentHistoryFlags, inClinicProductRecords } from '../src/utils/facial/5_light_modes/treatmentIntegration.js'
+import { treatmentHistoryFlags, treatmentEvaluatedClinicalBlocks, inClinicProductRecords } from '../src/utils/facial/5_light_modes/treatmentIntegration.js'
 import { buildTreatmentPlannerInput } from '../src/utils/facial/5_light_modes/treatmentClinicRules.js'
 import { formatFacialClientScores } from '../src/utils/facial/clientScoreDisplay.js'
 import { available_skincare_products } from '../src/utils/facial/5_light_modes/treatment/productJson.js'
@@ -61,4 +61,18 @@ test('legacy selected concerns restore exact engine scores before canonical nami
   assert.equal(row.is_primary_concern, true)
   assert.deepEqual(input.planning_contract.required_primary_concerns, [name])
   assert.deepEqual(displayedSelection, snapshot)
+})
+
+test('a ticked Salicylic Acid intake chip blocks full-face salicylic peels only, never the spot adjunct', () => {
+  assert.deepEqual(treatmentEvaluatedClinicalBlocks({}), {})
+  assert.deepEqual(treatmentEvaluatedClinicalBlocks({ allergies: ['Glycolic Acid', 'None'] }), {})
+  const blocks = treatmentEvaluatedClinicalBlocks({ allergies: ['Salicylic Acid'] })
+  assert.deepEqual(Object.keys(blocks).sort(), ['PEEL.SA20', 'PEEL.SA30', 'PEEL.SALIDS'])
+  assert.equal(blocks['PEEL.SPOT.SALI'], undefined)
+  for (const id of Object.keys(blocks)) {
+    assert.equal(blocks[id][0].condition, 'used_salicylic_yesterday')
+    assert.match(blocks[id][0].reason, /PEEL\.SPOT\.SALI adjunct remains permitted/)
+  }
+  // The history flag itself stays unknown, as before.
+  assert.equal(treatmentHistoryFlags({ allergies: ['Salicylic Acid'] }).used_salicylic_yesterday, undefined)
 })

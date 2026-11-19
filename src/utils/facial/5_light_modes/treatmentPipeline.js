@@ -6,6 +6,7 @@ import {
   unpackTreatmentPlannerResponse,
   compileTreatmentPlannerInput,
   buildTreatmentExecutionContract,
+  completeActiveAcneSpotAdjunct,
 } from './treatmentClinicRules.js'
 import { COURSE_CONTINUATION_INSTRUCTIONS, treatmentCourseWindow } from './treatmentCourseContinuation.js'
 import { STANDALONE_CONTINUATION_INSTRUCTIONS } from './treatmentStandalone.js'
@@ -386,8 +387,17 @@ export async function generateTreatmentPlan({
       metrics.validation_warnings = warnings
     }
     const check = async (plan) => {
+      // The mandatory spot-salicylic adjunct is completed locally when a draft omits
+      // it, so one omission no longer costs a repair call that repeats the omission.
+      const completion = completeActiveAcneSpotAdjunct(plan, plannerInput, constraints)
+      if (completion.completed_sessions.length) {
+        metrics.spot_adjunct_completed_sessions = completion.completed_sessions
+        console.info('[facial-treatment-v5.6] mandatory spot-salicylic adjunct added locally', {
+          sessions: completion.completed_sessions,
+        })
+      }
       let result = validateClinicTreatmentPlan(
-        finalizeTreatmentPlan(plan, plannerInput),
+        finalizeTreatmentPlan(completion.plan, plannerInput),
         plannerInput.clinic_treatment_context,
         treatmentType,
         constraints,
@@ -456,7 +466,7 @@ export async function generateTreatmentPlan({
           patient_input: JSON.parse(request.input),
           invalid_draft: { treatment_plan: draftRoot },
           validation_errors: checked.error.details || [checked.error.message],
-          task: 'Correct EVERY listed violation and dependent safety/time/sequence decisions. Preserve valid decisions, case evidence, original scores, named primaries with actual step-target linkage, approved spot product, carbon drying, required energy/broad-peel cooling and one 5-10-minute mandatory drainage step. Spot salicylic remains a two-minute ADJUNCT with no cooling caused by its presence. Return the same planning_result schema: concise decisions, generated procedure instructions, relevant_alternatives only; no eleven-category audit, invented findings, settings or empty success.',
+          task: 'Correct EVERY listed violation and dependent safety/time/sequence decisions. Preserve valid decisions, case evidence, original scores, named primaries with actual step-target linkage, approved spot product, carbon drying, required energy/broad-peel cooling and one 5-10-minute mandatory drainage step. Spot salicylic remains a two-minute ADJUNCT with no cooling caused by its presence. When planning_contract.active_acne_spot_rule.status is "required", every detailed facial session must contain exactly one PEEL.SPOT.SALI step exactly as that rule specifies; your own reading of lesion activity does not waive it. Return the same planning_result schema: concise decisions, generated procedure instructions, relevant_alternatives only; no eleven-category audit, invented findings, settings or empty success.',
         }),
       }
       phase = 'repair_request'
