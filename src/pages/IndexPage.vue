@@ -231,7 +231,7 @@ import {
   validateClinicTreatmentPlan,
   buildClinicGenerationContract,
 } from 'src/utils/facial/treatmentClinicRules.js'
-import { treatmentHistoryFlags, treatmentEvaluatedClinicalBlocks, inClinicProductRecords } from 'src/utils/facial/5_light_modes/treatmentIntegration.js'
+import { treatmentHistoryFlags, treatmentEvaluatedClinicalBlocks, treatmentIntakeProducts, inClinicProductRecords } from 'src/utils/facial/5_light_modes/treatmentIntegration.js'
 import { buildContinuationPlanningContext, isPairedFacialCourse } from 'src/utils/facial/5_light_modes/treatmentCourseContinuation.js'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
@@ -909,7 +909,8 @@ async function callApiForTreatmentPlan(selected, treatmentType, continuationCont
     social_event: planningAssessment.social_event,
     upcoming_travel: planningAssessment.upcoming_travel,
     medical_history: planningAssessment.medical_history,
-    allergies: planningAssessment.allergies,
+    // Salicylic/Glycolic Acid chips are current skincare use, not allergies.
+    ...treatmentIntakeProducts(planningAssessment),
     is_pregnant: planningAssessment.is_pregnant,
     breastfeeding: planningAssessment.breastfeeding,
     forehead_surface_c: temperatureValue(planningAssessment.skin_temp_for_head),

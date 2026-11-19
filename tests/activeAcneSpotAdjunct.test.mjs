@@ -8,7 +8,7 @@ const moduleRoot = join(root, 'src/utils/facial/5_light_modes')
 const rules = await import(pathToFileURL(join(moduleRoot, 'treatmentClinicRules.js')))
 const pipeline = await import(pathToFileURL(join(moduleRoot, 'treatmentPipeline.js')))
 const { TREATMENT_STEPS } = await import(pathToFileURL(join(moduleRoot, 'treatmentKnowledge.js')))
-const { treatmentEvaluatedClinicalBlocks } = await import(pathToFileURL(join(moduleRoot, 'treatmentIntegration.js')))
+const { treatmentEvaluatedClinicalBlocks, treatmentIntakeProducts } = await import(pathToFileURL(join(moduleRoot, 'treatmentIntegration.js')))
 const constraints = JSON.parse(await readFile(join(moduleRoot, 'treatment/constraints.json'), 'utf8'))
 
 const concern = 'Superficial Pigmentation Score'
@@ -185,4 +185,39 @@ test('the live intake case: Salicylic Acid ticked, mild lesions visible, the spo
   const broad = draft(); broad.treatment_plan.treatments[0].steps[1] = step('PEEL.SA20', 4, 'SECONDARY_CORRECTIVE', { how_to_do: 'Apply the approved superficial salicylic protocol; complete neutralisation or protocol removal before proceeding.' })
   const rejected = rules.validateClinicTreatmentPlan(rules.finalizeTreatmentPlan(rules.completeActiveAcneSpotAdjunct(broad, liveInput, constraints).plan, liveInput), liveInput.clinic_treatment_context, 'express', constraints, liveInput)
   assert.match(rejected.error.details.join('\n'), /PEEL\.SA20|blocked by used_salicylic_yesterday/)
+})
+
+const blockedResult = (reason, constraint) => ({ planning_result: { outcome: 'blocked', treatment_plan: null,
+  failure: { reason, blocking_constraints: [{ constraint_reference: constraint, case_evidence: reason }] } } })
+
+test('a blockage misreported against the required spot adjunct gets one repair and then succeeds', async () => {
+  const intake = { allergies: ['Salicylic Acid'] }
+  const liveOptions = { ...options, evaluatedClinicalBlocks: treatmentEvaluatedClinicalBlocks(intake), patientProfileAndHistory: { name: 'x', ...treatmentIntakeProducts(intake) } }
+  const refusal = 'Visible active lesions trigger mandatory PEEL.SPOT.SALI, but Salicylic Acid is recorded as an allergy and no compliant non-salicylic override path is supplied for a successful detailed facial.'
+  let calls = 0; const requests = []
+  const result = await pipeline.generateTreatmentPlan({ ...args, options: liveOptions, callModel: async (request) => {
+    calls++; requests.push(request)
+    return calls === 1 ? blockedResult(refusal, 'clinical_constraints.active_acne_spot_treatment_rule') : envelope(draft())
+  }, onMetrics: (m) => { assert.equal(m.calls, 2); assert.equal(m.repaired, true); assert.equal(m.status, 'completed') } })
+  assert.equal(result.error, undefined); assert.equal(calls, 2); assert.equal(spotSteps(result).length, 1)
+  const repair = JSON.parse(requests[1].input)
+  assert.equal(repair.invalid_draft, null)
+  assert.equal(repair.rejected_blocked_result.reason, refusal)
+  assert.match(repair.task, /NOT blocked for this patient/)
+  assert.deepEqual(repair.patient_input.patient_profile_and_history.current_skincare_actives, ['Salicylic Acid'])
+  assert.deepEqual(repair.patient_input.patient_profile_and_history.allergies, [])
+  assert.match(repair.patient_input.planning_contract.active_acne_spot_rule.rule, /records no salicylic allergy/)
+})
+
+test('a blockage on any other ground, or when the adjunct is not required, stays final with no repair call', async () => {
+  let calls = 0
+  const other = await pipeline.generateTreatmentPlan({ ...args, callModel: async () => { calls++; return blockedResult('Pregnancy blocks every energy device.', 'patient_history_rules.pregnant') } })
+  assert.equal(calls, 1); assert.equal(other.error.code, 'treatment_planning_blocked'); assert.match(other.error.message, /Pregnancy/)
+  calls = 0
+  const quiet = await pipeline.generateTreatmentPlan({ ...args, options: { historyRuleFlags: history }, callModel: async () => { calls++; return blockedResult('Salicylic allergy blocks the spot adjunct.', 'x') } })
+  assert.equal(calls, 1); assert.equal(quiet.error.code, 'treatment_planning_blocked')
+  // A repeated refusal after the repair is reported, not retried further.
+  calls = 0
+  const stubborn = await pipeline.generateTreatmentPlan({ ...args, callModel: async () => { calls++; return blockedResult('Salicylic Acid is recorded as an allergy.', 'x') } })
+  assert.equal(calls, 2); assert.equal(stubborn.error.code, 'treatment_planning_blocked'); assert.match(stubborn.error.message, /Repair failed/)
 })
