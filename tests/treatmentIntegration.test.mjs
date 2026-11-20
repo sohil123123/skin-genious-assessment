@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { treatmentHistoryFlags, treatmentEvaluatedClinicalBlocks, inClinicProductRecords } from '../src/utils/facial/5_light_modes/treatmentIntegration.js'
+import { treatmentHistoryFlags, treatmentEvaluatedClinicalBlocks, treatmentIntakeProducts, inClinicProductRecords } from '../src/utils/facial/5_light_modes/treatmentIntegration.js'
 import { buildTreatmentPlannerInput } from '../src/utils/facial/5_light_modes/treatmentClinicRules.js'
 import { formatFacialClientScores } from '../src/utils/facial/clientScoreDisplay.js'
 import { available_skincare_products } from '../src/utils/facial/5_light_modes/treatment/productJson.js'
@@ -75,4 +75,11 @@ test('a ticked Salicylic Acid intake chip blocks full-face salicylic peels only,
   }
   // The history flag itself stays unknown, as before.
   assert.equal(treatmentHistoryFlags({ allergies: ['Salicylic Acid'] }).used_salicylic_yesterday, undefined)
+})
+
+test('the intake chip row is split into skincare actives and allergies for the planner profile', () => {
+  assert.deepEqual(treatmentIntakeProducts({}), { current_skincare_actives: [], allergies: [] })
+  assert.deepEqual(treatmentIntakeProducts({ allergies: ['Salicylic Acid', 'Vitamin C'] }),
+    { current_skincare_actives: ['Salicylic Acid'], allergies: ['Vitamin C'] })
+  assert.deepEqual(treatmentIntakeProducts({ allergies: ['None'] }), { current_skincare_actives: [], allergies: ['None'] })
 })

@@ -34,6 +34,18 @@ export function treatmentHistoryFlags(patient) {
 // salicylic use history. A ticked "Salicylic Acid" on the intake (stored in
 // allergies) therefore never blocks PEEL.SPOT.SALI; it rules out the full-face
 // salicylic peels only. No history flag and no other eligibility changes.
+// The intake chip row "CURRENT SKINCARE & ALLERGIES" stores acids and allergens in
+// one `allergies` array. The planner must read Salicylic/Glycolic Acid as current
+// skincare use, never as an allergy, so the profile sent to the model names them apart.
+export const SKINCARE_ACTIVE_CHIPS = Object.freeze(['Salicylic Acid', 'Glycolic Acid'])
+export function treatmentIntakeProducts(patient) {
+  const listed = Array.isArray(patient?.allergies) ? patient.allergies : []
+  return {
+    current_skincare_actives: listed.filter((item) => SKINCARE_ACTIVE_CHIPS.includes(item)),
+    allergies: listed.filter((item) => !SKINCARE_ACTIVE_CHIPS.includes(item)),
+  }
+}
+
 export const FULL_FACE_SALICYLIC_STEP_IDS = Object.freeze(['PEEL.SA20', 'PEEL.SA30', 'PEEL.SALIDS'])
 export function treatmentEvaluatedClinicalBlocks(patient) {
   const listed = Array.isArray(patient?.allergies) ? patient.allergies : []

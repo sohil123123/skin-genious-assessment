@@ -195,6 +195,13 @@ function incompleteResponseError(response, request, reason, message) {
   })
 }
 
+function misreportedSpotSalicylicBlock(error, plannerInput) {
+  if (error?.code !== 'treatment_planning_blocked') return false
+  if (plannerInput?.planning_contract?.active_acne_spot_rule?.status !== 'required') return false
+  const text = [error.message, ...(Array.isArray(error.details) ? error.details : [])].join('\n')
+  return /PEEL\.SPOT\.SALI|spot[\s_-]*salicylic|salicylic/i.test(text)
+}
+
 function parseModelResponse(response, request) {
   if (response?.error)
     throw Object.assign(
@@ -437,17 +444,31 @@ export async function generateTreatmentPlan({
     metrics.calls += 1
     const response = await recordedCall(request, initialTimeout, 'initial')
     phase = 'output_contract'
-    const draft = unpackTreatmentPlannerResponse(
-      parseModelResponse(response, request),
-      treatmentType,
-      plannerInput,
-    )
-    candidate = finalizeTreatmentPlan(draft, plannerInput)
-    phase = 'initial_validation'
-    let checked = await check(candidate)
+    let draft = null
+    let checked
+    try {
+      draft = unpackTreatmentPlannerResponse(
+        parseModelResponse(response, request),
+        treatmentType,
+        plannerInput,
+      )
+    } catch (error) {
+      // A reported blockage is normally final. The one exception is a blockage that
+      // cites the spot-salicylic adjunct while the rule engine knows the adjunct is
+      // required and not blocked: that is a misreading of the case, not a clinical
+      // block, and it gets the same single repair a rule violation would.
+      if (!misreportedSpotSalicylicBlock(error, plannerInput)) throw error
+      checked = { error: { code: error.code, message: error.message, details: error.details || [error.message] } }
+      console.error('[facial-treatment-v5.6] blockage misreported against the required spot adjunct', checked.error)
+    }
+    if (draft) {
+      candidate = finalizeTreatmentPlan(draft, plannerInput)
+      phase = 'initial_validation'
+      checked = await check(candidate)
+      if (checked.error)
+        console.error('[facial-treatment-v5.6] initial validation failed', checked.error)
+    }
     initialValidationError = checked.error
-    if (checked.error)
-      console.error('[facial-treatment-v5.6] initial validation failed', checked.error)
     const remaining = deadline - Date.now()
     // Exactly one targeted content repair, only for a complete parseable plan and
     // within an explicitly configured budget, if any. Never retry a timeout/truncated response.
@@ -459,14 +480,14 @@ export async function generateTreatmentPlan({
     ) {
       metrics.calls += 1
       metrics.repaired = true
-      const { treatment_plan: draftRoot } = draft
       const repairRequest = {
         ...request,
         input: stableTreatmentJson({
           patient_input: JSON.parse(request.input),
-          invalid_draft: { treatment_plan: draftRoot },
+          invalid_draft: draft ? { treatment_plan: draft.treatment_plan } : null,
+          rejected_blocked_result: draft ? null : { reason: checked.error.message, blocking_constraints: checked.error.details },
           validation_errors: checked.error.details || [checked.error.message],
-          task: 'Correct EVERY listed violation and dependent safety/time/sequence decisions. Preserve valid decisions, case evidence, original scores, named primaries with actual step-target linkage, approved spot product, carbon drying, required energy/broad-peel cooling and one 5-10-minute mandatory drainage step. Spot salicylic remains a two-minute ADJUNCT with no cooling caused by its presence. When planning_contract.active_acne_spot_rule.status is "required", every detailed facial session must contain exactly one PEEL.SPOT.SALI step exactly as that rule specifies; your own reading of lesion activity does not waive it. Return the same planning_result schema: concise decisions, generated procedure instructions, relevant_alternatives only; no eleven-category audit, invented findings, settings or empty success.',
+          task: `${draft ? '' : 'Your previous result reported a blockage citing the spot-salicylic adjunct. The rule engine confirms PEEL.SPOT.SALI is NOT blocked for this patient: the intake records salicylic skincare use, not a salicylic allergy, and skincare use never blocks the lesion-directed adjunct (it only rules out full-face salicylic peels). Return a successful detailed plan that includes the adjunct. '}Correct EVERY listed violation and dependent safety/time/sequence decisions. Preserve valid decisions, case evidence, original scores, named primaries with actual step-target linkage, approved spot product, carbon drying, required energy/broad-peel cooling and one 5-10-minute mandatory drainage step. Spot salicylic remains a two-minute ADJUNCT with no cooling caused by its presence. When planning_contract.active_acne_spot_rule.status is "required", every detailed facial session must contain exactly one PEEL.SPOT.SALI step exactly as that rule specifies; your own reading of lesion activity does not waive it. Return the same planning_result schema: concise decisions, generated procedure instructions, relevant_alternatives only; no eleven-category audit, invented findings, settings or empty success.`,
         }),
       }
       phase = 'repair_request'
