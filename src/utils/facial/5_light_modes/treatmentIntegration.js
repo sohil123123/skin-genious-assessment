@@ -30,6 +30,31 @@ export function treatmentHistoryFlags(patient) {
   return flags
 }
 
+// Clinic rule: the lesion-directed spot salicylic adjunct is independent of
+// salicylic use history. A ticked "Salicylic Acid" on the intake (stored in
+// allergies) therefore never blocks PEEL.SPOT.SALI; it rules out the full-face
+// salicylic peels only. No history flag and no other eligibility changes.
+// The intake chip row "CURRENT SKINCARE & ALLERGIES" stores acids and allergens in
+// one `allergies` array. The planner must read Salicylic/Glycolic Acid as current
+// skincare use, never as an allergy, so the profile sent to the model names them apart.
+export const SKINCARE_ACTIVE_CHIPS = Object.freeze(['Salicylic Acid', 'Glycolic Acid'])
+export function treatmentIntakeProducts(patient) {
+  const listed = Array.isArray(patient?.allergies) ? patient.allergies : []
+  return {
+    current_skincare_actives: listed.filter((item) => SKINCARE_ACTIVE_CHIPS.includes(item)),
+    allergies: listed.filter((item) => !SKINCARE_ACTIVE_CHIPS.includes(item)),
+  }
+}
+
+export const FULL_FACE_SALICYLIC_STEP_IDS = Object.freeze(['PEEL.SA20', 'PEEL.SA30', 'PEEL.SALIDS'])
+export function treatmentEvaluatedClinicalBlocks(patient) {
+  const listed = Array.isArray(patient?.allergies) ? patient.allergies : []
+  if (!listed.includes('Salicylic Acid')) return {}
+  const block = { condition: 'used_salicylic_yesterday',
+    reason: 'Intake lists Salicylic Acid under current skincare & allergies: full-face salicylic peels are avoided after salicylic use. The lesion-directed PEEL.SPOT.SALI adjunct remains permitted and, with visible active lesions, required.' }
+  return Object.fromEntries(FULL_FACE_SALICYLIC_STEP_IDS.map((id) => [id, [block]]))
+}
+
 // Explicit clinic cleanser/finish selection from the inspected product records.
 // Retinol and home-care-only products are not included in the planning prefix.
 const clinicProductNames = new Set([
