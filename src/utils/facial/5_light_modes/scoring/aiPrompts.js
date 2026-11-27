@@ -187,7 +187,7 @@ Acne:
 - inflammatory_ratio_bin: primary = red; secondary = subsurface_polarized; sanity-check = white
 - active_lesion_visibility_bin: primary = subsurface_polarized; secondary = white; tertiary = red
 - post_inflammatory_mark_burden_bin: primary = white; secondary = woods_uv
-- dominant_regions: fuse subsurface_polarized + surface_polarized + white
+- dominant_regions: fuse subsurface_polarized + surface_polarized + white. REQUIRED (one or more of forehead, nose, left_cheek, right_cheek, chin, perioral) whenever active_lesion_visibility_bin is mild, clear or striking; the treatment planner applies the spot adjunct to exactly these regions.
 
 Sebum / oiliness:
 - shine_intensity_bin / shine_coverage_bin: primary = white; secondary = surface_polarized

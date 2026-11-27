@@ -68,7 +68,7 @@ Spot salicylic: PEEL.SPOT.SALI, exactly 2 minutes, role ADJUNCT; mandatory for v
 For PEEL.SPOT.SALI, additional_products must contain exactly ONE named product from planning_contract.spot_sali_product_options. Choose the appropriate approved product for this case; do not assume a default concentration. A generic "salicylic acid" or a product mentioned only in prose does not identify the executable product. No other step requires this spot-product choice.
 Spot salicylic creates NO mandatory cooling step after it or between it and Carbon/Q-switch, including a lip pass. It is a lesion-only ADJUNCT, not a broad/full-face peel. Preserve independently required post-energy cooling and the actual broad-peel-plus-Carbon preparation/cooling rules; do not add cooling merely because PEEL.SPOT.SALI is present.
 Massage: exactly one MASSAGE.LYMPH in EVERY detailed facial, 5-10 minutes, massage_purpose "mandatory". Reserve at least 5 minutes before selecting optional additions. Include it even when puffiness is minimal or all other steps already meet the session minimum. It is required session care, not optional filler or a corrective substitute. Use the existing clinician-approved technique and applicable zone precautions; do not invent a new diagnosis-wide exclusion from reference notes. An actual evaluated clinical hard stop requires an explicit blocked response, never a successful session without massage. No duplicate massage, automatic 10-minute duration or padding fixed steps. Selection order does not fix procedure order.
-Lip: reuse clinic_treatment_context.lip_pigmentation. Its trigger is the rounded higher-is-better CLIENT score <70, never the raw severity or target. If assessable, triggered and not blocked, include ENERGY.QS.LIP: two Q-switch passes with HA, exactly 2 minutes before finish, lip_passes 2, lip_serum "Hyaluronic Acid". Use existing contraindications, proxy and temperature rules. For blocked status, copy a constraint_reference from planning_contract.lip_block_options and explain its supplied case evidence. A medium-peel option applies only when that session actually includes a listed medium peel. A time budget or preferred alternative alone never blocks lip care. Cosmetic occlusion wins over a fallback score. No invented lip wavelength, energy or serum sequence.
+Lip: reuse clinic_treatment_context.lip_pigmentation. Its trigger is the rounded higher-is-better CLIENT score <70, never the raw severity or target. If assessable, triggered and not blocked, include ENERGY.QS.LIP: two Q-switch passes with HA, exactly 2 minutes before finish, lip_passes 2, lip_serum "Hyaluronic Acid". Closed clinic decision: pregnancy is the ONLY patient-history condition that cancels the lip pass. Facial-skin restrictions (sun, travel, social event, retinol, recent laser, skin temperature, barrier proxies, salicylic or glycolic home use) and a medium peel in the same session do NOT cancel it. For blocked status, copy a constraint_reference from planning_contract.lip_block_options and explain its supplied case evidence. A time budget or preferred alternative alone never blocks lip care. Cosmetic occlusion wins over a fallback score. No invented lip wavelength, energy or serum sequence.
 Finish: exactly one FINISH.SMS, serum + moisturiser + sunscreen together, exactly 3 minutes, last. All times are actual sequential minutes; do not double-count concurrent activity or drying/contact time.
 No protocol settings may be invented from an equipment range. Use a supplied approved preset/protocol, or flag missing settings in preparations_checklist_for_therapist and settings_note for clinician completion before treatment.
 `
@@ -449,7 +449,12 @@ export function approvedSpotSaliProducts(constraints = {}) {
 // only from supplied acne evidence; nothing is inferred from a score or a grade.
 const SPOT_SALI_MINUTES = CLINIC_STEP_TIMINGS.spot_salicylic[0]
 const SPOT_SALI_EXCLUDED_ZONES = ['full_face', 'under_eye', 'lips']
-const BROAD_SALICYLIC_STEP_IDS = ['PEEL.SA20', 'PEEL.SA30', 'PEEL.SALIDS']
+// Closed clinic decisions for local completion of the adjunct.
+const DEFAULT_SPOT_SALI_PRODUCT = '20% Salicylic Acid Peel'
+const DEFAULT_SPOT_SALI_ZONES = ['chin', 'forehead']
+export function defaultSpotSaliProduct(options = []) {
+  return options.find((name) => normalize(name) === normalize(DEFAULT_SPOT_SALI_PRODUCT)) || options[0] || null
+}
 
 export function activeAcneLesionZones(diagnosis = {}, featurePacket = null) {
   const report = diagnosis?.diagnosis_report ?? diagnosis ?? {}
@@ -480,9 +485,11 @@ function activeAcneSpotRule(input) {
     binding_flag: 'clinic_treatment_context.active_acne_lesions_visible',
     evidence_source: context.active_acne_evidence_source ?? null,
     lesion_zones: activeAcneLesionZones(input.diagnosis_report, input.feature_evidence),
+    default_lesion_zones_when_scan_gives_none: DEFAULT_SPOT_SALI_ZONES,
+    default_product_when_engine_completes: defaultSpotSaliProduct(input.planning_contract?.spot_sali_product_options || []),
     blocking_conditions: blocks.map((block) => block.condition),
     rule: {
-      required: 'The binding flag is derived in code from the supplied evidence. Every detailed facial session MUST contain exactly one PEEL.SPOT.SALI step: 2 minutes, role ADJUNCT, zones limited to lesion_zones (never full_face, under_eye or lips), one product from spot_sali_product_options in additional_products. A mild grade, your own reading of lesion activity, a short session window, an already selected broad peel or the patient\'s salicylic skincare use does not waive it (salicylic use rules out full-face salicylic peels, never this lesion-directed adjunct; the intake records no salicylic allergy, so never report a blockage on that basis); only an evaluated block listed in clinical_clearance.blocked_steps does. A plan without it fails validation.',
+      required: 'The binding flag is derived in code from the supplied evidence. Every detailed facial session MUST contain exactly one PEEL.SPOT.SALI step: 2 minutes, role ADJUNCT, zones limited to lesion_zones (use default_lesion_zones_when_scan_gives_none if lesion_zones is empty; never full_face, under_eye or lips), one product from spot_sali_product_options in additional_products. A mild grade, your own reading of lesion activity, a short session window, an already selected broad peel or the patient\'s salicylic skincare use does not waive it (salicylic use rules out full-face salicylic peels, never this lesion-directed adjunct; the intake records no salicylic allergy, so never report a blockage on that basis); only an evaluated block listed in clinical_clearance.blocked_steps does. A plan without it fails validation.',
       blocked_by_existing_constraints: 'PEEL.SPOT.SALI is blocked by the listed evaluated constraints. Do not include it; document the block and choose the closest allowed lesion-directed alternative.',
       not_required: 'No binding active-lesion flag is set. Include PEEL.SPOT.SALI only where the supplied evidence and clinic rules indicate it.',
     }[status],
@@ -500,8 +507,10 @@ export function completeActiveAcneSpotAdjunct(plan, plannerInput, constraints = 
   if (context.active_acne_lesions_visible !== true) return untouched
   if (context.clinical_clearance?.blocked_steps?.['PEEL.SPOT.SALI']?.length) return untouched
   const products = plannerInput.planning_contract?.spot_sali_product_options || approvedSpotSaliProducts(constraints)
-  const lesionZones = activeAcneLesionZones(plannerInput.diagnosis_report, plannerInput.feature_evidence)
-  if (!products.length || !lesionZones.length) return untouched
+  const product = defaultSpotSaliProduct(products)
+  const evidenceZones = activeAcneLesionZones(plannerInput.diagnosis_report, plannerInput.feature_evidence)
+  const lesionZones = evidenceZones.length ? evidenceZones : [...DEFAULT_SPOT_SALI_ZONES]
+  if (!product) return untouched
   const window = CLINIC_SESSION_WINDOWS[normalizeTreatmentPlanType(plannerInput.treatment_plan_type)]
   const continuation = treatmentCourseWindow(plannerInput)
   const acneRow = [...targetRows(plannerInput).values()].find((row) => normalize(row.parameter_name).includes('acne'))
@@ -512,9 +521,6 @@ export function completeActiveAcneSpotAdjunct(plan, plannerInput, constraints = 
     const steps = Array.isArray(session?.steps) ? session.steps : []
     if (!steps.length || standaloneSlot(continuation, session.session_number)) continue
     if (steps.some((step) => step?.step_id === 'PEEL.SPOT.SALI')) continue
-    // A broad salicylic peel on the same face is a clinical decision for the model's
-    // repair, not a place to stack a second salicylic pass in code.
-    if (steps.some((step) => BROAD_SALICYLIC_STEP_IDS.includes(step?.step_id))) continue
     const total = steps.reduce((sum, step) => sum + minutes(step), 0) + SPOT_SALI_MINUTES
     if (window && total > window[1]) {
       // Only the flexible mandatory drainage absorbs the two minutes, never a fixed dose.
@@ -527,11 +533,11 @@ export function completeActiveAcneSpotAdjunct(plan, plannerInput, constraints = 
     steps.splice(at, 0, {
       step_id: 'PEEL.SPOT.SALI', duration: SPOT_SALI_MINUTES, clinic_step_type: 'spot_salicylic', role: 'ADJUNCT',
       zones: lesionZones, target_concerns: acneRow ? [acneRow.parameter_name] : [], intensity_rung: null,
-      order_reason: 'Mandatory lesion-directed adjunct under the clinic active-acne rule; applied after cleansing so lesions are prepared before corrective steps. Added by the clinic rule engine because the drafted plan omitted it.',
+      order_reason: 'Mandatory lesion-directed adjunct under the clinic active-acne rule; applied after cleansing so lesions are prepared before corrective steps. Added by the rule engine because the drafted plan omitted it.',
       settings_note: null, duration_rationale: null, ingredients_equipments: [],
-      how_to_do: `Clinic rule engine addition: visible active lesions require this adjunct. Apply ${products[0]} only to the active lesions in the listed zones; avoid under-eye, lips, broken skin and flagged sensitive areas. Keep the two-minute protocol time, then remove per the product protocol; no additional cooling is needed for this spot adjunct. Clinician confirms the product choice and lesion zones before application.`,
+      how_to_do: `Visible active lesions require this adjunct under the clinic rule. Apply ${product} only to the active lesions in the listed zones${evidenceZones.length ? '' : ' (clinic default zones; treat the lesions actually present)'}; avoid under-eye, lips, broken skin and flagged sensitive areas. Keep the two-minute protocol time, then remove per the product protocol; no additional cooling is needed for this spot adjunct.`,
       script: 'We are also treating the individual active spots with a short, targeted salicylic application so those lesions settle faster.',
-      additional_products: [products[0]], infusion_ingredients: null, lip_passes: null, lip_serum: null, massage_purpose: null,
+      additional_products: [product], infusion_ingredients: null, lip_passes: null, lip_serum: null, massage_purpose: null,
     })
     steps.forEach((step, index) => { step.step_number = index + 1 })
     // A draft finalised before completion already lists its outcomes; the acne row
@@ -545,6 +551,41 @@ export function completeActiveAcneSpotAdjunct(plan, plannerInput, constraints = 
     completed.push(session.session_number)
   }
   return completed.length ? { plan: result, completed_sessions: completed } : untouched
+}
+
+// Steps that can carry a counted corrective role for a facial session. LED is
+// support/recovery in every clinic map and the lip pass is a fixed adjunct, so
+// neither keeps a session out of the soothing fallback.
+const CORRECTIVE_CAPABLE_STEP_IDS = Object.freeze(Object.values(TREATMENT_STEPS).filter((step) =>
+  step.facial_session_allowed !== false && !TREATMENT_EXECUTION_RULES.non_corrective_step_ids.includes(step.id) && step.id !== 'ENERGY.QS.LIP' &&
+  (step.clinic_step_type === 'chemical_peel' || step.clinic_step_type === 'carbon_laser' || step.id.startsWith('ENERGY.') || step.id === 'EXFO.MICRO.DIAMOND')).map((step) => step.id))
+
+export const FALLBACK_SOOTHING_SESSION = Object.freeze({
+  steps: ['PREP.CLEANSE 2', 'SPRAY.HYDRA 3 (Hyaluronic Acid)', 'INFUSE.HA 3', 'INFUSE.PDRN 3', 'COOL.ICE 2-5', 'MASK.CALMING 15', 'MASSAGE.LYMPH 5-10 (mandatory)', 'FINISH.SMS 3'],
+  primary_strategy: 'care_type "direct_support" for every required primary, selected_step_id INFUSE.HA or INFUSE.PDRN with the primary concern in its target_concerns, exception_reason naming the blocking conditions.',
+})
+export const SINGLE_SESSION_PADDING_POLICY = Object.freeze({
+  rule: 'Single and multiple-course sessions keep the 60-75 minute window even when every energy device is denied. Reach the minimum only with these steps, in this order of preference, each at most once unless stated.',
+  steps: ['EXFO.VORTEX 4', 'EXFO.SPATULA 4', 'EXTR.MANUAL 7 (not when skin temperature >= 36.9 C)', 'SPRAY.HYDRA 3', 'distinct infusions 3 minutes each: INFUSE.HA, INFUSE.PDRN, INFUSE.TRX, INFUSE.EXO', 'EYE.INFUSE 2', 'COOL.ICE up to 5', 'MASSAGE.LYMPH up to 10', 'one peel-off mask 15'],
+})
+
+// The clinic closed every judgement call so that model and rule engine agree.
+function closedClinicDecisions(input) {
+  const blocked = input.clinic_treatment_context?.clinical_clearance?.blocked_steps || {}
+  const isBlocked = (id) => (blocked[id] || []).length > 0
+  const correctives = CORRECTIVE_CAPABLE_STEP_IDS.filter((id) => !isBlocked(id) && !(id === 'ENERGY.CARBON.LASER' && isBlocked('ENERGY.CARBON.APPLY')))
+  const blockingConditions = [...new Set(Object.values(blocked).flat().map((row) => row.condition))]
+  return {
+    lip_pass: 'ENERGY.QS.LIP (2 minutes, two passes, Hyaluronic Acid) is required whenever the assessable client lip score is below 70 and is cancelled by pregnancy only. Sun exposure, travel, social events, retinol, recent laser, skin temperature, barrier proxies, salicylic or glycolic home use and a medium peel in the same session do not cancel it.',
+    history_fields_without_restriction: { fields: ['On medications', 'Hypertension', 'Breast feeding', 'Diabetes', 'Thyroid', 'PCOD'], rule: 'These intake answers impose no treatment restriction. Do not infer photosensitivity, bleeding, hormonal or any other restriction from them; use them only for outlook wording.' },
+    salicylic_glycolic_home_use: 'Current salicylic use blocks only the full-face salicylic peels (PEEL.SA20, PEEL.SA30, PEEL.SALIDS); current glycolic use blocks only PEEL.GLYCO35. Carbon, Q-switch, the lip pass and the lesion-only PEEL.SPOT.SALI adjunct stay allowed. The intake records no acid allergy.',
+    acne_visibility: 'active_lesion_visibility_bin mild, clear or striking means visible active lesions; none or faint does not.',
+    available_corrective_step_ids: correctives,
+    fallback_when_no_corrective_is_available: correctives.length ? null : { blocking_conditions: blockingConditions, session: FALLBACK_SOOTHING_SESSION,
+      rule: 'Every corrective-capable step is blocked by evaluated constraints. Return a SUCCESSFUL plan using this soothing/barrier session; never a blocked result. Pad a single/multiple session to its 60-minute minimum with single_session_padding_policy.' },
+    single_session_padding_policy: SINGLE_SESSION_PADDING_POLICY,
+    blocked_results: 'A compliant plan always exists under these decisions. Report outcome "blocked" only if a step the clinic requires (mandatory lymphatic drainage) is itself blocked in clinical_clearance.blocked_steps.',
+  }
 }
 
 function selectedConcernRows(input) {
@@ -593,6 +634,7 @@ export function buildTreatmentPlannerInput(diagnosis, selected, treatmentType, c
     spot_sali_product_options: approvedSpotSaliProducts(constraints),
     spot_sali_product_rule: 'For PEEL.SPOT.SALI, choose exactly one approved named product from spot_sali_product_options and put it in additional_products. Do not select a default concentration or name the product only in prose.',
     active_acne_spot_rule: activeAcneSpotRule(input),
+    closed_clinic_decisions: closedClinicDecisions(input),
     primary_strategy_rule: 'Exactly one strategy per required primary in every detailed session. Copy its exact concern name into the strategy and selected step target_concerns. A corrective Carbon strategy selects ENERGY.CARBON.LASER; never its PREP application or PEEL.SPOT.SALI. Do not invent aliases or findings.',
     spot_salicylic_cooling_rule: 'PEEL.SPOT.SALI does not require cooling after it or between it and Carbon/Q-switch, including a lip pass. Keep independently required immediate post-energy cooling and actual broad-peel-plus-Carbon preparation/cooling. The spot adjunct is not a broad/full-face peel.',
     evidence_contract: 'treatment-evidence-v1: canonical raw safety proxies and their source paths are in clinic_treatment_context.clinical_clearance. Supplied feature proxies fill missing diagnosis backend_details. No displayed score, normalized burden or feature diagnosis score substitutes for a raw measurement. Selected primary names remain exactly those in required_primary_concerns.',
@@ -850,19 +892,8 @@ function treatmentLipBlockOptions(context, constraints) {
     options.push({ constraint_reference: block.condition, accepted_references: [...references],
       case_evidence: block.reason, required_session_step_ids: [] })
   }
-  const pairing = constraints?.clinical_constraints?.mother_document_selected_clinical_rules?.sequencing_and_pairing
-  const mediumRule = pairing?.findIndex((rule) => rule.startsWith('A2:')) ?? -1
-  if (mediumRule >= 0) options.push({
-    constraint_reference: `clinical_constraints.mother_document_selected_clinical_rules.sequencing_and_pairing.${mediumRule}`,
-    accepted_references: ['sequencing_and_pairing', 'clinical_constraints.mother_document_selected_clinical_rules.sequencing_and_pairing',
-      `clinical_constraints.mother_document_selected_clinical_rules.sequencing_and_pairing.${mediumRule}`],
-    case_evidence: pairing[mediumRule],
-    required_session_step_ids: Object.values(TREATMENT_STEPS).filter((step) => step.clinic_class === 'medium').map((step) => step.id),
-  })
-  if (!inventoryNames(constraints).has(normalize('Q-Switch Laser'))) options.push({
-    constraint_reference: 'availableResources.machines', accepted_references: ['availableResources.machines'],
-    case_evidence: 'Q-Switch Laser is absent from supplied clinic equipment.', required_session_step_ids: [],
-  })
+  // Closed clinic decisions: a medium peel in the session does not cancel the lip pass,
+  // and the Q-switch machine is always in the clinic inventory.
   return options
 }
 
@@ -1035,8 +1066,9 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
     const carbon = idSteps('ENERGY.CARBON.LASER')
     if (app.length || carbon.length) if (app.length !== 1 || carbon.length !== 1 || steps.indexOf(carbon[0]) <= steps.indexOf(app[0])) errors.push(`${label}: Carbon requires one 3-minute application before its one 4-minute laser step.`)
     const mediumPeels = steps.filter((s) => TREATMENT_STEPS[s.step_id]?.clinic_class === 'medium')
-    const qSwitch = steps.filter((s) => TREATMENT_EXECUTION_RULES.q_switch_step_ids.includes(s.step_id))
-    if (mediumPeels.length && qSwitch.length) errors.push(`${label}: a medium peel cannot share a session with any Q-switch pass, including a lip pass.`)
+    // Closed clinic decision: the lip pass is exempt from facial Q-switch pairing rules.
+    const qSwitch = steps.filter((s) => TREATMENT_EXECUTION_RULES.q_switch_step_ids.includes(s.step_id) && s.step_id !== 'ENERGY.QS.LIP')
+    if (mediumPeels.length && qSwitch.length) errors.push(`${label}: a medium peel cannot share a session with a facial Q-switch pass (Carbon, toning, 532); the lip pass is exempt.`)
     if (mediumPeels.filter(isBroad).length > 1) errors.push(`${label}: at most one full-face medium peel.`)
     if (mediumPeels.length && idSteps('EXFO.MICRO.DIAMOND').length) errors.push(`${label}: microdermabrasion cannot share a session with a medium peel.`)
     if (carbon.length && idSteps('ENERGY.QS.TONING').length) errors.push(`${label}: Carbon and toning are redundant in one session.`)
@@ -1092,7 +1124,7 @@ export function validateClinicTreatmentPlan(plan, context, treatmentType, constr
           !option.required_session_step_ids.length || steps.some((step) => option.required_session_step_ids.includes(step.step_id)))
         const reference = decision.constraint_reference?.trim().replace(/\[(\d+)\]/g, '.$1')
         if (addons.length || !applicable.some((option) => option.accepted_references.includes(reference))) errors.push(`${label}: blocked lip decision needs a real constraint reference and no lip step. Copy an applicable constraint_reference: ${applicable.map((option) => `${option.constraint_reference} (${option.case_evidence})`).join('; ') || 'none; include the triggered lip protocol unless an evaluated block applies'}.`)
-        if (!knownLipBlocks.length && !mediumPeels.length && knownNames.has(normalize('Q-Switch Laser'))) errors.push(`${label}: blocked lip status needs an actual evaluated history/proxy/temperature block or the medium-peel incompatibility.`)
+        if (!knownLipBlocks.length) errors.push(`${label}: blocked lip status needs an actual evaluated block; pregnancy is the only patient-history condition that cancels the lip pass.`)
       } else if (decision?.status === 'not_assessable') {
         if (!lip.visibility_caution || addons.length) errors.push(`${label}: lip non-assessability requires observed visibility evidence.`)
       } else errors.push(`${label}: triggered eligible lip treatment must be included or blocked with actual evidence.`)

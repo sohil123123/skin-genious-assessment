@@ -5,7 +5,12 @@ const finite = (value) => typeof value === 'number' && Number.isFinite(value)
 const truth = (value) => value === true || value === 'true'
 const energyIds = Object.keys(TREATMENT_STEPS).filter((id) =>
   id.startsWith('ENERGY.') && id !== 'ENERGY.CARBON.APPLY' || id.startsWith('LED.'))
-const qSwitchIds = ['ENERGY.CARBON.LASER', 'ENERGY.QS.TONING', 'ENERGY.QS.532', 'ENERGY.QS.LIP']
+// Closed clinic decision: the 2-minute lip pass (ENERGY.QS.LIP) is cancelled by
+// pregnancy only. Facial-skin restrictions never apply to it.
+const facialQSwitchIds = ['ENERGY.CARBON.LASER', 'ENERGY.QS.TONING', 'ENERGY.QS.532']
+const facialEnergyIds = energyIds.filter((id) => id !== 'ENERGY.QS.LIP')
+export const FULL_FACE_SALICYLIC_STEP_IDS = Object.freeze(['PEEL.SA20', 'PEEL.SA30', 'PEEL.SALIDS'])
+export const FULL_FACE_GLYCOLIC_STEP_IDS = Object.freeze(['PEEL.GLYCO35'])
 
 // Backend adapters supply the condition IDs already declared in constraints.json.
 // Missing answers stay missing. This module never interprets free-text history.
@@ -41,19 +46,23 @@ export function buildTreatmentEligibility(diagnosis, constraints, {
       blockedSteps[id].push({ condition, reason })
     }
   }
-  if (numericDenials.length) block(energyIds, 'energy_device_policy', numericDenials.join('; '))
+  if (numericDenials.length) block(facialEnergyIds, 'energy_device_policy', numericDenials.join('; '))
   const medium = Object.values(TREATMENT_STEPS).filter((s) => s.clinic_class === 'medium').map((s) => s.id)
   const strongForDeepRule = clinical.mother_document_compatibility?.legacy_deep_peel_rule_classes || []
   const legacyDeep = Object.values(TREATMENT_STEPS)
     .filter((s) => strongForDeepRule.includes(s.clinic_class)).map((s) => s.id)
   const yes = (name) => truth(flags[name])
-  if (yes('sun_exposure_gt_2_hours')) block([...qSwitchIds, ...medium], 'sun_exposure_gt_2_hours', 'Existing sun rule.')
+  if (yes('sun_exposure_gt_2_hours')) block([...facialQSwitchIds, ...medium], 'sun_exposure_gt_2_hours', 'Existing sun rule.')
   if (yes('sun_exposure_1_to_2_hours')) block(legacyDeep, 'sun_exposure_1_to_2_hours', 'Existing deep-peel exclusion using the clinic depth mapping.')
-  for (const name of ['travel_within_7_days', 'social_event_within_7_days', 'used_salicylic_yesterday', 'used_glycolic_acid_yesterday']) {
-    if (yes(name)) block([...qSwitchIds, ...legacyDeep], name, 'Existing Q-switch/deep-peel exclusion using the clinic depth mapping.')
+  for (const name of ['travel_within_7_days', 'social_event_within_7_days']) {
+    if (yes(name)) block([...facialQSwitchIds, ...legacyDeep], name, 'Existing Q-switch/deep-peel exclusion using the clinic depth mapping.')
   }
-  if (yes('used_retinol_last_24_hours')) block([...qSwitchIds, ...medium, 'EXFO.MICRO.DIAMOND'], 'used_retinol_last_24_hours', 'Existing retinol exclusion.')
-  if (yes('laser_within_last_7_days')) block([...qSwitchIds, 'ENERGY.HIFU', 'ENERGY.MNRF'], 'laser_within_last_7_days', 'Existing recent high-heat/laser exclusion. Only otherwise-safe non-ablative RF is eligible.')
+  // Closed clinic decision: home salicylic/glycolic use rules out only the same-acid
+  // full-face peels. Carbon, Q-switch, the lip pass and spot salicylic stay allowed.
+  if (yes('used_salicylic_yesterday')) block([...FULL_FACE_SALICYLIC_STEP_IDS], 'used_salicylic_yesterday', 'Full-face salicylic peel avoided after salicylic use; lesion-only spot salicylic remains permitted.')
+  if (yes('used_glycolic_acid_yesterday')) block([...FULL_FACE_GLYCOLIC_STEP_IDS], 'used_glycolic_acid_yesterday', 'Full-face glycolic peel avoided after glycolic use.')
+  if (yes('used_retinol_last_24_hours')) block([...facialQSwitchIds, ...medium, 'EXFO.MICRO.DIAMOND'], 'used_retinol_last_24_hours', 'Existing retinol exclusion.')
+  if (yes('laser_within_last_7_days')) block([...facialQSwitchIds, 'ENERGY.HIFU', 'ENERGY.MNRF'], 'laser_within_last_7_days', 'Existing recent high-heat/laser exclusion. Only otherwise-safe non-ablative RF is eligible; the lip pass is exempt.')
   if (yes('aloe_vera_allergy')) block(['PEEL.PUMPKIN', 'PEEL.MANDELIC'], 'aloe_vera_allergy', 'Listed peel contains aloe.')
   if (yes('vitamin_c_allergy')) block(['INFUSE.VITC'], 'vitamin_c_allergy', 'Vitamin C allergy.')
   if (yes('pregnant')) {
@@ -76,9 +85,9 @@ export function buildTreatmentEligibility(diagnosis, constraints, {
       reasons: [],
     }
     if (temperature.status === 'deny_aggressive') {
-      block(energyIds.filter((id) => !id.startsWith('LED.')), 'regional_skin_temperature_policy', 'Average facial surface temperature >= 36.9 C; heat devices blocked, soothing recovery remains subject to its own rules.')
+      block(facialEnergyIds.filter((id) => !id.startsWith('LED.')), 'regional_skin_temperature_policy', 'Average facial surface temperature >= 36.9 C; heat devices blocked, soothing recovery remains subject to its own rules.')
       const exfoliation = Object.values(TREATMENT_STEPS).filter((s) =>
-        ['chemical_peel','spot_salicylic'].includes(s.clinic_step_type) || s.id === 'EXFO.MICRO.DIAMOND').map((s) => s.id)
+        ['chemical_peel','spot_salicylic'].includes(s.clinic_step_type) || ['EXFO.MICRO.DIAMOND', 'EXTR.MANUAL'].includes(s.id)).map((s) => s.id)
       block(exfoliation, 'regional_skin_temperature_policy', 'Existing deny-aggressive policy: soothing and barrier repair only.')
     }
     if (Math.abs(left - right) >= 0.3) temperature.reasons.push(`${left > right ? 'left_cheek' : 'right_cheek'} is the hotter cheek; apply the existing regional modifiers.`)

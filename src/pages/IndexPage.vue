@@ -232,7 +232,7 @@ import {
   validateClinicTreatmentPlan,
   buildClinicGenerationContract,
 } from 'src/utils/facial/treatmentClinicRules.js'
-import { treatmentHistoryFlags, treatmentEvaluatedClinicalBlocks, treatmentIntakeProducts, inClinicProductRecords } from 'src/utils/facial/5_light_modes/treatmentIntegration.js'
+import { treatmentHistoryFlags, treatmentIntakeProducts, inClinicProductRecords } from 'src/utils/facial/5_light_modes/treatmentIntegration.js'
 import { buildContinuationPlanningContext, isPairedFacialCourse } from 'src/utils/facial/5_light_modes/treatmentCourseContinuation.js'
 import { encode } from '@toon-format/toon'
 import config from 'src/config.js'
@@ -1061,7 +1061,6 @@ async function callApiForTreatmentPlan(selected, treatmentType, continuationCont
         options: {
           patientProfileAndHistory: patientData,
           historyRuleFlags: treatmentHistoryFlags(planningAssessment),
-          evaluatedClinicalBlocks: treatmentEvaluatedClinicalBlocks(planningAssessment),
           temperatureReadings: {
             forehead_surface_c: patientData.forehead_surface_c,
             left_cheek_surface_c: patientData.left_cheek_surface_c,

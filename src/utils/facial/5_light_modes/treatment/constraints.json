@@ -42,11 +42,11 @@
       },
       {
         "condition": "used_salicylic_yesterday",
-        "rule": "If the patient has used Salicylic Acid on the previous day, avoid deep peels and Q-Switch Laser."
+        "rule": "If the patient currently uses Salicylic Acid at home (or used it the previous day), avoid only the full-face salicylic peels: 20% Salicylic Acid Peel, Salicylic Acid 30% Peel and Sali DS Peel. Carbon Facial, Q-Switch Laser, the 2-minute lip pass and the lesion-only spot salicylic adjunct remain allowed."
       },
       {
         "condition": "used_glycolic_acid_yesterday",
-        "rule": "If the patient has used Glycolic Acid on the previous day, avoid deep peels and Q-Switch Laser."
+        "rule": "If the patient currently uses Glycolic Acid at home (or used it the previous day), avoid only the full-face glycolic peel (Glyco Peel 35). Carbon Facial, Q-Switch Laser and the 2-minute lip pass remain allowed."
       },
       {
         "condition": "used_retinol_last_24_hours",
@@ -54,7 +54,7 @@
       },
       {
         "condition": "laser_within_last_7_days",
-        "rule": "If any laser or high-heat energy treatment was performed within the last 7 days, avoid all laser-based and high-heat energy modalities in the current session. Allow only non-ablative RF, LED, hydrafacial, or barrier-repair treatments if otherwise safe."
+        "rule": "If any laser or high-heat energy treatment was performed within the last 7 days, avoid all laser-based and high-heat energy modalities in the current session. Allow only non-ablative RF, LED, hydrafacial, or barrier-repair treatments if otherwise safe. The 2-minute Q-switch lip pass is exempt."
       },
       {
         "condition": "aloe_vera_allergy",
@@ -66,7 +66,7 @@
       },
       {
         "condition": "pregnant",
-        "rule": "If patient is pregnant, allow use of only hydrafacial machine in machines and only party peel and pumpkin peel within Peels. Avoid ALL energy-based devices/modalities including LED light therapy, Q-Switch, and medium/deep peels."
+        "rule": "If patient is pregnant, allow use of only hydrafacial machine in machines and only party peel and pumpkin peel within Peels. Avoid ALL energy-based devices/modalities including LED light therapy, Q-Switch, and medium/deep peels. Pregnancy also cancels the 2-minute Q-switch lip pass and the spot salicylic adjunct."
       },
       {
         "condition": "breastfeeding",
@@ -970,7 +970,7 @@
     "mother_document_selected_clinical_rules": {
       "sequencing_and_pairing": [
         "A1: Extraction and any high-frequency work following it precede full-face acids, laser or RF; never place extraction after those steps.",
-        "A2: Medium-class peels (SA30, Sali DS, Fusion-E, Glyco 35) never share a session with any Q-switch pass, including Carbon and a triggered lip pass. Lesion-only spot salicylic is an uncounted adjunct, not a full-face medium peel.",
+        "A2: Medium-class peels (SA30, Sali DS, Fusion-E, Glyco 35) never share a session with a facial Q-switch pass (Carbon, toning, 532). The 2-minute lip pass (ENERGY.QS.LIP) is exempt. Lesion-only spot salicylic is an uncounted adjunct, not a full-face medium peel.",
         "A3: If a superficial full-face peel precedes Carbon, complete protocol-appropriate neutralisation/removal and Ice Probe cooling before Carbon; use conservative Carbon settings. This does not apply a cooling requirement to spot salicylic.",
         "A4: One full-face medium peel maximum per session.",
         "A5: Microdermabrasion never shares a session with a medium peel. Microdermabrasion plus Q-switch/Carbon has no pairing-specific prohibition.",
@@ -1049,6 +1049,61 @@
         ],
         "reason": "No duration/dose protocol supplied here; not a facial procedure timing."
       }
+    },
+    "lip_pass_policy": {
+      "rule": "The 2-minute Q-switch lip pass (ENERGY.QS.LIP, two passes, Hyaluronic Acid) is required whenever the assessable client Lip Pigmentation Score is below 70 and is cancelled by pregnancy only.",
+      "does_not_cancel": [
+        "sun exposure",
+        "travel within 7 days",
+        "social event within 7 days",
+        "retinol in last 24 hours",
+        "laser within 7 days",
+        "skin temperature",
+        "barrier/erythema/hydration proxies",
+        "salicylic or glycolic home use",
+        "a medium peel in the same session"
+      ],
+      "reason": "These conditions restrict facial skin treatment, not the lips. The Q-Switch Laser is always in the clinic inventory."
+    },
+    "history_fields_without_restriction": {
+      "fields": [
+        "On medications",
+        "Hypertension",
+        "Breast feeding",
+        "Diabetes",
+        "Thyroid",
+        "PCOD"
+      ],
+      "rule": "These intake answers impose no treatment restriction and must not be turned into one. Diabetes, Thyroid and PCOD only shape the improvement outlook wording."
+    },
+    "fallback_session_when_no_corrective": {
+      "trigger": "Every corrective-capable step (peels, Carbon, Q-switch, RF, LED, microdermabrasion) is blocked by evaluated constraints, for example skin temperature 36.9 C or above, or pregnancy combined with an aloe allergy and temperature.",
+      "session": [
+        "PREP.CLEANSE 2",
+        "SPRAY.HYDRA 3 (Hyaluronic Acid)",
+        "INFUSE.HA 3",
+        "INFUSE.PDRN 3",
+        "COOL.ICE 2-5",
+        "MASK.CALMING 15",
+        "MASSAGE.LYMPH 5-10",
+        "FINISH.SMS 3"
+      ],
+      "primary_strategy": "direct_support with the infusion as the selected step and the blocking conditions as exception_reason; the primary concern is supported, not corrected.",
+      "outcome": "Always a successful plan, never a blocked result."
+    },
+    "single_session_padding_policy": {
+      "rule": "Single and multiple-course sessions keep the 60-75 minute window even when every energy device is denied.",
+      "allowed_padding_in_order": [
+        "EXFO.VORTEX 4",
+        "EXFO.SPATULA 4",
+        "EXTR.MANUAL 7 (not when skin temperature >= 36.9 C)",
+        "SPRAY.HYDRA 3",
+        "distinct infusions 3 minutes each (Hyaluronic Acid, PDRN, TRX A, Exosomes)",
+        "EYE.INFUSE 2",
+        "COOL.ICE up to 5",
+        "MASSAGE.LYMPH up to 10",
+        "one peel-off mask 15"
+      ]
     }
   },
   "availableResources": {

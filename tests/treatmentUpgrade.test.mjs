@@ -346,19 +346,20 @@ test('lip references resolve actual constraint paths and reject unrelated existi
   assert.match(check(withLip,ctx).error.details.join('\n'),/no lip step/)
 })
 
-test('medium-peel lip reference applies only to a session containing a medium peel',()=>{
+test('a medium peel no longer cancels the triggered lip pass; an unevaluated pairing reference is rejected',()=>{
   const ctx=clone(input.clinic_treatment_context)
   ctx.lip_pigmentation={...ctx.lip_pigmentation,client_display_score:65,trigger:true}
   const d=draft(),s=d.treatment_plan.treatments[0]
-  s.lip_pigmentation_rule={status:'blocked_by_existing_constraints',constraint_reference:'clinical_constraints.mother_document_selected_clinical_rules.sequencing_and_pairing[1]',reason:'Selected medium peel excludes a Q-switch lip pass.'}
-  assert.ok(check(d,ctx).error)
   s.steps=s.steps.filter(row=>!['ENERGY.CARBON.APPLY','ENERGY.CARBON.LASER'].includes(row.step_id))
   s.steps.splice(1,0,step('EXTR.MANUAL',7))
   const peel=s.steps.find(row=>row.step_id==='PEEL.COMBO');peel.step_id='PEEL.FUSION';peel.role='HERO_CORRECTIVE'
   s.primary_strategy[0].selected_step_id='PEEL.FUSION'
+  s.lip_pigmentation_rule={status:'blocked_by_existing_constraints',constraint_reference:'clinical_constraints.mother_document_selected_clinical_rules.sequencing_and_pairing[1]',reason:'Selected medium peel excludes a Q-switch lip pass.'}
+  assert.match(check(d,ctx).error.details.join('\n'),/pregnancy is the only patient-history condition/)
+  s.lip_pigmentation_rule={status:'included',reason:'Supplied assessable client lip score is 65.',constraint_reference:''}
+  s.steps.splice(-1,0,step('ENERGY.QS.LIP',2,'ADJUNCT',{zones:['lips'],target_concerns:['Lip Pigmentation Score'],settings_note:'Use the existing approved lip protocol.'}))
   assert.equal(check(d,ctx).error,undefined)
 })
-
 test('express and single repair receive actionable lip references and keep the two-call limit',async()=>{
   const lipDiagnosis=clone(diagnosis);lipDiagnosis.diagnosis_report.lip_pigmentation.score_or_label=65
   const lipOptions={...options,evaluatedClinicalBlocks:{'ENERGY.QS.LIP':[{condition:'energy_device_policy',reason:'Synthetic server-evaluated lip-only restriction.'}]}}
@@ -582,11 +583,12 @@ test('logged empty treatment payload is an output-contract failure, never a clai
     assert.equal(result.treatment_plan,undefined);assert.ok(result.error.details.length)
   }
 })
-test('explicit blocked output preserves its reason/evidence and produces no session or repair call',async()=>{
+test('explicit blocked output gets exactly one repair; a repeated blockage preserves its reason/evidence and produces no session',async()=>{
   let calls=0
   const response={planning_result:{outcome:'blocked',treatment_plan:null,failure:{reason:'Synthetic evaluated restriction prevents the required session.',blocking_constraints:[{constraint_reference:'mandatory_lymphatic_drainage',case_evidence:'Synthetic server-evaluated hard stop for this fixture.'}]}}}
   const result=await pipeline.generateTreatmentPlan({...args,callModel:async()=>{calls++;return response}})
-  assert.equal(result.error.code,'treatment_planning_blocked');assert.equal(calls,1)
+  assert.equal(result.error.code,'treatment_planning_blocked');assert.equal(calls,2)
+  assert.match(result.error.message,/Repair failed/)
   assert.match(result.error.details[0],/mandatory_lymphatic_drainage/);assert.equal(result.treatment_plan,undefined)
   response.planning_result.failure.blocking_constraints=[]
   const invalidResult=await pipeline.generateTreatmentPlan({...args,callModel:async()=>response})
