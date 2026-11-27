@@ -77,8 +77,10 @@ export function resolveTreatmentEvidence(diagnosis, featurePacket = null, option
   const positiveCount = ['papules', 'pustules', 'nodules', 'inflammatory', 'papule', 'pustule', 'nodule'].some((name) =>
     typeof counts[name] === 'number' && Number.isFinite(counts[name]) && counts[name] > 0)
   const visibility = packet.proxies?.acne?.active_lesion_visibility_bin
-  const visibilityPositive = ['mild', 'moderate', 'severe', 'present', 'visible'].includes(visibility)
-  const visibilityNegative = ['none', 'absent'].includes(visibility)
+  // Scoring emits none|faint|mild|clear|striking. Closed decision: mild and above
+  // are visible active lesions; none and faint are not.
+  const visibilityPositive = ['mild', 'clear', 'striking', 'moderate', 'severe', 'present', 'visible'].includes(visibility)
+  const visibilityNegative = ['none', 'faint', 'absent'].includes(visibility)
   const visible = yes(explicit) ? true : no(explicit) ? false : positiveCount ? true
     : visibilityPositive ? true : visibilityNegative ? false : null
   return {

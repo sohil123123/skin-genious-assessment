@@ -8,7 +8,7 @@ const moduleRoot = join(root, 'src/utils/facial/5_light_modes')
 const rules = await import(pathToFileURL(join(moduleRoot, 'treatmentClinicRules.js')))
 const pipeline = await import(pathToFileURL(join(moduleRoot, 'treatmentPipeline.js')))
 const { TREATMENT_STEPS } = await import(pathToFileURL(join(moduleRoot, 'treatmentKnowledge.js')))
-const { treatmentEvaluatedClinicalBlocks, treatmentIntakeProducts } = await import(pathToFileURL(join(moduleRoot, 'treatmentIntegration.js')))
+const { treatmentHistoryFlags, treatmentIntakeProducts } = await import(pathToFileURL(join(moduleRoot, 'treatmentIntegration.js')))
 const constraints = JSON.parse(await readFile(join(moduleRoot, 'treatment/constraints.json'), 'utf8'))
 
 const concern = 'Superficial Pigmentation Score'
@@ -86,10 +86,11 @@ test('an omitted mandatory adjunct is completed locally in one call instead of f
   assert.equal(spot.step_id, 'PEEL.SPOT.SALI'); assert.equal(session.steps[0].step_id, 'PREP.CLEANSE')
   assert.equal(spot.role, 'ADJUNCT'); assert.equal(spot.duration, 2); assert.equal(spot.clinic_step_type, 'spot_salicylic')
   assert.deepEqual(spot.zones, ['forehead', 'chin'])
-  assert.deepEqual(spot.additional_products, ['Sali DS Peel'])
-  assert.ok(spot.ingredients_equipments.includes('Sali DS Peel'))
+  assert.deepEqual(spot.additional_products, ['20% Salicylic Acid Peel'])
+  assert.ok(spot.ingredients_equipments.includes('20% Salicylic Acid Peel'))
   assert.deepEqual(spot.target_concerns, [acneConcern])
-  assert.match(spot.how_to_do, /Clinician confirms the product choice/)
+  assert.match(spot.how_to_do, /Visible active lesions require this adjunct/)
+  assert.ok(!/clinician/i.test(spot.how_to_do))
   assert.deepEqual(session.steps.map((s) => s.step_number), session.steps.map((_, i) => i + 1))
   assert.equal(session.treatment_time, 45); assert.equal(result.treatment_plan.total_time, '45 minutes')
   assert.ok(session.concerns_addressed.some((row) => row.concern === acneConcern && row.current_value === 25.365 && row.target_value === 18.4))
@@ -144,19 +145,19 @@ test('a full express session gives the two minutes back from the flexible draina
   assert.equal(JSON.parse(requests[1].input).patient_input.planning_contract.active_acne_spot_rule.status, 'required')
 })
 
-test('without supplied lesion zones or alongside a broad salicylic peel the engine adds nothing and the model repairs', async () => {
+test('without supplied lesion zones the engine completes with the clinic default zones, and a broad salicylic peel does not stop completion', async () => {
   const zoneless = { ...options, featurePacket: { proxies: { acne: { active_lesion_visibility_bin: 'mild' } } } }
   let calls = 0
   const result = await pipeline.generateTreatmentPlan({ ...args, options: zoneless, callModel: async () => { calls++; return envelope(draft()) } })
-  assert.equal(calls, 2); assert.match(result.error.message, /visible active acne requires/)
+  assert.equal(calls, 1); assert.equal(result.error, undefined)
+  const spot = spotSteps(result)[0]
+  assert.deepEqual(spot.zones, ['chin', 'forehead']); assert.match(spot.how_to_do, /clinic default zones/)
   const broad = draft(); const s = broad.treatment_plan.treatments[0]
   s.steps[1] = step('PEEL.SA20', 4, 'SECONDARY_CORRECTIVE', { how_to_do: 'Apply the approved superficial salicylic protocol; complete neutralisation or protocol removal before proceeding.' })
   calls = 0
-  const repaired = clone(broad); repaired.treatment_plan.treatments[0].steps.splice(1, 0, step('PEEL.SPOT.SALI', 2, 'ADJUNCT', { zones: ['chin'], additional_products: ['Sali DS Peel'] }))
-  const outcome = await pipeline.generateTreatmentPlan({ ...args, callModel: async () => { calls++; return envelope(calls === 1 ? broad : repaired) } })
-  assert.equal(calls, 2); assert.equal(outcome.error, undefined); assert.equal(spotSteps(outcome).length, 1)
+  const outcome = await pipeline.generateTreatmentPlan({ ...args, callModel: async () => { calls++; return envelope(broad) } })
+  assert.equal(calls, 1); assert.equal(outcome.error, undefined); assert.equal(spotSteps(outcome).length, 1)
 })
-
 test('single-session plans are completed the same way and stay inside their window', async () => {
   const d = draft(); const session = d.treatment_plan.treatments[0]
   session.steps.splice(1, 0, step('EXTR.MANUAL', 7), step('ENERGY.HF', 3))
@@ -168,8 +169,8 @@ test('single-session plans are completed the same way and stay inside their wind
 })
 
 test('the live intake case: Salicylic Acid ticked, mild lesions visible, the spot adjunct is still required and completed in one call', async () => {
-  const intake = { allergies: ['Salicylic Acid'], retinol_used_last_night: 'yes', recent_peel_or_laser: 'no', is_pregnant: 'no', breastfeeding: 'no' }
-  const liveOptions = { ...options, evaluatedClinicalBlocks: treatmentEvaluatedClinicalBlocks(intake) }
+  const intake = { allergies: ['Salicylic Acid'], retinol_used_last_night: 'no', recent_peel_or_laser: 'no', is_pregnant: 0, breastfeeding: 'no' }
+  const liveOptions = { ...options, historyRuleFlags: { ...history, ...treatmentHistoryFlags(intake) } }
   const liveInput = rules.buildTreatmentPlannerInput(diagnosis, selected, 'express', null, constraints, liveOptions)
   assert.equal(liveInput.clinic_treatment_context.active_acne_lesions_visible, true)
   const rule = liveInput.planning_contract.active_acne_spot_rule
@@ -177,6 +178,7 @@ test('the live intake case: Salicylic Acid ticked, mild lesions visible, the spo
   const blocked = liveInput.clinic_treatment_context.clinical_clearance.blocked_steps
   assert.equal(blocked['PEEL.SPOT.SALI'], undefined)
   for (const id of ['PEEL.SA20', 'PEEL.SA30', 'PEEL.SALIDS']) assert.equal(blocked[id][0].condition, 'used_salicylic_yesterday')
+  assert.equal(blocked['ENERGY.QS.LIP'], undefined)
   let calls = 0
   const result = await pipeline.generateTreatmentPlan({ ...args, options: liveOptions, callModel: async () => { calls++; return envelope(draft()) } })
   assert.equal(result.error, undefined); assert.equal(calls, 1); assert.equal(spotSteps(result).length, 1)
@@ -184,15 +186,14 @@ test('the live intake case: Salicylic Acid ticked, mild lesions visible, the spo
   // A full-face salicylic peel for this patient is rejected by the existing block check.
   const broad = draft(); broad.treatment_plan.treatments[0].steps[1] = step('PEEL.SA20', 4, 'SECONDARY_CORRECTIVE', { how_to_do: 'Apply the approved superficial salicylic protocol; complete neutralisation or protocol removal before proceeding.' })
   const rejected = rules.validateClinicTreatmentPlan(rules.finalizeTreatmentPlan(rules.completeActiveAcneSpotAdjunct(broad, liveInput, constraints).plan, liveInput), liveInput.clinic_treatment_context, 'express', constraints, liveInput)
-  assert.match(rejected.error.details.join('\n'), /PEEL\.SA20|blocked by used_salicylic_yesterday/)
+  assert.match(rejected.error.details.join('\n'), /blocked by used_salicylic_yesterday/)
 })
-
 const blockedResult = (reason, constraint) => ({ planning_result: { outcome: 'blocked', treatment_plan: null,
   failure: { reason, blocking_constraints: [{ constraint_reference: constraint, case_evidence: reason }] } } })
 
-test('a blockage misreported against the required spot adjunct gets one repair and then succeeds', async () => {
+test('a blockage citing a salicylic allergy gets one repair with the closed decisions and then succeeds', async () => {
   const intake = { allergies: ['Salicylic Acid'] }
-  const liveOptions = { ...options, evaluatedClinicalBlocks: treatmentEvaluatedClinicalBlocks(intake), patientProfileAndHistory: { name: 'x', ...treatmentIntakeProducts(intake) } }
+  const liveOptions = { ...options, historyRuleFlags: { ...history, ...treatmentHistoryFlags(intake) }, patientProfileAndHistory: { name: 'x', ...treatmentIntakeProducts(intake) } }
   const refusal = 'Visible active lesions trigger mandatory PEEL.SPOT.SALI, but Salicylic Acid is recorded as an allergy and no compliant non-salicylic override path is supplied for a successful detailed facial.'
   let calls = 0; const requests = []
   const result = await pipeline.generateTreatmentPlan({ ...args, options: liveOptions, callModel: async (request) => {
@@ -203,20 +204,16 @@ test('a blockage misreported against the required spot adjunct gets one repair a
   const repair = JSON.parse(requests[1].input)
   assert.equal(repair.invalid_draft, null)
   assert.equal(repair.rejected_blocked_result.reason, refusal)
-  assert.match(repair.task, /NOT blocked for this patient/)
+  assert.match(repair.task, /compliant plan always exists/)
   assert.deepEqual(repair.patient_input.patient_profile_and_history.current_skincare_actives, ['Salicylic Acid'])
   assert.deepEqual(repair.patient_input.patient_profile_and_history.allergies, [])
   assert.match(repair.patient_input.planning_contract.active_acne_spot_rule.rule, /records no salicylic allergy/)
+  assert.match(repair.patient_input.planning_contract.closed_clinic_decisions.lip_pass, /cancelled by pregnancy only/)
 })
-
-test('a blockage on any other ground, or when the adjunct is not required, stays final with no repair call', async () => {
+test('every blocked result gets exactly one repair; a repeated blockage is reported, never retried again', async () => {
   let calls = 0
-  const other = await pipeline.generateTreatmentPlan({ ...args, callModel: async () => { calls++; return blockedResult('Pregnancy blocks every energy device.', 'patient_history_rules.pregnant') } })
-  assert.equal(calls, 1); assert.equal(other.error.code, 'treatment_planning_blocked'); assert.match(other.error.message, /Pregnancy/)
-  calls = 0
-  const quiet = await pipeline.generateTreatmentPlan({ ...args, options: { historyRuleFlags: history }, callModel: async () => { calls++; return blockedResult('Salicylic allergy blocks the spot adjunct.', 'x') } })
-  assert.equal(calls, 1); assert.equal(quiet.error.code, 'treatment_planning_blocked')
-  // A repeated refusal after the repair is reported, not retried further.
+  const other = await pipeline.generateTreatmentPlan({ ...args, callModel: async () => { calls++; return calls === 1 ? blockedResult('Pregnancy blocks every energy device.', 'patient_history_rules.pregnant') : envelope(draft()) } })
+  assert.equal(calls, 2); assert.equal(other.error, undefined)
   calls = 0
   const stubborn = await pipeline.generateTreatmentPlan({ ...args, callModel: async () => { calls++; return blockedResult('Salicylic Acid is recorded as an allergy.', 'x') } })
   assert.equal(calls, 2); assert.equal(stubborn.error.code, 'treatment_planning_blocked'); assert.match(stubborn.error.message, /Repair failed/)

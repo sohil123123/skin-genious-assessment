@@ -1,8 +1,10 @@
 // Map only actual intake answers; missing screening remains unknown.
 export function treatmentHistoryFlags(patient) {
   const flags = {}
-  const answer = value => value === true || value === 'yes' || value === 'true' ? true
-    : value === false || value === 'no' || value === 'false' ? false : undefined
+  // The intake screen stores yes/no answers as "yes"/"no" strings, except
+  // pregnancy, which it stores as 1/0; the API can also return "1"/"0".
+  const answer = value => value === true || value === 'yes' || value === 'true' || value === 1 || value === '1' ? true
+    : value === false || value === 'no' || value === 'false' || value === 0 || value === '0' ? false : undefined
   for (const [condition, field] of Object.entries({
     travel_within_7_days: 'upcoming_travel', social_event_within_7_days: 'social_event',
     laser_within_last_7_days: 'recent_peel_or_laser', used_retinol_last_24_hours: 'retinol_used_last_night',
@@ -16,24 +18,24 @@ export function treatmentHistoryFlags(patient) {
     flags.sun_exposure_gt_2_hours = sun === 'More than 2 hours'
     flags.sun_exposure_1_to_2_hours = sun === '1-2 hours'
   }
-  if (typeof patient.age === 'number' && Number.isFinite(patient.age))
-    flags.age_between_30_and_60 = patient.age >= 30 && patient.age <= 60
+  const age = patient.age === null || patient.age === undefined || patient.age === '' ? NaN : Number(patient.age)
+  if (Number.isFinite(age)) flags.age_between_30_and_60 = age >= 30 && age <= 60
+  // A submitted list, even an empty one, is an answer: nothing ticked means none.
+  // The chip row "CURRENT SKINCARE & ALLERGIES" stores acids and allergens together;
+  // the clinic reads Salicylic/Glycolic Acid there as current home use (closed
+  // decision), which is exactly what the two used_*_yesterday rules cover.
   for (const [field, mapping] of Object.entries({
     medical_history: { diabetes: 'Diabetes', thyroid: 'Thyroid', PCOD: 'PCOD', on_blood_thinners: 'Blood thinners' },
-    allergies: { aloe_vera_allergy: 'Aloe Vera', vitamin_c_allergy: 'Vitamin C' },
+    allergies: { aloe_vera_allergy: 'Aloe Vera', vitamin_c_allergy: 'Vitamin C',
+      used_salicylic_yesterday: 'Salicylic Acid', used_glycolic_acid_yesterday: 'Glycolic Acid' },
   })) {
     const values = patient[field]
-    if (Array.isArray(values) && values.length)
+    if (Array.isArray(values))
       for (const [condition, label] of Object.entries(mapping)) flags[condition] = values.includes(label)
   }
-  // A salicylic/glycolic allergy is not evidence of using that acid yesterday.
   return flags
 }
 
-// Clinic rule: the lesion-directed spot salicylic adjunct is independent of
-// salicylic use history. A ticked "Salicylic Acid" on the intake (stored in
-// allergies) therefore never blocks PEEL.SPOT.SALI; it rules out the full-face
-// salicylic peels only. No history flag and no other eligibility changes.
 // The intake chip row "CURRENT SKINCARE & ALLERGIES" stores acids and allergens in
 // one `allergies` array. The planner must read Salicylic/Glycolic Acid as current
 // skincare use, never as an allergy, so the profile sent to the model names them apart.
@@ -44,15 +46,6 @@ export function treatmentIntakeProducts(patient) {
     current_skincare_actives: listed.filter((item) => SKINCARE_ACTIVE_CHIPS.includes(item)),
     allergies: listed.filter((item) => !SKINCARE_ACTIVE_CHIPS.includes(item)),
   }
-}
-
-export const FULL_FACE_SALICYLIC_STEP_IDS = Object.freeze(['PEEL.SA20', 'PEEL.SA30', 'PEEL.SALIDS'])
-export function treatmentEvaluatedClinicalBlocks(patient) {
-  const listed = Array.isArray(patient?.allergies) ? patient.allergies : []
-  if (!listed.includes('Salicylic Acid')) return {}
-  const block = { condition: 'used_salicylic_yesterday',
-    reason: 'Intake lists Salicylic Acid under current skincare & allergies: full-face salicylic peels are avoided after salicylic use. The lesion-directed PEEL.SPOT.SALI adjunct remains permitted and, with visible active lesions, required.' }
-  return Object.fromEntries(FULL_FACE_SALICYLIC_STEP_IDS.map((id) => [id, [block]]))
 }
 
 // Explicit clinic cleanser/finish selection from the inspected product records.

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { treatmentHistoryFlags, treatmentEvaluatedClinicalBlocks, treatmentIntakeProducts, inClinicProductRecords } from '../src/utils/facial/5_light_modes/treatmentIntegration.js'
+import { treatmentHistoryFlags, treatmentIntakeProducts, inClinicProductRecords } from '../src/utils/facial/5_light_modes/treatmentIntegration.js'
 import { buildTreatmentPlannerInput } from '../src/utils/facial/5_light_modes/treatmentClinicRules.js'
 import { formatFacialClientScores } from '../src/utils/facial/clientScoreDisplay.js'
 import { available_skincare_products } from '../src/utils/facial/5_light_modes/treatment/productJson.js'
@@ -16,7 +16,25 @@ test('missing intake answers stay unknown; actual yes/no and named history map t
   assert.equal(flags.sun_exposure_gt_2_hours, true)
   assert.equal(flags.on_blood_thinners, true)
   assert.equal(flags.vitamin_c_allergy, true)
-  assert.equal(flags.used_salicylic_yesterday, undefined)
+  // Closed decision: the Salicylic/Glycolic chips record current home use.
+  assert.equal(flags.used_salicylic_yesterday, true)
+  assert.equal(flags.used_glycolic_acid_yesterday, false)
+  assert.equal(flags.aloe_vera_allergy, false)
+})
+
+test('pregnancy stored as 1/0 and API strings parse; empty lists mean none; age strings count', () => {
+  assert.equal(treatmentHistoryFlags({ is_pregnant: 1 }).pregnant, true)
+  assert.equal(treatmentHistoryFlags({ is_pregnant: '1' }).pregnant, true)
+  assert.equal(treatmentHistoryFlags({ is_pregnant: 0 }).pregnant, false)
+  assert.equal(treatmentHistoryFlags({ is_pregnant: '0' }).pregnant, false)
+  assert.equal(treatmentHistoryFlags({ is_pregnant: null }).pregnant, undefined)
+  assert.equal(treatmentHistoryFlags({ breastfeeding: 1 }).breastfeeding, true)
+  const none = treatmentHistoryFlags({ medical_history: [], allergies: ['None'] })
+  assert.deepEqual(none, { diabetes: false, thyroid: false, PCOD: false, on_blood_thinners: false,
+    aloe_vera_allergy: false, vitamin_c_allergy: false, used_salicylic_yesterday: false, used_glycolic_acid_yesterday: false })
+  assert.equal(treatmentHistoryFlags({ age: '27' }).age_between_30_and_60, false)
+  assert.equal(treatmentHistoryFlags({ age: '45' }).age_between_30_and_60, true)
+  assert.equal(treatmentHistoryFlags({ age: '' }).age_between_30_and_60, undefined)
 })
 
 test('planner restores the exact original diagnosis and selected target after client formatting', () => {
@@ -61,20 +79,6 @@ test('legacy selected concerns restore exact engine scores before canonical nami
   assert.equal(row.is_primary_concern, true)
   assert.deepEqual(input.planning_contract.required_primary_concerns, [name])
   assert.deepEqual(displayedSelection, snapshot)
-})
-
-test('a ticked Salicylic Acid intake chip blocks full-face salicylic peels only, never the spot adjunct', () => {
-  assert.deepEqual(treatmentEvaluatedClinicalBlocks({}), {})
-  assert.deepEqual(treatmentEvaluatedClinicalBlocks({ allergies: ['Glycolic Acid', 'None'] }), {})
-  const blocks = treatmentEvaluatedClinicalBlocks({ allergies: ['Salicylic Acid'] })
-  assert.deepEqual(Object.keys(blocks).sort(), ['PEEL.SA20', 'PEEL.SA30', 'PEEL.SALIDS'])
-  assert.equal(blocks['PEEL.SPOT.SALI'], undefined)
-  for (const id of Object.keys(blocks)) {
-    assert.equal(blocks[id][0].condition, 'used_salicylic_yesterday')
-    assert.match(blocks[id][0].reason, /PEEL\.SPOT\.SALI adjunct remains permitted/)
-  }
-  // The history flag itself stays unknown, as before.
-  assert.equal(treatmentHistoryFlags({ allergies: ['Salicylic Acid'] }).used_salicylic_yesterday, undefined)
 })
 
 test('the intake chip row is split into skincare actives and allergies for the planner profile', () => {
